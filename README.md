@@ -12,6 +12,51 @@ Sparklio.ai는 **챗 기반**으로 브랜드 분석 → 마케팅 브리프 →
 
 ---
 
+## 🚀 Quick Start
+
+### Prerequisites
+- Docker & Docker Compose
+- Git
+- Node.js 18+ (for frontend development)
+- Python 3.11+ (for backend development)
+
+### Setup
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/Sparklio_ai_marketing_studio.git
+cd Sparklio_ai_marketing_studio
+
+# Set up environment variables
+cp .env.example .env
+# Edit .env with your API keys (OpenAI, Gemini, Claude)
+
+# Start services with Docker Compose
+docker-compose up -d
+
+# Run database migrations
+docker-compose exec fastapi alembic upgrade head
+
+# Access the application
+# Frontend: http://localhost:3000
+# API Docs: http://localhost:8000/docs
+```
+
+### Documentation Structure
+```
+docs/
+├─ PRD/
+│  └─ Sparklio_V4_PRD_Final.md        # Complete Product Requirements
+├─ PHASE0/                             # MVP Foundation Documents
+│  ├─ MVP_v0_SCOPE_PLAN.md            # Phase 0 scope and timeline
+│  ├─ TECH_DECISION_v1.md             # Technical architecture decisions
+│  ├─ AGENTS_SPEC.md                  # Multi-agent system specification
+│  ├─ LLM_ROUTER_POLICY.md            # LLM routing and cost optimization
+│  └─ DATA_PIPELINE_PLAN.md           # Data processing and RAG pipeline
+└─ PHASE1/                             # Future phase documentation
+```
+
+---
+
 ## ✨ Core Concept
 
 1. **Chat-Driven Creation**  
