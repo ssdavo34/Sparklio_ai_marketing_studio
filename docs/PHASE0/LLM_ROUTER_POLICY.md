@@ -115,27 +115,29 @@ class NodeAwareRouter:
 
 | Model | Provider | Type | Cost/Image | Time | Quality | Best For |
 |-------|----------|------|------------|------|---------|----------|
-| **DALL-E 3** | OpenAI | Cloud | $0.04 | 10-20s | ⭐⭐⭐⭐⭐ | High quality |
-| **DALL-E 2** | OpenAI | Cloud | $0.02 | 5-10s | ⭐⭐⭐⭐ | Standard |
-| **Midjourney v6** | Midjourney | Cloud | $0.03 | 30-60s | ⭐⭐⭐⭐⭐ | Artistic |
+| **DALL-E 3** | OpenAI | Cloud | $0.04 | 10-20s | ⭐⭐⭐⭐⭐ | 브랜드 메인 이미지 |
+| **DALL-E 2** | OpenAI | Cloud | $0.02 | 5-10s | ⭐⭐⭐⭐ | 일반 이미지 |
+| **Midjourney v6** | Midjourney | Cloud | $0.03 | 30-60s | ⭐⭐⭐⭐⭐ | 예술적/캠페인 메인 |
 | **NanoBanana** | Custom | Cloud | $0.01 | 5-15s | ⭐⭐⭐⭐ | 썸네일/시각 아이디어 |
 | **ComfyUI (SDXL)** | Stability | Local | $0.001* | 10-30s | ⭐⭐⭐⭐ | 브랜드 특화 LoRA + ControlNet |
-| **SD XL** | Stability | Local | $0.001* | 10-30s | ⭐⭐⭐⭐ | 브랜드 특화 LoRA |
-| **SD 1.5** | Stability | Local | $0.0005* | 5-15s | ⭐⭐⭐ | Fast local |
+| **SD XL** | Stability | Local | $0.001* | 10-30s | ⭐⭐⭐⭐ | 브랜드 LoRA 맞춤 이미지 |
+| **SD 1.5** | Stability | Local | $0.0005* | 5-15s | ⭐⭐⭐ | 빠른 로컬 생성 |
 
-*ComfyUI는 SDXL + LoRA + ControlNet을 통합한 워크플로우 시스템
+*ComfyUI는 SDXL + LoRA + ControlNet + IPAdapter를 통합한 워크플로우 시스템으로, 브랜드 일관성 유지에 최적화
+*로컬 모델 비용은 전기료 및 하드웨어 상각 기준 추정값
 
 ### 3.3 Video Generation Models
 
 | Model | Provider | Type | Cost/Sec | Time/Sec | Quality | Best For |
 |-------|----------|------|----------|----------|---------|----------|
-| **VEo3** | Google | Cloud/Local Adapter | $0.40 | 45s | ⭐⭐⭐⭐⭐ | 광고/쇼츠 (메인) |
-| **AnimateDiff** | Custom | Local | $0.005* | 15s | ⭐⭐⭐⭐ | 이미지→모션 (씬 생성) |
-| **Sora2** | OpenAI | Cloud | $0.50 | 60s | ⭐⭐⭐⭐⭐ | 최고품질 광고 (옵션) |
+| **VEo3** | Google | Cloud/Local Adapter | $0.40 | 45s | ⭐⭐⭐⭐⭐ | 광고/쇼츠 메인 영상 |
+| **AnimateDiff** | Community | Local | $0.005* | 15s | ⭐⭐⭐⭐ | 이미지→모션 (씬별 모션 클립) |
+| **Sora2** | OpenAI | Cloud | $0.50 | 60s | ⭐⭐⭐⭐⭐ | 프리미엄 광고 (옵션) |
 | **Runway Gen-3** | Runway | Cloud | $0.30 | 30s | ⭐⭐⭐⭐ | SNS 영상/빠른 생성 |
-| **Pika Labs** | Pika | Cloud | $0.20 | 20s | ⭐⭐⭐ | Quick drafts |
+| **Pika Labs** | Pika | Cloud | $0.20 | 20s | ⭐⭐⭐ | 빠른 초안 |
 
-*Local model costs are estimated based on electricity and hardware amortization
+*AnimateDiff는 ComfyUI와 통합하여 SDXL 이미지에 모션을 추가하는 로컬 파이프라인
+*로컬 모델 비용은 전기료 및 하드웨어 상각 기준 추정값
 
 ### 3.4 Embedding Models
 

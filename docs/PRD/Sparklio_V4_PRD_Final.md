@@ -200,24 +200,26 @@ Sparklio.ai는 **챗 기반**으로 브랜드 분석 → 브리프 → 산출물
 #### 이미지 생성
 |모델|분류|강점|주요 용도|비용/이미지|
 |---|---|---|---|---|
-|**DALL-E 3**|클라우드|최고 품질|브랜드 이미지|$0.04|
+|**DALL-E 3**|클라우드|최고 품질|브랜드 메인 이미지|$0.04|
 |**DALL-E 2**|클라우드|표준 품질|일반 이미지|$0.02|
 |**Midjourney v6**|클라우드|예술적|캠페인 메인|$0.03|
 |**NanoBanana**|클라우드|빠름/창의적|썸네일/아이디어|$0.01|
-|**ComfyUI (SDXL)**|로컬|LoRA+ControlNet|브랜드 특화|$0.001*|
+|**ComfyUI (SDXL)**|로컬|LoRA+ControlNet+IPAdapter|브랜드 특화|$0.001*|
 |**SD XL**|로컬|브랜드 LoRA|맞춤 이미지|$0.001*|
 |**SD 1.5**|로컬|빠른 로컬|빠른 생성|$0.0005*|
 
 #### 영상 생성
 |모델|분류|강점|주요 용도|비용/초|
 |---|---|---|---|---|
-|**VEo3**|클라우드/로컬|광고/쇼츠|메인 광고 영상|$0.40|
-|**AnimateDiff**|로컬|이미지→모션|씬 모션 생성|$0.005*|
+|**VEo3**|클라우드/로컬 Adapter|광고/쇼츠|메인 광고 영상|$0.40|
+|**AnimateDiff**|로컬 (ComfyUI 통합)|이미지→모션|씬별 모션 클립|$0.005*|
 |**Sora2**|클라우드|최고 품질|프리미엄 광고|$0.50|
 |**Runway Gen-3**|클라우드|속도/안정|SNS 영상|$0.30|
-|**Pika Labs**|클라우드|빠른 초안|Quick drafts|$0.20|
+|**Pika Labs**|클라우드|빠른 초안|빠른 초안|$0.20|
 
 *로컬 모델 비용은 전기료 및 하드웨어 상각 기준 추정값
+*ComfyUI는 SDXL + LoRA + ControlNet + IPAdapter를 통합한 워크플로우 시스템
+*AnimateDiff는 ComfyUI와 통합하여 SDXL 이미지에 모션을 추가하는 로컬 파이프라인
 
 **상세 모델 정책 및 선택 로직**: `docs/PHASE0/LLM_ROUTER_POLICY.md` 참조
 
@@ -282,11 +284,41 @@ Sparklio.ai는 **챗 기반**으로 브랜드 분석 → 브리프 → 산출물
 - **Dead‑Letter Queue**: 실패 누적 시 수동 조사.
     
 
-### 7.2 에이전트(요약)
+### 7.2 에이전트(전체 목록)
 
-- Strategist, Copywriter, VisionGenerator/Analyzer, ADAgent, ScenePlanner, StoryboardBuilder, VideoDirector/Reviewer, Budget, Security …(총 16개)
-    
-- **각 Agent 사양은 _AGENTS_SPEC.md_**: I/O 스키마, 프롬프트, KPI, Fallback, 샘플 포함.
+**A. Creation Agents (콘텐츠 생성)** — 9개
+- **StrategistAgent**: 캠페인 전략·구조 설계
+- **CopywriterAgent**: 브랜드 톤 기반 카피 생성
+- **VisionGeneratorAgent**: 이미지 생성 (DALL-E/SDXL/ComfyUI)
+- **VisionAnalyzerAgent**: 생성 이미지 품질 검증
+- **ScenePlannerAgent**: 영상 씬 구성 설계
+- **StoryboardBuilderAgent**: 스토리보드 조립
+- **VideoDirectorAgent**: 영상 연출 지시
+- **VideoReviewerAgent**: 영상 품질 검토
+- **TemplateAgent**: 템플릿 자동 생성·커스터마이징
+
+**B. Intelligence Agents (데이터·학습·분석)** — 11개
+- **TrendCollectorAgent**: 트렌드 데이터 수집
+- **DataCleanerAgent**: 수집 데이터 정제
+- **EmbedderAgent**: 텍스트/이미지 임베딩
+- **IngestorAgent**: pgvector DB 저장
+- **RAGAgent**: 브랜드 컨텍스트 검색
+- **ReviewerAgent**: 산출물 품질 평가
+- **PerformanceAnalyzerAgent**: 발행 성과 분석
+- **SelfLearningAgent**: 브랜드 학습 루프 관리
+- **BrandModelUpdaterAgent**: 브랜드 LoRA/프롬프트 업데이트
+- **TrendAgent**: 트렌드 분석 인사이트
+- **DataCollectorAgent**: 마케팅 자료 수집 (TrendCollectorAgent와 통합 예정)
+
+**C. System Agents (시스템 관리)** — 4개
+- **PMAgent**: 워크플로우 조율·상태 관리
+- **SecurityAgent**: 콘텐츠 정책·민감정보 필터
+- **BudgetAgent**: LLM/GPU 비용 추적·경보
+- **ADAgent**: PPC 광고 캠페인 관리
+
+**총 24개 에이전트**
+
+**각 Agent 상세 사양은 `docs/PHASE0/AGENTS_SPEC.md` 참조**: I/O 스키마, 프롬프트, KPI, Fallback, 샘플 포함.
     
 
 ### 7.3 오류 처리 & 복구
