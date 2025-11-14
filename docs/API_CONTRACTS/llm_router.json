@@ -1,0 +1,384 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Smart LLM Router API",
+    "version": "1.0.0",
+    "description": "사용자 요청을 최적 LLM 모델로 라우팅하는 API - 5가지 프리셋 모드 지원",
+    "lastUpdated": "2025-11-14 (금요일) 16:05",
+    "owner": "Team B"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000/api",
+      "description": "로컬 개발 서버"
+    },
+    {
+      "url": "http://100.123.51.5:3000/api",
+      "description": "Mac mini M2 서버 (24/7)"
+    }
+  ],
+  "paths": {
+    "/llm/route": {
+      "post": {
+        "summary": "최적 LLM 모델 선택",
+        "description": "사용자 입력, 모드, 컨텍스트를 분석하여 가장 적합한 LLM 모델을 선택합니다.",
+        "tags": ["LLM Router"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["prompt", "mode"],
+                "properties": {
+                  "prompt": {
+                    "type": "string",
+                    "description": "사용자 입력 텍스트",
+                    "example": "인스타그램 릴스용 영상 스크립트 작성해줘",
+                    "minLength": 1,
+                    "maxLength": 100000
+                  },
+                  "mode": {
+                    "type": "string",
+                    "enum": ["draft_fast", "balanced", "high_fidelity", "privacy_first", "cost_optimized"],
+                    "description": "라우팅 모드 (5가지 프리셋)",
+                    "example": "balanced"
+                  },
+                  "context": {
+                    "type": "object",
+                    "description": "추가 컨텍스트 정보",
+                    "properties": {
+                      "brandId": {
+                        "type": "string",
+                        "description": "브랜드 ID",
+                        "example": "brand_abc123"
+                      },
+                      "conversationId": {
+                        "type": "string",
+                        "description": "대화 세션 ID",
+                        "example": "conv_xyz789"
+                      },
+                      "taskType": {
+                        "type": "string",
+                        "enum": ["text", "image", "video", "mixed"],
+                        "description": "작업 유형 (선택 시 우선 적용)",
+                        "example": "video"
+                      }
+                    }
+                  },
+                  "budget": {
+                    "type": "object",
+                    "description": "비용 제약 조건",
+                    "properties": {
+                      "maxCostPerRequest": {
+                        "type": "number",
+                        "description": "요청당 최대 비용 (USD)",
+                        "example": 0.05,
+                        "minimum": 0
+                      },
+                      "dailyBudget": {
+                        "type": "number",
+                        "description": "일일 예산 (USD)",
+                        "example": 10.0,
+                        "minimum": 0
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "성공 - 최적 모델 선택 완료",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "selectedModel": {
+                      "type": "string",
+                      "description": "선택된 모델명",
+                      "example": "gpt-4o"
+                    },
+                    "modelCategory": {
+                      "type": "string",
+                      "enum": ["text", "image", "video"],
+                      "description": "모델 카테고리",
+                      "example": "text"
+                    },
+                    "estimatedCost": {
+                      "type": "number",
+                      "description": "예상 비용 (USD)",
+                      "example": 0.015
+                    },
+                    "reasoning": {
+                      "type": "string",
+                      "description": "선택 이유 설명",
+                      "example": "긴 컨텍스트 처리 필요, 균형 모드에서 최적 품질/비용"
+                    },
+                    "alternativeModels": {
+                      "type": "array",
+                      "description": "대안 모델 목록 (비용 경고 시 제시)",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "model": { "type": "string", "example": "gemini-2.0-flash" },
+                          "estimatedCost": { "type": "number", "example": 0.008 },
+                          "tradeoff": { "type": "string", "example": "품질 약간 낮음, 비용 47% 절감" }
+                        }
+                      }
+                    },
+                    "budgetStatus": {
+                      "type": "object",
+                      "description": "현재 예산 상태",
+                      "properties": {
+                        "dailySpent": {
+                          "type": "number",
+                          "description": "오늘 사용한 금액 (USD)",
+                          "example": 2.35
+                        },
+                        "dailyBudget": {
+                          "type": "number",
+                          "description": "일일 예산 (USD)",
+                          "example": 10.0
+                        },
+                        "warningThreshold": {
+                          "type": "number",
+                          "description": "경고 임계값 (USD)",
+                          "example": 1.0
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "잘못된 요청",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Invalid mode: unknown_mode"
+                    },
+                    "errorCode": {
+                      "type": "string",
+                      "example": "INVALID_MODE"
+                    },
+                    "details": {
+                      "type": "object",
+                      "description": "에러 상세 정보",
+                      "example": {
+                        "validModes": ["draft_fast", "balanced", "high_fidelity", "privacy_first", "cost_optimized"]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "예산 초과 (비용 경고/승인 필요/긴급)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Budget approval required"
+                    },
+                    "errorCode": {
+                      "type": "string",
+                      "enum": ["BUDGET_WARNING", "BUDGET_APPROVAL_REQUIRED", "BUDGET_CRITICAL"],
+                      "example": "BUDGET_APPROVAL_REQUIRED"
+                    },
+                    "budgetStatus": {
+                      "type": "object",
+                      "properties": {
+                        "dailySpent": { "type": "number", "example": 5.5 },
+                        "dailyBudget": { "type": "number", "example": 10.0 },
+                        "estimatedCost": { "type": "number", "example": 0.8 },
+                        "threshold": { "type": "number", "example": 5.0 }
+                      }
+                    },
+                    "alternatives": {
+                      "type": "array",
+                      "description": "저렴한 대안 모델 제시",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "model": { "type": "string" },
+                          "estimatedCost": { "type": "number" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "서버 내부 오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Internal server error"
+                    },
+                    "errorCode": {
+                      "type": "string",
+                      "example": "INTERNAL_ERROR"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/llm/models": {
+      "get": {
+        "summary": "사용 가능한 모델 목록 조회",
+        "description": "현재 시스템에서 사용 가능한 모든 LLM/이미지/영상 모델 목록 반환",
+        "tags": ["LLM Router"],
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "models": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string",
+                            "description": "모델명",
+                            "example": "gpt-4o"
+                          },
+                          "category": {
+                            "type": "string",
+                            "enum": ["text", "image", "video"],
+                            "example": "text"
+                          },
+                          "provider": {
+                            "type": "string",
+                            "description": "제공자",
+                            "example": "OpenAI"
+                          },
+                          "costPer1kTokens": {
+                            "type": "number",
+                            "description": "1K 토큰당 비용 (텍스트 모델)",
+                            "example": 0.015
+                          },
+                          "costPerImage": {
+                            "type": "number",
+                            "description": "이미지당 비용 (이미지 모델)",
+                            "example": 0.04
+                          },
+                          "costPerMinute": {
+                            "type": "number",
+                            "description": "분당 비용 (영상 모델)",
+                            "example": 2.5
+                          },
+                          "availability": {
+                            "type": "string",
+                            "enum": ["available", "limited", "unavailable"],
+                            "description": "현재 상태",
+                            "example": "available"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/llm/cost/estimate": {
+      "post": {
+        "summary": "비용 사전 추정",
+        "description": "실제 API 호출 없이 예상 비용만 계산",
+        "tags": ["LLM Router"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["prompt", "mode"],
+                "properties": {
+                  "prompt": { "type": "string" },
+                  "mode": { "type": "string" },
+                  "context": { "type": "object" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "estimatedCost": { "type": "number", "example": 0.025 },
+                    "selectedModel": { "type": "string", "example": "gpt-4o" },
+                    "breakdown": {
+                      "type": "object",
+                      "description": "비용 세부 내역",
+                      "properties": {
+                        "inputTokens": { "type": "number", "example": 500 },
+                        "estimatedOutputTokens": { "type": "number", "example": 1000 },
+                        "totalTokens": { "type": "number", "example": 1500 },
+                        "costPerToken": { "type": "number", "example": 0.000015 }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "RouterMode": {
+        "type": "string",
+        "enum": ["draft_fast", "balanced", "high_fidelity", "privacy_first", "cost_optimized"],
+        "description": "라우팅 모드 - 5가지 프리셋"
+      },
+      "TaskType": {
+        "type": "string",
+        "enum": ["text", "image", "video", "mixed"],
+        "description": "작업 유형"
+      },
+      "ModelCategory": {
+        "type": "string",
+        "enum": ["text", "image", "video"],
+        "description": "모델 카테고리"
+      }
+    }
+  }
+}
