@@ -1,7 +1,8 @@
 # LLM Router Policy Document
 
-> **Version**: 1.1
-> **Date**: 2025-11-13 (목요일 오후 5:59)
+> **Version**: 1.2
+> **Date**: 2025-11-14 (금요일) 16:34
+> **Last Updated**: 2025-11-14 (금요일) 16:34 - V4.4 모델 통합 (VEo3, AnimateDiff, ComfyUI 추가)
 > **Status**: Final
 > **Owner**: AI Infrastructure Team
 
@@ -118,16 +119,23 @@ class NodeAwareRouter:
 | **DALL-E 2** | OpenAI | Cloud | $0.02 | 5-10s | ⭐⭐⭐⭐ | Standard |
 | **Midjourney v6** | Midjourney | Cloud | $0.03 | 30-60s | ⭐⭐⭐⭐⭐ | Artistic |
 | **NanoBanana** | Custom | Cloud | $0.01 | 5-15s | ⭐⭐⭐⭐ | 썸네일/시각 아이디어 |
+| **ComfyUI (SDXL)** | Stability | Local | $0.001* | 10-30s | ⭐⭐⭐⭐ | 브랜드 특화 LoRA + ControlNet |
 | **SD XL** | Stability | Local | $0.001* | 10-30s | ⭐⭐⭐⭐ | 브랜드 특화 LoRA |
 | **SD 1.5** | Stability | Local | $0.0005* | 5-15s | ⭐⭐⭐ | Fast local |
+
+*ComfyUI는 SDXL + LoRA + ControlNet을 통합한 워크플로우 시스템
 
 ### 3.3 Video Generation Models
 
 | Model | Provider | Type | Cost/Sec | Time/Sec | Quality | Best For |
 |-------|----------|------|----------|----------|---------|----------|
-| **Sora2** | OpenAI | Cloud | $0.50 | 60s | ⭐⭐⭐⭐⭐ | 광고/쇼츠 합성 |
-| **Runway Gen-3** | Runway | Cloud | $0.30 | 30s | ⭐⭐⭐⭐ | Standard |
+| **VEo3** | Google | Cloud/Local Adapter | $0.40 | 45s | ⭐⭐⭐⭐⭐ | 광고/쇼츠 (메인) |
+| **AnimateDiff** | Custom | Local | $0.005* | 15s | ⭐⭐⭐⭐ | 이미지→모션 (씬 생성) |
+| **Sora2** | OpenAI | Cloud | $0.50 | 60s | ⭐⭐⭐⭐⭐ | 최고품질 광고 (옵션) |
+| **Runway Gen-3** | Runway | Cloud | $0.30 | 30s | ⭐⭐⭐⭐ | SNS 영상/빠른 생성 |
 | **Pika Labs** | Pika | Cloud | $0.20 | 20s | ⭐⭐⭐ | Quick drafts |
+
+*Local model costs are estimated based on electricity and hardware amortization
 
 ### 3.4 Embedding Models
 
@@ -1921,3 +1929,4 @@ costs = {
 |------|---------|---------|--------|
 | 2025-01-13 | 1.0 | Initial policy | AI Team |
 | 2025-11-13 (목) | 1.1 | Multi-Node Infrastructure, Agent Integration, Cost Alert System 추가 | AI Team |
+| 2025-11-14 (금) | 1.2 | V4.4 PRD 통합: VEo3, AnimateDiff 영상 모델 추가 / ComfyUI 워크플로우 명시 | Team A |
