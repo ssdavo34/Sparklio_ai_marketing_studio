@@ -1,0 +1,20 @@
+# Environment files with sensitive data
+.env
+
+# Backup files
+*.sql
+*.dump
+minio-backup/
+
+# Docker volumes (if mounted locally)
+data/
+volumes/
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+.DS_Store

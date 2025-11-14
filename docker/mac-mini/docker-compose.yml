@@ -1,0 +1,129 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: sparklio-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-sparklio}
+      POSTGRES_USER: ${POSTGRES_USER:-sparklio}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sparklio}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sparklio-network
+
+  # Redis Cache & Queue
+  redis:
+    image: redis:7-alpine
+    container_name: sparklio-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - sparklio-network
+
+  # MinIO Object Storage
+  minio:
+    image: minio/minio:latest
+    container_name: sparklio-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_DOMAIN: ${MINIO_DOMAIN:-minio.sparklio.local}
+    volumes:
+      - minio_data:/data
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - sparklio-network
+
+  # MinIO Client (mc) for initial bucket setup
+  minio-init:
+    image: minio/mc:latest
+    container_name: sparklio-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      sleep 5;
+      /usr/bin/mc alias set sparklio http://minio:9000 ${MINIO_ROOT_USER:-minioadmin} ${MINIO_ROOT_PASSWORD};
+      /usr/bin/mc mb --ignore-existing sparklio/videos;
+      /usr/bin/mc mb --ignore-existing sparklio/images;
+      /usr/bin/mc mb --ignore-existing sparklio/audio;
+      /usr/bin/mc mb --ignore-existing sparklio/documents;
+      /usr/bin/mc mb --ignore-existing sparklio/brands;
+      /usr/bin/mc anonymous set download sparklio/images;
+      /usr/bin/mc anonymous set download sparklio/videos;
+      echo 'MinIO buckets created successfully';
+      exit 0;
+      "
+    networks:
+      - sparklio-network
+
+  # PostgreSQL Admin (pgAdmin) - Optional
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: sparklio-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@sparklio.local}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+      PGADMIN_LISTEN_PORT: 80
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    depends_on:
+      - postgres
+    networks:
+      - sparklio-network
+    profiles:
+      - admin
+
+volumes:
+  postgres_data:
+    name: sparklio-postgres-data
+    driver: local
+  redis_data:
+    name: sparklio-redis-data
+    driver: local
+  minio_data:
+    name: sparklio-minio-data
+    driver: local
+  pgadmin_data:
+    name: sparklio-pgadmin-data
+    driver: local
+
+networks:
+  sparklio-network:
+    name: sparklio-network
+    driver: bridge
