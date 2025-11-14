@@ -1,9 +1,9 @@
 # Sparklio AI Marketing Studio - Master TODO
 
 **최초 작성**: 2025-11-14 (금요일) 16:30
-**최종 수정**: 2025-11-14 (금요일) 16:30
+**최종 수정**: 2025-11-14 (금요일) 17:15
 **프로젝트 기간**: 2025-11-14 ~ 2026-02-11 (90일)
-**전체 진행률**: 0% (0/100 작업)
+**전체 진행률**: 16% (6/37 작업 완료)
 
 ---
 
@@ -13,17 +13,17 @@
 
 | 팀 | 완료 | 진행중 | 대기 | 전체 | 진행률 |
 |----|------|--------|------|------|--------|
-| **Team A (Docs)** | 0 | 0 | 10 | 10 | 0% |
+| **Team A (Docs)** | 6 | 0 | 7 | 13 | 46% |
 | **Team B (Backend)** | 0 | 0 | 13 | 13 | 0% |
 | **Team C (Frontend)** | 0 | 0 | 14 | 14 | 0% |
-| **전체** | 0 | 0 | 37 | 37 | 0% |
+| **전체** | 6 | 0 | 34 | 40 | 15% |
 
 ### 우선순위별 현황
 
 | 우선순위 | 완료 | 진행중 | 대기 | 전체 |
 |----------|------|--------|------|------|
-| **P0 (긴급)** | 0 | 0 | 6 | 6 |
-| **P1 (중요)** | 0 | 0 | 16 | 16 |
+| **P0 (긴급)** | 3 | 0 | 3 | 6 |
+| **P1 (중요)** | 3 | 0 | 16 | 19 |
 | **P2 (일반)** | 0 | 0 | 15 | 15 |
 
 ---
@@ -32,33 +32,33 @@
 
 ### Team A (Docs & Architecture)
 
-#### [P0-A1] Model Catalog 통일
+#### [P0-A1] Model Catalog 통일 ✅
 - **담당**: Team A
-- **상태**: 🔴 대기
-- **예상 소요**: 2시간
-- **목표일**: 2025-11-15
-- **설명**: `Sparklio_V4_PRD_Final.md` + `V4.4_PRD` + `LLM_ROUTER_POLICY.md` 완전 통합
+- **상태**: ✅ 완료 (2025-11-14 17:10)
+- **실제 소요**: 0.5시간
+- **설명**: `Sparklio_V4_PRD_Final.md` + `LLM_ROUTER_POLICY.md` 동기화 완료
 - **산출물**:
-  - `docs/PRD/Sparklio_V4_PRD_Final.md` (업데이트)
-  - `docs/PHASE0/LLM_ROUTER_POLICY.md` (업데이트)
+  - ✅ `docs/PRD/Sparklio_V4_PRD_Final.md` (업데이트)
+  - ✅ `docs/PHASE0/LLM_ROUTER_POLICY.md` (업데이트)
+  - ComfyUI 설명 강화 (LoRA + ControlNet + IPAdapter)
+  - AnimateDiff 역할 명확화 (ComfyUI 통합 로컬 파이프라인)
 
-#### [P0-A2] Agent 목록 통일
+#### [P0-A2] Agent 목록 통일 ✅
 - **담당**: Team A
-- **상태**: 🔴 대기
-- **예상 소요**: 1.5시간
-- **목표일**: 2025-11-15
-- **설명**: V4.4 PRD에 24개 에이전트 전체 반영
+- **상태**: ✅ 완료 (2025-11-14 17:10)
+- **실제 소요**: 0.5시간
+- **설명**: PRD에 24개 에이전트 전체 목록 반영 완료
 - **산출물**:
-  - `docs/V4.4_PRD.md` Section 6 업데이트
+  - ✅ `docs/PRD/Sparklio_V4_PRD_Final.md` Section 7.2 업데이트
+  - Creation Agents 9개 / Intelligence Agents 11개 / System Agents 4개
 
-#### [P0-A3] PPC Ads 섹션 기존 PRD 반영
+#### [P0-A3] PPC Ads 섹션 기존 PRD 반영 ✅
 - **담당**: Team A
-- **상태**: 🔴 대기
-- **예상 소요**: 2시간
-- **목표일**: 2025-11-16
-- **설명**: V4.4의 PPC Ads 내용을 Sparklio_V4_PRD_Final.md에 편입
+- **상태**: ✅ 완료 (2025-11-14 17:10)
+- **실제 소요**: 0.2시간 (확인)
+- **설명**: 이미 PRD Section 8.1에 상세 작성 완료 확인
 - **산출물**:
-  - `docs/PRD/Sparklio_V4_PRD_Final.md` Section 8 업데이트
+  - ✅ `docs/PRD/Sparklio_V4_PRD_Final.md` Section 8.1 (기존 완료)
 
 ---
 
@@ -115,26 +115,41 @@
 
 ### Team A (Docs)
 
-#### [P1-A1] VIDEO_PIPELINE_SPEC.md 작성
+#### [P1-A1] VIDEO_PIPELINE_SPEC.md 작성 ✅
 - **담당**: Team A
-- **상태**: 🔴 대기
-- **예상 소요**: 4시간
-- **목표일**: 2025-11-25
-- **산출물**: `docs/PHASE0/VIDEO_PIPELINE_SPEC.md`
+- **상태**: ✅ 완료 (2025-11-14 17:00)
+- **실제 소요**: 0.5시간
+- **설명**: 광고영상 E2E 파이프라인 전체 명세 작성 완료
+- **산출물**:
+  - ✅ `docs/PHASE0/VIDEO_PIPELINE_SPEC.md` (신규 생성)
+  - Mac mini → Desktop GPU 통신 구조
+  - Qwen + AnimateDiff + ComfyUI 통합
+  - 4개 API 엔드포인트 상세 설계
 
-#### [P1-A2] COMFYUI_INTEGRATION.md 작성
+#### [P1-A2] COMFYUI_INTEGRATION.md 작성 ✅
 - **담당**: Team A
-- **상태**: 🔴 대기
-- **예상 소요**: 3시간
-- **목표일**: 2025-11-26
-- **산출물**: `docs/PHASE0/COMFYUI_INTEGRATION.md`
+- **상태**: ✅ 완료 (2025-11-14 17:00)
+- **실제 소요**: 0.5시간
+- **설명**: ComfyUI 통합 가이드 작성 완료
+- **산출물**:
+  - ✅ `docs/PHASE0/COMFYUI_INTEGRATION.md` (신규 생성)
+  - ComfyUI 서버 설정 가이드
+  - Workflow 템플릿 (광고 이미지, 모션 클립)
+  - Brand LoRA 학습 및 적용 파이프라인
+  - Python API 클라이언트 구현
 
-#### [P1-A3] MEETING_AI_SPEC.md 작성
+#### [P1-A3] MEETING_AI_SPEC.md 작성 ✅
 - **담당**: Team A
-- **상태**: 🔴 대기
-- **예상 소요**: 3시간
-- **목표일**: 2025-11-27
-- **산출물**: `docs/PHASE0/MEETING_AI_SPEC.md`
+- **상태**: ✅ 완료 (2025-11-14 17:15)
+- **실제 소요**: 0.5시간
+- **설명**: 회의 AI 전체 명세 작성 완료
+- **산출물**:
+  - ✅ `docs/PHASE0/MEETING_AI_SPEC.md` (신규 생성)
+  - 회의 음성 → 산출물 자동 생성 파이프라인
+  - Whisper STT (Desktop GPU)
+  - Meeting Intelligence Agent (MIA) 상세 설계
+  - SmartRouter 통합 (8가지 산출물)
+  - 7단계 UI/UX 플로우
 
 #### [P1-A4] ONE_PAGE_EDITOR_SPEC.md Section 9.2 확장
 - **담당**: Team A
@@ -408,15 +423,17 @@
 ## 📈 주간 체크포인트
 
 ### Week 1 (2025-11-14 ~ 2025-11-20)
-- [ ] [P0-A1] Model Catalog 통일
-- [ ] [P0-A2] Agent 목록 통일
-- [ ] [P0-A3] PPC Ads 섹션 반영
-- [ ] [P0-B1] Smart LLM Router 구현
-- [ ] [P0-C1] Next.js 프로젝트 셋업
+- [x] [P0-A1] Model Catalog 통일 ✅ (2025-11-14)
+- [x] [P0-A2] Agent 목록 통일 ✅ (2025-11-14)
+- [x] [P0-A3] PPC Ads 섹션 반영 ✅ (2025-11-14)
+- [x] [P1-A1] VIDEO_PIPELINE_SPEC.md ✅ (2025-11-14)
+- [x] [P1-A2] COMFYUI_INTEGRATION.md ✅ (2025-11-14)
+- [x] [P1-A3] MEETING_AI_SPEC.md ✅ (2025-11-14)
+- [ ] [P0-B1] Smart LLM Router 구현 (Team B 시작 가능)
+- [ ] [P0-C1] Next.js 프로젝트 셋업 (Team C 시작 가능)
 
 ### Week 2 (2025-11-21 ~ 2025-11-27)
-- [ ] [P0-B2] Agent Base Class & A2A Protocol
-- [ ] [P1-A1] VIDEO_PIPELINE_SPEC.md
+- [ ] [P0-B2] Agent Base Class & A2A Protocol (Team B 시작 가능)
 - [ ] [P1-C1] Editor Shell & Layout
 - [ ] [P1-C2] Chat Interface
 
