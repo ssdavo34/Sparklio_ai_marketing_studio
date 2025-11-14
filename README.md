@@ -45,46 +45,124 @@ Sparklio.ai는 **챗 기반**으로 브랜드 분석 → 마케팅 브리프 →
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Python 3.9+
-- Node.js 18+
-- PostgreSQL 14+
-- Redis 7+
-- CUDA 11.8+ (로컬 LLM 사용 시)
 
-### Installation
+#### 하드웨어 요구사항
+- **Mac mini M2** (24/7 서버): 8GB+ RAM
+- **Desktop RTX 4070+** (GPU 워커): 12GB+ VRAM
+- **Laptop** (개발): 8GB+ RAM
 
+#### 소프트웨어 요구사항
+- **Mac mini M2**:
+  - Docker Desktop 또는 Docker CLI
+  - PostgreSQL 15+, Redis 7+, MinIO
+- **Desktop GPU**:
+  - Python 3.9+
+  - CUDA 11.8+ / ROCm 5.4+
+  - Ollama (Qwen 2.5 14B/32B)
+  - ComfyUI + Custom Nodes
+- **Laptop**:
+  - Node.js 18+
+  - Python 3.9+ (개발 환경)
+
+### 시스템 셋업 (3-Node 하이브리드 인프라)
+
+**상세 가이드**: [docs/WORK_PLANS/2025-11-15_SETUP_PLAN.md](docs/WORK_PLANS/2025-11-15_SETUP_PLAN.md)
+
+#### 1단계: Tailscale VPN 연결
 ```bash
-# Clone repository
-git clone https://github.com/sparklio/ai-marketing-studio.git
-cd sparklio-ai-marketing-studio
+# 모든 노드에 설치
+# Mac/Linux
+curl -fsSL https://tailscale.com/install.sh | sh
 
-# Backend setup
+# Windows (관리자 권한)
+# https://tailscale.com/download/windows 에서 설치
+```
+
+#### 2단계: Mac mini M2 서버 구축
+```bash
+# Docker Compose 실행
+cd docker/mac-mini
+docker-compose up -d
+
+# 서비스 확인
+docker ps  # PostgreSQL, Redis, MinIO 확인
+```
+
+#### 3단계: Desktop GPU 워커 구축
+```bash
+# Ollama + Qwen 설치
+curl https://ollama.ai/install.sh | sh
+ollama pull qwen2.5:14b
+ollama pull qwen2.5:32b
+
+# ComfyUI 설치
+cd ~
+git clone https://github.com/comfyanonymous/ComfyUI
+cd ComfyUI
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+# Whisper API 서버 설치
+pip install faster-whisper fastapi uvicorn
+```
+
+#### 4단계: Backend 설치
+```bash
+# Mac mini 또는 Laptop에서
 cd backend
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
-# Frontend setup
-cd ../frontend
+# 환경 변수 설정
+cp .env.example .env
+# .env 파일 수정 (DB, Redis, MinIO 정보)
+
+# 마이그레이션
+python manage.py migrate
+```
+
+#### 5단계: Frontend 설치
+```bash
+# Laptop에서
+cd frontend
 npm install
 
-# Environment setup
-cp .env.example .env
-# Edit .env with your configuration
+# 환경 변수 설정
+cp .env.local.example .env.local
+# API 엔드포인트 등 수정
 ```
 
 ### 실행
 
+#### Mac mini M2 (서버)
 ```bash
-# Start backend services
+# Backend API 서버
 cd backend
-python manage.py migrate
-python manage.py runserver
+source venv/bin/activate
+uvicorn main:app --host 0.0.0.0 --port 8000
 
-# Start Celery worker
-celery -A sparklio worker -l info
+# Celery Worker (별도 터미널)
+celery -A sparklio.celery worker -Q default,agent,video -l info
 
-# Start frontend (new terminal)
+# Celery Beat (스케줄러, 별도 터미널)
+celery -A sparklio.celery beat -l info
+```
+
+#### Desktop GPU (워커)
+```bash
+# ComfyUI 서버
+cd ~/ComfyUI
+python main.py --listen 0.0.0.0 --port 8188
+
+# Whisper API 서버 (별도 터미널)
+python whisper_server.py --host 0.0.0.0 --port 8889
+```
+
+#### Laptop (개발)
+```bash
+# Frontend 개발 서버
 cd frontend
 npm run dev
 ```
@@ -338,24 +416,83 @@ Score = wC*Cost + wL*Latency + wQ*Quality + wR*Resource + wS*Sensitivity
 - 에이전트별 성능 지표
 - 사용자 만족도 추적
 
+## 📊 Project Status
+
+**최종 업데이트**: 2025-11-14 (금요일) 18:00
+
+### 전체 진행률
+- **전체 프로젝트**: 16% (6/40 tasks)
+- **Team A (Docs & Architecture)**: 46% (6/13 tasks) ✅
+- **Team B (Backend)**: 0% (0/14 tasks) - 시작 준비 완료
+- **Team C (Frontend)**: 0% (0/13 tasks) - 시작 준비 완료
+
+### Week 1 체크리스트 (2025-11-14 ~ 11-20)
+- [x] **[P0-A1]** Model Catalog 통일 (완료)
+- [x] **[P0-A2]** Agent 목록 통일 (완료)
+- [x] **[P0-A3]** PPC Ads 섹션 반영 (완료)
+- [x] **[P1-A1]** VIDEO_PIPELINE_SPEC.md (완료)
+- [x] **[P1-A2]** COMFYUI_INTEGRATION.md (완료)
+- [x] **[P1-A3]** MEETING_AI_SPEC.md (완료)
+- [ ] **[P1-B1]** Backend 프로젝트 구조 생성
+- [ ] **[P1-C1]** Frontend 프로젝트 구조 생성
+- [ ] 3-Node 하이브리드 인프라 셋업 (예정: 2025-11-15)
+
+### 최근 완료 작업 (2025-11-14)
+- ✅ Video Pipeline API 계약서 작성 (5개 엔드포인트)
+- ✅ ComfyUI Integration API 계약서 작성 (10개 엔드포인트)
+- ✅ 3개 Phase 0 스펙 문서 작성 (~2,400줄)
+- ✅ PRD 문서 동기화 (모델 카탈로그, 에이전트 목록)
+- ✅ 내일 시스템 셋업 계획서 작성 (777줄)
+
+### 다음 마일스톤
+- **2025-11-15 (토)**: 3-Node 시스템 셋업 (8시간 예정)
+- **2025-11-18 (월)**: Team B/C 작업 시작
+- **2025-11-22 (금)**: Week 1 완료 목표
+
+자세한 진행 상황은 [MASTER_TODO.md](docs/WORK_PLANS/MASTER_TODO.md) 참조
+
+---
+
 ## 🗓️ Roadmap
 
-### MVP v0 (Current)
-- ✅ 채팅 인터페이스
-- ✅ 브랜드킷 + 브리프
-- ✅ 상품상세 + 블로그
-- ✅ Review Buffer
-- ✅ 기본 Router
+### Phase 0: 설계 & 인프라 (2주) - **진행 중**
+- ✅ 문서 체계 구축
+- ✅ API 계약서 작성
+- ✅ 핵심 스펙 문서 작성
+- 🚧 3-Node 인프라 구축 (예정: 2025-11-15)
+- 📅 Backend 프로젝트 구조
+- 📅 Frontend 프로젝트 구조
 
-### v1.1 (Q1 2025)
-- 🚧 영상/쇼츠 생성
-- 🚧 트렌드 분석 고도화
-- 🚧 PPC 광고 자동화
+### Phase 1: MVP 핵심 기능 (4주)
+- 📅 브랜드킷 시스템
+- 📅 Smart LLM Router
+- 📅 기본 에이전트 (Strategist, Copywriter)
+- 📅 One-Page Editor (기본)
+- 📅 RAG 시스템
 
-### v1.2 (Q2 2025)
-- 📅 팀 협업 기능
-- 📅 고급 에디터 명령
-- 📅 비용 대시보드
+### Phase 2: 콘텐츠 생성 확장 (3주)
+- 📅 Vision Generator (이미지)
+- 📅 SNS 마케팅 자동화
+- 📅 프레젠테이션 생성
+- 📅 상품상세페이지 생성
+
+### Phase 3: 영상 & 고급 기능 (3주)
+- 📅 Video Pipeline (스토리보드 → 영상)
+- 📅 ComfyUI + Brand LoRA
+- 📅 Meeting AI
+- 📅 Video Studio
+
+### Phase 4: 발행 & 최적화 (2주)
+- 📅 멀티채널 Publisher
+- 📅 PPC Ads 자동화
+- 📅 트렌드 분석
+- 📅 성능 최적화
+
+### Phase 5: 안정화 & 런칭 (1주)
+- 📅 E2E 테스트
+- 📅 보안 강화
+- 📅 문서 최종 검토
+- 📅 베타 런칭
 
 ## 🤝 Contributing
 
@@ -369,11 +506,69 @@ Score = wC*Cost + wL*Latency + wQ*Quality + wR*Resource + wS*Sensitivity
 
 ## 📝 Documentation
 
-- [API 문서](docs/api/README.md)
-- [에이전트 스펙](docs/AGENTS_SPEC.md)
-- [E2E 테스트 플랜](docs/E2E_TEST_PLAN.md)
-- [LLM 라우터 정책](docs/LLM_ROUTER_POLICY.md)
-- [데이터 파이프라인](docs/DATA_PIPELINE_PLAN.md)
+### 📂 문서 구조
+
+```
+docs/
+├── PHASE0/                       # Phase 0 핵심 설계 문서
+│   ├── VIDEO_PIPELINE_SPEC.md    # E2E 비디오 생성 파이프라인
+│   ├── COMFYUI_INTEGRATION.md    # ComfyUI + Brand LoRA 통합
+│   ├── MEETING_AI_SPEC.md        # 회의 AI 자동 생성 시스템
+│   ├── AGENTS_SPEC.md            # 24개 에이전트 설계
+│   ├── LLM_ROUTER_POLICY.md      # Smart LLM Router 정책
+│   ├── ONE_PAGE_EDITOR_SPEC.md   # 통합 에디터 설계
+│   └── DATA_PIPELINE_PLAN.md     # 데이터 파이프라인
+│
+├── PRD/                          # 제품 요구사항 문서
+│   └── Sparklio_V4_PRD_Final.md  # 최종 PRD v4
+│
+├── API_CONTRACTS/                # API 계약서 (OpenAPI 3.0)
+│   ├── llm_router.json           # LLM Router API
+│   ├── video_pipeline.json       # Video Pipeline API
+│   ├── comfyui.json              # ComfyUI Integration API
+│   └── changelog.md              # API 변경 이력
+│
+├── WORK_PLANS/                   # 작업 계획 및 지시서
+│   ├── MASTER_TODO.md            # 전체 작업 목록 (진행률 16%)
+│   ├── DETAILED_WORK_PLAN.md     # 90일 상세 계획
+│   ├── 2025-11-15_SETUP_PLAN.md  # 시스템 셋업 가이드
+│   ├── TEAM_A_INSTRUCTIONS.md    # Team A (Docs) 지시서
+│   ├── TEAM_B_INSTRUCTIONS.md    # Team B (Backend) 지시서
+│   └── TEAM_C_INSTRUCTIONS.md    # Team C (Frontend) 지시서
+│
+├── WORK_REPORTS/                 # 일일 작업 보고서
+│   └── 2025-11-14_Team_A_Report.md
+│
+└── WORK_REGULATIONS.md           # 작업 규정집 (12대 규정)
+```
+
+### 🔗 주요 문서 링크
+
+#### 설계 문서 (Phase 0)
+- [에이전트 시스템 스펙](docs/PHASE0/AGENTS_SPEC.md) - 24개 에이전트 설계
+- [LLM Router 정책](docs/PHASE0/LLM_ROUTER_POLICY.md) - 자동 모델 선택
+- [Video Pipeline 스펙](docs/PHASE0/VIDEO_PIPELINE_SPEC.md) - E2E 비디오 생성
+- [ComfyUI 통합](docs/PHASE0/COMFYUI_INTEGRATION.md) - Brand LoRA 시스템
+- [Meeting AI 스펙](docs/PHASE0/MEETING_AI_SPEC.md) - 회의 자동화
+- [One-Page Editor](docs/PHASE0/ONE_PAGE_EDITOR_SPEC.md) - 통합 에디터
+- [데이터 파이프라인](docs/PHASE0/DATA_PIPELINE_PLAN.md) - RAG & ETL
+
+#### API 문서
+- [API Contracts README](docs/API_CONTRACTS/README.md) - API 계약서 가이드
+- [LLM Router API](docs/API_CONTRACTS/llm_router.json) - OpenAPI 3.0
+- [Video Pipeline API](docs/API_CONTRACTS/video_pipeline.json) - OpenAPI 3.0
+- [ComfyUI API](docs/API_CONTRACTS/comfyui.json) - OpenAPI 3.0
+
+#### 작업 계획
+- [Master TODO](docs/WORK_PLANS/MASTER_TODO.md) - 전체 작업 목록 및 진행률
+- [상세 작업 계획](docs/WORK_PLANS/DETAILED_WORK_PLAN.md) - 90일 타임라인
+- [시스템 셋업 가이드](docs/WORK_PLANS/2025-11-15_SETUP_PLAN.md) - 3-Node 인프라 구축
+
+#### 작업 규정
+- [작업 규정집](docs/WORK_REGULATIONS.md) - 12대 규정
+- [Team A 지시서](docs/WORK_PLANS/TEAM_A_INSTRUCTIONS.md) - Docs & Architecture
+- [Team B 지시서](docs/WORK_PLANS/TEAM_B_INSTRUCTIONS.md) - Backend
+- [Team C 지시서](docs/WORK_PLANS/TEAM_C_INSTRUCTIONS.md) - Frontend
 
 ## 📞 Support
 
