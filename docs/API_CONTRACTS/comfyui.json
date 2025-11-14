@@ -1,0 +1,933 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "ComfyUI Integration API",
+    "version": "1.0.0",
+    "description": "ComfyUI 서버와의 통신 API - 이미지 생성, Brand LoRA, 워크플로우 관리",
+    "lastUpdated": "2025-11-14 (금요일) 17:50",
+    "owner": "Team A"
+  },
+  "servers": [
+    {
+      "url": "http://sparklio-desktop:8188",
+      "description": "Desktop RTX 4070 ComfyUI 서버 (Tailscale VPN)"
+    },
+    {
+      "url": "http://100.xxx.xxx.xxx:8188",
+      "description": "Desktop RTX 4070 (Tailscale IP)"
+    }
+  ],
+  "paths": {
+    "/prompt": {
+      "post": {
+        "summary": "워크플로우 실행",
+        "description": "ComfyUI 워크플로우를 큐에 추가하고 실행합니다.",
+        "tags": ["ComfyUI Core"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["prompt", "client_id"],
+                "properties": {
+                  "prompt": {
+                    "type": "object",
+                    "description": "ComfyUI 워크플로우 JSON (nodes + connections)",
+                    "additionalProperties": true,
+                    "example": {
+                      "1": {
+                        "inputs": {
+                          "ckpt_name": "sdxl_v1.0.safetensors"
+                        },
+                        "class_type": "CheckpointLoaderSimple"
+                      },
+                      "2": {
+                        "inputs": {
+                          "text": "beautiful sunset over mountains, cinematic, HD",
+                          "clip": ["1", 1]
+                        },
+                        "class_type": "CLIPTextEncode"
+                      }
+                    }
+                  },
+                  "client_id": {
+                    "type": "string",
+                    "description": "클라이언트 식별자 (UUID)",
+                    "example": "client_abc123xyz"
+                  },
+                  "extra_data": {
+                    "type": "object",
+                    "description": "추가 메타데이터",
+                    "properties": {
+                      "extra_pnginfo": {
+                        "type": "object",
+                        "description": "이미지에 포함할 메타데이터"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "성공 - 워크플로우 큐에 추가됨",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "prompt_id": {
+                      "type": "string",
+                      "description": "생성된 프롬프트 ID",
+                      "example": "prompt_def456ghi"
+                    },
+                    "number": {
+                      "type": "integer",
+                      "description": "큐 내 순서 번호",
+                      "example": 3
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "잘못된 워크플로우",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Invalid node connection"
+                    },
+                    "node_errors": {
+                      "type": "object",
+                      "description": "노드별 에러 정보"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/history/{prompt_id}": {
+      "get": {
+        "summary": "워크플로우 실행 결과 조회",
+        "description": "완료된 워크플로우의 결과를 조회합니다.",
+        "tags": ["ComfyUI Core"],
+        "parameters": [
+          {
+            "name": "prompt_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "프롬프트 ID",
+            "example": "prompt_def456ghi"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "object",
+                    "properties": {
+                      "prompt": {
+                        "type": "array",
+                        "description": "실행된 프롬프트 정보"
+                      },
+                      "outputs": {
+                        "type": "object",
+                        "description": "노드별 출력 결과",
+                        "additionalProperties": {
+                          "type": "object",
+                          "properties": {
+                            "images": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "filename": {
+                                    "type": "string",
+                                    "example": "ComfyUI_00001_.png"
+                                  },
+                                  "subfolder": {
+                                    "type": "string",
+                                    "example": ""
+                                  },
+                                  "type": {
+                                    "type": "string",
+                                    "example": "output"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "status": {
+                        "type": "object",
+                        "properties": {
+                          "status_str": {
+                            "type": "string",
+                            "enum": ["success", "error"],
+                            "example": "success"
+                          },
+                          "completed": {
+                            "type": "boolean",
+                            "example": true
+                          },
+                          "messages": {
+                            "type": "array",
+                            "description": "실행 로그 메시지"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/view": {
+      "get": {
+        "summary": "생성된 이미지 조회",
+        "description": "ComfyUI가 생성한 이미지 파일을 다운로드합니다.",
+        "tags": ["ComfyUI Core"],
+        "parameters": [
+          {
+            "name": "filename",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "이미지 파일명",
+            "example": "ComfyUI_00001_.png"
+          },
+          {
+            "name": "subfolder",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "하위 폴더 경로",
+            "example": ""
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["output", "input", "temp"]
+            },
+            "description": "이미지 타입",
+            "example": "output"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "성공 - 이미지 반환",
+            "content": {
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "이미지를 찾을 수 없음"
+          }
+        }
+      }
+    },
+    "/queue": {
+      "get": {
+        "summary": "큐 상태 조회",
+        "description": "현재 실행 대기 중인 작업 목록을 조회합니다.",
+        "tags": ["ComfyUI Core"],
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "queue_running": {
+                      "type": "array",
+                      "description": "현재 실행 중인 작업",
+                      "items": {
+                        "type": "array"
+                      }
+                    },
+                    "queue_pending": {
+                      "type": "array",
+                      "description": "대기 중인 작업 목록",
+                      "items": {
+                        "type": "array"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sparklio/generate/ad-image": {
+      "post": {
+        "summary": "광고 이미지 생성 (High-level API)",
+        "description": "Sparklio 전용 고수준 API - Brand LoRA를 적용한 광고 이미지 생성",
+        "tags": ["Sparklio Extension"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["prompt", "brandId"],
+                "properties": {
+                  "prompt": {
+                    "type": "string",
+                    "description": "이미지 프롬프트",
+                    "example": "A woman applying eye cream, soft lighting, HD, cinematic",
+                    "minLength": 1,
+                    "maxLength": 2000
+                  },
+                  "brandId": {
+                    "type": "string",
+                    "description": "브랜드 ID (LoRA 모델 선택)",
+                    "example": "brand_abc123"
+                  },
+                  "negativePrompt": {
+                    "type": "string",
+                    "description": "네거티브 프롬프트",
+                    "example": "blurry, low quality, watermark, text"
+                  },
+                  "aspectRatio": {
+                    "type": "string",
+                    "enum": ["16:9", "9:16", "1:1", "4:5"],
+                    "description": "종횡비",
+                    "example": "9:16"
+                  },
+                  "style": {
+                    "type": "string",
+                    "enum": ["realistic", "cinematic", "anime", "illustration"],
+                    "description": "기본 스타일",
+                    "example": "cinematic"
+                  },
+                  "seed": {
+                    "type": "integer",
+                    "description": "시드값 (재현성 확보용)",
+                    "example": 42,
+                    "minimum": -1
+                  },
+                  "steps": {
+                    "type": "integer",
+                    "description": "샘플링 스텝 수",
+                    "example": 30,
+                    "minimum": 1,
+                    "maximum": 150
+                  },
+                  "cfgScale": {
+                    "type": "number",
+                    "description": "CFG Scale (프롬프트 강도)",
+                    "example": 7.5,
+                    "minimum": 1.0,
+                    "maximum": 30.0
+                  },
+                  "loraStrength": {
+                    "type": "number",
+                    "description": "LoRA 모델 강도",
+                    "example": 0.8,
+                    "minimum": 0.0,
+                    "maximum": 2.0
+                  },
+                  "batchSize": {
+                    "type": "integer",
+                    "description": "생성할 이미지 수",
+                    "example": 1,
+                    "minimum": 1,
+                    "maximum": 4
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "성공 - 이미지 생성 완료",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "promptId": {
+                      "type": "string",
+                      "example": "prompt_xyz123"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["queued", "processing", "completed"],
+                      "example": "completed"
+                    },
+                    "images": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "filename": {
+                            "type": "string",
+                            "example": "ComfyUI_00123_.png"
+                          },
+                          "url": {
+                            "type": "string",
+                            "format": "uri",
+                            "example": "http://sparklio-desktop:8188/view?filename=ComfyUI_00123_.png"
+                          },
+                          "width": {
+                            "type": "integer",
+                            "example": 1080
+                          },
+                          "height": {
+                            "type": "integer",
+                            "example": 1920
+                          },
+                          "seed": {
+                            "type": "integer",
+                            "example": 42
+                          }
+                        }
+                      }
+                    },
+                    "metadata": {
+                      "type": "object",
+                      "properties": {
+                        "prompt": {
+                          "type": "string"
+                        },
+                        "brandLoraUsed": {
+                          "type": "string",
+                          "example": "brand_abc123_v1.safetensors"
+                        },
+                        "generationTime": {
+                          "type": "number",
+                          "description": "생성 시간 (초)",
+                          "example": 8.5
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "잘못된 요청",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "브랜드 LoRA 모델을 찾을 수 없음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sparklio/generate/motion-clip": {
+      "post": {
+        "summary": "모션 클립 생성 (High-level API)",
+        "description": "Sparklio 전용 고수준 API - AnimateDiff로 정적 이미지에 모션 추가",
+        "tags": ["Sparklio Extension"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["imageUrl", "motionStyle", "duration"],
+                "properties": {
+                  "imageUrl": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "입력 이미지 URL",
+                    "example": "https://minio.sparklio.local/images/scene_001.png"
+                  },
+                  "motionStyle": {
+                    "type": "string",
+                    "enum": ["static", "slow zoom-in", "slow zoom-out", "pan-left", "pan-right", "slow-motion"],
+                    "description": "모션 스타일",
+                    "example": "slow zoom-in"
+                  },
+                  "duration": {
+                    "type": "number",
+                    "description": "클립 길이 (초)",
+                    "example": 3.0,
+                    "minimum": 1.0,
+                    "maximum": 10.0
+                  },
+                  "fps": {
+                    "type": "integer",
+                    "description": "프레임 레이트",
+                    "example": 30,
+                    "enum": [24, 30, 60]
+                  },
+                  "motionStrength": {
+                    "type": "number",
+                    "description": "모션 강도 (0.0-1.0)",
+                    "example": 0.7,
+                    "minimum": 0.0,
+                    "maximum": 1.0
+                  },
+                  "seed": {
+                    "type": "integer",
+                    "description": "시드값",
+                    "example": 42
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "성공 - 모션 클립 생성 완료",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "promptId": {
+                      "type": "string",
+                      "example": "prompt_motion_abc789"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["queued", "processing", "completed"],
+                      "example": "completed"
+                    },
+                    "videoUrl": {
+                      "type": "string",
+                      "format": "uri",
+                      "description": "생성된 비디오 URL",
+                      "example": "http://sparklio-desktop:8188/view?filename=motion_00123.mp4&type=output"
+                    },
+                    "metadata": {
+                      "type": "object",
+                      "properties": {
+                        "duration": {
+                          "type": "number",
+                          "example": 3.0
+                        },
+                        "fps": {
+                          "type": "integer",
+                          "example": 30
+                        },
+                        "totalFrames": {
+                          "type": "integer",
+                          "example": 90
+                        },
+                        "generationTime": {
+                          "type": "number",
+                          "description": "생성 시간 (초)",
+                          "example": 25.3
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sparklio/lora/train": {
+      "post": {
+        "summary": "Brand LoRA 학습",
+        "description": "브랜드 이미지를 사용하여 커스텀 LoRA 모델을 학습합니다.",
+        "tags": ["Sparklio Extension"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["brandId", "trainingImages"],
+                "properties": {
+                  "brandId": {
+                    "type": "string",
+                    "description": "브랜드 ID",
+                    "example": "brand_abc123"
+                  },
+                  "trainingImages": {
+                    "type": "array",
+                    "description": "학습용 이미지 URL 목록 (10-30장 권장)",
+                    "items": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "minItems": 5,
+                    "maxItems": 50,
+                    "example": [
+                      "https://minio.sparklio.local/brands/abc123/img_001.jpg",
+                      "https://minio.sparklio.local/brands/abc123/img_002.jpg"
+                    ]
+                  },
+                  "trainingConfig": {
+                    "type": "object",
+                    "description": "학습 설정",
+                    "properties": {
+                      "epochs": {
+                        "type": "integer",
+                        "description": "에포크 수",
+                        "example": 10,
+                        "minimum": 5,
+                        "maximum": 50
+                      },
+                      "learningRate": {
+                        "type": "number",
+                        "description": "학습률",
+                        "example": 0.0001,
+                        "minimum": 0.00001,
+                        "maximum": 0.001
+                      },
+                      "resolution": {
+                        "type": "integer",
+                        "description": "학습 이미지 해상도",
+                        "example": 512,
+                        "enum": [512, 768, 1024]
+                      },
+                      "batchSize": {
+                        "type": "integer",
+                        "description": "배치 크기",
+                        "example": 1,
+                        "minimum": 1,
+                        "maximum": 4
+                      }
+                    }
+                  },
+                  "triggerWord": {
+                    "type": "string",
+                    "description": "LoRA 활성화 트리거 단어",
+                    "example": "sparklio_brand_abc123",
+                    "minLength": 3,
+                    "maxLength": 50
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "승인됨 - LoRA 학습 작업 시작",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "trainingJobId": {
+                      "type": "string",
+                      "description": "학습 작업 ID",
+                      "example": "lora_train_job_xyz456"
+                    },
+                    "status": {
+                      "type": "string",
+                      "example": "queued"
+                    },
+                    "estimatedTime": {
+                      "type": "integer",
+                      "description": "예상 완료 시간 (분)",
+                      "example": 45
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "잘못된 요청",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sparklio/lora/list": {
+      "get": {
+        "summary": "사용 가능한 Brand LoRA 목록",
+        "description": "현재 ComfyUI 서버에 설치된 Brand LoRA 모델 목록을 조회합니다.",
+        "tags": ["Sparklio Extension"],
+        "parameters": [
+          {
+            "name": "brandId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "특정 브랜드로 필터링",
+            "example": "brand_abc123"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "loras": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "loraId": {
+                            "type": "string",
+                            "example": "lora_brand_abc123_v1"
+                          },
+                          "brandId": {
+                            "type": "string",
+                            "example": "brand_abc123"
+                          },
+                          "filename": {
+                            "type": "string",
+                            "example": "brand_abc123_v1.safetensors"
+                          },
+                          "triggerWord": {
+                            "type": "string",
+                            "example": "sparklio_brand_abc123"
+                          },
+                          "version": {
+                            "type": "integer",
+                            "example": 1
+                          },
+                          "trainedAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "example": "2025-11-14T12:00:00Z"
+                          },
+                          "trainingImages": {
+                            "type": "integer",
+                            "description": "학습에 사용된 이미지 수",
+                            "example": 20
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sparklio/workflows/templates": {
+      "get": {
+        "summary": "워크플로우 템플릿 목록",
+        "description": "Sparklio에서 사용하는 사전 정의된 워크플로우 템플릿 목록을 조회합니다.",
+        "tags": ["Sparklio Extension"],
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "templates": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "templateId": {
+                            "type": "string",
+                            "example": "template_ad_image_basic"
+                          },
+                          "name": {
+                            "type": "string",
+                            "example": "Basic Ad Image Generation"
+                          },
+                          "description": {
+                            "type": "string",
+                            "example": "SDXL + Brand LoRA를 사용한 기본 광고 이미지 생성"
+                          },
+                          "category": {
+                            "type": "string",
+                            "enum": ["image", "video", "upscale", "inpaint"],
+                            "example": "image"
+                          },
+                          "requiredInputs": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "example": ["prompt", "brandLoraId", "aspectRatio"]
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/system/health": {
+      "get": {
+        "summary": "시스템 상태 확인",
+        "description": "ComfyUI 서버와 GPU 상태를 확인합니다.",
+        "tags": ["System"],
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": ["healthy", "degraded", "unhealthy"],
+                      "example": "healthy"
+                    },
+                    "comfyui_version": {
+                      "type": "string",
+                      "example": "0.2.1"
+                    },
+                    "gpu": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string",
+                          "example": "NVIDIA GeForce RTX 4070"
+                        },
+                        "memory_total": {
+                          "type": "integer",
+                          "description": "총 VRAM (MB)",
+                          "example": 12288
+                        },
+                        "memory_used": {
+                          "type": "integer",
+                          "description": "사용 중인 VRAM (MB)",
+                          "example": 3456
+                        },
+                        "memory_free": {
+                          "type": "integer",
+                          "description": "여유 VRAM (MB)",
+                          "example": 8832
+                        },
+                        "utilization": {
+                          "type": "integer",
+                          "description": "GPU 사용률 (%)",
+                          "example": 45
+                        }
+                      }
+                    },
+                    "queue_length": {
+                      "type": "integer",
+                      "description": "대기 중인 작업 수",
+                      "example": 2
+                    },
+                    "uptime_seconds": {
+                      "type": "integer",
+                      "description": "서버 가동 시간 (초)",
+                      "example": 86400
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "에러 메시지",
+            "example": "Brand LoRA not found"
+          },
+          "errorCode": {
+            "type": "string",
+            "description": "에러 코드",
+            "example": "LORA_NOT_FOUND"
+          },
+          "details": {
+            "type": "object",
+            "description": "에러 상세 정보"
+          }
+        }
+      },
+      "AspectRatio": {
+        "type": "string",
+        "enum": ["16:9", "9:16", "1:1", "4:5"],
+        "description": "종횡비"
+      },
+      "MotionStyle": {
+        "type": "string",
+        "enum": ["static", "slow zoom-in", "slow zoom-out", "pan-left", "pan-right", "slow-motion"],
+        "description": "모션 스타일"
+      },
+      "ImageStyle": {
+        "type": "string",
+        "enum": ["realistic", "cinematic", "anime", "illustration"],
+        "description": "이미지 스타일"
+      }
+    }
+  }
+}

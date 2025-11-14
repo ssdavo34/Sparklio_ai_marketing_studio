@@ -1,0 +1,887 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Video Pipeline API",
+    "version": "1.0.0",
+    "description": "E2E 비디오 생성 파이프라인 API - 스토리보드 → 이미지 → 모션 → 조립",
+    "lastUpdated": "2025-11-14 (금요일) 17:40",
+    "owner": "Team A"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000/api",
+      "description": "로컬 개발 서버"
+    },
+    {
+      "url": "http://100.123.51.5:3000/api",
+      "description": "Mac mini M2 서버 (24/7)"
+    }
+  ],
+  "paths": {
+    "/video/storyboard": {
+      "post": {
+        "summary": "스토리보드 생성",
+        "description": "Qwen 14B를 사용하여 광고 영상 스토리보드를 자동 생성합니다.",
+        "tags": ["Video Pipeline"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["title", "duration", "brandId"],
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "description": "영상 제목",
+                    "example": "Daily Eye Care Moisturizer - 15s Ad",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "duration": {
+                    "type": "integer",
+                    "description": "영상 길이 (초)",
+                    "example": 15,
+                    "minimum": 5,
+                    "maximum": 60
+                  },
+                  "brandId": {
+                    "type": "string",
+                    "description": "브랜드 ID (브랜드킷 참조)",
+                    "example": "brand_abc123"
+                  },
+                  "productInfo": {
+                    "type": "object",
+                    "description": "상품 정보",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "example": "Daily Eye Care Moisturizer"
+                      },
+                      "category": {
+                        "type": "string",
+                        "example": "Skincare"
+                      },
+                      "usp": {
+                        "type": "string",
+                        "description": "Unique Selling Point",
+                        "example": "12시간 지속 보습, 피부과 테스트 완료"
+                      }
+                    }
+                  },
+                  "targetAudience": {
+                    "type": "object",
+                    "description": "타겟 오디언스",
+                    "properties": {
+                      "ageRange": {
+                        "type": "string",
+                        "example": "25-45"
+                      },
+                      "gender": {
+                        "type": "string",
+                        "enum": ["all", "female", "male"],
+                        "example": "female"
+                      },
+                      "interests": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "example": ["skincare", "wellness", "beauty"]
+                      }
+                    }
+                  },
+                  "style": {
+                    "type": "object",
+                    "description": "영상 스타일",
+                    "properties": {
+                      "tone": {
+                        "type": "string",
+                        "enum": ["professional", "friendly", "energetic", "calm", "luxury"],
+                        "example": "friendly"
+                      },
+                      "pacing": {
+                        "type": "string",
+                        "enum": ["slow", "medium", "fast"],
+                        "example": "medium"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "성공 - 스토리보드 생성 완료",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "storyboardId": {
+                      "type": "string",
+                      "description": "생성된 스토리보드 ID",
+                      "example": "sb_xyz789abc"
+                    },
+                    "title": {
+                      "type": "string",
+                      "example": "Daily Eye Care Moisturizer - 15s Ad"
+                    },
+                    "duration": {
+                      "type": "integer",
+                      "example": 15
+                    },
+                    "scenes": {
+                      "type": "array",
+                      "description": "씬 목록 (3-7개)",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "sceneId": {
+                            "type": "string",
+                            "example": "scene_001"
+                          },
+                          "purpose": {
+                            "type": "string",
+                            "description": "씬 목적",
+                            "example": "Hook / Attention"
+                          },
+                          "duration": {
+                            "type": "number",
+                            "description": "씬 길이 (초)",
+                            "example": 3.0
+                          },
+                          "imagePrompt": {
+                            "type": "string",
+                            "description": "이미지 생성 프롬프트",
+                            "example": "close-up tired eyes, soft lighting, HD, cinematic"
+                          },
+                          "motionStyle": {
+                            "type": "string",
+                            "enum": ["static", "slow zoom-in", "slow zoom-out", "pan-left", "pan-right", "slow-motion"],
+                            "example": "slow zoom-in"
+                          },
+                          "narration": {
+                            "type": "string",
+                            "description": "내레이션/자막 텍스트",
+                            "example": "눈가 피부 건조하세요?"
+                          }
+                        }
+                      }
+                    },
+                    "estimatedCost": {
+                      "type": "number",
+                      "description": "전체 생성 예상 비용 (USD)",
+                      "example": 0.35
+                    },
+                    "estimatedTime": {
+                      "type": "integer",
+                      "description": "전체 생성 예상 시간 (초)",
+                      "example": 180
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "잘못된 요청",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "서버 내부 오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/video/images": {
+      "post": {
+        "summary": "씬 이미지 생성",
+        "description": "ComfyUI + SDXL + Brand LoRA를 사용하여 각 씬의 이미지를 생성합니다.",
+        "tags": ["Video Pipeline"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["storyboardId", "scenes"],
+                "properties": {
+                  "storyboardId": {
+                    "type": "string",
+                    "description": "스토리보드 ID",
+                    "example": "sb_xyz789abc"
+                  },
+                  "scenes": {
+                    "type": "array",
+                    "description": "생성할 씬 목록",
+                    "items": {
+                      "type": "object",
+                      "required": ["sceneId", "imagePrompt"],
+                      "properties": {
+                        "sceneId": {
+                          "type": "string",
+                          "example": "scene_001"
+                        },
+                        "imagePrompt": {
+                          "type": "string",
+                          "example": "close-up tired eyes, soft lighting, HD, cinematic"
+                        },
+                        "aspectRatio": {
+                          "type": "string",
+                          "enum": ["16:9", "9:16", "1:1", "4:5"],
+                          "description": "종횡비",
+                          "example": "9:16"
+                        },
+                        "resolution": {
+                          "type": "string",
+                          "enum": ["1080x1920", "1920x1080", "1024x1024"],
+                          "example": "1080x1920"
+                        }
+                      }
+                    }
+                  },
+                  "brandLoraId": {
+                    "type": "string",
+                    "description": "브랜드 LoRA 모델 ID (선택)",
+                    "example": "lora_brand_abc123"
+                  },
+                  "style": {
+                    "type": "object",
+                    "description": "스타일 오버라이드",
+                    "properties": {
+                      "baseStyle": {
+                        "type": "string",
+                        "enum": ["realistic", "cinematic", "anime", "illustration"],
+                        "example": "cinematic"
+                      },
+                      "colorGrading": {
+                        "type": "string",
+                        "example": "warm, vibrant"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "성공 - 이미지 생성 완료",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "jobId": {
+                      "type": "string",
+                      "description": "이미지 생성 작업 ID",
+                      "example": "img_job_abc123"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["queued", "processing", "completed", "failed"],
+                      "example": "processing"
+                    },
+                    "storyboardId": {
+                      "type": "string",
+                      "example": "sb_xyz789abc"
+                    },
+                    "totalScenes": {
+                      "type": "integer",
+                      "example": 5
+                    },
+                    "completedScenes": {
+                      "type": "integer",
+                      "example": 0
+                    },
+                    "estimatedTime": {
+                      "type": "integer",
+                      "description": "예상 완료 시간 (초)",
+                      "example": 60
+                    },
+                    "images": {
+                      "type": "array",
+                      "description": "완료된 이미지 목록",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "sceneId": {
+                            "type": "string",
+                            "example": "scene_001"
+                          },
+                          "imageUrl": {
+                            "type": "string",
+                            "format": "uri",
+                            "example": "https://minio.sparklio.local/videos/sb_xyz789abc/scene_001.png"
+                          },
+                          "width": {
+                            "type": "integer",
+                            "example": 1080
+                          },
+                          "height": {
+                            "type": "integer",
+                            "example": 1920
+                          },
+                          "generatedAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "example": "2025-11-14T17:45:00Z"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "승인됨 - 작업 큐에 추가됨",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "jobId": {
+                      "type": "string",
+                      "example": "img_job_abc123"
+                    },
+                    "status": {
+                      "type": "string",
+                      "example": "queued"
+                    },
+                    "estimatedStartTime": {
+                      "type": "string",
+                      "format": "date-time",
+                      "example": "2025-11-14T17:46:00Z"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "잘못된 요청",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/video/motion": {
+      "post": {
+        "summary": "모션 클립 생성",
+        "description": "AnimateDiff를 사용하여 정적 이미지에 모션을 추가합니다.",
+        "tags": ["Video Pipeline"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["storyboardId", "imageJobId"],
+                "properties": {
+                  "storyboardId": {
+                    "type": "string",
+                    "example": "sb_xyz789abc"
+                  },
+                  "imageJobId": {
+                    "type": "string",
+                    "description": "이미지 생성 작업 ID",
+                    "example": "img_job_abc123"
+                  },
+                  "motionSettings": {
+                    "type": "array",
+                    "description": "각 씬별 모션 설정",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "sceneId": {
+                          "type": "string",
+                          "example": "scene_001"
+                        },
+                        "motionStyle": {
+                          "type": "string",
+                          "enum": ["static", "slow zoom-in", "slow zoom-out", "pan-left", "pan-right", "slow-motion"],
+                          "example": "slow zoom-in"
+                        },
+                        "duration": {
+                          "type": "number",
+                          "description": "클립 길이 (초)",
+                          "example": 3.0
+                        },
+                        "fps": {
+                          "type": "integer",
+                          "description": "프레임 레이트",
+                          "example": 30,
+                          "enum": [24, 30, 60]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "성공 - 모션 클립 생성 완료",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "jobId": {
+                      "type": "string",
+                      "description": "모션 생성 작업 ID",
+                      "example": "motion_job_def456"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["queued", "processing", "completed", "failed"],
+                      "example": "processing"
+                    },
+                    "storyboardId": {
+                      "type": "string",
+                      "example": "sb_xyz789abc"
+                    },
+                    "totalClips": {
+                      "type": "integer",
+                      "example": 5
+                    },
+                    "completedClips": {
+                      "type": "integer",
+                      "example": 0
+                    },
+                    "estimatedTime": {
+                      "type": "integer",
+                      "description": "예상 완료 시간 (초)",
+                      "example": 90
+                    },
+                    "clips": {
+                      "type": "array",
+                      "description": "완료된 클립 목록",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "sceneId": {
+                            "type": "string",
+                            "example": "scene_001"
+                          },
+                          "clipUrl": {
+                            "type": "string",
+                            "format": "uri",
+                            "example": "https://minio.sparklio.local/videos/sb_xyz789abc/scene_001_motion.mp4"
+                          },
+                          "duration": {
+                            "type": "number",
+                            "example": 3.0
+                          },
+                          "fps": {
+                            "type": "integer",
+                            "example": 30
+                          },
+                          "fileSize": {
+                            "type": "integer",
+                            "description": "파일 크기 (bytes)",
+                            "example": 2457600
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "승인됨 - 작업 큐에 추가됨",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "jobId": {
+                      "type": "string",
+                      "example": "motion_job_def456"
+                    },
+                    "status": {
+                      "type": "string",
+                      "example": "queued"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/video/assemble": {
+      "post": {
+        "summary": "최종 영상 조립",
+        "description": "FFmpeg를 사용하여 모션 클립들을 하나의 영상으로 조립합니다.",
+        "tags": ["Video Pipeline"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["storyboardId", "motionJobId"],
+                "properties": {
+                  "storyboardId": {
+                    "type": "string",
+                    "example": "sb_xyz789abc"
+                  },
+                  "motionJobId": {
+                    "type": "string",
+                    "description": "모션 생성 작업 ID",
+                    "example": "motion_job_def456"
+                  },
+                  "assemblyOptions": {
+                    "type": "object",
+                    "description": "조립 옵션",
+                    "properties": {
+                      "transitions": {
+                        "type": "array",
+                        "description": "씬 전환 효과",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "from": {
+                              "type": "string",
+                              "example": "scene_001"
+                            },
+                            "to": {
+                              "type": "string",
+                              "example": "scene_002"
+                            },
+                            "effect": {
+                              "type": "string",
+                              "enum": ["cut", "fade", "crossfade", "wipe"],
+                              "example": "crossfade"
+                            },
+                            "duration": {
+                              "type": "number",
+                              "description": "전환 길이 (초)",
+                              "example": 0.5
+                            }
+                          }
+                        }
+                      },
+                      "audio": {
+                        "type": "object",
+                        "description": "오디오 옵션",
+                        "properties": {
+                          "bgmUrl": {
+                            "type": "string",
+                            "format": "uri",
+                            "description": "배경 음악 URL",
+                            "example": "https://minio.sparklio.local/audio/bgm_001.mp3"
+                          },
+                          "bgmVolume": {
+                            "type": "number",
+                            "description": "배경 음악 볼륨 (0.0-1.0)",
+                            "example": 0.3,
+                            "minimum": 0.0,
+                            "maximum": 1.0
+                          },
+                          "narrationUrls": {
+                            "type": "array",
+                            "description": "씬별 내레이션 URL",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "sceneId": {
+                                  "type": "string",
+                                  "example": "scene_001"
+                                },
+                                "audioUrl": {
+                                  "type": "string",
+                                  "format": "uri"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "outputFormat": {
+                        "type": "object",
+                        "description": "출력 형식",
+                        "properties": {
+                          "resolution": {
+                            "type": "string",
+                            "enum": ["1080x1920", "1920x1080", "1024x1024"],
+                            "example": "1080x1920"
+                          },
+                          "fps": {
+                            "type": "integer",
+                            "enum": [24, 30, 60],
+                            "example": 30
+                          },
+                          "codec": {
+                            "type": "string",
+                            "enum": ["h264", "h265"],
+                            "example": "h264"
+                          },
+                          "quality": {
+                            "type": "string",
+                            "enum": ["draft", "standard", "high"],
+                            "example": "standard"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "성공 - 최종 영상 생성 완료",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "videoId": {
+                      "type": "string",
+                      "description": "최종 영상 ID",
+                      "example": "video_final_ghi789"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["processing", "completed", "failed"],
+                      "example": "completed"
+                    },
+                    "videoUrl": {
+                      "type": "string",
+                      "format": "uri",
+                      "description": "최종 영상 URL",
+                      "example": "https://minio.sparklio.local/videos/final/video_final_ghi789.mp4"
+                    },
+                    "thumbnailUrl": {
+                      "type": "string",
+                      "format": "uri",
+                      "description": "썸네일 이미지 URL",
+                      "example": "https://minio.sparklio.local/videos/final/video_final_ghi789_thumb.jpg"
+                    },
+                    "metadata": {
+                      "type": "object",
+                      "description": "영상 메타데이터",
+                      "properties": {
+                        "duration": {
+                          "type": "number",
+                          "description": "총 길이 (초)",
+                          "example": 15.0
+                        },
+                        "resolution": {
+                          "type": "string",
+                          "example": "1080x1920"
+                        },
+                        "fps": {
+                          "type": "integer",
+                          "example": 30
+                        },
+                        "fileSize": {
+                          "type": "integer",
+                          "description": "파일 크기 (bytes)",
+                          "example": 15728640
+                        },
+                        "codec": {
+                          "type": "string",
+                          "example": "h264"
+                        }
+                      }
+                    },
+                    "processingTime": {
+                      "type": "integer",
+                      "description": "총 처리 시간 (초)",
+                      "example": 162
+                    },
+                    "totalCost": {
+                      "type": "number",
+                      "description": "총 비용 (USD)",
+                      "example": 0.38
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "승인됨 - 조립 작업 진행 중",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "videoId": {
+                      "type": "string",
+                      "example": "video_final_ghi789"
+                    },
+                    "status": {
+                      "type": "string",
+                      "example": "processing"
+                    },
+                    "estimatedTime": {
+                      "type": "integer",
+                      "description": "예상 완료 시간 (초)",
+                      "example": 30
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/video/status/{jobId}": {
+      "get": {
+        "summary": "작업 상태 조회",
+        "description": "특정 작업의 진행 상태를 조회합니다.",
+        "tags": ["Video Pipeline"],
+        "parameters": [
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "작업 ID (img_job_*, motion_job_*, video_* 등)",
+            "example": "img_job_abc123"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "jobId": {
+                      "type": "string",
+                      "example": "img_job_abc123"
+                    },
+                    "jobType": {
+                      "type": "string",
+                      "enum": ["storyboard", "image", "motion", "assembly"],
+                      "example": "image"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["queued", "processing", "completed", "failed"],
+                      "example": "processing"
+                    },
+                    "progress": {
+                      "type": "integer",
+                      "description": "진행률 (0-100%)",
+                      "example": 60
+                    },
+                    "totalItems": {
+                      "type": "integer",
+                      "description": "전체 항목 수",
+                      "example": 5
+                    },
+                    "completedItems": {
+                      "type": "integer",
+                      "description": "완료된 항목 수",
+                      "example": 3
+                    },
+                    "estimatedTimeRemaining": {
+                      "type": "integer",
+                      "description": "예상 남은 시간 (초)",
+                      "example": 40
+                    },
+                    "error": {
+                      "type": "string",
+                      "description": "에러 메시지 (실패 시)",
+                      "example": null
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "작업을 찾을 수 없음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "에러 메시지",
+            "example": "Invalid storyboard ID"
+          },
+          "errorCode": {
+            "type": "string",
+            "description": "에러 코드",
+            "example": "INVALID_STORYBOARD_ID"
+          },
+          "details": {
+            "type": "object",
+            "description": "에러 상세 정보"
+          }
+        }
+      },
+      "JobStatus": {
+        "type": "string",
+        "enum": ["queued", "processing", "completed", "failed"],
+        "description": "작업 상태"
+      },
+      "MotionStyle": {
+        "type": "string",
+        "enum": ["static", "slow zoom-in", "slow zoom-out", "pan-left", "pan-right", "slow-motion"],
+        "description": "모션 스타일"
+      },
+      "AspectRatio": {
+        "type": "string",
+        "enum": ["16:9", "9:16", "1:1", "4:5"],
+        "description": "종횡비"
+      }
+    }
+  }
+}
