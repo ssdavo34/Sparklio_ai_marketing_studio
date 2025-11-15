@@ -1,0 +1,57 @@
+{
+  "taskId": "gen_29299130977b",
+  "kind": "brand_kit",
+  "textBlocks": {
+    "slogan": "자연주의 스킨케어 A와 함께하는 새로운 경험",
+    "mission": "자연주의 스킨케어 A는 고객에게 최고의 가치를 제공합니다",
+    "values": "혁신, 신뢰, 지속가능성",
+    "vision": "자연주의 스킨케어 A가 만드는 더 나은 미래"
+  },
+  "editorDocument": {
+    "documentId": "doc_e9b236d5a0ad",
+    "type": "brand_kit",
+    "version": "1.0",
+    "pages": [
+      {
+        "pageId": "page_1",
+        "type": "brand_identity",
+        "objects": [
+          {
+            "type": "text",
+            "id": "obj_slogan",
+            "content": "자연주의 스킨케어 A와 함께하는 새로운 경험",
+            "style": {
+              "fontSize": 48,
+              "fontFamily": "Pretendard",
+              "fontWeight": "bold"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "meta": {
+    "templates_used": [
+      "brand_kit_default"
+    ],
+    "agents_trace": [
+      {
+        "agent": "BriefAgent",
+        "status": "completed"
+      },
+      {
+        "agent": "StrategistAgent",
+        "status": "completed (mock)"
+      },
+      {
+        "agent": "CopywriterAgent",
+        "status": "completed (mock)"
+      }
+    ],
+    "llm_cost": {
+      "total_tokens": 1500,
+      "cost_usd": 0.015
+    },
+    "is_mock": true
+  }
+}

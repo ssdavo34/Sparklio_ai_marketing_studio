@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Sidebar from '@/components/Layout/Sidebar';
 import ChatPanel from '@/components/Chat/ChatPanel';
 import Inspector from '@/components/Editor/Inspector';
+import EditorCanvas from '@/components/Editor/EditorCanvas';
 
 /**
  * Sparklio V4.3 - Main Application (SPA)
@@ -55,23 +56,7 @@ export default function SparklioCoreApp() {
         </div>
 
         {/* Canvas Area */}
-        <div className="flex-1 bg-gray-100 p-8 flex items-center justify-center overflow-auto">
-          <div className="bg-white shadow-lg" style={{ width: '1080px', height: '1350px' }}>
-            {/* Fabric.js Canvas가 여기에 렌더링됩니다 */}
-            <div className="w-full h-full flex items-center justify-center text-gray-400">
-              <div className="text-center">
-                <div className="text-6xl mb-4">🎨</div>
-                <p className="text-lg font-medium">Canvas Area</p>
-                <p className="text-sm mt-2">
-                  Chat에서 생성된 초안이 여기에 로딩됩니다
-                </p>
-                <p className="text-xs text-gray-400 mt-4">
-                  (Fabric.js Canvas 통합 예정)
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
+        <EditorCanvas />
       </div>
 
       {/* 우측: Inspector Panel */}

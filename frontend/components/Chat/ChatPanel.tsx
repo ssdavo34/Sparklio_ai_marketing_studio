@@ -1,6 +1,8 @@
 'use client';
 
 import { useChatStore } from '@/store/chat-store';
+import { useEditorStore } from '@/store/editor-store';
+import { generateDocument } from '@/lib/api-client';
 
 /**
  * ChatPanel 컴포넌트
@@ -13,6 +15,7 @@ import { useChatStore } from '@/store/chat-store';
 export default function ChatPanel() {
   const { messages, inputText, isGenerating, addMessage, setInputText, setIsGenerating } =
     useChatStore();
+  const { setCurrentDocument } = useEditorStore();
 
   const handleSubmit = async () => {
     if (!inputText.trim() || isGenerating) return;
@@ -28,25 +31,34 @@ export default function ChatPanel() {
     setIsGenerating(true);
 
     try {
-      // TODO: Generator API 호출
-      // const result = await generateDocument({
-      //   kind: 'product_detail',
-      //   brandId: 'brand_001',
-      //   input: { product: { name: userInput } },
-      // });
+      // Generator API 호출
+      const result = await generateDocument({
+        kind: 'product_detail',
+        brandId: 'brand_001',
+        locale: 'ko-KR',
+        input: {
+          product: {
+            name: userInput,
+            features: ['고품질', '혁신적인 디자인'],
+            target_audience: '20-40대',
+          },
+        },
+      });
 
-      // 임시 응답
-      setTimeout(() => {
-        addMessage({
-          role: 'assistant',
-          content: `"${userInput}"에 대한 초안을 생성하는 중입니다...\n\n(Generator API 연동 예정)`,
-        });
-        setIsGenerating(false);
-      }, 1000);
-    } catch (error) {
+      // Editor Store에 문서 로딩
+      setCurrentDocument(result.editorDocument);
+
+      // 성공 메시지
       addMessage({
         role: 'assistant',
-        content: '오류가 발생했습니다. 다시 시도해주세요.',
+        content: `"${userInput}" 상세페이지 초안이 생성되었습니다!\n\n우측 캔버스에서 확인하고 수정할 수 있습니다.`,
+      });
+      setIsGenerating(false);
+    } catch (error) {
+      // 에러 메시지
+      addMessage({
+        role: 'assistant',
+        content: `오류가 발생했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}\n\nBackend API가 실행 중인지 확인해주세요.`,
       });
       setIsGenerating(false);
     }

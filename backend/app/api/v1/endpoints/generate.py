@@ -14,17 +14,18 @@ from app.auth.jwt import get_current_user
 from app.models.user import User
 from app.generators.base import GenerationRequest, GenerationResult
 from app.generators.brand_kit import BrandKitGenerator
+from app.generators.product_detail import ProductDetailGenerator
+from app.generators.sns import SNSGenerator
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 # Generator 인스턴스 관리
-# P0: Brand Kit만 구현
-# P1: Product Detail, SNS, Presentation 추가
+# P0: Brand Kit, Product Detail, SNS 구현 완료
 generators = {
     "brand_kit": BrandKitGenerator(),
-    # "product_detail": ProductDetailGenerator(),  # P1
-    # "sns": SNSGenerator(),  # P1
+    "product_detail": ProductDetailGenerator(),
+    "sns": SNSGenerator(),
 }
 
 
@@ -37,11 +38,11 @@ async def generate_content(
     """
     통합 Generator 엔드포인트
 
-    **P0 범위**:
-    - kind: "brand_kit"
+    **P0 범위** (완료):
+    - kind: "brand_kit", "product_detail", "sns"
 
     **P1 범위** (향후):
-    - kind: "product_detail", "sns", "presentation"
+    - kind: "presentation", "meeting_ai", "ad_script"
 
     ---
 

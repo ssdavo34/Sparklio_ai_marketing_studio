@@ -272,3 +272,76 @@ export async function deleteProject(projectId: string, hardDelete = false): Prom
     params: { hard_delete: hardDelete },
   });
 }
+
+// ============ Generator APIs ============
+
+export interface GeneratorInput {
+  kind: 'brand_kit' | 'product_detail' | 'sns' | 'presentation';
+  brandId?: string;
+  locale?: string;
+  channel?: string;
+  input: any; // 각 Generator마다 다른 input 구조
+  context?: {
+    brand_kit_id?: string;
+    meeting_summary_id?: string;
+    trend_context_id?: string;
+  };
+}
+
+export interface GeneratorOutput {
+  taskId: string;
+  kind: string;
+  textBlocks: Record<string, any>;
+  editorDocument: {
+    documentId: string;
+    type: 'product_detail' | 'sns' | 'brand_kit' | 'presentation';
+    brandId?: string;
+    pages: Array<{
+      id: string;
+      name: string;
+      width: number;
+      height: number;
+      background: string;
+      objects: Array<{
+        id: string;
+        type: 'text' | 'image' | 'shape' | 'group';
+        role?: string;
+        bounds: { x: number; y: number; width: number; height: number };
+        props: Record<string, any>;
+        bindings?: { field: string };
+      }>;
+    }>;
+  };
+  meta?: {
+    templates_used?: string[];
+    agents_trace?: any[];
+    llm_cost?: { prompt_tokens: number; completion_tokens: number };
+  };
+}
+
+// Generator 호출 (통합)
+export async function generateDocument(input: GeneratorInput): Promise<GeneratorOutput> {
+  const response = await api.post('/api/v1/generate', input);
+  return response.data;
+}
+
+// Document 저장
+export async function saveDocument(documentId: string, data: { documentJson: any; metadata?: any }) {
+  const response = await api.post(`/api/v1/documents/${documentId}/save`, data);
+  return response.data;
+}
+
+// Document 로드
+export async function loadDocument(documentId: string) {
+  const response = await api.get(`/api/v1/documents/${documentId}`);
+  return response.data;
+}
+
+// Editor Action 실행
+export async function executeEditorAction(documentId: string, actions: any[]) {
+  const response = await api.post('/api/v1/editor/action', {
+    documentId,
+    actions,
+  });
+  return response.data;
+}
