@@ -8,6 +8,7 @@ import EditorCanvas from '@/components/Editor/EditorCanvas';
 import LoginForm from '@/components/Auth/LoginForm';
 import RegisterForm from '@/components/Auth/RegisterForm';
 import { useAuthStore } from '@/store/auth-store';
+import { useEditorStore } from '@/store/editor-store';
 
 /**
  * Sparklio V4.3 - Main Application (SPA)
@@ -124,7 +125,23 @@ export default function SparklioCoreApp() {
             <button className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50">
               저장
             </button>
-            <button className="px-4 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">
+            <button
+              onClick={() => {
+                const canvas = useEditorStore.getState().canvas;
+                if (canvas) {
+                  const dataURL = canvas.toDataURL({
+                    format: 'png',
+                    quality: 1,
+                    multiplier: 2,
+                  });
+                  const link = document.createElement('a');
+                  link.download = `sparklio-design-${Date.now()}.png`;
+                  link.href = dataURL;
+                  link.click();
+                }
+              }}
+              className="px-4 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
               Export
             </button>
           </div>

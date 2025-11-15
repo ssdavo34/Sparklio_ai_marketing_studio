@@ -33,18 +33,49 @@ export default function ChatPanel() {
     setIsGenerating(true);
 
     try {
-      // Generator API 호출
-      const result = await generateDocument({
-        kind: 'product_detail',
-        brandId: 'brand_001',
-        locale: 'ko-KR',
-        input: {
+      // 키워드 기반 Generator 종류 감지
+      const lowerInput = userInput.toLowerCase();
+      let kind: 'product_detail' | 'sns' | 'brand_kit' = 'product_detail';
+      let generatorInput: any;
+      let successMessage = '';
+
+      if (lowerInput.includes('sns') || lowerInput.includes('인스타') || lowerInput.includes('소셜')) {
+        kind = 'sns';
+        generatorInput = {
+          campaign: {
+            name: userInput.replace(/(sns|인스타|소셜)/gi, '').trim(),
+            theme: 'modern',
+            target_platform: 'instagram',
+          },
+        };
+        successMessage = `"${userInput}" SNS 포스트가 생성되었습니다!`;
+      } else if (lowerInput.includes('브랜드') || lowerInput.includes('brand kit')) {
+        kind = 'brand_kit';
+        generatorInput = {
+          brand: {
+            name: userInput.replace(/(브랜드|brand kit)/gi, '').trim(),
+            description: '브랜드 스타일 가이드',
+          },
+        };
+        successMessage = `"${userInput}" 브랜드 킷이 생성되었습니다!`;
+      } else {
+        kind = 'product_detail';
+        generatorInput = {
           product: {
             name: userInput,
             features: ['고품질', '혁신적인 디자인'],
             target_audience: '20-40대',
           },
-        },
+        };
+        successMessage = `"${userInput}" 상세페이지 초안이 생성되었습니다!`;
+      }
+
+      // Generator API 호출
+      const result = await generateDocument({
+        kind,
+        brandId: 'brand_001',
+        locale: 'ko-KR',
+        input: generatorInput,
       });
 
       // Editor Store에 문서 로딩
@@ -53,7 +84,7 @@ export default function ChatPanel() {
       // 성공 메시지
       addMessage({
         role: 'assistant',
-        content: `"${userInput}" 상세페이지 초안이 생성되었습니다!\n\n우측 캔버스에서 확인하고 수정할 수 있습니다.`,
+        content: `${successMessage}\n\n우측 캔버스에서 확인하고 수정할 수 있습니다.`,
       });
       setIsGenerating(false);
     } catch (error) {

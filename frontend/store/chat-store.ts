@@ -35,7 +35,7 @@ export const useChatStore = create<ChatState>((set) => ({
     {
       id: 'welcome',
       role: 'assistant',
-      content: '안녕하세요! 무엇을 만들어드릴까요?\n\n예시: "스킨케어 제품 상세페이지 만들어줘"',
+      content: '안녕하세요! 무엇을 만들어드릴까요?\n\n예시:\n- "스킨케어 제품 상세페이지 만들어줘"\n- "신제품 런칭 SNS 포스트 만들어줘"\n- "우리 브랜드 킷 만들어줘"',
       timestamp: new Date(),
     },
   ],
