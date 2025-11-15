@@ -968,7 +968,40 @@ git push origin feature/frontend-p0
 
 ---
 
+## 📌 추가 작업: Concept Board (Phase 1)
+
+**우선순위**: P1 (Generator 완료 후 진행)
+**예상 소요**: 1-2주
+**담당 문서**: `docs/CONCEPT_BOARD_C_TEAM_TASKS.md`
+
+### 작업 개요
+
+Mixboard 스타일 무드보드 기능을 구현합니다. **Phase 1은 Mock Provider 기반**으로 진행하며, 나노바나나 API 스펙 확보 후 Phase 2에서 실제 연동합니다.
+
+**Phase 1 핵심 작업**:
+1. Concept Board UI/UX 구현 (3×3 타일 그리드)
+2. API 연동 (생성, 조회, 수정)
+3. 타일 선택 및 컬러 팔레트 표시
+4. Brand Kit 저장 기능 (Brand Visual Style)
+
+**상세 작업 내역**:
+- `docs/CONCEPT_BOARD_C_TEAM_TASKS.md` 참고
+- B팀 API가 완료되면 즉시 연동 가능하도록 준비
+
+**체크리스트**:
+1. [ ] CONCEPT_BOARD_SPEC.md 확인 (30분)
+2. [ ] CONCEPT_BOARD_C_TEAM_TASKS.md 숙지 (1시간)
+3. [ ] B팀 API 완료 대기
+4. [ ] UI/UX 컴포넌트 구현
+5. [ ] API 연동 및 테스트
+
+---
+
 ## Changelog
+
+- **v2.1 (2025-11-15)**
+  - Concept Board 추가 작업 섹션 추가
+  - CONCEPT_BOARD_C_TEAM_TASKS.md 참조 링크 추가
 
 - **v2.0 (2025-11-15)**
   - 전면 재작성

@@ -4,6 +4,7 @@ from app.models.brand import Brand
 from app.models.project import Project
 from app.models.workflow import Workflow, WorkflowNode
 from app.models.agent_log import AgentLog, RouterLog
+from app.models.document import Document, Template, GenerationJob
 
 __all__ = [
     "GeneratedAsset",
@@ -14,4 +15,7 @@ __all__ = [
     "WorkflowNode",
     "AgentLog",
     "RouterLog",
+    "Document",
+    "Template",
+    "GenerationJob",
 ]

@@ -20,6 +20,23 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Add response error handler
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response) {
+      console.error('❌ API 에러:', {
+        url: error.config?.url,
+        method: error.config?.method,
+        status: error.response.status,
+        data: error.response.data,
+        requestData: error.config?.data
+      });
+    }
+    return Promise.reject(error);
+  }
+);
+
 // SmartRouter 호출
 export async function routeRequest(requestText: string, brandId?: string, projectId?: string) {
   const response = await api.post('/api/v1/router/route', {

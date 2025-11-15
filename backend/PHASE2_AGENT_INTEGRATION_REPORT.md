@@ -1,15 +1,24 @@
-# Phase 2 완료 - Agent Integration Report
+# Phase 2 완료 - Editor Document & Action API Report
 
 **작업일**: 2025-11-15
 **작성자**: B팀 (Backend Team)
-**상태**: ✅ **Phase 2 완료 - 3개 Generator 모두 Agent 연동 완료**
+**상태**: ✅ **Phase 2 완료 - Agent 연동 + Editor Document/Action API 구현 완료**
 
 ---
 
 ## 📊 작업 요약
 
-Phase 1에서 완성한 3개 Generator의 Mock 데이터를 실제 Agent 호출로 전환하는 작업을 **완료**했습니다.
-**모든 Generator가 이제 실제 LLM을 사용하여 콘텐츠를 생성합니다.**
+Phase 2에서는 두 가지 주요 작업을 완료했습니다:
+
+1. **3개 Generator 모두 실제 Agent 연동 완료** (이전 완료)
+   - BrandKitGenerator, ProductDetailGenerator, SNSGenerator
+   - Mock 데이터 → 실제 LLM 기반 생성
+
+2. **Editor Document & Action API 구현 완료** (신규)
+   - Document 저장/로드/수정 API
+   - Template 조회/관리 API
+   - Editor Action 처리 API
+   - DB 테이블 3개 추가 (documents, templates, generation_jobs)
 
 ---
 
@@ -265,6 +274,216 @@ backend/app/generators/brand_kit.py  # Agent 연동 구현
 ```
 backend/PHASE2_AGENT_INTEGRATION_REPORT.md  # 본 문서
 ```
+
+---
+
+## ✅ Phase 2 추가 완료 항목 (Editor Document & Action API)
+
+### 4. Document DB 모델 생성 ✅
+
+**파일**: `app/models/document.py`
+
+#### 생성된 모델
+
+```python
+class Document(Base):
+    """Editor Document 저장 및 버전 관리"""
+    __tablename__ = "documents"
+
+    id = Column(UUID)
+    brand_id = Column(UUID, nullable=True)
+    project_id = Column(UUID, nullable=True)
+    user_id = Column(UUID, nullable=False)
+
+    document_json = Column(JSONB, nullable=False)
+    document_metadata = Column(JSONB, nullable=True)
+    version = Column(Integer, default=1)
+
+    created_at = Column(TIMESTAMP)
+    updated_at = Column(TIMESTAMP)
+
+
+class Template(Base):
+    """Layout Template 저장 및 관리"""
+    __tablename__ = "templates"
+
+    id = Column(UUID)
+    template_id = Column(String(255), unique=True)
+    type = Column(String(50))
+    origin = Column(String(50))
+    industry = Column(JSONB, default=[])
+    channel = Column(JSONB, default=[])
+    document_json = Column(JSONB, nullable=False)
+    status = Column(String(20), default='draft')
+    template_metadata = Column(JSONB)
+
+    created_at = Column(TIMESTAMP)
+    updated_at = Column(TIMESTAMP)
+
+
+class GenerationJob(Base):
+    """Generator 실행 이력 저장 및 모니터링"""
+    __tablename__ = "generation_jobs"
+
+    id = Column(UUID)
+    task_id = Column(String(255), unique=True)
+    user_id = Column(UUID)
+    brand_id = Column(UUID)
+    kind = Column(String(50))
+    status = Column(String(20), default='queued')
+    input_data = Column(JSONB)
+    result_data = Column(JSONB)
+    started_at = Column(TIMESTAMP)
+    completed_at = Column(TIMESTAMP)
+    duration_ms = Column(Integer)
+    error_message = Column(Text)
+    created_at = Column(TIMESTAMP)
+```
+
+#### Alembic 마이그레이션
+
+```bash
+alembic revision --autogenerate -m "Add documents, templates, generation_jobs tables"
+alembic upgrade head
+```
+
+**결과**: 3개 테이블 생성 완료 ✅
+
+---
+
+### 5. Document API 구현 ✅
+
+**파일**: `app/api/v1/endpoints/documents.py`
+
+#### 구현된 엔드포인트
+
+```
+POST   /api/v1/documents/{docId}/save    # Document 저장 (신규/업데이트 자동 처리)
+GET    /api/v1/documents/{docId}         # Document 조회
+PATCH  /api/v1/documents/{docId}         # Document 부분 수정
+GET    /api/v1/documents                 # Document 목록 조회
+DELETE /api/v1/documents/{docId}         # Document 삭제
+```
+
+#### 주요 기능
+
+- **자동 생성/업데이트**: `/save` 엔드포인트는 Document ID 존재 여부에 따라 자동으로 신규 생성 또는 업데이트 처리
+- **버전 관리**: 매 업데이트마다 `version` 자동 증가
+- **권한 확인**: 본인 또는 Admin만 접근 가능
+- **필터링**: Brand ID, Project ID로 필터링 지원
+
+---
+
+### 6. Template API 구현 ✅
+
+**파일**: `app/api/v1/endpoints/templates.py`
+
+#### 구현된 엔드포인트
+
+**공개 API** (인증 불필요):
+```
+GET /api/v1/templates                # Template 목록 조회 (approved만)
+GET /api/v1/templates/{templateId}   # Template 조회 (approved만)
+```
+
+**Admin API** (관리자 전용):
+```
+POST   /api/v1/templates                    # Template 생성
+PATCH  /api/v1/templates/{templateId}       # Template 수정
+DELETE /api/v1/templates/{templateId}       # Template 삭제
+POST   /api/v1/templates/{templateId}/approve  # Template 승인
+POST   /api/v1/templates/{templateId}/reject   # Template 거부
+```
+
+#### 주요 기능
+
+- **필터링**: `type`, `industry`, `channel`, `status`로 필터링
+- **승인 프로세스**: Draft → Approved/Rejected 워크플로우
+- **공개/비공개**: Approved 템플릿만 공개 API에서 조회 가능
+- **JSONB 배열 검색**: `industry.contains([...])` 활용
+
+---
+
+### 7. Editor Action API 구현 ✅
+
+**파일**: `app/api/v1/endpoints/editor.py`
+
+#### 구현된 엔드포인트
+
+```
+POST /api/v1/editor/action          # Editor Action 적용
+GET  /api/v1/editor/actions/supported  # 지원 Action 목록 조회
+```
+
+#### 구현된 Action (P0 기본 4종)
+
+1. **update_object**: Object의 props를 부분 업데이트
+   ```json
+   {
+     "type": "update_object",
+     "target": {"role": "TITLE"},
+     "payload": {"props": {"fontSize": 60, "fill": "#FF0000"}}
+   }
+   ```
+
+2. **replace_text**: Text Object의 text 속성 교체
+   ```json
+   {
+     "type": "replace_text",
+     "target": {"role": "HEADLINE"},
+     "payload": {"text": "새로운 헤드라인"}
+   }
+   ```
+
+3. **add_object**: 새로운 Object 추가
+   ```json
+   {
+     "type": "add_object",
+     "target": {"pageId": "page_1"},
+     "payload": {
+       "object": {
+         "id": "obj_new_1",
+         "type": "text",
+         "bounds": {...},
+         "props": {...}
+       }
+     }
+   }
+   ```
+
+4. **delete_object**: Object 삭제
+   ```json
+   {
+     "type": "delete_object",
+     "target": {"role": "BADGE"},
+     "payload": {}
+   }
+   ```
+
+#### 주요 기능
+
+- **Batch Action**: 여러 Action을 한 번에 적용
+- **자동 버전 증가**: Action 적용 시 Document 버전 자동 증가
+- **메타데이터 추적**: `last_action`, `total_edits` 자동 기록
+- **에러 핸들링**: Action 실패 시 구체적 에러 메시지 반환
+
+---
+
+## 🎉 Phase 2 전체 완료 체크리스트
+
+### Generator Agent 연동
+- ✅ BrandKitGenerator (Strategist, Copywriter x2, Reviewer)
+- ✅ ProductDetailGenerator (Strategist, Copywriter x2, Reviewer)
+- ✅ SNSGenerator (Strategist, Copywriter, Reviewer)
+
+### Editor Document & Action API
+- ✅ Document DB 모델 (documents, templates, generation_jobs)
+- ✅ Alembic 마이그레이션 생성 및 적용
+- ✅ Document Pydantic 스키마
+- ✅ Documents 엔드포인트 (5개 API)
+- ✅ Templates 엔드포인트 (7개 API)
+- ✅ Editor Action 엔드포인트 (2개 API)
+- ✅ P0 기본 4종 Action 구현
 
 ---
 

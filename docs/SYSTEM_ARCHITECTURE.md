@@ -1,10 +1,11 @@
 # SYSTEM_ARCHITECTURE.md
 
-# Sparklio V4.3 — System Architecture (v1.1)
+# Sparklio V4.3 — System Architecture (v1.2)
 
 - 문서명: SYSTEM_ARCHITECTURE.md
-- 버전: v1.1
+- 버전: v1.2
 - 작성일: 2025-11-15
+- 최종 수정일: 2025-11-15
 - 작성자: SeongEon Park (PM), ChatGPT(설계 보조)
 - 상태: Draft (P0 범위 확정용)
 
@@ -46,7 +47,9 @@
 
 ### 2.2 아키텍처 & 스펙 계층
 
-본 문서 `SYSTEM_ARCHITECTURE.md`는 아래 4개 스펙의 상위 개념이다.
+본 문서 `SYSTEM_ARCHITECTURE.md`는 아래 핵심 스펙의 상위 개념이다.
+
+#### P0 핵심 스펙 (즉시 구현)
 
 - `ADMIN_CONSOLE_SPEC.md`
   → **운영/내부 도구** (Users, Jobs, Data Lab, Templates, Feature Flags 등)
@@ -54,13 +57,38 @@
 - `DATA_PIPELINE_ARCHITECTURE.md`
   → **데이터·자기학습 엔진** (크롤링, 정제, 태깅, RAG, 템플릿 후보 생성 등)
 
-- `ONE_PAGE_EDITOR_SPEC.md`
-  → **사용자용 중앙 에디터** (이미지/텍스트 레이아웃 편집 도구)
+- **`Canvas Studio v3` (NEW - 2025-11-15)**
+  - `C_TEAM_WORK_ORDER_CANVAS_STUDIO_v3.md`
+    → **사용자용 VSCode 스타일 원페이지 에디터** (Concept Board, Pitch Deck, Product Story 멀티 모드)
+  - `B_TEAM_CANVAS_STUDIO_BACKEND_TASKS.md`
+    → **Canvas Studio Backend API** (Document 관리, Editor Action, Template API)
+  - `CANVAS_STUDIO_MIGRATION_GUIDE.md`
+    → **Canvas Studio v2.0 → v3.0 마이그레이션 가이드**
+  - `CANVAS_STUDIO_요약_지침서.md`
+    → **Canvas Studio v3 요약 및 작업 시작 가이드**
 
 - `GENERATORS_SPEC.md`
   → **생성 엔진** (Brand Kit, Product Detail, SNS, Presentation, Ad/Video Script 등)
 
-추가 예정:
+#### P0 추가 기능
+
+- **`Concept Board` (NEW - 2025-11-15)**
+  - `CONCEPT_BOARD_SPEC.md`
+    → **Mixboard 스타일 무드보드 기능** (이미지 타일, 색상 팔레트, Brand Kit 저장)
+  - `CONCEPT_BOARD_B_TEAM_TASKS.md`
+    → **Concept Board Backend 작업** (Mock Provider, DB 스키마, API)
+  - `CONCEPT_BOARD_C_TEAM_TASKS.md`
+    → **Concept Board Frontend 작업** (타일 그리드 UI, API 연동)
+  - `CONCEPT_BOARD_요약_지침서.md`
+    → **Concept Board 요약 및 작업 시작 가이드**
+
+#### 레거시 문서 (참조용)
+
+- `ONE_PAGE_EDITOR_SPEC.md` *(폐기됨 - Canvas Studio v3로 대체)*
+  → **구 사용자용 중앙 에디터** (이미지/텍스트 레이아웃 편집 도구)
+  → **Canvas Studio v3**가 이 역할을 완전히 대체함
+
+#### P1 추가 예정
 
 - `VIDEO_EDITOR_SPEC.md` *(P1)*
   → 영상 편집/타임라인 중심 에디터 (현재 문서에서는 범위 밖으로 둔다)
@@ -563,6 +591,17 @@ Meeting AI는 **두 단계의 역할**을 가진다.
 ---
 
 ## 11. Changelog
+
+- **v1.2 (2025-11-15)**
+  - **Canvas Studio v3** 문서 추가 (VSCode 스타일 원페이지 에디터)
+    - `C_TEAM_WORK_ORDER_CANVAS_STUDIO_v3.md` (프론트엔드 작업지시)
+    - `B_TEAM_CANVAS_STUDIO_BACKEND_TASKS.md` (백엔드 API 스펙)
+    - `CANVAS_STUDIO_MIGRATION_GUIDE.md` (v2.0 → v3.0 마이그레이션)
+    - `CANVAS_STUDIO_요약_지침서.md` (C팀 요약 브리핑)
+  - **Concept Board** 기능 문서 추가 (Mixboard 스타일 무드보드)
+    - `CONCEPT_BOARD_SPEC.md`, `CONCEPT_BOARD_B_TEAM_TASKS.md`, `CONCEPT_BOARD_C_TEAM_TASKS.md`
+  - **문서 지도(2.2)** 재구조화: P0 핵심/추가, 레거시, P1 명확히 분리
+  - `ONE_PAGE_EDITOR_SPEC.md` 폐기 표시 (Canvas Studio v3로 대체)
 
 - **v1.1 (2025-11-15)**
   - Physical Infrastructure(4.2) 추가 (3-node hybrid 구조 명시)

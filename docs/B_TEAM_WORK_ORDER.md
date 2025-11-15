@@ -750,13 +750,34 @@ curl http://100.123.51.5:8000/api/v1/documents/doc_123
 
 ---
 
+## 📌 추가 작업: Concept Board (Phase 1)
+
+**우선순위**: P1 (Generator 완료 후 진행)
+**예상 소요**: 1-2주
+**담당 문서**: `docs/CONCEPT_BOARD_B_TEAM_TASKS.md`
+
+### 작업 개요
+
+Mixboard 스타일 무드보드 기능을 구현합니다. **Phase 1은 Mock Provider 기반**으로 진행하며, 나노바나나 API 스펙 확보 후 Phase 2에서 실제 연동합니다.
+
+**Phase 1 핵심 작업**:
+1. 데이터베이스 스키마 (concept_boards, concept_tiles, brand_visual_styles)
+2. Mock ImageProvider (더미 이미지 생성)
+3. 4개 API 엔드포인트
+4. MinIO 이미지 저장 + 썸네일/팔레트 추출
+
+**상세 지시사항**: `K:\sparklio_ai_marketing_studio\docs\CONCEPT_BOARD_B_TEAM_TASKS.md` 참조
+
+---
+
 **작업 시작 전 확인사항**:
 
 1. [ ] SYSTEM_ARCHITECTURE.md 완독 (80분)
 2. [ ] GENERATORS_SPEC.md 완독 (60분)
 3. [ ] ONE_PAGE_EDITOR_SPEC.md 완독 (40분)
-4. [ ] 현재 코드 검토 완료
-5. [ ] C_TEAM_WORK_ORDER.md v2.0 확인
-6. [ ] PostgreSQL, Redis, MinIO 연결 확인
+4. [ ] CONCEPT_BOARD_SPEC.md 확인 (30분) ← **NEW**
+5. [ ] 현재 코드 검토 완료
+6. [ ] C_TEAM_WORK_ORDER.md v2.0 확인
+7. [ ] PostgreSQL, Redis, MinIO 연결 확인
 
 **시작하세요!** 🚀

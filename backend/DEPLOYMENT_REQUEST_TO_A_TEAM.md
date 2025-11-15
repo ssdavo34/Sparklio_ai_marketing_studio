@@ -1,15 +1,20 @@
-# A팀 배포 요청서
+# A팀 배포 요청서 v2.0
 
 **작성일**: 2025-11-15
 **작성자**: B팀 (Backend Team)
-**요청 사항**: Mac mini 서버 코드 동기화 및 FastAPI 재시작
+**요청 사항**: ProductDetail/SNS Generator 배포
 
 ---
 
 ## 📋 요청 내용
 
-B팀에서 **통합 Generator API (`/api/v1/generate`)** 구현을 완료했습니다.
+B팀에서 **P0 3개 Generator 구조 완성**을 완료했습니다.
 Mac mini 서버(100.123.51.5:8000)에 새로운 코드를 반영하고 FastAPI를 재시작해주시기 바랍니다.
+
+**배포 상태**:
+- ✅ BrandKitGenerator - 이미 배포 완료 (테스트 통과)
+- ⏳ ProductDetailGenerator - 배포 대기
+- ⏳ SNSGenerator - 배포 대기
 
 ---
 
@@ -20,26 +25,32 @@ Mac mini 서버(100.123.51.5:8000)에 새로운 코드를 반영하고 FastAPI�
 ```
 backend/
 ├── app/
-│   ├── generators/                    # 신규 디렉토리
+│   ├── generators/
 │   │   ├── __init__.py               # Generators 패키지
 │   │   ├── base.py                   # BaseGenerator 클래스
-│   │   └── brand_kit.py              # BrandKitGenerator 구현
+│   │   ├── brand_kit.py              # BrandKitGenerator ✅ 배포됨
+│   │   ├── product_detail.py         # ProductDetailGenerator ⏳ 신규
+│   │   └── sns.py                    # SNSGenerator ⏳ 신규
 │   └── api/v1/endpoints/
-│       └── generate.py                # 통합 Generator API (신규)
-└── test_generate_api.py              # E2E 테스트 스크립트 (신규)
+│       └── generate.py                # 통합 Generator API (수정됨)
+├── test_generate_api.py              # BrandKit E2E 테스트
+└── test_all_generators.py            # 전체 3개 Generator E2E 테스트 ⏳ 신규
 ```
 
 ### 2. 수정된 파일
 
 ```
-backend/app/api/v1/router.py          # /generate 엔드포인트 라우터 등록
+backend/app/api/v1/endpoints/generate.py  # 3개 Generator 등록
+backend/app/api/v1/router.py              # 라우터 등록
+backend/README.md                         # API 정책 추가
 ```
 
-### 3. 새로운 API 엔드포인트
+### 3. 지원하는 Generator 종류
 
 - **`POST /api/v1/generate`** (공식 외부 API)
-  - P0 범위: `kind="brand_kit"` 지원
-  - P1 범위: `product_detail`, `sns`, `presentation` 추가 예정
+  - ✅ `kind="brand_kit"` - 브랜드 아이덴티티 생성
+  - ⏳ `kind="product_detail"` - 제품 상세페이지 생성 (배포 필요)
+  - ⏳ `kind="sns"` - SNS 카드뉴스 생성 (배포 필요)
 
 - **`/api/v1/agents/*`** (기존 엔드포인트)
   - 내부 전용으로 변경 (Swagger tags: "agents (deprecated)")
@@ -96,63 +107,78 @@ curl http://100.123.51.5:8000/openapi.json | grep -A 5 "/api/v1/generate"
 
 ## 🧪 테스트 방법
 
-배포 후 다음 테스트 스크립트를 실행하여 검증해주세요:
+배포 후 다음 테스트 스크립트를 실행하여 **3개 Generator 모두** 검증해주세요:
 
 ```bash
 cd /path/to/sparklio_ai_marketing_studio/backend
-python test_generate_api.py
+python test_all_generators.py
 ```
 
 ### 예상 결과
 
 ```
 ================================================================================
-Brand Kit Generator E2E 테스트
+Sparklio P0 Generators E2E 테스트
 ================================================================================
 
 [1] 사용자 등록...
-✅ 사용자 등록 성공 (또는 이미 존재)
+✅ 사용자 등록 성공
 
 [2] 로그인...
 ✅ 로그인 성공, token: eyJhbGci...
 
-[3] /api/v1/generate 호출 (kind=brand_kit)...
+================================================================================
+[Test 1] Brand Kit Generator
+================================================================================
 
 Status Code: 200
 
-================================================================================
-✅ Generator 실행 성공!
-================================================================================
-
-[Task ID] gen_abc123...
-[Kind] brand_kit
-
-[Text Blocks]
-  - slogan: 자연주의 스킨케어 A - 자연의 시작
-  - mission: ...
-  - values: 자연, 건강, 지속가능성
-  ...
-
-[Editor Document]
-  - documentId: doc_xyz789
-  - type: brand_kit
-  - brandId: brand_test_001
-  - pages: 1개
-
-  [Page 1]
-    - id: page_1
-    - name: Brand Kit Overview
-    - size: 1080x1350
-    - objects: 7개
-      - BRAND_NAME: text
-      - SLOGAN: text
-      - MISSION: text
-      - VALUES: text
-      - TONE_OF_VOICE: text
-      - COLOR_PRIMARY: shape
-      - COLOR_SECONDARY: shape
+✅ BRAND_KIT Generator 성공!
+Task ID: gen_abc123...
+Text Blocks: 4개
+Editor Document: 1 페이지 (7개 objects)
+Meta: agents_trace 4개, is_mock: True
 
 💾 결과 저장: test_result_brand_kit.json
+
+================================================================================
+[Test 2] Product Detail Generator
+================================================================================
+
+Status Code: 200
+
+✅ PRODUCT_DETAIL Generator 성공!
+Task ID: gen_def456...
+Text Blocks: 6개 (headline, hero_copy, features, specs, price, cta)
+Editor Document: 1 페이지 (8개 objects, 1200x2400)
+Meta: agents_trace 6개, is_mock: True
+
+💾 결과 저장: test_result_product_detail.json
+
+================================================================================
+[Test 3] SNS Generator
+================================================================================
+
+Status Code: 200
+
+✅ SNS Generator 성공!
+Task ID: gen_ghi789...
+Text Blocks: 11개 (card_1_headline, card_1_body, ..., hashtags)
+Editor Document: 5 페이지 (각 1080x1080, Instagram 정사각형)
+Meta: agents_trace 6개, is_mock: True, card_count: 5
+
+💾 결과 저장: test_result_sns.json
+
+================================================================================
+최종 테스트 결과
+================================================================================
+brand_kit           : ✅ PASS
+product_detail      : ✅ PASS
+sns                 : ✅ PASS
+
+================================================================================
+🎉 모든 테스트 통과!
+================================================================================
 ```
 
 ---
