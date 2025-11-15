@@ -111,55 +111,106 @@ class BrandKitGenerator(BaseGenerator):
                 ),
                 payload={
                     "brief": {
-                        "goal": "Brand Kit 생성",
+                        "goal": "Brand Kit 정의 및 구조 설계",
                         "target_audience": brand_input.get("target_audience", ""),
-                        "brand_info": brand_input
-                    }
+                        "key_messages": brand_input.get("values", []),
+                        "tone": "professional",
+                        "channels": ["brand_identity"],
+                        "requirements": ["slogan", "mission", "values", "tone_of_voice", "visual_identity"]
+                    },
+                    "brand_kit": brand_data.get("brand_kit", {}),
+                    "brand_analysis": {"key_values": brand_input.get("values", [])}
                 }
             )
 
-            # TODO: StrategistAgent 실행 (현재는 기본 구조 사용)
-            brand_kit_structure = {
-                "sections": [
-                    "slogan",  # 브랜드 슬로건
-                    "mission", # 미션/비전
-                    "values",  # 핵심 가치
-                    "tone_of_voice",  # 톤앤매너
-                    "visual_identity"  # 시각적 아이덴티티
-                ]
-            }
+            # StrategistAgent 실행
+            strategist_response = await self.strategist.process(structure_request)
 
-            # Step 3: Copywriter - 브랜드 메시지 생성
-            logger.info("[BrandKitGenerator] Step 3: CopywriterAgent - 브랜드 메시지 생성")
-            copy_request = A2ARequest(
-                request_id=f"{task_id}_copywriter",
+            if strategist_response.status != "success":
+                logger.warning(f"[BrandKitGenerator] StrategistAgent 실패, fallback 사용: {strategist_response.error}")
+                brand_kit_structure = {
+                    "sections": ["slogan", "mission", "values", "tone_of_voice", "visual_identity"]
+                }
+            else:
+                strategy_data = strategist_response.result.get("strategy", {})
+                brand_kit_structure = {
+                    "sections": ["slogan", "mission", "values", "tone_of_voice", "visual_identity"],
+                    "key_messages": strategy_data.get("key_messages", []),
+                    "content_themes": strategy_data.get("content_themes", [])
+                }
+
+            # Step 3: Copywriter - 브랜드 슬로건 생성
+            logger.info("[BrandKitGenerator] Step 3: CopywriterAgent - 슬로건 생성")
+            slogan_request = A2ARequest(
+                request_id=f"{task_id}_copywriter_slogan",
                 source_agent="BrandKitGenerator",
                 target_agent="CopywriterAgent",
                 system_context=SystemContext(
                     brand_id=request.brandId,
                     project_id=None,
                     user_id=None,
-                    task_type="brand_messaging",
+                    task_type="brand_slogan",
                     risk_level="low"
                 ),
                 payload={
                     "brief": {
-                        "goal": "브랜드 메시지 작성",
-                        "brand_info": brand_input
+                        "goal": f"{brand_input.get('name', '브랜드')} 슬로건 작성",
+                        "target_audience": brand_input.get("target_audience", ""),
+                        "key_messages": brand_input.get("values", []),
+                        "tone": "professional"
                     },
-                    "structure": brand_kit_structure,
+                    "strategy": brand_kit_structure,
                     "brand_voice": "professional",
-                    "channel": "brand_kit"
+                    "channel": "brand_identity",
+                    "copy_type": "slogan",
+                    "max_length": 50,
+                    "variants_count": 2
                 }
             )
 
-            # TODO: CopywriterAgent 실행 (현재는 샘플 데이터)
+            # CopywriterAgent 실행 (슬로건)
+            slogan_response = await self.copywriter.process(slogan_request)
+
+            # Step 4: Copywriter - 미션 생성
+            logger.info("[BrandKitGenerator] Step 4: CopywriterAgent - 미션 생성")
+            mission_request = A2ARequest(
+                request_id=f"{task_id}_copywriter_mission",
+                source_agent="BrandKitGenerator",
+                target_agent="CopywriterAgent",
+                system_context=SystemContext(
+                    brand_id=request.brandId,
+                    project_id=None,
+                    user_id=None,
+                    task_type="brand_mission",
+                    risk_level="low"
+                ),
+                payload={
+                    "brief": {
+                        "goal": f"{brand_input.get('name', '브랜드')} 미션 작성",
+                        "target_audience": brand_input.get("target_audience", ""),
+                        "key_messages": brand_input.get("values", []),
+                        "tone": "professional"
+                    },
+                    "strategy": brand_kit_structure,
+                    "brand_voice": "professional",
+                    "channel": "brand_identity",
+                    "copy_type": "mission",
+                    "max_length": 200,
+                    "variants_count": 1
+                }
+            )
+
+            # CopywriterAgent 실행 (미션)
+            mission_response = await self.copywriter.process(mission_request)
+
+            # 텍스트 블록 구성
             text_blocks = {
-                "slogan": brand_input.get("name", "브랜드명") + " - 자연의 시작",
-                "mission": f"{brand_input.get('name', '브랜드')}는 {brand_input.get('description', '고객의 가치')}를 제공합니다.",
-                "values": ", ".join(brand_input.get("values", ["혁신", "품질", "신뢰"])),
+                "slogan": slogan_response.result.get("primary_copy", brand_input.get("name", "브랜드명") + "와 함께하는 새로운 경험") if slogan_response.status == "success" else brand_input.get("name", "브랜드명") + "와 함께하는 새로운 경험",
+                "mission": mission_response.result.get("primary_copy", f"{brand_input.get('name', '브랜드')}는 고객에게 최고의 가치를 제공합니다") if mission_response.status == "success" else f"{brand_input.get('name', '브랜드')}는 고객에게 최고의 가치를 제공합니다",
+                "values": ", ".join(brand_input.get("values", ["혁신", "신뢰", "지속가능성"])),
+                "vision": f"{brand_input.get('name', '브랜드')}가 만드는 더 나은 미래",
                 "tone_of_voice": "전문적이면서도 친근한 톤",
-                "primary_colors": ["#1E3A8A", "#F59E0B"],  # 기본 컬러 팔레트
+                "primary_colors": ["#1E3A8A", "#F59E0B"],
                 "secondary_colors": ["#64748B", "#D1D5DB"],
                 "fonts": {
                     "heading": "Pretendard Bold",
@@ -167,8 +218,8 @@ class BrandKitGenerator(BaseGenerator):
                 }
             }
 
-            # Step 4: Reviewer - 브랜드 일관성 검토
-            logger.info("[BrandKitGenerator] Step 4: ReviewerAgent - 품질 검토")
+            # Step 5: Reviewer - 브랜드 일관성 검토
+            logger.info("[BrandKitGenerator] Step 5: ReviewerAgent - 품질 검토")
             review_request = A2ARequest(
                 request_id=f"{task_id}_reviewer",
                 source_agent="BrandKitGenerator",
@@ -183,28 +234,63 @@ class BrandKitGenerator(BaseGenerator):
                 payload={
                     "brief": {
                         "goal": "Brand Kit 생성",
-                        "brand_info": brand_input
+                        "target_audience": brand_input.get("target_audience", ""),
+                        "key_messages": brand_input.get("values", []),
+                        "tone": "professional"
                     },
                     "generated_content": text_blocks,
-                    "content_type": "brand_kit"
+                    "content_type": "brand_kit",
+                    "brand_kit": brand_data.get("brand_kit", {}),
+                    "strict_mode": False
                 }
             )
 
-            # TODO: ReviewerAgent 실행 (현재는 자동 승인)
-            review_result = {
-                "overall_score": 0.85,
-                "approved": True,
-                "feedback": "브랜드 가치와 일관성 있게 작성됨",
-                "suggestions": []
-            }
+            # ReviewerAgent 실행
+            reviewer_response = await self.reviewer.process(review_request)
 
-            # Step 5: Editor Document 생성
-            logger.info("[BrandKitGenerator] Step 5: Editor Document 생성")
+            if reviewer_response.status != "success":
+                logger.warning(f"[BrandKitGenerator] ReviewerAgent 실패, 기본 승인: {reviewer_response.error}")
+                review_result = {
+                    "overall_score": 0.7,
+                    "approved": True,
+                    "feedback": ["자동 승인 (Reviewer 실패)"],
+                    "suggestions": []
+                }
+            else:
+                review_result = reviewer_response.result
+
+            # Step 6: Editor Document 생성
+            logger.info("[BrandKitGenerator] Step 6: Editor Document 생성")
             editor_document = self._create_brand_kit_document(
                 request,
                 brand_input,
                 text_blocks
             )
+
+            # Agents trace 구성
+            agents_trace = [
+                {
+                    "agent": "StrategistAgent",
+                    "status": "completed" if strategist_response.status == "success" else "failed",
+                    "metadata": strategist_response.metadata if strategist_response.status == "success" else {}
+                },
+                {
+                    "agent": "CopywriterAgent (Slogan)",
+                    "status": "completed" if slogan_response.status == "success" else "failed",
+                    "metadata": slogan_response.metadata if slogan_response.status == "success" else {}
+                },
+                {
+                    "agent": "CopywriterAgent (Mission)",
+                    "status": "completed" if mission_response.status == "success" else "failed",
+                    "metadata": mission_response.metadata if mission_response.status == "success" else {}
+                },
+                {
+                    "agent": "ReviewerAgent",
+                    "status": "completed" if reviewer_response.status == "success" else "failed",
+                    "score": review_result.get("overall_score", 0.7),
+                    "approved": review_result.get("approved", True)
+                }
+            ]
 
             # 결과 생성
             result = GenerationResult(
@@ -214,16 +300,13 @@ class BrandKitGenerator(BaseGenerator):
                 editorDocument=editor_document,
                 meta={
                     "templates_used": ["brand_kit_default"],
-                    "agents_trace": [
-                        {"agent": "StrategistAgent", "status": "success"},
-                        {"agent": "CopywriterAgent", "status": "success"},
-                        {"agent": "ReviewerAgent", "status": "success", "score": review_result["overall_score"]}
-                    ],
+                    "agents_trace": agents_trace,
                     "llm_cost": {
                         "prompt_tokens": 500,
                         "completion_tokens": 800
                     },
-                    "review": review_result
+                    "review": review_result,
+                    "is_mock": False  # 실제 Agent 연동됨
                 }
             )
 
