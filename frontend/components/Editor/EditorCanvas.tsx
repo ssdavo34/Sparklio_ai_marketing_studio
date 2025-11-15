@@ -57,13 +57,22 @@ export default function EditorCanvas() {
 
   // Document 로딩 시 Canvas 업데이트
   useEffect(() => {
-    if (!fabricRef.current || !currentDocument) return;
+    console.log('🎨 EditorCanvas useEffect 트리거됨', { currentDocument });
+    if (!fabricRef.current || !currentDocument) {
+      console.log('⚠️ fabricRef 또는 currentDocument 없음', { fabricRef: !!fabricRef.current, currentDocument: !!currentDocument });
+      return;
+    }
 
+    console.log('✅ Canvas 클리어 및 문서 로딩 시작...', currentDocument);
     fabricRef.current.clear();
     fabricRef.current.backgroundColor = '#ffffff';
 
     const page = currentDocument.pages[0];
-    if (!page) return;
+    if (!page) {
+      console.log('⚠️ pages[0] 없음');
+      return;
+    }
+    console.log('📄 첫 페이지 로딩:', page);
 
     // Canvas 크기 설정
     fabricRef.current.setWidth(page.width);

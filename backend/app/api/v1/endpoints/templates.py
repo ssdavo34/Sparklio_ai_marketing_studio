@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from uuid import UUID
+import logging
 
 from app.core.database import get_db
 from app.models.user import User
@@ -20,8 +21,10 @@ from app.schemas.document import (
     TemplateListResponse,
 )
 from app.auth.jwt import get_current_user, get_current_admin_user
+from app.services.template_cache import TemplateCacheService
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 @router.get("/", response_model=TemplateListResponse)
@@ -87,6 +90,7 @@ async def get_template(
     특정 Template을 조회합니다.
 
     공개 API - 인증 불필요 (approved 템플릿만 조회 가능)
+    Redis 캐싱 적용 - 1시간 TTL
 
     Args:
         templateId: Template ID
@@ -95,18 +99,16 @@ async def get_template(
     Returns:
         Template 정보
     """
-    template = db.query(Template).filter(
-        Template.template_id == templateId,
-        Template.status == "approved"
-    ).first()
+    # Redis 캐시 우선 조회
+    template_data = TemplateCacheService.get_template(templateId, db)
 
-    if not template:
+    if not template_data:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Template not found or not approved"
         )
 
-    return template
+    return template_data
 
 
 # ========================================
@@ -191,6 +193,10 @@ async def update_template(
     db.commit()
     db.refresh(template)
 
+    # 캐시 무효화
+    TemplateCacheService.invalidate_template(templateId)
+    logger.info(f"[Templates API] Cache invalidated for template_id={templateId}")
+
     return template
 
 
@@ -225,6 +231,10 @@ async def delete_template(
 
     db.delete(template)
     db.commit()
+
+    # 캐시 무효화
+    TemplateCacheService.invalidate_template(templateId)
+    logger.info(f"[Templates API] Cache invalidated for deleted template_id={templateId}")
 
     return None
 
@@ -263,6 +273,10 @@ async def approve_template(
     db.commit()
     db.refresh(template)
 
+    # 캐시 무효화 (승인 시 캐시 추가됨)
+    TemplateCacheService.invalidate_template(templateId)
+    logger.info(f"[Templates API] Cache invalidated for approved template_id={templateId}")
+
     return template
 
 
@@ -298,5 +312,9 @@ async def reject_template(
     template.status = "rejected"
     db.commit()
     db.refresh(template)
+
+    # 캐시 무효화 (거부 시 캐시 제거)
+    TemplateCacheService.invalidate_template(templateId)
+    logger.info(f"[Templates API] Cache invalidated for rejected template_id={templateId}")
 
     return template
