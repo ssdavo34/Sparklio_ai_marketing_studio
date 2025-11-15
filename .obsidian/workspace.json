@@ -1,0 +1,205 @@
+{
+  "main": {
+    "id": "5ba7dc8b12a1b67f",
+    "type": "split",
+    "children": [
+      {
+        "id": "3e8a65762317871f",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "6eb772d2c3e11c27",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "docs/PHASE0/AGENTS_SPEC.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "AGENTS_SPEC"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "e87f5191d760fb5e",
+    "type": "split",
+    "children": [
+      {
+        "id": "215178cce5e47702",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "c04df540f65218b2",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "40ee94ba825615f4",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "91f13a2f4d063430",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "15beb3670869435c",
+    "type": "split",
+    "children": [
+      {
+        "id": "9510a5cf247f93b7",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "6ea165529ef8a4bc",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "docs/PHASE0/AGENTS_SPEC.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks for AGENTS_SPEC"
+            }
+          },
+          {
+            "id": "248e34c9c5131e0e",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "docs/PHASE0/AGENTS_SPEC.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links from AGENTS_SPEC"
+            }
+          },
+          {
+            "id": "1af58ff9ff272b9f",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "9da28e403c74a8f6",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "All properties"
+            }
+          },
+          {
+            "id": "b4f01c76c7833572",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "docs/PHASE0/AGENTS_SPEC.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline of AGENTS_SPEC"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false
+    }
+  },
+  "active": "6eb772d2c3e11c27",
+  "lastOpenFiles": [
+    "docs/PHASE0/NEXT_TASKS.md",
+    "docs/PHASE0/NEXT_TASKS.md.tmp.51840.1763113697524",
+    "docs/PHASE0/ONE_PAGE_EDITOR_SPEC.md.tmp.51840.1763113496937",
+    "docs/PHASE0/ONE_PAGE_EDITOR_SPEC.md.tmp.51840.1763113427640",
+    "docs/PHASE0/ONE_PAGE_EDITOR_SPEC.md.tmp.51840.1763113092460",
+    "docs/WORK_PLANS/TEAM_C_INSTRUCTIONS.md",
+    "docs/PHASE0/ONE_PAGE_EDITOR_SPEC.md.tmp.51840.1763112673614",
+    "docs/PHASE0/ONE_PAGE_EDITOR_SPEC.md.tmp.51840.1763112544834",
+    "docs/PHASE0/RAG_SYSTEM_SPEC.md",
+    "docs/PHASE0/RAG_SYSTEM_SPEC.md.tmp.51840.1763111950343",
+    "docs/PHASE0/BRAND_KIT_SPEC.md",
+    "docs/PHASE0/BRAND_KIT_SPEC.md.tmp.51840.1763111430777",
+    "docs/PHASE0/ONE_PAGE_EDITOR_SPEC.md.tmp.51840.1763110821057",
+    "docs/WORK_PLANS/TEAM_B_INSTRUCTIONS.md",
+    "docker/mac-mini/init-scripts/01-init-extensions.sql",
+    "docker/mac-mini/README.md"
+  ]
+}
