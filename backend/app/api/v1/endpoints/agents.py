@@ -13,8 +13,10 @@ from app.core.database import get_db
 from app.auth.jwt import get_current_user
 from app.models.user import User
 from app.models.project import Project
+from app.models.brand import Brand
 from app.schemas.agent import A2ARequest, A2AResponse, SystemContext
 from app.agents.brief import BriefAgent
+from app.agents.brand_agent import BrandAgent
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -161,3 +163,84 @@ async def update_brief(
         current_user=current_user,
         db=db
     )
+
+
+@router.get("/brand/analyze/{brand_id}", response_model=dict)
+async def analyze_brand(
+    brand_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    브랜드 분석 API
+
+    브랜드 정보와 BrandKit을 분석하여 마케팅 가이드를 생성합니다.
+
+    Args:
+        brand_id: 브랜드 ID
+        current_user: 현재 로그인한 사용자
+        db: 데이터베이스 세션
+
+    Returns:
+        BrandKit 데이터 + 브랜드 분석 결과
+    """
+    try:
+        # 브랜드 조회 (권한 확인)
+        brand = db.query(Brand).filter(
+            Brand.id == brand_id,
+            Brand.owner_id == current_user.id,
+            Brand.deleted_at.is_(None)
+        ).first()
+
+        if not brand:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="브랜드를 찾을 수 없거나 접근 권한이 없습니다"
+            )
+
+        # BrandAgent 초기화
+        brand_agent = BrandAgent()
+
+        # A2A 요청 생성
+        system_context = SystemContext(
+            brand_id=str(brand_id),
+            project_id=None,
+            user_id=str(current_user.id),
+            task_type="brand_analysis",
+            risk_level="low"
+        )
+
+        request = A2ARequest(
+            request_id=f"brand_{brand_id}",
+            source_agent="API",
+            target_agent="BrandAgent",
+            system_context=system_context,
+            payload={
+                "db_session": db
+            }
+        )
+
+        # Agent 실행
+        logger.info(f"[API] Executing BrandAgent for brand_id={brand_id}")
+        response = await brand_agent.execute(request)
+
+        if response.status != "success":
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"브랜드 분석 실패: {response.error}"
+            )
+
+        return {
+            "success": True,
+            "brand": response.result,
+            "metadata": response.metadata
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[API] Error in analyze_brand: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"브랜드 분석 중 오류 발생: {str(e)}"
+        )
