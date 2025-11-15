@@ -9,6 +9,7 @@ import LoginForm from '@/components/Auth/LoginForm';
 import RegisterForm from '@/components/Auth/RegisterForm';
 import { useAuthStore } from '@/store/auth-store';
 import { useEditorStore } from '@/store/editor-store';
+import { saveDocument } from '@/lib/api-client';
 
 /**
  * Sparklio V4.3 - Main Application (SPA)
@@ -27,11 +28,65 @@ export default function SparklioCoreApp() {
   const [currentMode, setCurrentMode] = useState<'chat' | 'editor' | 'assets'>('chat');
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const { isAuthenticated, isLoading, initAuth, user, logout } = useAuthStore();
+  const { undo, redo, history, historyIndex, currentDocument } = useEditorStore();
+
+  // 문서 저장 핸들러
+  const handleSave = async () => {
+    if (!currentDocument) {
+      alert('저장할 문서가 없습니다.');
+      return;
+    }
+
+    try {
+      const result = await saveDocument(currentDocument.documentId, {
+        documentJson: currentDocument,
+        metadata: {
+          saved_at: new Date().toISOString(),
+          app_version: 'v2.0',
+        },
+      });
+
+      alert(`문서가 저장되었습니다! (버전: ${result.version})`);
+    } catch (error) {
+      console.error('저장 실패:', error);
+      alert('문서 저장에 실패했습니다. 다시 시도해주세요.');
+    }
+  };
 
   // 앱 시작 시 인증 상태 초기화
   useEffect(() => {
     initAuth();
   }, [initAuth]);
+
+  // 키보드 단축키 (Ctrl+Z, Ctrl+Y, Ctrl+S)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+Z: Undo
+      if (e.ctrlKey && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        if (historyIndex > 0) {
+          undo();
+        }
+      }
+      // Ctrl+Y or Ctrl+Shift+Z: Redo
+      else if ((e.ctrlKey && e.key === 'y') || (e.ctrlKey && e.shiftKey && e.key === 'z')) {
+        e.preventDefault();
+        if (historyIndex < history.length - 1) {
+          redo();
+        }
+      }
+      // Ctrl+S: Save
+      else if (e.ctrlKey && e.key === 's') {
+        e.preventDefault();
+        if (currentDocument) {
+          handleSave();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [undo, redo, historyIndex, history.length, currentDocument, handleSave]);
 
   // 로딩 중
   if (isLoading) {
@@ -102,10 +157,18 @@ export default function SparklioCoreApp() {
           <div className="flex items-center gap-4">
             <span className="text-sm font-medium text-gray-700">새 문서</span>
             <div className="flex gap-2">
-              <button className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50">
+              <button
+                onClick={undo}
+                disabled={historyIndex <= 0}
+                className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 Undo
               </button>
-              <button className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50">
+              <button
+                onClick={redo}
+                disabled={historyIndex >= history.length - 1}
+                className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 Redo
               </button>
             </div>
@@ -122,7 +185,11 @@ export default function SparklioCoreApp() {
             >
               로그아웃
             </button>
-            <button className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50">
+            <button
+              onClick={handleSave}
+              disabled={!currentDocument}
+              className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               저장
             </button>
             <button

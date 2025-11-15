@@ -15,7 +15,7 @@ import { generateDocument } from '@/lib/api-client';
 export default function ChatPanel() {
   const { messages, inputText, isGenerating, addMessage, setInputText, setIsGenerating } =
     useChatStore();
-  const { setCurrentDocument } = useEditorStore();
+  const { setCurrentDocument, addToHistory } = useEditorStore();
 
   const handleSubmit = async () => {
     if (!inputText.trim() || isGenerating) {
@@ -80,6 +80,9 @@ export default function ChatPanel() {
 
       // Editor Store에 문서 로딩
       setCurrentDocument(result.editorDocument);
+
+      // 히스토리에 추가 (Undo/Redo 지원)
+      addToHistory();
 
       // 성공 메시지
       addMessage({
