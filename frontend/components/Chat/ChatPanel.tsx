@@ -18,14 +18,11 @@ export default function ChatPanel() {
   const { setCurrentDocument } = useEditorStore();
 
   const handleSubmit = async () => {
-    console.log('🔵 handleSubmit 호출됨!', { inputText, isGenerating });
     if (!inputText.trim() || isGenerating) {
-      console.log('⚠️ 조건 실패: inputText.trim()=', inputText.trim(), 'isGenerating=', isGenerating);
       return;
     }
 
     // 사용자 메시지 추가
-    console.log('✅ 메시지 추가 중...');
     addMessage({
       role: 'user',
       content: inputText,
@@ -37,7 +34,6 @@ export default function ChatPanel() {
 
     try {
       // Generator API 호출
-      console.log('📡 Generator API 호출 시작...', { userInput });
       const result = await generateDocument({
         kind: 'product_detail',
         brandId: 'brand_001',
@@ -50,8 +46,6 @@ export default function ChatPanel() {
           },
         },
       });
-      console.log('✅ Generator API 성공!', result);
-      console.log('📦 editorDocument 구조:', JSON.stringify(result.editorDocument, null, 2));
 
       // Editor Store에 문서 로딩
       setCurrentDocument(result.editorDocument);
@@ -64,7 +58,7 @@ export default function ChatPanel() {
       setIsGenerating(false);
     } catch (error) {
       // 에러 메시지
-      console.error('❌ Generator API 에러:', error);
+      console.error('Generator API 에러:', error);
       addMessage({
         role: 'assistant',
         content: `오류가 발생했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}\n\nBackend API가 실행 중인지 확인해주세요.`,
