@@ -1,18 +1,47 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 import uvicorn
+import time
 
 from app.core.config import settings
 from app.core.database import get_db
 from app.api.v1.router import api_router
+from app.monitoring.prometheus_metrics import metrics_endpoint, record_http_request
 
 app = FastAPI(
     title=settings.APP_NAME,
     description="AI-driven marketing content generation platform",
     version=settings.APP_VERSION
 )
+
+# Prometheus metrics middleware
+@app.middleware("http")
+async def prometheus_middleware(request: Request, call_next):
+    """
+    Prometheus 메트릭 수집 미들웨어
+
+    모든 HTTP 요청에 대한 메트릭을 자동으로 수집합니다.
+    """
+    # /metrics 엔드포인트는 메트릭 수집에서 제외
+    if request.url.path == "/metrics":
+        return await call_next(request)
+
+    start_time = time.time()
+    response = await call_next(request)
+    duration = time.time() - start_time
+
+    # 메트릭 기록
+    record_http_request(
+        method=request.method,
+        endpoint=request.url.path,
+        status_code=response.status_code,
+        duration=duration
+    )
+
+    return response
+
 
 # CORS middleware
 app.add_middleware(
@@ -65,6 +94,16 @@ async def health_check(db: Session = Depends(get_db)):
         "environment": settings.APP_ENV,
         "version": settings.APP_VERSION
     }
+
+
+@app.get("/metrics")
+async def metrics():
+    """
+    Prometheus 메트릭 엔드포인트
+
+    Prometheus가 스크랩할 수 있는 메트릭을 제공합니다.
+    """
+    return metrics_endpoint()
 
 if __name__ == "__main__":
     uvicorn.run(
