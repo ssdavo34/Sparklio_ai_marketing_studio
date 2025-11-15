@@ -232,6 +232,38 @@ curl -X DELETE "http://100.123.51.5:8000/api/v1/assets/123e4567-e89b-12d3-a456-4
 
 ---
 
+## ⚠️ API 정책 (2025-11-15 업데이트)
+
+### 공식 외부 API (Public API)
+
+✅ **`POST /api/v1/generate`** - 통합 Generator API (권장)
+- P0 지원: `kind="brand_kit"`
+- P1 확장: `product_detail`, `sns`, `presentation`
+- 사용 예시: [frontend/lib/api-client.ts](../frontend/lib/api-client.ts)
+
+### 내부 전용 API (Internal/Deprecated)
+
+⚠️ **`/api/v1/agents/*`** - Agent 개별 호출 API (Deprecated)
+- **상태**: 내부 전용, 외부 사용 금지
+- **이유**: Agent는 내부 구성 요소로, 직접 노출하지 않음
+- **대체**: `/api/v1/generate` 사용
+- **제거 예정**: P1 이후
+
+#### Deprecated 엔드포인트 목록
+
+| Endpoint | 대체 방법 |
+|----------|----------|
+| `POST /api/v1/agents/brief/generate` | `POST /api/v1/generate` (kind: `marketing_brief`) |
+| `POST /api/v1/agents/brand/analyze/{id}` | `POST /api/v1/generate` (kind: `brand_kit`) |
+| `POST /api/v1/agents/strategy/generate` | **내부 Agent 호출** (Generator 파이프라인) |
+| `POST /api/v1/agents/copy/generate` | **내부 Agent 호출** (Generator 파이프라인) |
+| `POST /api/v1/agents/vision/generate` | **내부 Agent 호출** (Generator 파이프라인) |
+| `POST /api/v1/agents/review/content` | **내부 Agent 호출** (Generator 파이프라인) |
+
+**중요**: 프론트엔드는 `/agents/*`를 직접 호출하지 말고, 항상 `/generate`를 사용하세요.
+
+---
+
 ## 다음 단계 (B팀 구현 과제)
 
 이 스타터 코드는 **자산 관리 API**의 기본 CRUD를 제공합니다. B팀은 다음 기능을 추가로 구현해주세요:

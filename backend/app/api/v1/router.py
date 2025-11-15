@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import assets, brands, projects, users, agents
+from app.api.v1.endpoints import assets, brands, projects, users, agents, generate
 
 api_router = APIRouter()
 
@@ -28,8 +28,16 @@ api_router.include_router(
     tags=["users"]
 )
 
+# 통합 Generator API (공식 외부 API)
+api_router.include_router(
+    generate.router,
+    prefix="",
+    tags=["generate"]
+)
+
+# Agent API (내부 전용, Deprecated 예정)
 api_router.include_router(
     agents.router,
     prefix="/agents",
-    tags=["agents"]
+    tags=["agents (deprecated)"]
 )
