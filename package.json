@@ -1,0 +1,31 @@
+{
+  "name": "sparklio-ai-marketing-studio",
+  "version": "4.3.0",
+  "description": "Sparklio AI Marketing Studio - Canvas Studio v3 & Concept Board",
+  "private": true,
+  "scripts": {
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:chromium": "playwright test --project=chromium",
+    "test:e2e:webkit": "playwright test --project=webkit",
+    "test:e2e:firefox": "playwright test --project=firefox",
+    "test:e2e:v2": "playwright test tests/e2e/v2-chat-first",
+    "test:e2e:v3": "playwright test tests/e2e/canvas-studio",
+    "test:integration": "playwright test tests/integration",
+    "test:integration:backend": "playwright test tests/integration/backend-api.spec.ts",
+    "test:perf": "artillery run tests/performance/api-load-test.yml --output test-results/perf-report.json && artillery report test-results/perf-report.json",
+    "test:perf:staging": "API_BASE_URL=https://api-staging.sparklio.ai artillery run tests/performance/api-load-test.yml --output test-results/perf-staging.json",
+    "test:init-db": "psql -U postgres -d sparklio_test -f tests/fixtures/test_data.sql",
+    "test:backend": "npm run test:integration:backend",
+    "test:all": "npm run test:e2e && npm run test:integration && npm run test:perf"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0",
+    "artillery": "^2.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
