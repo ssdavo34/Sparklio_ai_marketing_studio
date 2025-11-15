@@ -91,24 +91,24 @@ Backend의 역할:
    - **이 문서가 최상위 기준입니다**
 
 2. **GENERATORS_SPEC.md**
-   - 경로: `K:\obsidian-k\Sparklio_ai_marketing_studio\최종계획\GENERATORS_SPEC.md`
+   - 경로: `K:\sparklio_ai_marketing_studio\docs\PHASE0\GENERATORS_SPEC.md`
    - 읽기: 60분
    - 내용: 8개 Generator 상세 스펙, Agent 파이프라인, 입출력 구조
 
 3. **ONE_PAGE_EDITOR_SPEC.md**
-   - 경로: `K:\obsidian-k\Sparklio_ai_marketing_studio\최종계획\ONE_PAGE_EDITOR_SPEC.md`
+   - 경로: `K:\sparklio_ai_marketing_studio\docs\PHASE0\ONE_PAGE_EDITOR_SPEC.md`
    - 읽기: 40분
    - 내용: Editor JSON 구조, Object 타입, Action 모델
 
 4. **DATA_PIPELINE_ARCHITECTURE.md**
-   - 경로: `K:\obsidian-k\Sparklio_ai_marketing_studio\최종계획\DATA_PIPELINE_ARCHITECTURE 11-15.md`
+   - 경로: `K:\sparklio_ai_marketing_studio\docs\PHASE0\DATA_PIPELINE_ARCHITECTURE.md`
    - 읽기: 40분
    - 내용: 크롤링, RAG, Template 생성 파이프라인
 
 ### ⭐⭐ 참고 (필요 시)
 
 5. **ADMIN_CONSOLE_SPEC.md**
-   - 경로: `K:\obsidian-k\Sparklio_ai_marketing_studio\최종계획\관리자페이지\ADMIN_CONSOLE_SPEC.md`
+   - 경로: `K:\sparklio_ai_marketing_studio\docs\PHASE0\ADMIN_CONSOLE_SPEC.md`
    - 내용: Admin API 요구사항 (P0에서는 최소 구현)
 
 ---
