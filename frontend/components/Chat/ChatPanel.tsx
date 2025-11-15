@@ -1,0 +1,146 @@
+'use client';
+
+import { useChatStore } from '@/store/chat-store';
+
+/**
+ * ChatPanel 컴포넌트
+ *
+ * 좌측 패널의 Chat UI를 담당합니다.
+ * - 메시지 리스트
+ * - 입력창
+ * - Generator 호출
+ */
+export default function ChatPanel() {
+  const { messages, inputText, isGenerating, addMessage, setInputText, setIsGenerating } =
+    useChatStore();
+
+  const handleSubmit = async () => {
+    if (!inputText.trim() || isGenerating) return;
+
+    // 사용자 메시지 추가
+    addMessage({
+      role: 'user',
+      content: inputText,
+    });
+
+    const userInput = inputText;
+    setInputText('');
+    setIsGenerating(true);
+
+    try {
+      // TODO: Generator API 호출
+      // const result = await generateDocument({
+      //   kind: 'product_detail',
+      //   brandId: 'brand_001',
+      //   input: { product: { name: userInput } },
+      // });
+
+      // 임시 응답
+      setTimeout(() => {
+        addMessage({
+          role: 'assistant',
+          content: `"${userInput}"에 대한 초안을 생성하는 중입니다...\n\n(Generator API 연동 예정)`,
+        });
+        setIsGenerating(false);
+      }, 1000);
+    } catch (error) {
+      addMessage({
+        role: 'assistant',
+        content: '오류가 발생했습니다. 다시 시도해주세요.',
+      });
+      setIsGenerating(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit();
+    }
+  };
+
+  return (
+    <div className="flex-1 flex flex-col overflow-hidden">
+      {/* 헤더 */}
+      <div className="p-4 border-b border-gray-200">
+        <h2 className="text-sm font-semibold text-gray-900">Chat</h2>
+        <p className="text-xs text-gray-500">AI와 대화로 콘텐츠 생성</p>
+      </div>
+
+      {/* 메시지 리스트 */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {messages.map((message) => (
+          <div
+            key={message.id}
+            className={`${
+              message.role === 'user'
+                ? 'bg-blue-50 border-blue-100'
+                : 'bg-gray-50 border-gray-100'
+            } border rounded-lg p-3`}
+          >
+            <div className="flex items-start gap-2">
+              <span className="text-lg">
+                {message.role === 'user' ? '👤' : '🤖'}
+              </span>
+              <div className="flex-1">
+                <p className="text-sm text-gray-900 whitespace-pre-wrap">
+                  {message.content}
+                </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  {message.timestamp.toLocaleTimeString('ko-KR', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </p>
+              </div>
+            </div>
+          </div>
+        ))}
+
+        {isGenerating && (
+          <div className="bg-gray-50 border border-gray-100 rounded-lg p-3">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">🤖</span>
+              <div className="flex-1">
+                <p className="text-sm text-gray-900">생성 중...</p>
+                <div className="flex gap-1 mt-2">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
+                  <div
+                    className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
+                    style={{ animationDelay: '0.1s' }}
+                  ></div>
+                  <div
+                    className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
+                    style={{ animationDelay: '0.2s' }}
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 입력창 */}
+      <div className="p-4 border-t border-gray-200">
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={inputText}
+            onChange={(e) => setInputText(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder="무엇을 만들까요?"
+            disabled={isGenerating}
+            className="flex-1 px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+          />
+          <button
+            onClick={handleSubmit}
+            disabled={!inputText.trim() || isGenerating}
+            className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+          >
+            전송
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

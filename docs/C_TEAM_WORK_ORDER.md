@@ -45,9 +45,9 @@ Sparklio V4.3은 **단일 페이지 애플리케이션(SPA)** 입니다.
 ❌ **다중 페이지 구조 금지**
 ```
 잘못된 예 (v1.0):
-/app/projects       ← 별도 페이지
-/app/brands         ← 별도 페이지
-/app/editor/[id]    ← 별도 페이지
+/app/projects       ← 별도 페이지 (❌ 금지)
+/app/brands         ← 별도 페이지 (❌ 금지)
+/app/editor/[id]    ← 별도 페이지 (❌ 금지)
 
 올바른 예 (v2.0):
 /app                ← 단일 페이지
@@ -60,6 +60,21 @@ Sparklio V4.3은 **단일 페이지 애플리케이션(SPA)** 입니다.
 - 모든 기능은 `/app` 단일 페이지 내의 **패널/섹션**으로 구현
 - 좌측 메뉴 클릭 시 → 중앙 영역만 변경 (페이지 이동 아님)
 - URL 변경 없이 상태 기반 UI 전환
+
+⚠️ **중요: API vs 페이지 구분**
+```
+Backend API 존재           Frontend 페이지 구현
+---------------------------------------------------
+✅ /api/v1/brands         ❌ /app/brands (금지)
+✅ /api/v1/projects       ❌ /app/projects (금지)
+✅ /api/v1/generate       ✅ /app 내부 Chat 패널에서 호출만
+```
+
+**명확화:**
+- Backend에 `/api/v1/brands`, `/api/v1/projects` API가 존재하는 것은 정상입니다
+- 이는 데이터 관리를 위한 REST API일 뿐입니다
+- **하지만 Frontend에서 `/app/brands` 또는 `/app/projects` 라우트를 만들면 안 됩니다**
+- 모든 브랜드/프로젝트 관리는 `/app` 단일 페이지 내의 좌측 패널/모달로 구현하세요
 
 ### 1.3 우선순위: P0만 구현
 
@@ -357,11 +372,28 @@ frontend/
 
 ## 7. API 연동 가이드
 
+⚠️ **중요 공지 (2025-11-15)**
+
+현재 B팀이 SYSTEM_ARCHITECTURE.md를 기반으로 API를 재구성 중입니다.
+아래 명세는 **최종 목표 상태**이며, B팀 작업 완료 전까지는 일부 API가 다른 엔드포인트로 제공될 수 있습니다.
+
+**진행 상황**:
+- ✅ 인증 API (`/api/v1/users`) - 완료
+- ✅ Brand/Project CRUD (`/api/v1/brands`, `/api/v1/projects`) - 완료
+- ✅ Asset 관리 (`/api/v1/assets`) - 완료
+- ⏳ **Generator 통합 API (`/api/v1/generate`)** - B팀 작업 중
+- ⏳ Editor Action API - B팀 작업 중
+
+C팀은 우선 **Phase 1-2 (UI/Editor Canvas)** 작업을 진행하고,
+**Phase 3 (Generator 연동)** 시작 전 A팀에게 B팀 API 완료 여부를 확인하세요.
+
+---
+
 ### 7.1 Backend API Endpoint
 
 **Base URL**: `http://100.123.51.5:8000`
 
-**P0 필수 API**:
+**P0 필수 API** (최종 목표 명세):
 
 ```typescript
 // 1. Generator 호출
