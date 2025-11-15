@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import assets, brands, projects, users, agents, generate, documents, templates, editor
+from app.api.v1.endpoints import assets, brands, projects, users, agents, generate, documents, templates, editor, admin
 
 api_router = APIRouter()
 
@@ -54,6 +54,13 @@ api_router.include_router(
     editor.router,
     prefix="/editor",
     tags=["editor"]
+)
+
+# Admin API (관리자 전용 모니터링)
+api_router.include_router(
+    admin.router,
+    prefix="/admin",
+    tags=["admin"]
 )
 
 # Agent API (내부 전용, Deprecated 예정)

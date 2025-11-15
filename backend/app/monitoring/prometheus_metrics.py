@@ -182,3 +182,113 @@ def record_workflow(workflow_type: str, status: str, active_count: int = None):
     workflow_counter.labels(workflow_type=workflow_type, status=status).inc()
     if active_count is not None:
         active_workflows.labels(workflow_type=workflow_type).set(active_count)
+
+
+# =============================================================================
+# Generator Metrics (Phase 4 추가)
+# =============================================================================
+
+generator_execution_counter = Counter(
+    'sparklio_generator_executions_total',
+    'Total generator executions',
+    ['generator_kind', 'status']  # kind: brand_kit, product_detail, sns
+)
+
+generator_latency = Histogram(
+    'sparklio_generator_execution_duration_seconds',
+    'Generator execution latency in seconds',
+    ['generator_kind'],
+    buckets=(1.0, 5.0, 10.0, 30.0, 60.0, 120.0, 300.0)
+)
+
+
+# =============================================================================
+# Cache Metrics (Phase 4 추가)
+# =============================================================================
+
+cache_hit_counter = Counter(
+    'sparklio_cache_hits_total',
+    'Total cache hits',
+    ['cache_type']  # cache_type: template, brand_learning
+)
+
+cache_miss_counter = Counter(
+    'sparklio_cache_misses_total',
+    'Total cache misses',
+    ['cache_type']
+)
+
+
+# =============================================================================
+# Document Metrics (Phase 4 추가)
+# =============================================================================
+
+document_operations_counter = Counter(
+    'sparklio_document_operations_total',
+    'Total document operations',
+    ['operation']  # operation: save, load, update, delete
+)
+
+template_operations_counter = Counter(
+    'sparklio_template_operations_total',
+    'Total template operations',
+    ['operation', 'status']  # operation: create, approve, reject, delete
+)
+
+
+# =============================================================================
+# Helper Functions (Phase 4 추가)
+# =============================================================================
+
+def record_generator_execution(generator_kind: str, status: str, duration: float):
+    """
+    Generator 실행 메트릭 기록
+
+    Args:
+        generator_kind: Generator 유형 (brand_kit, product_detail, sns)
+        status: 실행 상태 (success, error)
+        duration: 실행 시간 (초)
+    """
+    generator_execution_counter.labels(generator_kind=generator_kind, status=status).inc()
+    generator_latency.labels(generator_kind=generator_kind).observe(duration)
+
+
+def record_cache_hit(cache_type: str):
+    """
+    캐시 HIT 기록
+
+    Args:
+        cache_type: 캐시 유형 (template, brand_learning)
+    """
+    cache_hit_counter.labels(cache_type=cache_type).inc()
+
+
+def record_cache_miss(cache_type: str):
+    """
+    캐시 MISS 기록
+
+    Args:
+        cache_type: 캐시 유형 (template, brand_learning)
+    """
+    cache_miss_counter.labels(cache_type=cache_type).inc()
+
+
+def record_document_operation(operation: str):
+    """
+    Document 작업 메트릭 기록
+
+    Args:
+        operation: 작업 유형 (save, load, update, delete)
+    """
+    document_operations_counter.labels(operation=operation).inc()
+
+
+def record_template_operation(operation: str, status: str):
+    """
+    Template 작업 메트릭 기록
+
+    Args:
+        operation: 작업 유형 (create, approve, reject, delete)
+        status: 상태
+    """
+    template_operations_counter.labels(operation=operation, status=status).inc()
