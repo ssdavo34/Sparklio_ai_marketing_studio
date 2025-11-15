@@ -9,6 +9,10 @@ from typing import Dict, Any
 import logging
 
 from app.generators.base import BaseGenerator, GenerationRequest, GenerationResult
+from app.agents.strategist import StrategistAgent
+from app.agents.copywriter import CopywriterAgent
+from app.agents.reviewer import ReviewerAgent
+from app.schemas.agent import A2ARequest, SystemContext
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +56,12 @@ class ProductDetailGenerator(BaseGenerator):
 
     def __init__(self):
         super().__init__()
+
+        # Agent 초기화
+        self.strategist = StrategistAgent()
+        self.copywriter = CopywriterAgent()
+        self.reviewer = ReviewerAgent()
+
         logger.info("[ProductDetailGenerator] Initialized")
 
     async def generate(self, request: GenerationRequest) -> GenerationResult:
@@ -78,45 +88,196 @@ class ProductDetailGenerator(BaseGenerator):
         product_input = request.input["product"]
 
         try:
-            # TODO: 실제 Agent 파이프라인 구현
-            # 현재는 Mock 데이터로 응답
+            # Step 1: Strategist - 상세페이지 구조 설계
+            logger.info("[ProductDetailGenerator] Step 1: StrategistAgent - 구조 설계")
+            structure_request = A2ARequest(
+                request_id=f"{task_id}_strategist",
+                source_agent="ProductDetailGenerator",
+                target_agent="StrategistAgent",
+                system_context=SystemContext(
+                    brand_id=request.brandId,
+                    project_id=None,
+                    user_id=None,
+                    task_type="product_detail_structure",
+                    risk_level="low"
+                ),
+                payload={
+                    "brief": {
+                        "goal": f"{product_input.get('name', '제품')} 상세페이지 생성",
+                        "target_audience": product_input.get("target_audience", ""),
+                        "key_messages": product_input.get("features", []),
+                        "tone": "professional",
+                        "channels": ["shop_detail"],
+                        "requirements": ["hero", "features", "specs", "price", "cta"]
+                    },
+                    "brand_kit": {},
+                    "brand_analysis": {}
+                }
+            )
 
-            # Step 1: Strategist - 구조 설계
-            logger.info("[ProductDetailGenerator] Step 1: Structure design (Mock)")
-            sections = ["hero", "features", "specs", "reviews", "cta"]
+            # StrategistAgent 실행
+            strategist_response = await self.strategist.process(structure_request)
 
-            # Step 2: DataFetcher - RAG 데이터 수집
-            logger.info("[ProductDetailGenerator] Step 2: RAG data fetch (Mock)")
+            if strategist_response.status != "success":
+                logger.warning(f"[ProductDetailGenerator] StrategistAgent 실패, fallback 사용: {strategist_response.error}")
+                product_structure = {
+                    "sections": ["hero", "features", "specs", "price", "cta"]
+                }
+            else:
+                strategy_data = strategist_response.result.get("strategy", {})
+                product_structure = {
+                    "sections": ["hero", "features", "specs", "price", "cta"],
+                    "key_messages": strategy_data.get("key_messages", []),
+                    "content_themes": strategy_data.get("content_themes", [])
+                }
 
-            # Step 3: TemplateSelector - 템플릿 선택
-            logger.info("[ProductDetailGenerator] Step 3: Template selection (Mock)")
+            # Step 2: Copywriter - Headline 생성
+            logger.info("[ProductDetailGenerator] Step 2: CopywriterAgent - Headline 생성")
+            headline_request = A2ARequest(
+                request_id=f"{task_id}_copywriter_headline",
+                source_agent="ProductDetailGenerator",
+                target_agent="CopywriterAgent",
+                system_context=SystemContext(
+                    brand_id=request.brandId,
+                    project_id=None,
+                    user_id=None,
+                    task_type="product_headline",
+                    risk_level="low"
+                ),
+                payload={
+                    "brief": {
+                        "goal": f"{product_input.get('name')} 제품 헤드라인 작성",
+                        "target_audience": product_input.get("target_audience", ""),
+                        "key_messages": product_input.get("features", []),
+                        "tone": "professional"
+                    },
+                    "strategy": product_structure,
+                    "brand_voice": "professional",
+                    "channel": "shop_detail",
+                    "copy_type": "headline",
+                    "max_length": 100,
+                    "variants_count": 2
+                }
+            )
 
-            # Step 4: Copywriter - 카피 생성
-            logger.info("[ProductDetailGenerator] Step 4: Copy generation (Mock)")
+            # CopywriterAgent 실행 (Headline)
+            headline_response = await self.copywriter.process(headline_request)
+
+            # Step 3: Copywriter - Hero Copy 생성
+            logger.info("[ProductDetailGenerator] Step 3: CopywriterAgent - Hero Copy 생성")
+            hero_request = A2ARequest(
+                request_id=f"{task_id}_copywriter_hero",
+                source_agent="ProductDetailGenerator",
+                target_agent="CopywriterAgent",
+                system_context=SystemContext(
+                    brand_id=request.brandId,
+                    project_id=None,
+                    user_id=None,
+                    task_type="product_hero",
+                    risk_level="low"
+                ),
+                payload={
+                    "brief": {
+                        "goal": f"{product_input.get('name')} 제품 소개 작성",
+                        "target_audience": product_input.get("target_audience", ""),
+                        "key_messages": product_input.get("features", []),
+                        "tone": "professional"
+                    },
+                    "strategy": product_structure,
+                    "brand_voice": "professional",
+                    "channel": "shop_detail",
+                    "copy_type": "body",
+                    "max_length": 200,
+                    "variants_count": 1
+                }
+            )
+
+            # CopywriterAgent 실행 (Hero Copy)
+            hero_response = await self.copywriter.process(hero_request)
+
+            # 텍스트 블록 구성
             text_blocks = {
-                "headline": f"{product_input.get('name', '제품명')} - {product_input.get('usp', '혁신적인 기능')}",
-                "hero_copy": f"{product_input.get('name')}로 새로운 경험을 시작하세요",
+                "headline": headline_response.result.get("primary_copy", f"{product_input.get('name', '제품명')} - {product_input.get('usp', '혁신적인 기능')}") if headline_response.status == "success" else f"{product_input.get('name', '제품명')} - {product_input.get('usp', '혁신적인 기능')}",
+                "hero_copy": hero_response.result.get("primary_copy", f"{product_input.get('name')}로 새로운 경험을 시작하세요") if hero_response.status == "success" else f"{product_input.get('name')}로 새로운 경험을 시작하세요",
                 "features": ", ".join(product_input.get("features", ["혁신", "품질", "신뢰"])),
                 "specs": f"카테고리: {product_input.get('category', 'N/A')}",
                 "price": f"₩{product_input.get('price', 0):,}",
                 "cta": "지금 구매하기"
             }
 
-            # Step 5: LayoutDesigner - Editor JSON 생성
-            logger.info("[ProductDetailGenerator] Step 5: Editor document generation (Mock)")
+            # Step 4: Reviewer - 품질 검토
+            logger.info("[ProductDetailGenerator] Step 4: ReviewerAgent - 품질 검토")
+            review_request = A2ARequest(
+                request_id=f"{task_id}_reviewer",
+                source_agent="ProductDetailGenerator",
+                target_agent="ReviewerAgent",
+                system_context=SystemContext(
+                    brand_id=request.brandId,
+                    project_id=None,
+                    user_id=None,
+                    task_type="product_detail_review",
+                    risk_level="low"
+                ),
+                payload={
+                    "brief": {
+                        "goal": f"{product_input.get('name')} 상세페이지 생성",
+                        "target_audience": product_input.get("target_audience", ""),
+                        "key_messages": product_input.get("features", []),
+                        "tone": "professional"
+                    },
+                    "generated_content": text_blocks,
+                    "content_type": "product_detail",
+                    "brand_kit": {},
+                    "strict_mode": False
+                }
+            )
+
+            # ReviewerAgent 실행
+            reviewer_response = await self.reviewer.process(review_request)
+
+            if reviewer_response.status != "success":
+                logger.warning(f"[ProductDetailGenerator] ReviewerAgent 실패, 기본 승인: {reviewer_response.error}")
+                review_result = {
+                    "overall_score": 0.7,
+                    "approved": True,
+                    "feedback": ["자동 승인 (Reviewer 실패)"],
+                    "suggestions": []
+                }
+            else:
+                review_result = reviewer_response.result
+
+            # Step 5: Editor Document 생성
+            logger.info("[ProductDetailGenerator] Step 5: Editor Document 생성")
             editor_document = self._create_product_detail_document(
                 request,
                 product_input,
                 text_blocks
             )
 
-            # Step 6: Reviewer - 품질 검토
-            logger.info("[ProductDetailGenerator] Step 6: Quality review (Mock)")
-            review_result = {
-                "overall_score": 0.82,
-                "approved": True,
-                "feedback": "제품 정보가 명확하게 전달됨"
-            }
+            # Agents trace 구성
+            agents_trace = [
+                {
+                    "agent": "StrategistAgent",
+                    "status": "completed" if strategist_response.status == "success" else "failed",
+                    "metadata": strategist_response.metadata if strategist_response.status == "success" else {}
+                },
+                {
+                    "agent": "CopywriterAgent (Headline)",
+                    "status": "completed" if headline_response.status == "success" else "failed",
+                    "metadata": headline_response.metadata if headline_response.status == "success" else {}
+                },
+                {
+                    "agent": "CopywriterAgent (Hero)",
+                    "status": "completed" if hero_response.status == "success" else "failed",
+                    "metadata": hero_response.metadata if hero_response.status == "success" else {}
+                },
+                {
+                    "agent": "ReviewerAgent",
+                    "status": "completed" if reviewer_response.status == "success" else "failed",
+                    "score": review_result.get("overall_score", 0.7),
+                    "approved": review_result.get("approved", True)
+                }
+            ]
 
             # 결과 생성
             result = GenerationResult(
@@ -126,20 +287,13 @@ class ProductDetailGenerator(BaseGenerator):
                 editorDocument=editor_document,
                 meta={
                     "templates_used": ["product_detail_default"],
-                    "agents_trace": [
-                        {"agent": "StrategistAgent", "status": "completed (mock)"},
-                        {"agent": "DataFetcher", "status": "completed (mock)"},
-                        {"agent": "TemplateSelectorAgent", "status": "completed (mock)"},
-                        {"agent": "CopywriterAgent", "status": "completed (mock)"},
-                        {"agent": "LayoutDesignerAgent", "status": "completed (mock)"},
-                        {"agent": "ReviewerAgent", "status": "completed (mock)", "score": review_result["overall_score"]}
-                    ],
+                    "agents_trace": agents_trace,
                     "llm_cost": {
                         "prompt_tokens": 800,
                         "completion_tokens": 1200
                     },
                     "review": review_result,
-                    "is_mock": True
+                    "is_mock": False  # 실제 Agent 연동됨
                 }
             )
 

@@ -9,6 +9,10 @@ from typing import Dict, Any
 import logging
 
 from app.generators.base import BaseGenerator, GenerationRequest, GenerationResult
+from app.agents.strategist import StrategistAgent
+from app.agents.copywriter import CopywriterAgent
+from app.agents.reviewer import ReviewerAgent
+from app.schemas.agent import A2ARequest, SystemContext
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +55,12 @@ class SNSGenerator(BaseGenerator):
 
     def __init__(self):
         super().__init__()
+
+        # Agent 초기화
+        self.strategist = StrategistAgent()
+        self.copywriter = CopywriterAgent()
+        self.reviewer = ReviewerAgent()
+
         logger.info("[SNSGenerator] Initialized")
 
     async def generate(self, request: GenerationRequest) -> GenerationResult:
@@ -78,24 +88,83 @@ class SNSGenerator(BaseGenerator):
         card_count = post_input.get("card_count", 5)
 
         try:
-            # TODO: 실제 Agent 파이프라인 구현
-            # 현재는 Mock 데이터로 응답
+            # Step 1: Strategist - SNS 카드 구조 설계
+            logger.info(f"[SNSGenerator] Step 1: StrategistAgent - 카드 구조 설계 ({card_count}장)")
+            structure_request = A2ARequest(
+                request_id=f"{task_id}_strategist",
+                source_agent="SNSGenerator",
+                target_agent="StrategistAgent",
+                system_context=SystemContext(
+                    brand_id=request.brandId,
+                    project_id=None,
+                    user_id=None,
+                    task_type="sns_structure",
+                    risk_level="low"
+                ),
+                payload={
+                    "brief": {
+                        "goal": f"SNS 카드뉴스 생성: {post_input.get('topic', 'SNS 콘텐츠')}",
+                        "target_audience": "SNS 사용자",
+                        "key_messages": [post_input.get("purpose", "정보 공유")],
+                        "tone": "friendly",
+                        "channels": ["sns", request.channel or "instagram"],
+                        "requirements": [f"card_{i}" for i in range(1, card_count + 1)]
+                    },
+                    "brand_kit": {},
+                    "brand_analysis": {}
+                }
+            )
 
-            # Step 1: Strategist - 카드 구조 설계
-            logger.info(f"[SNSGenerator] Step 1: Card structure design (Mock) - {card_count}장")
+            # StrategistAgent 실행
+            strategist_response = await self.strategist.process(structure_request)
 
-            # Step 2: DataFetcher - 트렌드/해시태그 데이터 수집
-            logger.info("[SNSGenerator] Step 2: Trend/hashtag data fetch (Mock)")
+            if strategist_response.status != "success":
+                logger.warning(f"[SNSGenerator] StrategistAgent 실패, fallback 사용: {strategist_response.error}")
+                sns_structure = {"card_count": card_count}
+            else:
+                strategy_data = strategist_response.result.get("strategy", {})
+                sns_structure = {
+                    "card_count": card_count,
+                    "key_messages": strategy_data.get("key_messages", [])
+                }
 
-            # Step 3: TemplateSelector - SNS 템플릿 선택
-            logger.info("[SNSGenerator] Step 3: Template selection (Mock)")
+            # Step 2: Copywriter - 첫 번째 카드 헤드라인 생성
+            logger.info("[SNSGenerator] Step 2: CopywriterAgent - 카드 카피 생성")
+            card_copy_request = A2ARequest(
+                request_id=f"{task_id}_copywriter_card1",
+                source_agent="SNSGenerator",
+                target_agent="CopywriterAgent",
+                system_context=SystemContext(
+                    brand_id=request.brandId,
+                    project_id=None,
+                    user_id=None,
+                    task_type="sns_card_copy",
+                    risk_level="low"
+                ),
+                payload={
+                    "brief": {
+                        "goal": f"SNS 카드 카피 작성: {post_input.get('topic', 'SNS')}",
+                        "target_audience": "SNS 사용자",
+                        "key_messages": [post_input.get("topic", "")],
+                        "tone": "friendly"
+                    },
+                    "strategy": sns_structure,
+                    "brand_voice": "friendly",
+                    "channel": "instagram",
+                    "copy_type": "headline",
+                    "max_length": 50,
+                    "variants_count": 1
+                }
+            )
 
-            # Step 4: Copywriter - 카드별 카피 생성
-            logger.info("[SNSGenerator] Step 4: Card copy generation (Mock)")
-            text_blocks = self._generate_card_texts(post_input, card_count)
+            # CopywriterAgent 실행
+            card_copy_response = await self.copywriter.process(card_copy_request)
 
-            # Step 5: LayoutDesigner - 다중 페이지 Editor JSON 생성
-            logger.info("[SNSGenerator] Step 5: Multi-page editor document generation (Mock)")
+            # 텍스트 블록 생성 (Agent 응답 활용)
+            text_blocks = self._generate_card_texts_with_agent(post_input, card_count, card_copy_response)
+
+            # Step 3: Editor Document 생성
+            logger.info("[SNSGenerator] Step 3: Editor Document 생성")
             editor_document = self._create_sns_document(
                 request,
                 post_input,
@@ -103,13 +172,66 @@ class SNSGenerator(BaseGenerator):
                 card_count
             )
 
-            # Step 6: Reviewer - 품질 검토
-            logger.info("[SNSGenerator] Step 6: Quality review (Mock)")
-            review_result = {
-                "overall_score": 0.88,
-                "approved": True,
-                "feedback": "카드 흐름이 자연스럽고 메시지가 명확함"
-            }
+            # Step 4: Reviewer - 품질 검토
+            logger.info("[SNSGenerator] Step 4: ReviewerAgent - 품질 검토")
+            review_request = A2ARequest(
+                request_id=f"{task_id}_reviewer",
+                source_agent="SNSGenerator",
+                target_agent="ReviewerAgent",
+                system_context=SystemContext(
+                    brand_id=request.brandId,
+                    project_id=None,
+                    user_id=None,
+                    task_type="sns_review",
+                    risk_level="low"
+                ),
+                payload={
+                    "brief": {
+                        "goal": f"SNS 카드뉴스 생성",
+                        "target_audience": "SNS 사용자",
+                        "key_messages": [post_input.get("topic", "")],
+                        "tone": "friendly"
+                    },
+                    "generated_content": text_blocks,
+                    "content_type": "sns",
+                    "brand_kit": {},
+                    "strict_mode": False
+                }
+            )
+
+            # ReviewerAgent 실행
+            reviewer_response = await self.reviewer.process(review_request)
+
+            if reviewer_response.status != "success":
+                logger.warning(f"[SNSGenerator] ReviewerAgent 실패, 기본 승인: {reviewer_response.error}")
+                review_result = {
+                    "overall_score": 0.7,
+                    "approved": True,
+                    "feedback": ["자동 승인 (Reviewer 실패)"],
+                    "suggestions": []
+                }
+            else:
+                review_result = reviewer_response.result
+
+            # Agents trace 구성
+            agents_trace = [
+                {
+                    "agent": "StrategistAgent",
+                    "status": "completed" if strategist_response.status == "success" else "failed",
+                    "metadata": strategist_response.metadata if strategist_response.status == "success" else {}
+                },
+                {
+                    "agent": "CopywriterAgent (Cards)",
+                    "status": "completed" if card_copy_response.status == "success" else "failed",
+                    "metadata": card_copy_response.metadata if card_copy_response.status == "success" else {}
+                },
+                {
+                    "agent": "ReviewerAgent",
+                    "status": "completed" if reviewer_response.status == "success" else "failed",
+                    "score": review_result.get("overall_score", 0.7),
+                    "approved": review_result.get("approved", True)
+                }
+            ]
 
             # 결과 생성
             result = GenerationResult(
@@ -119,20 +241,13 @@ class SNSGenerator(BaseGenerator):
                 editorDocument=editor_document,
                 meta={
                     "templates_used": [f"sns_{post_input.get('style', 'default')}"],
-                    "agents_trace": [
-                        {"agent": "StrategistAgent", "status": "completed (mock)"},
-                        {"agent": "DataFetcher", "status": "completed (mock)"},
-                        {"agent": "TemplateSelectorAgent", "status": "completed (mock)"},
-                        {"agent": "CopywriterAgent", "status": "completed (mock)"},
-                        {"agent": "LayoutDesignerAgent", "status": "completed (mock)"},
-                        {"agent": "ReviewerAgent", "status": "completed (mock)", "score": review_result["overall_score"]}
-                    ],
+                    "agents_trace": agents_trace,
                     "llm_cost": {
                         "prompt_tokens": 600,
                         "completion_tokens": 1000
                     },
                     "review": review_result,
-                    "is_mock": True,
+                    "is_mock": False,  # 실제 Agent 연동됨
                     "card_count": card_count
                 }
             )
@@ -146,7 +261,7 @@ class SNSGenerator(BaseGenerator):
 
     def _generate_card_texts(self, post_input: Dict[str, Any], card_count: int) -> Dict[str, Any]:
         """
-        카드별 텍스트 생성 (Mock)
+        카드별 텍스트 생성 (Mock - Fallback용)
 
         Args:
             post_input: 포스트 입력 데이터
@@ -159,6 +274,46 @@ class SNSGenerator(BaseGenerator):
         text_blocks = {}
 
         for i in range(1, card_count + 1):
+            text_blocks[f"card_{i}_headline"] = f"{topic} - {i}번째 팁"
+            text_blocks[f"card_{i}_body"] = f"{i}번째 카드 본문 내용입니다."
+
+        # 해시태그
+        text_blocks["hashtags"] = "#스킨케어 #뷰티팁 #겨울피부관리 #일상"
+
+        return text_blocks
+
+    def _generate_card_texts_with_agent(
+        self,
+        post_input: Dict[str, Any],
+        card_count: int,
+        agent_response: Any
+    ) -> Dict[str, Any]:
+        """
+        카드별 텍스트 생성 (Agent 응답 활용)
+
+        Args:
+            post_input: 포스트 입력 데이터
+            card_count: 카드 장수
+            agent_response: CopywriterAgent 응답
+
+        Returns:
+            카드별 텍스트 블록
+        """
+        topic = post_input.get("topic", "주제")
+        text_blocks = {}
+
+        # Agent 응답이 성공이면 활용, 아니면 fallback
+        if agent_response.status == "success":
+            first_card_copy = agent_response.result.get("primary_copy", f"{topic} - 1번째 팁")
+        else:
+            first_card_copy = f"{topic} - 1번째 팁"
+
+        # 첫 번째 카드는 Agent 응답 사용
+        text_blocks["card_1_headline"] = first_card_copy
+        text_blocks["card_1_body"] = f"{topic}에 대한 첫 번째 내용입니다."
+
+        # 나머지 카드는 템플릿 기반 (향후 개선)
+        for i in range(2, card_count + 1):
             text_blocks[f"card_{i}_headline"] = f"{topic} - {i}번째 팁"
             text_blocks[f"card_{i}_body"] = f"{i}번째 카드 본문 내용입니다."
 
