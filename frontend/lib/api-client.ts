@@ -9,6 +9,17 @@ export const api = axios.create({
   },
 });
 
+// Add auth token to requests if available
+api.interceptors.request.use((config) => {
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  }
+  return config;
+});
+
 // SmartRouter 호출
 export async function routeRequest(requestText: string, brandId?: string, projectId?: string) {
   const response = await api.post('/api/v1/router/route', {
@@ -59,6 +70,205 @@ export async function getAsset(assetId: string) {
 // 자산 삭제
 export async function deleteAsset(assetId: string, hardDelete = false) {
   await api.delete(`/api/v1/assets/${assetId}`, {
+    params: { hard_delete: hardDelete },
+  });
+}
+
+// ============ Authentication APIs ============
+
+export interface RegisterData {
+  email: string;
+  username: string;
+  password: string;
+  full_name?: string;
+  phone?: string;
+}
+
+export interface LoginData {
+  email: string;
+  password: string;
+}
+
+export interface UserResponse {
+  id: string;
+  email: string;
+  username: string;
+  full_name?: string;
+  phone?: string;
+  role: string;
+  is_active: boolean;
+  is_verified: boolean;
+  created_at: string;
+  updated_at: string;
+  last_login_at?: string;
+}
+
+export interface TokenResponse {
+  access_token: string;
+  token_type: string;
+  user: UserResponse;
+}
+
+// 회원가입
+export async function register(data: RegisterData): Promise<UserResponse> {
+  const response = await api.post('/api/v1/users/register', data);
+  return response.data;
+}
+
+// 로그인 (JWT 토큰 발급)
+export async function login(data: LoginData): Promise<TokenResponse> {
+  const response = await api.post('/api/v1/users/login', data);
+  const tokenData = response.data;
+
+  // Save token to localStorage
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('access_token', tokenData.access_token);
+    localStorage.setItem('user', JSON.stringify(tokenData.user));
+  }
+
+  return tokenData;
+}
+
+// 로그아웃
+export function logout() {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('user');
+  }
+}
+
+// 현재 사용자 정보 조회
+export async function getCurrentUser(): Promise<UserResponse> {
+  const response = await api.get('/api/v1/users/me');
+  return response.data;
+}
+
+// 현재 사용자 정보 수정
+export async function updateCurrentUser(data: Partial<RegisterData>): Promise<UserResponse> {
+  const response = await api.patch('/api/v1/users/me', data);
+  return response.data;
+}
+
+// ============ Brand APIs ============
+
+export interface BrandCreate {
+  name: string;
+  slug: string;
+  description?: string;
+  brand_kit?: any;
+  logo_url?: string;
+  website_url?: string;
+  industry?: string;
+  tags?: string[];
+}
+
+export interface BrandResponse {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  brand_kit?: any;
+  logo_url?: string;
+  website_url?: string;
+  industry?: string;
+  tags?: string[];
+  owner_id: string;
+  brand_metadata?: any;
+  created_at: string;
+  updated_at: string;
+}
+
+// 브랜드 생성
+export async function createBrand(data: BrandCreate): Promise<BrandResponse> {
+  const response = await api.post('/api/v1/brands', data);
+  return response.data;
+}
+
+// 브랜드 목록 조회
+export async function listBrands(skip = 0, limit = 100): Promise<BrandResponse[]> {
+  const response = await api.get('/api/v1/brands', {
+    params: { skip, limit },
+  });
+  return response.data;
+}
+
+// 브랜드 상세 조회
+export async function getBrand(brandId: string): Promise<BrandResponse> {
+  const response = await api.get(`/api/v1/brands/${brandId}`);
+  return response.data;
+}
+
+// 브랜드 수정
+export async function updateBrand(brandId: string, data: Partial<BrandCreate>): Promise<BrandResponse> {
+  const response = await api.patch(`/api/v1/brands/${brandId}`, data);
+  return response.data;
+}
+
+// 브랜드 삭제
+export async function deleteBrand(brandId: string, hardDelete = false): Promise<void> {
+  await api.delete(`/api/v1/brands/${brandId}`, {
+    params: { hard_delete: hardDelete },
+  });
+}
+
+// ============ Project APIs ============
+
+export interface ProjectCreate {
+  name: string;
+  slug: string;
+  brand_id: string;
+  project_type: string;
+  description?: string;
+  brief?: any;
+  status?: string;
+  tags?: string[];
+}
+
+export interface ProjectResponse {
+  id: string;
+  name: string;
+  slug: string;
+  brand_id: string;
+  project_type: string;
+  description?: string;
+  brief?: any;
+  status: string;
+  tags?: string[];
+  owner_id: string;
+  project_metadata?: any;
+  created_at: string;
+  updated_at: string;
+}
+
+// 프로젝트 생성
+export async function createProject(data: ProjectCreate): Promise<ProjectResponse> {
+  const response = await api.post('/api/v1/projects', data);
+  return response.data;
+}
+
+// 프로젝트 목록 조회
+export async function listProjects(brandId?: string, skip = 0, limit = 100): Promise<ProjectResponse[]> {
+  const response = await api.get('/api/v1/projects', {
+    params: { brand_id: brandId, skip, limit },
+  });
+  return response.data;
+}
+
+// 프로젝트 상세 조회
+export async function getProject(projectId: string): Promise<ProjectResponse> {
+  const response = await api.get(`/api/v1/projects/${projectId}`);
+  return response.data;
+}
+
+// 프로젝트 수정
+export async function updateProject(projectId: string, data: Partial<ProjectCreate>): Promise<ProjectResponse> {
+  const response = await api.patch(`/api/v1/projects/${projectId}`, data);
+  return response.data;
+}
+
+// 프로젝트 삭제
+export async function deleteProject(projectId: string, hardDelete = false): Promise<void> {
+  await api.delete(`/api/v1/projects/${projectId}`, {
     params: { hard_delete: hardDelete },
   });
 }
