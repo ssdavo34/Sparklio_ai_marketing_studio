@@ -381,11 +381,59 @@ frontend/
 - ✅ 인증 API (`/api/v1/users`) - 완료
 - ✅ Brand/Project CRUD (`/api/v1/brands`, `/api/v1/projects`) - 완료
 - ✅ Asset 관리 (`/api/v1/assets`) - 완료
-- ⏳ **Generator 통합 API (`/api/v1/generate`)** - B팀 작업 중
+- ✅ **Generator 통합 API (`/api/v1/generate`)** - 배포 완료 (2025-11-15 20:47)
 - ⏳ Editor Action API - B팀 작업 중
 
-C팀은 우선 **Phase 1-2 (UI/Editor Canvas)** 작업을 진행하고,
-**Phase 3 (Generator 연동)** 시작 전 A팀에게 B팀 API 완료 여부를 확인하세요.
+**⚠️ 중요: Generator API 사용 전 필수 작업**
+
+`/api/v1/generate` 엔드포인트를 사용하려면 **인증이 필수**입니다:
+
+1. **먼저 로그인 UI 구현** (Phase 1에 추가)
+   - 회원가입/로그인 컴포넌트 생성
+   - `lib/api-client.ts`의 `login()`, `register()` 함수 사용
+   - 성공 시 `localStorage`에 `access_token` 자동 저장됨
+
+2. **테스트 계정 생성**
+   ```typescript
+   import { register, login } from '@/lib/api-client';
+
+   // 1. 회원가입
+   await register({
+     email: 'test@sparklio.com',
+     username: 'testuser',
+     password: 'test1234',
+     full_name: 'Test User'
+   });
+
+   // 2. 로그인
+   const { access_token } = await login({
+     email: 'test@sparklio.com',
+     password: 'test1234'
+   });
+   // access_token이 자동으로 localStorage에 저장됨
+   ```
+
+3. **Generator 호출**
+   ```typescript
+   import { generateDocument } from '@/lib/api-client';
+
+   // 로그인 후 호출 가능
+   const result = await generateDocument({
+     kind: 'brand_kit',
+     brandId: 'brand_001',
+     input: {
+       brand: {
+         name: '스파클리오',
+         industry: 'beauty'
+       }
+     }
+   });
+   ```
+
+**작업 순서**:
+1. Phase 1-2: UI/Editor Canvas + **로그인/회원가입 UI**
+2. Phase 3: Generator 연동 (로그인 후 테스트)
+3. Phase 4: Editor Action 연동 (B팀 완료 후)
 
 ---
 
