@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import assets, brands, projects, users, agents, generate, documents, templates, editor, admin, llm_gateway
+from app.api.v1.endpoints import assets, brands, projects, users, agents, generate, documents, templates, editor, admin, llm_gateway, debug
 
 api_router = APIRouter()
 
@@ -75,4 +75,11 @@ api_router.include_router(
     agents.router,
     prefix="/agents",
     tags=["agents (deprecated)"]
+)
+
+# Debug API (개발/디버깅용)
+api_router.include_router(
+    debug.router,
+    prefix="/debug",
+    tags=["debug"]
 )

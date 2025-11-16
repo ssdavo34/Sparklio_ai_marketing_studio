@@ -52,16 +52,11 @@ class OllamaProvider(LLMProvider):
             timeout: 타임아웃 (초) (기본값: settings.OLLAMA_TIMEOUT)
             default_model: 기본 모델명 (기본값: settings.OLLAMA_DEFAULT_MODEL)
         """
-        self.base_url = base_url or settings.OLLAMA_BASE_URL
+        self.base_url = (base_url or settings.OLLAMA_BASE_URL).rstrip("/")
         self.timeout = timeout or settings.OLLAMA_TIMEOUT
         self.default_model = default_model or settings.OLLAMA_DEFAULT_MODEL
 
         logger.info(f"Ollama Provider initializing with base_url={self.base_url}, timeout={self.timeout}s")
-
-        # HTTP 클라이언트 (재사용)
-        # base_url을 사용하지 않고 항상 전체 URL 사용
-        self.client = httpx.AsyncClient(timeout=self.timeout)
-
         logger.info(f"Ollama Provider initialized successfully")
 
     @property
@@ -126,16 +121,18 @@ class OllamaProvider(LLMProvider):
                 options=merged_options
             )
 
-            # Ollama API 호출 (전체 URL 사용)
+            # Ollama API 호출 (매번 새로운 AsyncClient 생성)
             api_url = f"{self.base_url}/api/generate"
 
             logger.info(f"Ollama API call: url={api_url}, model={model}, mode={mode}, timeout={self.timeout}s")
 
-            response = await self.client.post(api_url, json=request_data)
-            response.raise_for_status()
+            # 요청마다 새 AsyncClient 인스턴스 생성
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.post(api_url, json=request_data)
+                response.raise_for_status()
 
-            # 응답 파싱
-            result = response.json()
+                # 응답 파싱
+                result = response.json()
 
             # 응답 변환
             llm_response = self._parse_response(
@@ -294,16 +291,19 @@ class OllamaProvider(LLMProvider):
             bool: 정상 작동 시 True
         """
         try:
-            # Ollama API /api/tags 엔드포인트로 모델 목록 조회 (전체 URL 사용)
+            # Ollama API /api/tags 엔드포인트로 모델 목록 조회
             api_url = f"{self.base_url}/api/tags"
-            response = await self.client.get(api_url, timeout=10.0)
-            response.raise_for_status()
 
-            result = response.json()
-            models = result.get("models", [])
+            # 매번 새로운 AsyncClient 인스턴스 생성
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(api_url)
+                response.raise_for_status()
 
-            logger.info(f"Ollama health check OK: {len(models)} models available")
-            return True
+                result = response.json()
+                models = result.get("models", [])
+
+                logger.info(f"Ollama health check OK: {len(models)} models available")
+                return True
 
         except Exception as e:
             logger.error(f"Ollama health check failed: {str(e)}")
@@ -318,19 +318,18 @@ class OllamaProvider(LLMProvider):
         """
         try:
             api_url = f"{self.base_url}/api/tags"
-            response = await self.client.get(api_url)
-            response.raise_for_status()
 
-            result = response.json()
-            return result.get("models", [])
+            # 매번 새로운 AsyncClient 인스턴스 생성
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(api_url)
+                response.raise_for_status()
+
+                result = response.json()
+                return result.get("models", [])
 
         except Exception as e:
             logger.error(f"Failed to list Ollama models: {str(e)}")
             return []
-
-    async def close(self):
-        """HTTP 클라이언트 종료"""
-        await self.client.aclose()
 
 
 # Ollama Provider 인스턴스 생성 헬퍼
