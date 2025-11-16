@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { getTestToken } from '../utils/auth';
 
 /**
  * B팀 Backend API 통합 테스트
@@ -12,16 +13,18 @@ import { test, expect } from '@playwright/test';
  * - Monitoring: 2개
  *
  * 참고: B팀 Phase 4 완료 보고
+ * 인증: tests/utils/auth.ts의 getTestToken() 사용 (동적 JWT 토큰 발급)
  */
 
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:8000';
-const TEST_TOKEN = process.env.TEST_TOKEN || 'test-token';
 
 test.describe('B팀 Backend API - Generator API (1개)', () => {
   test('POST /api/v1/generate - Brand Kit Generator', async ({ request }) => {
+    const token = await getTestToken();
+
     const response = await request.post(`${API_BASE_URL}/api/v1/generate`, {
       headers: {
-        'Authorization': `Bearer ${TEST_TOKEN}`,
+        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
       data: {
@@ -46,9 +49,11 @@ test.describe('B팀 Backend API - Generator API (1개)', () => {
   });
 
   test('POST /api/v1/generate - Product Detail Generator', async ({ request }) => {
+    const token = await getTestToken();
+
     const response = await request.post(`${API_BASE_URL}/api/v1/generate`, {
       headers: {
-        'Authorization': `Bearer ${TEST_TOKEN}`,
+        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
       data: {
@@ -65,9 +70,11 @@ test.describe('B팀 Backend API - Generator API (1개)', () => {
   });
 
   test('POST /api/v1/generate - SNS Generator', async ({ request }) => {
+    const token = await getTestToken();
+
     const response = await request.post(`${API_BASE_URL}/api/v1/generate`, {
       headers: {
-        'Authorization': `Bearer ${TEST_TOKEN}`,
+        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
       data: {
@@ -89,9 +96,11 @@ test.describe('B팀 Backend API - Documents API (5개)', () => {
   let createdDocId: string;
 
   test('POST /api/v1/documents/{docId}/save - 문서 저장', async ({ request }) => {
+    const token = await getTestToken();
+
     const response = await request.post(`${API_BASE_URL}/api/v1/documents/new/save`, {
       headers: {
-        'Authorization': `Bearer ${TEST_TOKEN}`,
+        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
       data: {
@@ -115,9 +124,11 @@ test.describe('B팀 Backend API - Documents API (5개)', () => {
   });
 
   test('GET /api/v1/documents/{docId} - 문서 조회', async ({ request }) => {
+    const token = await getTestToken();
+
     const response = await request.get(`${API_BASE_URL}/api/v1/documents/${createdDocId}`, {
       headers: {
-        'Authorization': `Bearer ${TEST_TOKEN}`,
+        'Authorization': `Bearer ${token}`,
       },
     });
 
@@ -130,9 +141,11 @@ test.describe('B팀 Backend API - Documents API (5개)', () => {
   });
 
   test('PATCH /api/v1/documents/{docId} - 문서 수정', async ({ request }) => {
+    const token = await getTestToken();
+
     const response = await request.patch(`${API_BASE_URL}/api/v1/documents/${createdDocId}`, {
       headers: {
-        'Authorization': `Bearer ${TEST_TOKEN}`,
+        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
       data: {
@@ -153,9 +166,11 @@ test.describe('B팀 Backend API - Documents API (5개)', () => {
   });
 
   test('GET /api/v1/documents - 문서 목록 조회', async ({ request }) => {
+    const token = await getTestToken();
+
     const response = await request.get(`${API_BASE_URL}/api/v1/documents?brand_id=brand-test-001`, {
       headers: {
-        'Authorization': `Bearer ${TEST_TOKEN}`,
+        'Authorization': `Bearer ${token}`,
       },
     });
 
@@ -167,9 +182,11 @@ test.describe('B팀 Backend API - Documents API (5개)', () => {
   });
 
   test('DELETE /api/v1/documents/{docId} - 문서 삭제', async ({ request }) => {
+    const token = await getTestToken();
+
     const response = await request.delete(`${API_BASE_URL}/api/v1/documents/${createdDocId}`, {
       headers: {
-        'Authorization': `Bearer ${TEST_TOKEN}`,
+        'Authorization': `Bearer ${token}`,
       },
     });
 
@@ -179,9 +196,11 @@ test.describe('B팀 Backend API - Documents API (5개)', () => {
 
 test.describe('B팀 Backend API - Editor API (2개)', () => {
   test('POST /api/v1/editor/action - Editor Action 실행', async ({ request }) => {
+    const token = await getTestToken();
+
     const response = await request.post(`${API_BASE_URL}/api/v1/editor/action`, {
       headers: {
-        'Authorization': `Bearer ${TEST_TOKEN}`,
+        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
       data: {
@@ -202,9 +221,11 @@ test.describe('B팀 Backend API - Editor API (2개)', () => {
   });
 
   test('GET /api/v1/editor/actions/supported - 지원 Action 목록', async ({ request }) => {
+    const token = await getTestToken();
+
     const response = await request.get(`${API_BASE_URL}/api/v1/editor/actions/supported`, {
       headers: {
-        'Authorization': `Bearer ${TEST_TOKEN}`,
+        'Authorization': `Bearer ${token}`,
       },
     });
 
@@ -242,9 +263,11 @@ test.describe('B팀 Backend API - Templates API (7개)', () => {
   });
 
   test('POST /api/v1/templates - 템플릿 생성 (Admin)', async ({ request }) => {
+    const token = await getTestToken();
+
     const response = await request.post(`${API_BASE_URL}/api/v1/templates`, {
       headers: {
-        'Authorization': `Bearer ${TEST_TOKEN}`,
+        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
       data: {
@@ -267,9 +290,11 @@ test.describe('B팀 Backend API - Templates API (7개)', () => {
   });
 
   test('PATCH /api/v1/templates/{templateId} - 템플릿 수정 (Admin)', async ({ request }) => {
+    const token = await getTestToken();
+
     const response = await request.patch(`${API_BASE_URL}/api/v1/templates/${createdTemplateId}`, {
       headers: {
-        'Authorization': `Bearer ${TEST_TOKEN}`,
+        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
       data: {
@@ -284,9 +309,11 @@ test.describe('B팀 Backend API - Templates API (7개)', () => {
   });
 
   test('POST /api/v1/templates/{templateId}/approve - 템플릿 승인 (Admin)', async ({ request }) => {
+    const token = await getTestToken();
+
     const response = await request.post(`${API_BASE_URL}/api/v1/templates/${createdTemplateId}/approve`, {
       headers: {
-        'Authorization': `Bearer ${TEST_TOKEN}`,
+        'Authorization': `Bearer ${token}`,
       },
     });
 
@@ -297,9 +324,11 @@ test.describe('B팀 Backend API - Templates API (7개)', () => {
   });
 
   test('POST /api/v1/templates/{templateId}/reject - 템플릿 거부 (Admin)', async ({ request }) => {
+    const token = await getTestToken();
+
     const response = await request.post(`${API_BASE_URL}/api/v1/templates/${createdTemplateId}/reject`, {
       headers: {
-        'Authorization': `Bearer ${TEST_TOKEN}`,
+        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
       data: {
@@ -314,9 +343,11 @@ test.describe('B팀 Backend API - Templates API (7개)', () => {
   });
 
   test('DELETE /api/v1/templates/{templateId} - 템플릿 삭제 (Admin)', async ({ request }) => {
+    const token = await getTestToken();
+
     const response = await request.delete(`${API_BASE_URL}/api/v1/templates/${createdTemplateId}`, {
       headers: {
-        'Authorization': `Bearer ${TEST_TOKEN}`,
+        'Authorization': `Bearer ${token}`,
       },
     });
 
@@ -326,9 +357,11 @@ test.describe('B팀 Backend API - Templates API (7개)', () => {
 
 test.describe('B팀 Backend API - Admin API (5개)', () => {
   test('GET /api/v1/admin/users - 사용자 목록', async ({ request }) => {
+    const token = await getTestToken();
+
     const response = await request.get(`${API_BASE_URL}/api/v1/admin/users`, {
       headers: {
-        'Authorization': `Bearer ${TEST_TOKEN}`,
+        'Authorization': `Bearer ${token}`,
       },
     });
 
@@ -339,9 +372,11 @@ test.describe('B팀 Backend API - Admin API (5개)', () => {
   });
 
   test('GET /api/v1/admin/jobs - Generation Jobs 목록', async ({ request }) => {
+    const token = await getTestToken();
+
     const response = await request.get(`${API_BASE_URL}/api/v1/admin/jobs`, {
       headers: {
-        'Authorization': `Bearer ${TEST_TOKEN}`,
+        'Authorization': `Bearer ${token}`,
       },
     });
 
@@ -352,9 +387,11 @@ test.describe('B팀 Backend API - Admin API (5개)', () => {
   });
 
   test('GET /api/v1/admin/agents - Agent Status', async ({ request }) => {
+    const token = await getTestToken();
+
     const response = await request.get(`${API_BASE_URL}/api/v1/admin/agents`, {
       headers: {
-        'Authorization': `Bearer ${TEST_TOKEN}`,
+        'Authorization': `Bearer ${token}`,
       },
     });
 
@@ -376,9 +413,11 @@ test.describe('B팀 Backend API - Admin API (5개)', () => {
   });
 
   test('GET /api/v1/admin/health - Health Check', async ({ request }) => {
+    const token = await getTestToken();
+
     const response = await request.get(`${API_BASE_URL}/api/v1/admin/health`, {
       headers: {
-        'Authorization': `Bearer ${TEST_TOKEN}`,
+        'Authorization': `Bearer ${token}`,
       },
     });
 
@@ -392,9 +431,11 @@ test.describe('B팀 Backend API - Admin API (5개)', () => {
   });
 
   test('GET /api/v1/admin/dashboard - Dashboard 통계', async ({ request }) => {
+    const token = await getTestToken();
+
     const response = await request.get(`${API_BASE_URL}/api/v1/admin/dashboard`, {
       headers: {
-        'Authorization': `Bearer ${TEST_TOKEN}`,
+        'Authorization': `Bearer ${token}`,
       },
     });
 
@@ -440,7 +481,7 @@ test.describe('B팀 Backend API - 성능 테스트', () => {
 
     const response = await request.post(`${API_BASE_URL}/api/v1/generate`, {
       headers: {
-        'Authorization': `Bearer ${TEST_TOKEN}`,
+        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
       data: {
@@ -465,7 +506,7 @@ test.describe('B팀 Backend API - 성능 테스트', () => {
 
     const response = await request.get(`${API_BASE_URL}/api/v1/documents?limit=20`, {
       headers: {
-        'Authorization': `Bearer ${TEST_TOKEN}`,
+        'Authorization': `Bearer ${token}`,
       },
     });
 

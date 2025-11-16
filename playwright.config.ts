@@ -1,4 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
+import * as dotenv from 'dotenv';
+import * as path from 'path';
 
 /**
  * Playwright 설정 파일
@@ -7,8 +9,11 @@ import { defineConfig, devices } from '@playwright/test';
  * 문서: docs/A_TEAM_QA_WORK_ORDER.md
  */
 
+// .env.test 파일 로드
+dotenv.config({ path: path.resolve(__dirname, '.env.test') });
+
 export default defineConfig({
-  testDir: './tests/e2e',
+  testDir: './tests',
 
   // 타임아웃 설정
   timeout: 60000, // 60초 (Generator API는 최대 10초 소요)
@@ -24,7 +29,7 @@ export default defineConfig({
 
   // 리포터 설정
   reporter: [
-    ['html', { outputFolder: 'test-results/html' }],
+    ['html', { outputFolder: 'playwright-report' }],
     ['json', { outputFile: 'test-results/results.json' }],
     ['list'],
   ],
