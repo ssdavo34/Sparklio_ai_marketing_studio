@@ -20,6 +20,7 @@
 'use client';
 
 import { useCanvas } from '../context';
+import { useLayoutStore } from '../stores';
 
 export function TopToolbar() {
   // Phase 3: Canvas Context에서 함수 가져오기
@@ -34,10 +35,32 @@ export function TopToolbar() {
     undo,
     redo,
   } = useCanvas();
+
+  // Layout Store에서 패널 상태 가져오기
+  const { isLeftPanelCollapsed, isRightDockCollapsed, toggleLeftPanel, toggleRightDock } = useLayoutStore();
+
   return (
     <header className="flex h-12 items-center justify-between border-b border-neutral-200 bg-white px-4 shadow-sm">
-      {/* 좌측: 로고 + 문서 제목 */}
+      {/* 좌측: 패널 토글 + 로고 + 문서 제목 */}
       <div className="flex items-center gap-4">
+        {/* 좌측 패널 토글 버튼 */}
+        <button
+          onClick={toggleLeftPanel}
+          className="flex h-8 w-8 items-center justify-center rounded text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
+          title={isLeftPanelCollapsed ? '좌측 패널 열기 (Ctrl+B)' : '좌측 패널 닫기 (Ctrl+B)'}
+          aria-label={isLeftPanelCollapsed ? 'Show left panel' : 'Hide left panel'}
+        >
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            {isLeftPanelCollapsed ? (
+              // 패널 닫힌 상태: 오른쪽 화살표 (패널 열기)
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            ) : (
+              // 패널 열린 상태: 왼쪽 화살표 (패널 닫기)
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            )}
+          </svg>
+        </button>
+
         {/* 로고 */}
         <div className="flex h-6 w-6 items-center justify-center rounded bg-gradient-to-br from-blue-500 to-purple-600 text-xs font-bold text-white">
           S
@@ -212,7 +235,7 @@ export function TopToolbar() {
         </button>
       </div>
 
-      {/* 우측: 뷰 모드 + 사용자 메뉴 */}
+      {/* 우측: 뷰 모드 + 우측 패널 토글 + 사용자 메뉴 */}
       <div className="flex items-center gap-3">
         {/* 뷰 모드 전환 (Studio / Canvas / Chat) */}
         <div className="flex items-center gap-1 rounded-lg border border-neutral-200 bg-neutral-50 p-1">
@@ -226,6 +249,24 @@ export function TopToolbar() {
             Chat
           </button>
         </div>
+
+        {/* 우측 패널 토글 버튼 */}
+        <button
+          onClick={toggleRightDock}
+          className="flex h-8 w-8 items-center justify-center rounded text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
+          title={isRightDockCollapsed ? '우측 패널 열기 (Ctrl+Shift+B)' : '우측 패널 닫기 (Ctrl+Shift+B)'}
+          aria-label={isRightDockCollapsed ? 'Show right panel' : 'Hide right panel'}
+        >
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            {isRightDockCollapsed ? (
+              // 패널 닫힌 상태: 왼쪽 화살표 (패널 열기)
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            ) : (
+              // 패널 열린 상태: 오른쪽 화살표 (패널 닫기)
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            )}
+          </svg>
+        </button>
 
         {/* 사용자 아이콘 (임시) */}
         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-green-400 to-blue-500 text-xs font-bold text-white">
