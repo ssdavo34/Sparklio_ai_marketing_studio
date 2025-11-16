@@ -12,7 +12,7 @@
  * - 그리드/가이드라인 표시
  *
  * Phase 1: 빈 캔버스 영역만 구현
- * Phase 3: Fabric.js 초기화 및 기본 기능
+ * Phase 3: Canvas Context에서 canvasRef만 받아오기 ✅
  *
  * @author C팀 (Frontend Team)
  * @version 3.0
@@ -21,8 +21,12 @@
 'use client';
 
 import { useCanvasStore } from '../stores';
+import { useCanvas } from '../context';
 
 export function CanvasViewport() {
+  // Phase 3: Canvas Context에서 canvasRef와 isReady 가져오기
+  const { canvasRef, isReady } = useCanvas();
+
   // Zustand Store 사용 (Phase 2 완료!)
   const zoom = useCanvasStore((state) => Math.round(state.zoom * 100));
   const zoomIn = useCanvasStore((state) => state.zoomIn);
@@ -30,31 +34,30 @@ export function CanvasViewport() {
   const resetZoom = useCanvasStore((state) => state.resetZoom);
   const zoomToFit = useCanvasStore((state) => state.zoomToFit);
   const toggleGrid = useCanvasStore((state) => state.toggleGrid);
+  const showGrid = useCanvasStore((state) => state.showGrid);
 
   return (
     <section className="relative flex flex-1 items-center justify-center bg-neutral-100">
       {/* 캔버스 컨테이너 */}
       <div className="relative">
-        {/* Phase 1: 임시 캔버스 영역 (흰색 박스) */}
-        <div className="flex h-[600px] w-[800px] items-center justify-center rounded-lg bg-white shadow-2xl">
-          <div className="text-center">
-            <div className="mb-4 text-6xl text-neutral-200">🎨</div>
-            <p className="text-lg font-medium text-neutral-400">Canvas Studio v3.0</p>
-            <p className="mt-2 text-sm text-neutral-400">
-              Fabric.js canvas will be initialized here
-            </p>
-            <p className="mt-1 text-xs text-neutral-300">
-              Phase 3: Canvas Implementation
-            </p>
-          </div>
-        </div>
-
-        {/* TODO: Phase 3에서 추가
+        {/* Phase 3: Fabric.js Canvas 렌더링 */}
         <canvas
           ref={canvasRef}
-          className="shadow-2xl"
+          className="rounded-lg shadow-2xl"
         />
-        */}
+
+        {/* 로딩 상태 표시 (초기화 중일 때만) */}
+        {!isReady && (
+          <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-white">
+            <div className="text-center">
+              <div className="mb-4 text-6xl text-neutral-200">🎨</div>
+              <p className="text-lg font-medium text-neutral-400">Canvas Studio v3.0</p>
+              <p className="mt-2 text-sm text-neutral-400">
+                Initializing Fabric.js...
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 줌 컨트롤 (우측 상단) */}
@@ -128,7 +131,15 @@ export function CanvasViewport() {
       {/* 그리드 토글 (좌측 하단) */}
       <div className="absolute bottom-4 left-4">
         <button
-          className="rounded-lg bg-white px-3 py-2 text-xs font-medium text-neutral-600 shadow-md hover:bg-neutral-50 hover:text-neutral-900"
+          className={`
+            rounded-lg px-3 py-2 text-xs font-medium shadow-md
+            transition-colors duration-200
+            ${
+              showGrid
+                ? 'bg-blue-500 text-white hover:bg-blue-600'
+                : 'bg-white text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900'
+            }
+          `}
           onClick={toggleGrid}
           title="Toggle Grid (Ctrl+G)"
         >
