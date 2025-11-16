@@ -30,7 +30,19 @@ class Settings(BaseSettings):
     MINIO_SECURE: bool = False
     MINIO_BUCKET_PREFIX: str = "dev-"
 
-    # AI Workers
+    # Generator Mode (mock | live)
+    GENERATOR_MODE: str = "mock"
+
+    # AI Workers - LLM (Ollama)
+    OLLAMA_BASE_URL: str = "http://192.168.0.100:11434"
+    OLLAMA_TIMEOUT: int = 120
+    OLLAMA_DEFAULT_MODEL: str = "qwen2.5:14b"
+
+    # AI Workers - Media (ComfyUI)
+    COMFYUI_BASE_URL: str = "http://192.168.0.100:8188"
+    COMFYUI_TIMEOUT: int = 300
+
+    # Legacy endpoints (deprecated, use OLLAMA_BASE_URL instead)
     OLLAMA_ENDPOINT: str = "http://100.120.180.42:11434"
     COMFYUI_ENDPOINT: str = "http://100.120.180.42:8188"
 
