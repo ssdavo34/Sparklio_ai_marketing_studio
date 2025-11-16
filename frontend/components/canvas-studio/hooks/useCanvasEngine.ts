@@ -21,7 +21,7 @@
 
 'use client';
 
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { fabric } from 'fabric';
 import { useCanvasStore, useLayoutStore } from '../stores';
 
@@ -52,6 +52,17 @@ export interface UseCanvasEngineReturn {
   redo: () => void;
 }
 
+// 🎨 로깅 유틸리티
+const LOG_ENABLED = true; // false로 설정하면 모든 로그 비활성화
+const log = {
+  init: (msg: string) => LOG_ENABLED && console.log(`🚀 [INIT] ${msg}`),
+  action: (msg: string) => LOG_ENABLED && console.log(`⚡ [ACTION] ${msg}`),
+  history: (msg: string) => LOG_ENABLED && console.log(`📚 [HISTORY] ${msg}`),
+  warning: (msg: string) => LOG_ENABLED && console.warn(`⚠️ [WARNING] ${msg}`),
+  success: (msg: string) => LOG_ENABLED && console.log(`✅ [SUCCESS] ${msg}`),
+  error: (msg: string) => LOG_ENABLED && console.error(`❌ [ERROR] ${msg}`),
+};
+
 export function useCanvasEngine(): UseCanvasEngineReturn {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [fabricCanvas, setFabricCanvas] = useState<fabric.Canvas | null>(null);
@@ -77,7 +88,7 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
   const addShape = (shapeType: 'rectangle' | 'circle' | 'triangle' | 'text') => {
     if (!fabricCanvas) return;
 
-    console.log('🎨 Adding shape:', shapeType);
+    log.action(`Adding shape: ${shapeType}`);
     let shape: fabric.Object;
 
     switch (shapeType) {
@@ -167,7 +178,7 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
     fabricCanvas.setActiveObject(shape); // 추가한 도형 선택
     fabricCanvas.requestRenderAll();
 
-    console.log('✅ Shape added successfully. Total objects:', fabricCanvas.getObjects().length);
+    log.success(`Shape added (${shapeType}). Total objects: ${fabricCanvas.getObjects().length}`);
   };
 
   // 6️⃣ 복제 함수
@@ -176,11 +187,11 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
 
     const activeObject = fabricCanvas.getActiveObject();
     if (!activeObject) {
-      console.log('⚠️ No object selected to duplicate');
+      log.warning('No object selected to duplicate');
       return;
     }
 
-    console.log('📋 Duplicating object:', activeObject.type);
+    log.action(`Duplicating object: ${activeObject.type}`);
 
     // clone 메서드로 객체 복제
     activeObject.clone((cloned: fabric.Object) => {
@@ -203,7 +214,7 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
 
       fabricCanvas.setActiveObject(cloned);
       fabricCanvas.requestRenderAll();
-      console.log('✅ Object duplicated successfully');
+      log.success('Object duplicated successfully');
     });
   };
 
@@ -213,11 +224,11 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
 
     const activeObject = fabricCanvas.getActiveObject();
     if (!activeObject) {
-      console.log('⚠️ No object selected to delete');
+      log.warning('No object selected to delete');
       return;
     }
 
-    console.log('🗑️ Deleting object:', activeObject.type);
+    log.action(`Deleting object: ${activeObject.type}`);
 
     // 히스토리 저장 방지 플래그 설정
     isHistoryAction.current = true;
@@ -234,10 +245,10 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
         fabricCanvas.remove(obj);
       });
 
-      console.log(`✅ Deleted ${objects.length} objects`);
+      log.success(`Deleted ${objects.length} objects`);
     } else {
       fabricCanvas.remove(activeObject);
-      console.log('✅ Object deleted successfully');
+      log.success('Object deleted successfully');
     }
 
     fabricCanvas.requestRenderAll();
@@ -248,7 +259,7 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
       historyStack.current = historyStack.current.slice(0, historyIndex.current + 1);
       historyStack.current.push(json);
       historyIndex.current++;
-      console.log(`💾 History saved after delete (${historyIndex.current}/${historyStack.current.length - 1})`);
+      log.history(`Saved after delete [${historyIndex.current}/${historyStack.current.length - 1}]`);
 
       // 플래그 해제 (히스토리 저장 후)
       setTimeout(() => {
@@ -263,22 +274,22 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
 
     const activeObject = fabricCanvas.getActiveObject();
     if (!activeObject) {
-      console.log('⚠️ No objects selected to group');
+      log.warning('No objects selected to group');
       return;
     }
 
     // 이미 그룹이 아니고, ActiveSelection인 경우에만 그룹화
     if (activeObject.type !== 'activeSelection') {
-      console.log('⚠️ Need to select multiple objects to group');
+      log.warning('Need to select multiple objects to group');
       return;
     }
 
-    console.log('📦 Grouping selected objects');
+    log.action('Grouping selected objects');
 
     const selection = activeObject as fabric.ActiveSelection;
     selection.toGroup();
     fabricCanvas.requestRenderAll();
-    console.log('✅ Objects grouped successfully');
+    log.success('Objects grouped successfully');
   };
 
   // 9️⃣ 언그룹 함수
@@ -287,16 +298,16 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
 
     const activeObject = fabricCanvas.getActiveObject();
     if (!activeObject) {
-      console.log('⚠️ No object selected to ungroup');
+      log.warning('No object selected to ungroup');
       return;
     }
 
     if (activeObject.type !== 'group') {
-      console.log('⚠️ Selected object is not a group');
+      log.warning('Selected object is not a group');
       return;
     }
 
-    console.log('📤 Ungrouping object');
+    log.action('Ungrouping object');
 
     const group = activeObject as fabric.Group;
     const items = group.getObjects();
@@ -308,7 +319,7 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
     });
 
       fabricCanvas.requestRenderAll();
-    console.log('✅ Group ungrouped successfully');
+    log.success('Group ungrouped successfully');
   };
 
   // 🔟 Copy 함수
@@ -317,25 +328,25 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
 
     const activeObject = fabricCanvas.getActiveObject();
     if (!activeObject) {
-      console.log('⚠️ No object selected to copy');
+      log.warning('No object selected to copy');
       return;
     }
 
-    console.log('📋 Copying object');
+    log.action('Copying object to clipboard');
     activeObject.clone((cloned: fabric.Object) => {
       clipboard.current = cloned;
-      console.log('✅ Object copied to clipboard');
+      log.success('Object copied to clipboard');
     });
   };
 
   // 1️⃣1️⃣ Paste 함수
   const pasteSelected = () => {
     if (!fabricCanvas || !clipboard.current) {
-      console.log('⚠️ Clipboard is empty');
+      log.warning('Clipboard is empty');
       return;
     }
 
-    console.log('📋 Pasting object from clipboard');
+    log.action('Pasting object from clipboard');
     clipboard.current.clone((clonedObj: fabric.Object) => {
       fabricCanvas.discardActiveObject();
       clonedObj.set({
@@ -358,42 +369,34 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
       clipboard.current = clonedObj;
       fabricCanvas.setActiveObject(clonedObj);
       fabricCanvas.requestRenderAll();
-      console.log('✅ Object pasted successfully');
+      log.success('Object pasted successfully');
     });
   };
 
-  // 1️⃣2️⃣ 히스토리 저장 함수
-  const saveHistory = () => {
-    if (!fabricCanvas || isHistoryAction.current) return;
-
-    const json = JSON.stringify(fabricCanvas.toJSON());
-
-    // 현재 인덱스 이후의 히스토리 제거 (새로운 액션이 발생했으므로)
-    historyStack.current = historyStack.current.slice(0, historyIndex.current + 1);
-
-    // 새 상태 추가
-    historyStack.current.push(json);
-    historyIndex.current++;
-
-    // 최대 50개까지만 유지
-    if (historyStack.current.length > 50) {
-      historyStack.current.shift();
-      historyIndex.current--;
-    }
-
-    console.log('📝 History saved. Stack size:', historyStack.current.length, 'Index:', historyIndex.current);
-  };
+  // 1️⃣2️⃣ 히스토리 저장 함수 (사용하지 않음 - 이벤트 리스너에서 직접 처리)
+  // const saveHistory = () => {
+  //   if (!fabricCanvas || isHistoryAction.current) return;
+  //   const json = JSON.stringify(fabricCanvas.toJSON());
+  //   historyStack.current = historyStack.current.slice(0, historyIndex.current + 1);
+  //   historyStack.current.push(json);
+  //   historyIndex.current++;
+  //   if (historyStack.current.length > 50) {
+  //     historyStack.current.shift();
+  //     historyIndex.current--;
+  //   }
+  //   log.history(`Saved [${historyIndex.current}/${historyStack.current.length - 1}]`);
+  // };
 
   // 1️⃣1 Undo 함수
   const undo = () => {
     if (!fabricCanvas) return;
 
     if (historyIndex.current <= 0) {
-      console.log('⚠️ Nothing to undo');
+      log.warning('Nothing to undo (at oldest state)');
       return;
     }
 
-    console.log('⏪ Undo');
+    log.action(`Undo (moving to state ${historyIndex.current - 1})`);
     historyIndex.current--;
 
     const state = historyStack.current[historyIndex.current];
@@ -401,7 +404,7 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
 
     fabricCanvas.loadFromJSON(state, () => {
       fabricCanvas.renderAll();
-      console.log('✅ Undo complete. Index:', historyIndex.current);
+      log.history(`Undo complete [${historyIndex.current}/${historyStack.current.length - 1}]`);
 
       // 300ms 후에 플래그 해제 (모든 이벤트가 처리될 때까지 대기)
       setTimeout(() => {
@@ -415,11 +418,11 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
     if (!fabricCanvas) return;
 
     if (historyIndex.current >= historyStack.current.length - 1) {
-      console.log('⚠️ Nothing to redo');
+      log.warning('Nothing to redo (at newest state)');
       return;
     }
 
-    console.log('⏩ Redo');
+    log.action(`Redo (moving to state ${historyIndex.current + 1})`);
     historyIndex.current++;
 
     const state = historyStack.current[historyIndex.current];
@@ -427,7 +430,7 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
 
     fabricCanvas.loadFromJSON(state, () => {
       fabricCanvas.renderAll();
-      console.log('✅ Redo complete. Index:', historyIndex.current);
+      log.history(`Redo complete [${historyIndex.current}/${historyStack.current.length - 1}]`);
 
       // 300ms 후에 플래그 해제 (모든 이벤트가 처리될 때까지 대기)
       setTimeout(() => {
@@ -439,6 +442,8 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
   // 1️⃣ Fabric.js Canvas 초기화
   useEffect(() => {
     if (!canvasRef.current) return;
+
+    log.init('Initializing Fabric.js Canvas...');
 
     // Canvas 인스턴스 생성
     const canvas = new fabric.Canvas(canvasRef.current, {
@@ -457,13 +462,13 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
     const initialState = JSON.stringify(canvas.toJSON());
     historyStack.current = [initialState];
     historyIndex.current = 0;
+    log.init('Canvas initialized successfully (800×600px)');
 
     // 히스토리 이벤트 리스너 (canvas 인스턴스 직접 사용)
     const saveHistoryDebounced = () => {
-      console.log('🔔 Canvas event triggered, saving history...');
       setTimeout(() => {
         if (isHistoryAction.current) {
-          console.log('⏭️ Skipping history save (undo/redo action)');
+          log.history('Skipping save (Undo/Redo in progress)');
           return;
         }
 
@@ -477,7 +482,7 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
           historyIndex.current--;
         }
 
-        console.log('📝 History saved. Stack size:', historyStack.current.length, 'Index:', historyIndex.current);
+        log.history(`Auto-saved [${historyIndex.current}/${historyStack.current.length - 1}] (${historyStack.current.length} states)`);
       }, 100);
     };
 
@@ -485,10 +490,11 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
     canvas.on('object:removed', saveHistoryDebounced);
     canvas.on('object:modified', saveHistoryDebounced);
 
-    console.log('✅ History event listeners attached');
+    log.init('History event listeners attached (100ms debounce)');
 
     // 클린업: 컴포넌트 언마운트 시 Canvas 제거
     return () => {
+      log.init('Cleaning up Canvas and event listeners');
       canvas.off('object:added', saveHistoryDebounced);
       canvas.off('object:removed', saveHistoryDebounced);
       canvas.off('object:modified', saveHistoryDebounced);
@@ -619,7 +625,6 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
       // Ctrl+Z: Undo
       if (isCtrlOrCmd && e.key === 'z') {
         e.preventDefault();
-        console.log('⌨️ Keyboard shortcut: Undo');
         undo();
         return;
       }
@@ -627,7 +632,6 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
       // Ctrl+Y 또는 Ctrl+Shift+Z: Redo
       if (isCtrlOrCmd && (e.key === 'y' || (e.shiftKey && e.key === 'z'))) {
         e.preventDefault();
-        console.log('⌨️ Keyboard shortcut: Redo');
         redo();
         return;
       }

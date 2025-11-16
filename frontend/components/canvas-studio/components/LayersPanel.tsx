@@ -18,6 +18,8 @@ import type { fabric } from 'fabric';
 export function LayersPanel() {
   const { fabricCanvas } = useCanvas();
   const [objects, setObjects] = useState<fabric.Object[]>([]);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editingName, setEditingName] = useState<string>('');
 
   // updateObjects 함수 먼저 정의
   const updateObjects = () => {
@@ -68,6 +70,11 @@ export function LayersPanel() {
 
   // 객체 타입에 따른 이름 반환
   const getObjectName = (obj: fabric.Object, index: number) => {
+    // 커스텀 이름이 있으면 사용
+    if (obj.data && typeof obj.data === 'object' && 'customName' in obj.data) {
+      return (obj.data as { customName: string }).customName;
+    }
+
     // 역순 배열이므로 실제 순서는 (총 개수 - 현재 인덱스)
     const actualIndex = objects.length - index;
     if (obj.type === 'rect') return `Rectangle ${actualIndex}`;
@@ -81,6 +88,46 @@ export function LayersPanel() {
       return text || `Text ${actualIndex}`;
     }
     return `Object ${actualIndex}`;
+  };
+
+  // 더블클릭 핸들러 - 이름 편집 모드 진입
+  const handleDoubleClick = (obj: fabric.Object, index: number) => {
+    setEditingIndex(index);
+    setEditingName(getObjectName(obj, index));
+  };
+
+  // 이름 변경 저장
+  const saveRename = (obj: fabric.Object, index: number) => {
+    if (!fabricCanvas || editingName.trim() === '') {
+      setEditingIndex(null);
+      return;
+    }
+
+    // Fabric.js 객체의 data 속성에 커스텀 이름 저장
+    obj.set('data', { ...(obj.data as object || {}), customName: editingName.trim() });
+    fabricCanvas.requestRenderAll();
+
+    setEditingIndex(null);
+    setEditingName('');
+    updateObjects();
+    console.log('Layer renamed to:', editingName.trim());
+  };
+
+  // 이름 변경 취소
+  const cancelRename = () => {
+    setEditingIndex(null);
+    setEditingName('');
+  };
+
+  // Enter/Escape 키 핸들러
+  const handleKeyDown = (e: React.KeyboardEvent, obj: fabric.Object, index: number) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      saveRename(obj, index);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelRename();
+    }
   };
 
   // 객체 선택
@@ -146,6 +193,7 @@ export function LayersPanel() {
       <div className="flex-1 overflow-auto">
         {objects.map((obj, index) => {
           const isSelected = fabricCanvas?.getActiveObject() === obj;
+          const isEditing = editingIndex === index;
 
           return (
             <div
@@ -159,18 +207,33 @@ export function LayersPanel() {
                     : 'text-neutral-700 hover:bg-neutral-50'
                 }
               `}
-              onClick={() => selectObject(obj)}
+              onClick={() => !isEditing && selectObject(obj)}
+              onDoubleClick={() => handleDoubleClick(obj, index)}
             >
               {/* 아이콘 */}
               <span className="text-lg">{getObjectIcon(obj)}</span>
 
-              {/* 이름 */}
-              <span className="flex-1 truncate text-sm font-medium">
-                {getObjectName(obj, index)}
-              </span>
+              {/* 이름 (편집 모드일 때는 input, 아닐 때는 span) */}
+              {isEditing ? (
+                <input
+                  type="text"
+                  value={editingName}
+                  onChange={(e) => setEditingName(e.target.value)}
+                  onBlur={() => saveRename(obj, index)}
+                  onKeyDown={(e) => handleKeyDown(e, obj, index)}
+                  onClick={(e) => e.stopPropagation()}
+                  className="flex-1 rounded border border-blue-300 px-2 py-1 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  autoFocus
+                />
+              ) : (
+                <span className="flex-1 truncate text-sm font-medium">
+                  {getObjectName(obj, index)}
+                </span>
+              )}
 
-              {/* 컨트롤 버튼 그룹 */}
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              {/* 컨트롤 버튼 그룹 (편집 모드일 때는 숨김) */}
+              {!isEditing && (
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 {/* 위로 이동 */}
                 <div
                   onClick={(e) => moveUp(obj, e)}
@@ -209,6 +272,7 @@ export function LayersPanel() {
                   </svg>
                 </div>
               </div>
+              )}
             </div>
           );
         })}
