@@ -16,6 +16,7 @@ from app.core.config import settings
 from .router import get_router, LLMRouter
 from .providers.base import LLMProvider, LLMProviderResponse, ProviderError
 from .providers.mock import MockProvider
+from .providers.ollama import OllamaProvider
 
 logger = logging.getLogger(__name__)
 
@@ -58,8 +59,12 @@ class LLMGateway:
         # Mock Provider는 항상 사용 가능
         self.providers["mock"] = MockProvider(response_delay=1.0)
 
-        # Live Provider는 Phase 1-3에서 추가
-        # self.providers["ollama"] = OllamaProvider(...)
+        # Ollama Provider (Live 모드용)
+        self.providers["ollama"] = OllamaProvider(
+            base_url=settings.OLLAMA_BASE_URL,
+            timeout=settings.OLLAMA_TIMEOUT,
+            default_model=settings.OLLAMA_DEFAULT_MODEL
+        )
 
         logger.info(f"Initialized providers: {list(self.providers.keys())}")
 
