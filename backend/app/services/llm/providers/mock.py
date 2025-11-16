@@ -13,7 +13,7 @@ import random
 from typing import Dict, Any, Optional
 from datetime import datetime
 
-from .base import LLMProvider, LLMProviderResponse
+from .base import LLMProvider, LLMProviderResponse, LLMProviderOutput
 
 
 class MockProvider(LLMProvider):
@@ -82,11 +82,23 @@ class MockProvider(LLMProvider):
         await asyncio.sleep(self.response_delay)
 
         # 역할/작업별 샘플 응답 생성
-        output = self._generate_sample_output(role, task, mode)
+        sample_data = self._generate_sample_output(role, task, mode)
+
+        # LLMProviderOutput 구조로 래핑
+        if mode == "json" and isinstance(sample_data, dict):
+            output = LLMProviderOutput(
+                type="json",
+                value=sample_data
+            )
+        else:
+            output = LLMProviderOutput(
+                type="text",
+                value=str(sample_data)
+            )
 
         # 토큰 사용량 시뮬레이션
         prompt_tokens = len(prompt.split())
-        completion_tokens = len(str(output).split()) if isinstance(output, dict) else len(output.split())
+        completion_tokens = len(str(sample_data).split()) if isinstance(sample_data, dict) else len(sample_data.split())
 
         return LLMProviderResponse(
             provider="mock",

@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings
-from typing import Optional
+from pydantic import Field
+from typing import Optional, Literal
 import os
 
 class Settings(BaseSettings):
@@ -30,19 +31,28 @@ class Settings(BaseSettings):
     MINIO_SECURE: bool = False
     MINIO_BUCKET_PREFIX: str = "dev-"
 
-    # Generator Mode (mock | live)
-    GENERATOR_MODE: str = "mock"
+    # Generator Mode (mock | live) - 소문자 필드명 사용
+    generator_mode: Literal["mock", "live"] = Field(
+        "live",
+        env="GENERATOR_MODE"
+    )
 
-    # AI Workers - LLM (Ollama)
-    OLLAMA_BASE_URL: str = "http://100.120.180.42:11434"
-    OLLAMA_TIMEOUT: int = 120
-    OLLAMA_DEFAULT_MODEL: str = "qwen2.5:7b"
+    # AI Workers - LLM (Ollama) - 소문자 필드명 사용
+    ollama_base_url: str = Field(
+        "http://100.120.180.42:11434",
+        env="OLLAMA_BASE_URL"
+    )
+    ollama_timeout: int = Field(120, env="OLLAMA_TIMEOUT")
+    ollama_default_model: str = Field("qwen2.5:7b", env="OLLAMA_DEFAULT_MODEL")
 
-    # AI Workers - Media (ComfyUI)
-    COMFYUI_BASE_URL: str = "http://100.120.180.42:8188"
-    COMFYUI_TIMEOUT: int = 300
+    # AI Workers - Media (ComfyUI) - 소문자 필드명 사용
+    comfyui_base_url: str = Field(
+        "http://100.120.180.42:8188",
+        env="COMFYUI_BASE_URL"
+    )
+    comfyui_timeout: int = Field(300, env="COMFYUI_TIMEOUT")
 
-    # Legacy endpoints (deprecated, use OLLAMA_BASE_URL instead)
+    # Legacy endpoints (deprecated, use ollama_base_url instead)
     OLLAMA_ENDPOINT: str = "http://100.120.180.42:11434"
     COMFYUI_ENDPOINT: str = "http://100.120.180.42:8188"
 
@@ -66,8 +76,40 @@ class Settings(BaseSettings):
     def REDIS_URL(self) -> str:
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
 
+    # 하위 호환성을 위한 대문자 속성 (deprecated)
+    @property
+    def GENERATOR_MODE(self) -> str:
+        """Deprecated: Use generator_mode instead"""
+        return self.generator_mode
+
+    @property
+    def OLLAMA_BASE_URL(self) -> str:
+        """Deprecated: Use ollama_base_url instead"""
+        return self.ollama_base_url
+
+    @property
+    def OLLAMA_TIMEOUT(self) -> int:
+        """Deprecated: Use ollama_timeout instead"""
+        return self.ollama_timeout
+
+    @property
+    def OLLAMA_DEFAULT_MODEL(self) -> str:
+        """Deprecated: Use ollama_default_model instead"""
+        return self.ollama_default_model
+
+    @property
+    def COMFYUI_BASE_URL(self) -> str:
+        """Deprecated: Use comfyui_base_url instead"""
+        return self.comfyui_base_url
+
+    @property
+    def COMFYUI_TIMEOUT(self) -> int:
+        """Deprecated: Use comfyui_timeout instead"""
+        return self.comfyui_timeout
+
     class Config:
         env_file = ".env"
+        env_file_encoding = "utf-8"
         case_sensitive = True
         extra = "ignore"  # Ignore extra fields from .env
 

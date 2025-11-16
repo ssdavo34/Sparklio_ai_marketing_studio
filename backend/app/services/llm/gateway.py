@@ -187,8 +187,8 @@ class LLMGateway:
         Raises:
             ProviderError: Provider를 찾을 수 없을 때
         """
-        # Mock 모드 확인
-        if settings.GENERATOR_MODE == "mock":
+        # Mock 모드 확인 (소문자 필드 사용)
+        if settings.generator_mode == "mock":
             return "mock", self.providers["mock"]
 
         # Live 모드 - Router로 Provider 결정

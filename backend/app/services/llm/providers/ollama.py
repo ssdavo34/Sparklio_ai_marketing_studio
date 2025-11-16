@@ -15,7 +15,7 @@ from typing import Dict, Any, Optional
 from datetime import datetime
 
 from app.core.config import settings
-from .base import LLMProvider, LLMProviderResponse, ProviderError
+from .base import LLMProvider, LLMProviderResponse, LLMProviderOutput, ProviderError
 
 logger = logging.getLogger(__name__)
 
@@ -244,13 +244,23 @@ class OllamaProvider(LLMProvider):
         # JSON 모드인 경우 파싱
         if mode == "json":
             try:
-                output = json.loads(response_text)
+                parsed_json = json.loads(response_text)
+                output = LLMProviderOutput(
+                    type="json",
+                    value=parsed_json
+                )
             except json.JSONDecodeError as e:
                 logger.warning(f"Failed to parse JSON response: {e}")
                 # JSON 파싱 실패 시 텍스트로 반환
-                output = {"text": response_text, "parse_error": str(e)}
+                output = LLMProviderOutput(
+                    type="text",
+                    value=response_text
+                )
         else:
-            output = response_text
+            output = LLMProviderOutput(
+                type="text",
+                value=response_text
+            )
 
         # 토큰 사용량 (Ollama API 응답에서 추출)
         usage = {

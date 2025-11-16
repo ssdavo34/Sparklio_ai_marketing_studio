@@ -9,9 +9,20 @@ LLM Provider Base Interface
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Union, Literal
 from pydantic import BaseModel, Field
 from datetime import datetime
+
+
+class LLMProviderOutput(BaseModel):
+    """
+    LLM Provider 출력 구조화 모델
+
+    type: "text" | "json"
+    value: 실제 생성된 값 (문자열 또는 JSON 객체)
+    """
+    type: Literal["text", "json"] = Field(..., description="출력 타입 (text 또는 json)")
+    value: Union[str, Dict[str, Any]] = Field(..., description="생성된 결과 (문자열 또는 JSON)")
 
 
 class LLMProviderResponse(BaseModel):
@@ -26,7 +37,7 @@ class LLMProviderResponse(BaseModel):
         default_factory=dict,
         description="토큰 사용량 (prompt_tokens, completion_tokens, total_tokens)"
     )
-    output: Dict[str, Any] = Field(..., description="생성된 결과")
+    output: LLMProviderOutput = Field(..., description="생성된 결과 (구조화)")
     meta: Dict[str, Any] = Field(
         default_factory=dict,
         description="메타데이터 (latency, temperature, top_p 등)"

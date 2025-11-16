@@ -176,9 +176,9 @@ async def debug_settings():
         주요 설정 값들
     """
     return {
-        "generator_mode": settings.GENERATOR_MODE,
-        "ollama_base_url": settings.OLLAMA_BASE_URL,
-        "ollama_timeout": settings.OLLAMA_TIMEOUT,
-        "ollama_default_model": settings.OLLAMA_DEFAULT_MODEL,
-        "comfyui_base_url": settings.COMFYUI_BASE_URL
+        "generator_mode": settings.generator_mode,
+        "ollama_base_url": settings.ollama_base_url,
+        "ollama_timeout": settings.ollama_timeout,
+        "ollama_default_model": settings.ollama_default_model,
+        "comfyui_base_url": settings.comfyui_base_url
     }

@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import assets, brands, projects, users, agents, generate, documents, templates, editor, admin, llm_gateway, debug
+from app.api.v1.endpoints import assets, brands, projects, users, agents, generate, documents, templates, editor, admin, llm_gateway, media_gateway, debug
 
 api_router = APIRouter()
 
@@ -66,8 +66,15 @@ api_router.include_router(
 # LLM Gateway API (신규 - Phase 1-2)
 api_router.include_router(
     llm_gateway.router,
-    prefix="",
+    prefix="/llm",
     tags=["llm-gateway"]
+)
+
+# Media Gateway API (신규 - Phase 1-4)
+api_router.include_router(
+    media_gateway.router,
+    prefix="/media",
+    tags=["media-gateway"]
 )
 
 # Agent API (내부 전용, Deprecated 예정)

@@ -14,7 +14,7 @@ from typing import Dict, Any, Optional
 import logging
 
 from app.services.llm.gateway import get_gateway
-from app.services.llm.providers.base import ProviderError
+from app.services.llm.providers.base import ProviderError, LLMProviderOutput
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +51,7 @@ class LLMGenerateResponse(BaseModel):
     provider: str = Field(..., description="사용된 Provider")
     model: str = Field(..., description="사용된 모델")
     usage: Dict[str, int] = Field(..., description="토큰 사용량")
-    output: Dict[str, Any] | str = Field(..., description="생성된 결과")
+    output: LLMProviderOutput = Field(..., description="생성된 결과 (구조화)")
     meta: Dict[str, Any] = Field(..., description="메타데이터")
 
 
