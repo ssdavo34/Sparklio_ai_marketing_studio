@@ -35,7 +35,7 @@ export function LeftPanel() {
 
   return (
     <aside
-      className="flex flex-col border-r border-neutral-200 bg-neutral-50"
+      className="relative flex flex-col border-r border-neutral-200 bg-neutral-50"
       style={{ width: `${width}px` }}
     >
       {/* 패널 헤더 */}
@@ -86,7 +86,7 @@ export function LeftPanel() {
       {/* 리사이즈 핸들 (우측 경계) */}
       <div
         className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
-        onMouseDown={(e) => {
+        onMouseDown={() => {
           // TODO: Phase 7에서 리사이즈 기능 구현
           console.log('Resize handle clicked');
         }}

@@ -20,12 +20,36 @@
 
 'use client';
 
-import { useCanvasStore } from '../stores';
+import { useState } from 'react';
+import { useCanvasStore, useLayoutStore } from '../stores';
 import { useCanvas } from '../context';
+import { ContextMenu } from '../components';
 
 export function CanvasViewport() {
   // Phase 3: Canvas Context에서 canvasRef와 isReady 가져오기
-  const { canvasRef, isReady } = useCanvas();
+  const {
+    canvasRef,
+    isReady,
+    fabricCanvas,
+    copySelected,
+    pasteSelected,
+    duplicateSelected,
+    deleteSelected,
+    groupSelected,
+    ungroupSelected,
+  } = useCanvas();
+
+  // 컨텍스트 메뉴 상태
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+
+  // 우클릭 이벤트 핸들러
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY });
+  };
+
+  // 선택된 객체가 있는지 확인
+  const hasSelection = fabricCanvas?.getActiveObject() !== undefined && fabricCanvas?.getActiveObject() !== null;
 
   // Zustand Store 사용 (Phase 2 완료!)
   const zoom = useCanvasStore((state) => Math.round(state.zoom * 100));
@@ -36,10 +60,16 @@ export function CanvasViewport() {
   const toggleGrid = useCanvasStore((state) => state.toggleGrid);
   const showGrid = useCanvasStore((state) => state.showGrid);
 
+  // Layout Store - 패널 토글
+  const isLeftPanelCollapsed = useLayoutStore((state) => state.isLeftPanelCollapsed);
+  const isRightDockCollapsed = useLayoutStore((state) => state.isRightDockCollapsed);
+  const toggleLeftPanel = useLayoutStore((state) => state.toggleLeftPanel);
+  const toggleRightDock = useLayoutStore((state) => state.toggleRightDock);
+
   return (
     <section className="relative flex flex-1 items-center justify-center bg-neutral-100">
       {/* 캔버스 컨테이너 */}
-      <div className="relative">
+      <div className="relative" onContextMenu={handleContextMenu}>
         {/* Phase 3: Fabric.js Canvas 렌더링 */}
         <canvas
           ref={canvasRef}
@@ -128,8 +158,20 @@ export function CanvasViewport() {
         </button>
       </div>
 
-      {/* 그리드 토글 (좌측 하단) */}
-      <div className="absolute bottom-4 left-4">
+      {/* 좌측 하단 컨트롤 그룹 */}
+      <div className="absolute bottom-4 left-4 flex items-center gap-2">
+        {/* 좌측 패널 토글 (패널이 닫혀있을 때만 표시) */}
+        {isLeftPanelCollapsed && (
+          <button
+            onClick={toggleLeftPanel}
+            className="rounded-lg bg-white px-3 py-2 text-xs font-medium text-neutral-600 shadow-md transition-colors hover:bg-neutral-50 hover:text-neutral-900"
+            title="Show Left Panel (Ctrl+B)"
+          >
+            ☰ Pages
+          </button>
+        )}
+
+        {/* 그리드 토글 */}
         <button
           className={`
             rounded-lg px-3 py-2 text-xs font-medium shadow-md
@@ -147,10 +189,40 @@ export function CanvasViewport() {
         </button>
       </div>
 
-      {/* 캔버스 상태 표시 (우측 하단) */}
-      <div className="absolute bottom-4 right-4 rounded-lg bg-white px-3 py-2 text-xs text-neutral-500 shadow-md">
-        800 × 600 px
+      {/* 우측 하단 컨트롤 그룹 */}
+      <div className="absolute bottom-4 right-4 flex items-center gap-2">
+        {/* 캔버스 상태 표시 */}
+        <div className="rounded-lg bg-white px-3 py-2 text-xs text-neutral-500 shadow-md">
+          800 × 600 px
+        </div>
+
+        {/* 우측 Dock 토글 (Dock이 닫혀있을 때만 표시) */}
+        {isRightDockCollapsed && (
+          <button
+            onClick={toggleRightDock}
+            className="rounded-lg bg-white px-3 py-2 text-xs font-medium text-neutral-600 shadow-md transition-colors hover:bg-neutral-50 hover:text-neutral-900"
+            title="Show Right Dock (Ctrl+Shift+B)"
+          >
+            📋 Dock
+          </button>
+        )}
       </div>
+
+      {/* 컨텍스트 메뉴 */}
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onClose={() => setContextMenu(null)}
+          onCopy={copySelected}
+          onPaste={pasteSelected}
+          onDuplicate={duplicateSelected}
+          onDelete={deleteSelected}
+          onGroup={groupSelected}
+          onUngroup={ungroupSelected}
+          hasSelection={hasSelection}
+        />
+      )}
     </section>
   );
 }

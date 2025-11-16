@@ -31,6 +31,22 @@ interface CanvasContextValue {
   canvasRef: React.RefObject<HTMLCanvasElement>;
   /** 도형 추가 함수 */
   addShape: (shapeType: 'rectangle' | 'circle' | 'triangle' | 'text') => void;
+  /** Copy 함수 */
+  copySelected: () => void;
+  /** Paste 함수 */
+  pasteSelected: () => void;
+  /** 복제 함수 */
+  duplicateSelected: () => void;
+  /** 삭제 함수 */
+  deleteSelected: () => void;
+  /** 그룹 함수 */
+  groupSelected: () => void;
+  /** 언그룹 함수 */
+  ungroupSelected: () => void;
+  /** Undo 함수 */
+  undo: () => void;
+  /** Redo 함수 */
+  redo: () => void;
 }
 
 const CanvasContext = createContext<CanvasContextValue | null>(null);

@@ -21,9 +21,9 @@
 
 'use client';
 
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import { fabric } from 'fabric';
-import { useCanvasStore } from '../stores';
+import { useCanvasStore, useLayoutStore } from '../stores';
 
 export interface UseCanvasEngineReturn {
   /** Canvas DOM 요소에 연결할 ref */
@@ -34,6 +34,22 @@ export interface UseCanvasEngineReturn {
   isReady: boolean;
   /** 도형 추가 함수 */
   addShape: (shapeType: 'rectangle' | 'circle' | 'triangle' | 'text') => void;
+  /** Copy 함수 */
+  copySelected: () => void;
+  /** Paste 함수 */
+  pasteSelected: () => void;
+  /** 복제 함수 */
+  duplicateSelected: () => void;
+  /** 삭제 함수 */
+  deleteSelected: () => void;
+  /** 그룹 함수 */
+  groupSelected: () => void;
+  /** 언그룹 함수 */
+  ungroupSelected: () => void;
+  /** Undo 함수 */
+  undo: () => void;
+  /** Redo 함수 */
+  redo: () => void;
 }
 
 export function useCanvasEngine(): UseCanvasEngineReturn {
@@ -41,16 +57,27 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
   const [fabricCanvas, setFabricCanvas] = useState<fabric.Canvas | null>(null);
   const [isReady, setIsReady] = useState(false);
 
+  // Undo/Redo를 위한 히스토리 스택
+  const historyStack = useRef<string[]>([]);
+  const historyIndex = useRef(-1);
+  const isHistoryAction = useRef(false);
+
+  // Copy/Paste를 위한 클립보드
+  const clipboard = useRef<fabric.Object | null>(null);
+
   // Zustand Store에서 상태 가져오기
   const zoom = useCanvasStore((state) => state.zoom);
   const showGrid = useCanvasStore((state) => state.showGrid);
   const panX = useCanvasStore((state) => state.panX);
   const panY = useCanvasStore((state) => state.panY);
+  const toggleLeftPanel = useLayoutStore((state) => state.toggleLeftPanel);
+  const toggleRightDock = useLayoutStore((state) => state.toggleRightDock);
 
   // 5️⃣ 도형 추가 함수
   const addShape = (shapeType: 'rectangle' | 'circle' | 'triangle' | 'text') => {
     if (!fabricCanvas) return;
 
+    console.log('🎨 Adding shape:', shapeType);
     let shape: fabric.Object;
 
     switch (shapeType) {
@@ -64,6 +91,13 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
           fill: '#3b82f6', // blue-500
           stroke: '#1e40af', // blue-800
           strokeWidth: 2,
+          // 크기 조절 & 회전 활성화
+          hasControls: true,
+          hasBorders: true,
+          hasRotatingPoint: true,
+          lockRotation: false,
+          lockScalingX: false,
+          lockScalingY: false,
         });
         break;
 
@@ -76,6 +110,13 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
           fill: '#10b981', // green-500
           stroke: '#047857', // green-800
           strokeWidth: 2,
+          // 크기 조절 & 회전 활성화
+          hasControls: true,
+          hasBorders: true,
+          hasRotatingPoint: true,
+          lockRotation: false,
+          lockScalingX: false,
+          lockScalingY: false,
         });
         break;
 
@@ -89,6 +130,13 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
           fill: '#f59e0b', // amber-500
           stroke: '#b45309', // amber-800
           strokeWidth: 2,
+          // 크기 조절 & 회전 활성화
+          hasControls: true,
+          hasBorders: true,
+          hasRotatingPoint: true,
+          lockRotation: false,
+          lockScalingX: false,
+          lockScalingY: false,
         });
         break;
 
@@ -100,6 +148,13 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
           fontSize: 24,
           fill: '#1f2937', // neutral-800
           fontFamily: 'Inter, sans-serif',
+          // 크기 조절 & 회전 활성화
+          hasControls: true,
+          hasBorders: true,
+          hasRotatingPoint: true,
+          lockRotation: false,
+          lockScalingX: false,
+          lockScalingY: false,
         });
         break;
 
@@ -111,6 +166,274 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
     fabricCanvas.add(shape);
     fabricCanvas.setActiveObject(shape); // 추가한 도형 선택
     fabricCanvas.requestRenderAll();
+
+    console.log('✅ Shape added successfully. Total objects:', fabricCanvas.getObjects().length);
+  };
+
+  // 6️⃣ 복제 함수
+  const duplicateSelected = () => {
+    if (!fabricCanvas) return;
+
+    const activeObject = fabricCanvas.getActiveObject();
+    if (!activeObject) {
+      console.log('⚠️ No object selected to duplicate');
+      return;
+    }
+
+    console.log('📋 Duplicating object:', activeObject.type);
+
+    // clone 메서드로 객체 복제
+    activeObject.clone((cloned: fabric.Object) => {
+      // 복제된 객체 위치를 조금 이동 (10px 오른쪽 아래)
+      cloned.set({
+        left: (cloned.left || 0) + 10,
+        top: (cloned.top || 0) + 10,
+      });
+
+      // ActiveSelection (다중 선택)인 경우
+      if (cloned.type === 'activeSelection') {
+        cloned.canvas = fabricCanvas;
+        (cloned as fabric.ActiveSelection).forEachObject((obj: fabric.Object) => {
+          fabricCanvas.add(obj);
+        });
+        cloned.setCoords();
+      } else {
+        fabricCanvas.add(cloned);
+      }
+
+      fabricCanvas.setActiveObject(cloned);
+      fabricCanvas.requestRenderAll();
+      console.log('✅ Object duplicated successfully');
+    });
+  };
+
+  // 7️⃣ 삭제 함수
+  const deleteSelected = () => {
+    if (!fabricCanvas) return;
+
+    const activeObject = fabricCanvas.getActiveObject();
+    if (!activeObject) {
+      console.log('⚠️ No object selected to delete');
+      return;
+    }
+
+    console.log('🗑️ Deleting object:', activeObject.type);
+
+    // 히스토리 저장 방지 플래그 설정
+    isHistoryAction.current = true;
+
+    // ActiveSelection (다중 선택)인 경우
+    if (activeObject.type === 'activeSelection') {
+      const selection = activeObject as fabric.ActiveSelection;
+      const objects = selection.getObjects().slice(); // 복사본 생성
+
+      fabricCanvas.discardActiveObject(); // 먼저 선택 해제
+
+      // 모든 객체 삭제
+      objects.forEach((obj: fabric.Object) => {
+        fabricCanvas.remove(obj);
+      });
+
+      console.log(`✅ Deleted ${objects.length} objects`);
+    } else {
+      fabricCanvas.remove(activeObject);
+      console.log('✅ Object deleted successfully');
+    }
+
+    fabricCanvas.requestRenderAll();
+
+    // 히스토리 수동 저장 (debounce 시간보다 길게 대기)
+    setTimeout(() => {
+      const json = JSON.stringify(fabricCanvas.toJSON());
+      historyStack.current = historyStack.current.slice(0, historyIndex.current + 1);
+      historyStack.current.push(json);
+      historyIndex.current++;
+      console.log(`💾 History saved after delete (${historyIndex.current}/${historyStack.current.length - 1})`);
+
+      // 플래그 해제 (히스토리 저장 후)
+      setTimeout(() => {
+        isHistoryAction.current = false;
+      }, 100);
+    }, 150);
+  };
+
+  // 8️⃣ 그룹 함수
+  const groupSelected = () => {
+    if (!fabricCanvas) return;
+
+    const activeObject = fabricCanvas.getActiveObject();
+    if (!activeObject) {
+      console.log('⚠️ No objects selected to group');
+      return;
+    }
+
+    // 이미 그룹이 아니고, ActiveSelection인 경우에만 그룹화
+    if (activeObject.type !== 'activeSelection') {
+      console.log('⚠️ Need to select multiple objects to group');
+      return;
+    }
+
+    console.log('📦 Grouping selected objects');
+
+    const selection = activeObject as fabric.ActiveSelection;
+    selection.toGroup();
+    fabricCanvas.requestRenderAll();
+    console.log('✅ Objects grouped successfully');
+  };
+
+  // 9️⃣ 언그룹 함수
+  const ungroupSelected = () => {
+    if (!fabricCanvas) return;
+
+    const activeObject = fabricCanvas.getActiveObject();
+    if (!activeObject) {
+      console.log('⚠️ No object selected to ungroup');
+      return;
+    }
+
+    if (activeObject.type !== 'group') {
+      console.log('⚠️ Selected object is not a group');
+      return;
+    }
+
+    console.log('📤 Ungrouping object');
+
+    const group = activeObject as fabric.Group;
+    const items = group.getObjects();
+    group._restoreObjectsState();
+    fabricCanvas.remove(group);
+
+    items.forEach((item) => {
+      fabricCanvas.add(item);
+    });
+
+      fabricCanvas.requestRenderAll();
+    console.log('✅ Group ungrouped successfully');
+  };
+
+  // 🔟 Copy 함수
+  const copySelected = () => {
+    if (!fabricCanvas) return;
+
+    const activeObject = fabricCanvas.getActiveObject();
+    if (!activeObject) {
+      console.log('⚠️ No object selected to copy');
+      return;
+    }
+
+    console.log('📋 Copying object');
+    activeObject.clone((cloned: fabric.Object) => {
+      clipboard.current = cloned;
+      console.log('✅ Object copied to clipboard');
+    });
+  };
+
+  // 1️⃣1️⃣ Paste 함수
+  const pasteSelected = () => {
+    if (!fabricCanvas || !clipboard.current) {
+      console.log('⚠️ Clipboard is empty');
+      return;
+    }
+
+    console.log('📋 Pasting object from clipboard');
+    clipboard.current.clone((clonedObj: fabric.Object) => {
+      fabricCanvas.discardActiveObject();
+      clonedObj.set({
+        left: (clonedObj.left || 0) + 10,
+        top: (clonedObj.top || 0) + 10,
+        evented: true,
+      });
+
+      if (clonedObj.type === 'activeSelection') {
+        const activeSelection = clonedObj as fabric.ActiveSelection;
+        activeSelection.canvas = fabricCanvas;
+        activeSelection.forEachObject((obj: fabric.Object) => {
+          fabricCanvas.add(obj);
+        });
+        activeSelection.setCoords();
+      } else {
+        fabricCanvas.add(clonedObj);
+      }
+
+      clipboard.current = clonedObj;
+      fabricCanvas.setActiveObject(clonedObj);
+      fabricCanvas.requestRenderAll();
+      console.log('✅ Object pasted successfully');
+    });
+  };
+
+  // 1️⃣2️⃣ 히스토리 저장 함수
+  const saveHistory = () => {
+    if (!fabricCanvas || isHistoryAction.current) return;
+
+    const json = JSON.stringify(fabricCanvas.toJSON());
+
+    // 현재 인덱스 이후의 히스토리 제거 (새로운 액션이 발생했으므로)
+    historyStack.current = historyStack.current.slice(0, historyIndex.current + 1);
+
+    // 새 상태 추가
+    historyStack.current.push(json);
+    historyIndex.current++;
+
+    // 최대 50개까지만 유지
+    if (historyStack.current.length > 50) {
+      historyStack.current.shift();
+      historyIndex.current--;
+    }
+
+    console.log('📝 History saved. Stack size:', historyStack.current.length, 'Index:', historyIndex.current);
+  };
+
+  // 1️⃣1 Undo 함수
+  const undo = () => {
+    if (!fabricCanvas) return;
+
+    if (historyIndex.current <= 0) {
+      console.log('⚠️ Nothing to undo');
+      return;
+    }
+
+    console.log('⏪ Undo');
+    historyIndex.current--;
+
+    const state = historyStack.current[historyIndex.current];
+    isHistoryAction.current = true;
+
+    fabricCanvas.loadFromJSON(state, () => {
+      fabricCanvas.renderAll();
+      console.log('✅ Undo complete. Index:', historyIndex.current);
+
+      // 300ms 후에 플래그 해제 (모든 이벤트가 처리될 때까지 대기)
+      setTimeout(() => {
+        isHistoryAction.current = false;
+      }, 300);
+    });
+  };
+
+  // 1️⃣2 Redo 함수
+  const redo = () => {
+    if (!fabricCanvas) return;
+
+    if (historyIndex.current >= historyStack.current.length - 1) {
+      console.log('⚠️ Nothing to redo');
+      return;
+    }
+
+    console.log('⏩ Redo');
+    historyIndex.current++;
+
+    const state = historyStack.current[historyIndex.current];
+    isHistoryAction.current = true;
+
+    fabricCanvas.loadFromJSON(state, () => {
+      fabricCanvas.renderAll();
+      console.log('✅ Redo complete. Index:', historyIndex.current);
+
+      // 300ms 후에 플래그 해제 (모든 이벤트가 처리될 때까지 대기)
+      setTimeout(() => {
+        isHistoryAction.current = false;
+      }, 300);
+    });
   };
 
   // 1️⃣ Fabric.js Canvas 초기화
@@ -130,8 +453,45 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
     setFabricCanvas(canvas);
     setIsReady(true);
 
+    // 초기 히스토리 저장
+    const initialState = JSON.stringify(canvas.toJSON());
+    historyStack.current = [initialState];
+    historyIndex.current = 0;
+
+    // 히스토리 이벤트 리스너 (canvas 인스턴스 직접 사용)
+    const saveHistoryDebounced = () => {
+      console.log('🔔 Canvas event triggered, saving history...');
+      setTimeout(() => {
+        if (isHistoryAction.current) {
+          console.log('⏭️ Skipping history save (undo/redo action)');
+          return;
+        }
+
+        const json = JSON.stringify(canvas.toJSON());
+        historyStack.current = historyStack.current.slice(0, historyIndex.current + 1);
+        historyStack.current.push(json);
+        historyIndex.current++;
+
+        if (historyStack.current.length > 50) {
+          historyStack.current.shift();
+          historyIndex.current--;
+        }
+
+        console.log('📝 History saved. Stack size:', historyStack.current.length, 'Index:', historyIndex.current);
+      }, 100);
+    };
+
+    canvas.on('object:added', saveHistoryDebounced);
+    canvas.on('object:removed', saveHistoryDebounced);
+    canvas.on('object:modified', saveHistoryDebounced);
+
+    console.log('✅ History event listeners attached');
+
     // 클린업: 컴포넌트 언마운트 시 Canvas 제거
     return () => {
+      canvas.off('object:added', saveHistoryDebounced);
+      canvas.off('object:removed', saveHistoryDebounced);
+      canvas.off('object:modified', saveHistoryDebounced);
       canvas.dispose();
       setFabricCanvas(null);
       setIsReady(false);
@@ -142,12 +502,12 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
   useEffect(() => {
     if (!fabricCanvas) return;
 
-    // Fabric.js 줌 레벨 설정 (중심점 기준)
-    const center = fabricCanvas.getCenter();
-    fabricCanvas.zoomToPoint(
-      new fabric.Point(center.left, center.top),
-      zoom
+    // Fabric.js 줌 레벨 설정 (캔버스 중심점 기준)
+    const center = new fabric.Point(
+      fabricCanvas.width! / 2,
+      fabricCanvas.height! / 2
     );
+    fabricCanvas.zoomToPoint(center, zoom);
     fabricCanvas.requestRenderAll();
   }, [fabricCanvas, zoom]);
 
@@ -204,10 +564,106 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
     fabricCanvas.requestRenderAll();
   }, [fabricCanvas, showGrid]);
 
+  // 🔟 키보드 단축키 처리
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!fabricCanvas) return;
+      // 입력 필드에서는 단축키 무시
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        return;
+      }
+
+      // Ctrl/Cmd 키 감지
+      const isCtrlOrCmd = e.ctrlKey || e.metaKey;
+
+      // Ctrl+C: Copy
+      if (isCtrlOrCmd && e.key === 'c') {
+        e.preventDefault();
+        copySelected();
+        return;
+      }
+
+      // Ctrl+V: Paste
+      if (isCtrlOrCmd && e.key === 'v') {
+        e.preventDefault();
+        pasteSelected();
+        return;
+      }
+
+      // Ctrl+D: 복제
+      if (isCtrlOrCmd && e.key === 'd') {
+        e.preventDefault();
+        duplicateSelected();
+        return;
+      }
+
+      // Delete 또는 Backspace: 삭제
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        deleteSelected();
+      }
+
+      // Ctrl+G: 그룹
+      if (isCtrlOrCmd && e.key === 'g') {
+        e.preventDefault();
+        groupSelected();
+      }
+
+      // Ctrl+Shift+G: 언그룹
+      if (isCtrlOrCmd && e.shiftKey && e.key === 'G') {
+        e.preventDefault();
+        ungroupSelected();
+      }
+
+      // Ctrl+Z: Undo
+      if (isCtrlOrCmd && e.key === 'z') {
+        e.preventDefault();
+        console.log('⌨️ Keyboard shortcut: Undo');
+        undo();
+        return;
+      }
+
+      // Ctrl+Y 또는 Ctrl+Shift+Z: Redo
+      if (isCtrlOrCmd && (e.key === 'y' || (e.shiftKey && e.key === 'z'))) {
+        e.preventDefault();
+        console.log('⌨️ Keyboard shortcut: Redo');
+        redo();
+        return;
+      }
+
+      // Ctrl+B: 좌측 패널 토글
+      if (isCtrlOrCmd && e.key === 'b') {
+        e.preventDefault();
+        toggleLeftPanel();
+      }
+
+      // Ctrl+Shift+B: 우측 Dock 토글
+      if (isCtrlOrCmd && e.shiftKey && e.key === 'B') {
+        e.preventDefault();
+        toggleRightDock();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [fabricCanvas, duplicateSelected, deleteSelected, groupSelected, ungroupSelected, undo, redo, toggleLeftPanel, toggleRightDock]);
+
   return {
     canvasRef,
     fabricCanvas,
     isReady,
     addShape,
+    copySelected,
+    pasteSelected,
+    duplicateSelected,
+    deleteSelected,
+    groupSelected,
+    ungroupSelected,
+    undo,
+    redo,
   };
 }

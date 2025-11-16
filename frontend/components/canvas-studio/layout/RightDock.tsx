@@ -24,6 +24,7 @@
 
 import { useLayoutStore, useTabsStore } from '../stores';
 import type { RightDockTabId } from '../stores';
+import { LayersPanel } from '../components';
 
 // 탭 목록
 const TABS: Array<{
@@ -53,7 +54,7 @@ export function RightDock() {
 
   return (
     <aside
-      className="flex flex-col border-l border-neutral-200 bg-white"
+      className="relative flex flex-col border-l border-neutral-200 bg-white"
       style={{ width: `${width}px` }}
     >
       {/* 탭 헤더 */}
@@ -134,16 +135,7 @@ export function RightDock() {
         )}
 
         {/* Layers 탭 */}
-        {activeTab === 'layers' && (
-          <div className="flex h-full flex-col items-center justify-center p-4 text-center">
-            <div className="mb-3 text-5xl">📋</div>
-            <p className="text-sm font-medium text-neutral-700">Layers</p>
-            <p className="mt-2 text-xs text-neutral-500">
-              페이지의 모든 오브젝트를 트리 구조로 확인하세요
-            </p>
-            <p className="mt-1 text-xs text-neutral-400">Phase 4에서 구현</p>
-          </div>
-        )}
+        {activeTab === 'layers' && <LayersPanel />}
 
         {/* Data 탭 */}
         {activeTab === 'data' && (
@@ -173,7 +165,7 @@ export function RightDock() {
       {/* 리사이즈 핸들 (좌측 경계) */}
       <div
         className="absolute left-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
-        onMouseDown={(e) => {
+        onMouseDown={() => {
           // TODO: Phase 7에서 리사이즈 기능 구현
           console.log('Resize handle clicked');
         }}
