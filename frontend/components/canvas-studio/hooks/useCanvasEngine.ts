@@ -77,10 +77,11 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
   const clipboard = useRef<fabric.Object | null>(null);
 
   // Zustand Store에서 상태 가져오기
-  const zoom = useCanvasStore((state) => state.zoom);
+  // zoom은 useCanvasStore.ts의 setZoom()에서 직접 처리됨
   const showGrid = useCanvasStore((state) => state.showGrid);
   const panX = useCanvasStore((state) => state.panX);
   const panY = useCanvasStore((state) => state.panY);
+  const setFabricCanvasToStore = useCanvasStore((state) => state.setFabricCanvas);
   const toggleLeftPanel = useLayoutStore((state) => state.toggleLeftPanel);
   const toggleRightDock = useLayoutStore((state) => state.toggleRightDock);
 
@@ -89,14 +90,20 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
     if (!fabricCanvas) return;
 
     log.action(`Adding shape: ${shapeType}`);
+
+    // 캔버스 중앙 계산 (줌 레벨 고려)
+    const canvasCenter = fabricCanvas.getVpCenter();
+    const centerX = canvasCenter.x;
+    const centerY = canvasCenter.y;
+
     let shape: fabric.Object;
 
     switch (shapeType) {
       case 'rectangle':
-        // 사각형 생성
+        // 사각형 생성 (캔버스 중앙)
         shape = new fabric.Rect({
-          left: 300,
-          top: 200,
+          left: centerX - 100, // width 200의 절반
+          top: centerY - 75,   // height 150의 절반
           width: 200,
           height: 150,
           fill: '#3b82f6', // blue-500
@@ -113,10 +120,10 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
         break;
 
       case 'circle':
-        // 원 생성
+        // 원 생성 (캔버스 중앙)
         shape = new fabric.Circle({
-          left: 300,
-          top: 200,
+          left: centerX - 75, // radius의 절반
+          top: centerY - 75,
           radius: 75,
           fill: '#10b981', // green-500
           stroke: '#047857', // green-800
@@ -132,10 +139,10 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
         break;
 
       case 'triangle':
-        // 삼각형 생성
+        // 삼각형 생성 (캔버스 중앙)
         shape = new fabric.Triangle({
-          left: 300,
-          top: 200,
+          left: centerX - 100,
+          top: centerY - 75,
           width: 200,
           height: 150,
           fill: '#f59e0b', // amber-500
@@ -152,10 +159,10 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
         break;
 
       case 'text':
-        // 텍스트 생성
+        // 텍스트 생성 (캔버스 중앙)
         shape = new fabric.IText('Double click to edit', {
-          left: 300,
-          top: 200,
+          left: centerX - 80, // 대략적인 텍스트 너비의 절반
+          top: centerY - 12,  // fontSize 24의 절반
           fontSize: 24,
           fill: '#1f2937', // neutral-800
           fontFamily: 'Inter, sans-serif',
@@ -456,6 +463,7 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
 
     // Store에 Canvas 인스턴스 저장 (나중에 다른 곳에서 사용 가능)
     setFabricCanvas(canvas);
+    setFabricCanvasToStore(canvas); // Zustand Store에도 등록
     setIsReady(true);
 
     // 초기 히스토리 저장
@@ -465,8 +473,14 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
     log.init('Canvas initialized successfully (800×600px)');
 
     // 히스토리 이벤트 리스너 (canvas 인스턴스 직접 사용)
+    // 🐛 FIX: debounce 시간을 300ms로 증가하여 동시 이벤트 발생 시 한 번만 저장
+    let saveTimeout: NodeJS.Timeout | null = null;
     const saveHistoryDebounced = () => {
-      setTimeout(() => {
+      if (saveTimeout) {
+        clearTimeout(saveTimeout);
+      }
+
+      saveTimeout = setTimeout(() => {
         if (isHistoryAction.current) {
           log.history('Skipping save (Undo/Redo in progress)');
           return;
@@ -483,14 +497,14 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
         }
 
         log.history(`Auto-saved [${historyIndex.current}/${historyStack.current.length - 1}] (${historyStack.current.length} states)`);
-      }, 100);
+      }, 300); // 100ms → 300ms로 증가
     };
 
     canvas.on('object:added', saveHistoryDebounced);
     canvas.on('object:removed', saveHistoryDebounced);
     canvas.on('object:modified', saveHistoryDebounced);
 
-    log.init('History event listeners attached (100ms debounce)');
+    log.init('History event listeners attached (300ms debounce)');
 
     // 클린업: 컴포넌트 언마운트 시 Canvas 제거
     return () => {
@@ -500,22 +514,13 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
       canvas.off('object:modified', saveHistoryDebounced);
       canvas.dispose();
       setFabricCanvas(null);
+      setFabricCanvasToStore(null); // Zustand Store도 정리
       setIsReady(false);
     };
   }, []);
 
-  // 2️⃣ Zoom 변경 시 Canvas 줌 레벨 업데이트
-  useEffect(() => {
-    if (!fabricCanvas) return;
-
-    // Fabric.js 줌 레벨 설정 (캔버스 중심점 기준)
-    const center = new fabric.Point(
-      fabricCanvas.width! / 2,
-      fabricCanvas.height! / 2
-    );
-    fabricCanvas.zoomToPoint(center, zoom);
-    fabricCanvas.requestRenderAll();
-  }, [fabricCanvas, zoom]);
+  // 2️⃣ Zoom은 useCanvasStore.ts의 setZoom()에서 처리됨
+  // (중복 적용 방지 - 이전에는 여기서도 줌을 적용해서 문제 발생)
 
   // 3️⃣ Pan (이동) 변경 시 Canvas Viewport 업데이트
   useEffect(() => {
@@ -570,7 +575,95 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
     fabricCanvas.requestRenderAll();
   }, [fabricCanvas, showGrid]);
 
-  // 🔟 키보드 단축키 처리
+  // 🔟 Pan (손 도구) 기능 - 스페이스바 + 드래그
+  useEffect(() => {
+    if (!fabricCanvas) return;
+
+    let isPanning = false;
+    let isSpacePressed = false;
+    let lastPosX = 0;
+    let lastPosY = 0;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // 입력 필드에서는 스페이스바 무시
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        return;
+      }
+
+      if (e.code === 'Space' && !isSpacePressed) {
+        isSpacePressed = true;
+        fabricCanvas.selection = false; // 선택 비활성화
+        fabricCanvas.defaultCursor = 'grab';
+        fabricCanvas.hoverCursor = 'grab';
+        fabricCanvas.renderAll();
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        isSpacePressed = false;
+        isPanning = false;
+        fabricCanvas.selection = true; // 선택 활성화
+        fabricCanvas.defaultCursor = 'default';
+        fabricCanvas.hoverCursor = 'move';
+        fabricCanvas.renderAll();
+      }
+    };
+
+    const handleMouseDown = (opt: any) => {
+      const evt = opt.e;
+      if (isSpacePressed) {
+        isPanning = true;
+        fabricCanvas.defaultCursor = 'grabbing';
+        fabricCanvas.renderAll();
+        lastPosX = evt.clientX;
+        lastPosY = evt.clientY;
+      }
+    };
+
+    const handleMouseMove = (opt: any) => {
+      if (isPanning && isSpacePressed) {
+        const evt = opt.e;
+        const vpt = fabricCanvas.viewportTransform;
+        if (vpt) {
+          vpt[4] += evt.clientX - lastPosX;
+          vpt[5] += evt.clientY - lastPosY;
+          fabricCanvas.requestRenderAll();
+        }
+        lastPosX = evt.clientX;
+        lastPosY = evt.clientY;
+      }
+    };
+
+    const handleMouseUp = () => {
+      if (isPanning) {
+        isPanning = false;
+        if (isSpacePressed) {
+          fabricCanvas.defaultCursor = 'grab';
+        } else {
+          fabricCanvas.defaultCursor = 'default';
+        }
+        fabricCanvas.renderAll();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    fabricCanvas.on('mouse:down', handleMouseDown);
+    fabricCanvas.on('mouse:move', handleMouseMove);
+    fabricCanvas.on('mouse:up', handleMouseUp);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      fabricCanvas.off('mouse:down', handleMouseDown);
+      fabricCanvas.off('mouse:move', handleMouseMove);
+      fabricCanvas.off('mouse:up', handleMouseUp);
+    };
+  }, [fabricCanvas]);
+
+  // 1️⃣1️⃣ 키보드 단축키 처리
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!fabricCanvas) return;

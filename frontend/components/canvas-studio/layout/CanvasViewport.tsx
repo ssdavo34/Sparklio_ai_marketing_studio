@@ -67,9 +67,17 @@ export function CanvasViewport() {
   const toggleRightDock = useLayoutStore((state) => state.toggleRightDock);
 
   return (
-    <section className="relative flex flex-1 items-center justify-center bg-neutral-100">
+    <section className="relative flex flex-1 items-center justify-center overflow-auto bg-neutral-100">
       {/* 캔버스 컨테이너 */}
-      <div className="relative" onContextMenu={handleContextMenu}>
+      <div
+        className="relative"
+        onContextMenu={handleContextMenu}
+        style={{
+          transform: `scale(${zoom / 100})`,
+          transformOrigin: 'center center',
+          transition: 'transform 0.1s ease-out',
+        }}
+      >
         {/* Phase 3: Fabric.js Canvas 렌더링 */}
         <canvas
           ref={canvasRef}

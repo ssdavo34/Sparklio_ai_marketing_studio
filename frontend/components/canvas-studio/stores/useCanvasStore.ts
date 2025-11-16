@@ -103,19 +103,16 @@ export const useCanvasStore = create<CanvasState>()(
       /**
        * 줌 레벨 설정
        * - 최소/최대 제한 적용
-       * - Fabric.js 캔버스에도 적용 (Phase 3)
+       * - CSS transform scale로 전체 캔버스 확대/축소 ✅
        */
       setZoom: (zoom) => {
-        const { minZoom, maxZoom, fabricCanvas } = get();
+        const { minZoom, maxZoom } = get();
         const clampedZoom = Math.max(minZoom, Math.min(zoom, maxZoom));
 
         set({ zoom: clampedZoom });
 
-        // TODO: Phase 3에서 Fabric.js 캔버스에 적용
-        // if (fabricCanvas) {
-        //   fabricCanvas.setZoom(clampedZoom);
-        //   fabricCanvas.renderAll();
-        // }
+        // CSS transform scale로 처리하므로 Fabric.js에서는 별도 작업 불필요
+        // CanvasViewport.tsx에서 CSS transform 적용
       },
 
       /**
@@ -143,19 +140,50 @@ export const useCanvasStore = create<CanvasState>()(
        * - 단축키: Ctrl+0
        */
       zoomToFit: () => {
-        // TODO: Phase 3에서 구현
-        // const { fabricCanvas } = get();
-        // if (!fabricCanvas) return;
-        //
-        // const objects = fabricCanvas.getObjects();
-        // if (objects.length === 0) {
-        //   get().resetZoom();
-        //   return;
-        // }
-        //
-        // // Calculate bounding box of all objects
-        // // Set zoom to fit all objects with padding
-        console.log('zoomToFit - Phase 3에서 구현');
+        const { fabricCanvas, minZoom, maxZoom } = get();
+        if (!fabricCanvas) return;
+
+        // 그리드 라인을 제외한 실제 객체들만 가져오기
+        const objects = fabricCanvas.getObjects().filter((obj: any) => obj.name !== 'grid-line');
+
+        if (objects.length === 0) {
+          get().resetZoom();
+          return;
+        }
+
+        // 모든 객체의 Bounding Box 계산
+        let minX = Infinity;
+        let minY = Infinity;
+        let maxX = -Infinity;
+        let maxY = -Infinity;
+
+        objects.forEach((obj: any) => {
+          const bound = obj.getBoundingRect();
+          minX = Math.min(minX, bound.left);
+          minY = Math.min(minY, bound.top);
+          maxX = Math.max(maxX, bound.left + bound.width);
+          maxY = Math.max(maxY, bound.top + bound.height);
+        });
+
+        const objectsWidth = maxX - minX;
+        const objectsHeight = maxY - minY;
+
+        // 캔버스 크기
+        const canvasWidth = fabricCanvas.getWidth();
+        const canvasHeight = fabricCanvas.getHeight();
+
+        // 패딩 (10%)
+        const padding = 0.1;
+        const availableWidth = canvasWidth * (1 - padding * 2);
+        const availableHeight = canvasHeight * (1 - padding * 2);
+
+        // 줌 레벨 계산 (작은 쪽에 맞춤)
+        const zoomX = availableWidth / objectsWidth;
+        const zoomY = availableHeight / objectsHeight;
+        const newZoom = Math.min(zoomX, zoomY, maxZoom);
+        const clampedZoom = Math.max(minZoom, newZoom);
+
+        get().setZoom(clampedZoom);
       },
 
       /**
