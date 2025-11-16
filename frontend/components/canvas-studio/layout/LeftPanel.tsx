@@ -20,12 +20,13 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useLayoutStore } from '../stores';
 
 export function LeftPanel() {
-  // TODO: Phase 2에서 useLayoutStore로 변경
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [width, setWidth] = useState(280);
+  // Zustand Store 사용 (Phase 2 완료!)
+  const isCollapsed = useLayoutStore((state) => state.isLeftPanelCollapsed);
+  const width = useLayoutStore((state) => state.leftPanelWidth);
+  const toggleLeftPanel = useLayoutStore((state) => state.toggleLeftPanel);
 
   // 접혀있으면 렌더링 안함
   if (isCollapsed) {
@@ -43,7 +44,7 @@ export function LeftPanel() {
 
         {/* 닫기 버튼 */}
         <button
-          onClick={() => setIsCollapsed(true)}
+          onClick={toggleLeftPanel}
           className="rounded p-1 text-neutral-500 hover:bg-neutral-200 hover:text-neutral-700"
           title="Close Panel (Ctrl+B)"
           aria-label="Close Panel"

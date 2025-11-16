@@ -17,32 +17,39 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useEditorStore } from '../stores';
+import type { StudioMode } from '../stores';
 
 // 활동 목록 (P0에서 구현할 3가지만)
-const ACTIVITIES = [
+const ACTIVITIES: Array<{
+  id: StudioMode;
+  label: string;
+  icon: string;
+  shortcut: string;
+}> = [
   { id: 'concept-board', label: 'Concept Board', icon: 'C', shortcut: 'Ctrl+1' },
   { id: 'pitch-deck', label: 'Pitch Deck', icon: 'D', shortcut: 'Ctrl+2' },
   { id: 'product-story', label: 'Product Story', icon: 'P', shortcut: 'Ctrl+3' },
   // P1에서 추가할 항목들
   // { id: 'brand-dna', label: 'Brand DNA', icon: 'B', shortcut: 'Ctrl+4' },
   // { id: 'ad-studio', label: 'Ad Studio', icon: 'A', shortcut: 'Ctrl+5' },
-] as const;
+];
 
 export function ActivityBar() {
-  // TODO: Phase 2에서 useEditorStore로 변경
-  const [activeActivity, setActiveActivity] = useState<string>('concept-board');
+  // Zustand Store 사용 (Phase 2 완료!)
+  const currentMode = useEditorStore((state) => state.currentMode);
+  const setCurrentMode = useEditorStore((state) => state.setCurrentMode);
 
   return (
     <nav className="flex w-14 flex-col border-r border-neutral-800 bg-neutral-950 text-neutral-100">
       {/* 활동 버튼 리스트 */}
       {ACTIVITIES.map((activity) => {
-        const isActive = activeActivity === activity.id;
+        const isActive = currentMode === activity.id;
 
         return (
           <button
             key={activity.id}
-            onClick={() => setActiveActivity(activity.id)}
+            onClick={() => setCurrentMode(activity.id)}
             className={`
               flex h-12 items-center justify-center
               text-xl font-bold

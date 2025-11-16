@@ -20,11 +20,16 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useCanvasStore } from '../stores';
 
 export function CanvasViewport() {
-  // TODO: Phase 2에서 useCanvasStore로 변경
-  const [zoom, setZoom] = useState(100);
+  // Zustand Store 사용 (Phase 2 완료!)
+  const zoom = useCanvasStore((state) => Math.round(state.zoom * 100));
+  const zoomIn = useCanvasStore((state) => state.zoomIn);
+  const zoomOut = useCanvasStore((state) => state.zoomOut);
+  const resetZoom = useCanvasStore((state) => state.resetZoom);
+  const zoomToFit = useCanvasStore((state) => state.zoomToFit);
+  const toggleGrid = useCanvasStore((state) => state.toggleGrid);
 
   return (
     <section className="relative flex flex-1 items-center justify-center bg-neutral-100">
@@ -56,7 +61,7 @@ export function CanvasViewport() {
       <div className="absolute right-4 top-4 flex items-center gap-2 rounded-lg bg-white px-3 py-2 shadow-md">
         {/* 줌 아웃 버튼 */}
         <button
-          onClick={() => setZoom(Math.max(25, zoom - 10))}
+          onClick={zoomOut}
           className="rounded p-1 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
           title="Zoom Out (Ctrl+-)"
           aria-label="Zoom Out"
@@ -78,7 +83,7 @@ export function CanvasViewport() {
 
         {/* 줌 퍼센트 */}
         <button
-          onClick={() => setZoom(100)}
+          onClick={resetZoom}
           className="min-w-[50px] text-sm font-medium text-neutral-700 hover:text-neutral-900"
           title="Reset Zoom (Ctrl+0)"
         >
@@ -87,7 +92,7 @@ export function CanvasViewport() {
 
         {/* 줌 인 버튼 */}
         <button
-          onClick={() => setZoom(Math.min(400, zoom + 10))}
+          onClick={zoomIn}
           className="rounded p-1 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
           title="Zoom In (Ctrl++)"
           aria-label="Zoom In"
@@ -112,10 +117,7 @@ export function CanvasViewport() {
 
         {/* Fit 버튼 */}
         <button
-          onClick={() => {
-            // TODO: Phase 3에서 zoomToFit 구현
-            console.log('Zoom to fit');
-          }}
+          onClick={zoomToFit}
           className="rounded px-2 py-1 text-xs font-medium text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
           title="Zoom to Fit"
         >
@@ -127,10 +129,7 @@ export function CanvasViewport() {
       <div className="absolute bottom-4 left-4">
         <button
           className="rounded-lg bg-white px-3 py-2 text-xs font-medium text-neutral-600 shadow-md hover:bg-neutral-50 hover:text-neutral-900"
-          onClick={() => {
-            // TODO: Phase 3에서 그리드 토글 구현
-            console.log('Toggle grid');
-          }}
+          onClick={toggleGrid}
           title="Toggle Grid (Ctrl+G)"
         >
           Grid

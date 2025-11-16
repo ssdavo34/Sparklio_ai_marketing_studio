@@ -22,24 +22,29 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useLayoutStore, useTabsStore } from '../stores';
+import type { RightDockTabId } from '../stores';
 
 // 탭 목록
-const TABS = [
+const TABS: Array<{
+  id: RightDockTabId;
+  label: string;
+  icon: string;
+}> = [
   { id: 'chat', label: 'Chat', icon: '💬' },
   { id: 'inspector', label: 'Inspector', icon: '🔍' },
   { id: 'layers', label: 'Layers', icon: '📋' },
   { id: 'data', label: 'Data', icon: '📊' },
   { id: 'brand', label: 'Brand', icon: '🎨' },
-] as const;
-
-type TabId = (typeof TABS)[number]['id'];
+];
 
 export function RightDock() {
-  // TODO: Phase 2에서 useLayoutStore, useTabsStore로 변경
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [width, setWidth] = useState(360);
-  const [activeTab, setActiveTab] = useState<TabId>('chat');
+  // Zustand Store 사용 (Phase 2 완료!)
+  const isCollapsed = useLayoutStore((state) => state.isRightDockCollapsed);
+  const width = useLayoutStore((state) => state.rightDockWidth);
+  const toggleRightDock = useLayoutStore((state) => state.toggleRightDock);
+  const activeTab = useTabsStore((state) => state.activeRightDockTab);
+  const setActiveTab = useTabsStore((state) => state.setActiveRightDockTab);
 
   // 접혀있으면 렌더링 안함
   if (isCollapsed) {
@@ -81,7 +86,7 @@ export function RightDock() {
 
         {/* 닫기 버튼 */}
         <button
-          onClick={() => setIsCollapsed(true)}
+          onClick={toggleRightDock}
           className="ml-auto px-2 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700"
           title="Close Dock (Ctrl+Shift+B)"
           aria-label="Close Dock"
