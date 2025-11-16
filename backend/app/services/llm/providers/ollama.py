@@ -56,11 +56,13 @@ class OllamaProvider(LLMProvider):
         self.timeout = timeout or settings.OLLAMA_TIMEOUT
         self.default_model = default_model or settings.OLLAMA_DEFAULT_MODEL
 
+        logger.info(f"Ollama Provider initializing with base_url={self.base_url}, timeout={self.timeout}s")
+
         # HTTP 클라이언트 (재사용)
-        # base_url 파라미터를 사용하지 않고 전체 URL 사용
+        # base_url을 사용하지 않고 항상 전체 URL 사용
         self.client = httpx.AsyncClient(timeout=self.timeout)
 
-        logger.info(f"Ollama Provider initialized: {self.base_url}, timeout={self.timeout}s")
+        logger.info(f"Ollama Provider initialized successfully")
 
     @property
     def vendor(self) -> str:
@@ -124,10 +126,11 @@ class OllamaProvider(LLMProvider):
                 options=merged_options
             )
 
-            logger.info(f"Ollama API call: model={model}, mode={mode}, timeout={self.timeout}s")
-
             # Ollama API 호출 (전체 URL 사용)
             api_url = f"{self.base_url}/api/generate"
+
+            logger.info(f"Ollama API call: url={api_url}, model={model}, mode={mode}, timeout={self.timeout}s")
+
             response = await self.client.post(api_url, json=request_data)
             response.raise_for_status()
 

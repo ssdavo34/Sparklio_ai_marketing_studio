@@ -56,17 +56,27 @@ class LLMGateway:
 
     def _initialize_providers(self):
         """Provider 초기화"""
-        # Mock Provider는 항상 사용 가능
-        self.providers["mock"] = MockProvider(response_delay=1.0)
+        logger.info("Starting provider initialization...")
 
-        # Ollama Provider (Live 모드용)
-        self.providers["ollama"] = OllamaProvider(
-            base_url=settings.OLLAMA_BASE_URL,
-            timeout=settings.OLLAMA_TIMEOUT,
-            default_model=settings.OLLAMA_DEFAULT_MODEL
-        )
+        try:
+            # Mock Provider는 항상 사용 가능
+            logger.info("Initializing Mock Provider...")
+            self.providers["mock"] = MockProvider(response_delay=1.0)
+            logger.info("Mock Provider initialized successfully")
 
-        logger.info(f"Initialized providers: {list(self.providers.keys())}")
+            # Ollama Provider (Live 모드용)
+            logger.info(f"Initializing Ollama Provider with base_url={settings.OLLAMA_BASE_URL}...")
+            self.providers["ollama"] = OllamaProvider(
+                base_url=settings.OLLAMA_BASE_URL,
+                timeout=settings.OLLAMA_TIMEOUT,
+                default_model=settings.OLLAMA_DEFAULT_MODEL
+            )
+            logger.info("Ollama Provider initialized successfully")
+
+            logger.info(f"All providers initialized: {list(self.providers.keys())}")
+        except Exception as e:
+            logger.error(f"Provider initialization failed: {type(e).__name__}: {str(e)}", exc_info=True)
+            raise
 
     async def generate(
         self,
