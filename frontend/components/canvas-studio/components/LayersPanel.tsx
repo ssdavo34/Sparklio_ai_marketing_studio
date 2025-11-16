@@ -20,6 +20,8 @@ export function LayersPanel() {
   const [objects, setObjects] = useState<fabric.Object[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingName, setEditingName] = useState<string>('');
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   // updateObjects 함수 먼저 정의
   const updateObjects = () => {
@@ -167,6 +169,63 @@ export function LayersPanel() {
     updateObjects();
   };
 
+  // 드래그 시작
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', ''); // Firefox 호환성
+  };
+
+  // 드래그 오버
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverIndex(index);
+  };
+
+  // 드래그 종료 (다른 항목 위에서)
+  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!fabricCanvas || draggedIndex === null || draggedIndex === dropIndex) {
+      setDraggedIndex(null);
+      setDragOverIndex(null);
+      return;
+    }
+
+    // 역순 배열이므로 실제 인덱스 계산
+    const allObjects = fabricCanvas.getObjects().filter((obj) => obj.name !== 'grid-line');
+    const draggedActualIndex = allObjects.length - 1 - draggedIndex;
+    const dropActualIndex = allObjects.length - 1 - dropIndex;
+
+    const draggedObj = allObjects[draggedActualIndex];
+
+    console.log('Reordering layers:', draggedIndex, '->', dropIndex);
+
+    // 객체를 새 위치로 이동
+    fabricCanvas.remove(draggedObj);
+
+    // 올바른 인덱스에 다시 삽입
+    if (dropActualIndex > draggedActualIndex) {
+      fabricCanvas.insertAt(draggedObj, dropActualIndex, false);
+    } else {
+      fabricCanvas.insertAt(draggedObj, dropActualIndex, false);
+    }
+
+    fabricCanvas.requestRenderAll();
+    updateObjects();
+
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
+  // 드래그 종료
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
   // 빈 상태
   if (objects.length === 0) {
     return (
@@ -194,10 +253,17 @@ export function LayersPanel() {
         {objects.map((obj, index) => {
           const isSelected = fabricCanvas?.getActiveObject() === obj;
           const isEditing = editingIndex === index;
+          const isDragging = draggedIndex === index;
+          const isDragOver = dragOverIndex === index;
 
           return (
             <div
               key={index}
+              draggable={!isEditing}
+              onDragStart={(e) => handleDragStart(e, index)}
+              onDragOver={(e) => handleDragOver(e, index)}
+              onDrop={(e) => handleDrop(e, index)}
+              onDragEnd={handleDragEnd}
               className={`
                 group flex w-full items-center gap-2 border-b border-neutral-100 px-3 py-2
                 cursor-pointer transition-colors duration-150
@@ -206,6 +272,8 @@ export function LayersPanel() {
                     ? 'bg-blue-50 text-blue-700'
                     : 'text-neutral-700 hover:bg-neutral-50'
                 }
+                ${isDragging ? 'opacity-50' : ''}
+                ${isDragOver && !isDragging ? 'border-t-2 border-t-blue-500' : ''}
               `}
               onClick={() => !isEditing && selectObject(obj)}
               onDoubleClick={() => handleDoubleClick(obj, index)}

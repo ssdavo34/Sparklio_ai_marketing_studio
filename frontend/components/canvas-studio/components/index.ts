@@ -9,3 +9,4 @@
 
 export * from './LayersPanel';
 export * from './ContextMenu';
+export * from './InspectorPanel';

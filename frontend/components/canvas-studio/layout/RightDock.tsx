@@ -24,7 +24,7 @@
 
 import { useLayoutStore, useTabsStore } from '../stores';
 import type { RightDockTabId } from '../stores';
-import { LayersPanel } from '../components';
+import { LayersPanel, InspectorPanel } from '../components';
 
 // 탭 목록
 const TABS: Array<{
@@ -123,16 +123,7 @@ export function RightDock() {
         )}
 
         {/* Inspector 탭 */}
-        {activeTab === 'inspector' && (
-          <div className="flex h-full flex-col items-center justify-center p-4 text-center">
-            <div className="mb-3 text-5xl">🔍</div>
-            <p className="text-sm font-medium text-neutral-700">Inspector</p>
-            <p className="mt-2 text-xs text-neutral-500">
-              선택한 객체의 속성을 편집하세요
-            </p>
-            <p className="mt-1 text-xs text-neutral-400">Phase 4에서 구현</p>
-          </div>
-        )}
+        {activeTab === 'inspector' && <InspectorPanel />}
 
         {/* Layers 탭 */}
         {activeTab === 'layers' && <LayersPanel />}
