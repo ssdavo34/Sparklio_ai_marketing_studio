@@ -423,7 +423,7 @@ else
 fi
 
 # ComfyUI
-if curl -s http://192.168.0.100:8188/system_stats > /dev/null 2>&1; then
+if curl -s http://100.120.180.42:8188/system_stats > /dev/null 2>&1; then
     echo "✓ ComfyUI is reachable"
 else
     echo "⚠ ComfyUI connection issue (non-critical)"

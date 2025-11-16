@@ -23,6 +23,21 @@ v1.0의 문제점:
 
 ---
 
+## ⚠️ Mac mini 서버 관리 필수 규정 (2025-11-16 추가)
+
+**C팀은 Backend API 통합 전 Mac mini 서버 상태를 확인해야 합니다.**
+
+### 필수 준수사항:
+1. **매일 작업 시작 전**: Mac mini Backend API 상태 확인
+2. **API 통합 시**: OpenAPI 문서로 엔드포인트 존재 여부 확인
+3. **API 불일치 발견 시**: B팀에 즉시 알림
+
+**상세 가이드**: [MAC_MINI_SERVER_GUIDELINES.md](MAC_MINI_SERVER_GUIDELINES.md)
+
+**⚠️ 중요**: Backend API 엔드포인트가 실제로 구현되었는지 확인하지 않고 Frontend 코드를 작성하면 통합 시 오류가 발생합니다. 반드시 `curl http://100.123.51.5:8000/docs` 또는 OpenAPI 스펙으로 확인하세요.
+
+---
+
 ## 1. 핵심 설계 원칙 (반드시 숙지)
 
 ### 1.1 Chat-First, One-Page Studio

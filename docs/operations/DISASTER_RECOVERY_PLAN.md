@@ -20,7 +20,7 @@ Sparklio V4는 3노드 하이브리드 인프라로 구성되어 있습니다. �
 | 노드 | 역할 | 중요도 | IP |
 |------|------|--------|-----|
 | **Mac mini** | Backend (FastAPI, DB, Redis) | ⚠️ Critical | 100.123.51.5 |
-| **Desktop** | GPU (Ollama, ComfyUI) | High | 192.168.0.100 |
+| **Desktop** | GPU (Ollama, ComfyUI) | High | 100.120.180.42 |
 | **Laptop** | Frontend (Next.js) | Medium | 192.168.0.101 |
 
 ### 재해 정의
@@ -476,7 +476,7 @@ ifconfig | grep "inet "
 
 # Desktop
 ipconfig
-# 기대값: 192.168.0.100
+# 기대값: 100.120.180.42
 
 # Laptop
 ifconfig | grep "inet "
@@ -484,7 +484,7 @@ ifconfig | grep "inet "
 
 # 3. 네트워크 테스트
 # Mac mini에서
-ping 192.168.0.100  # Desktop
+ping 100.120.180.42  # Desktop
 ping 192.168.0.101  # Laptop
 
 # Desktop에서
