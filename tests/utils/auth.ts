@@ -51,7 +51,7 @@ export async function getTestToken(): Promise<string> {
     console.log(`🔑 Acquiring new test token for ${TEST_USER_EMAIL}...`);
 
     // 로그인 API 호출
-    const response = await axios.post(`${API_BASE_URL}/api/v1/auth/login`, {
+    const response = await axios.post(`${API_BASE_URL}/api/v1/users/login`, {
       email: TEST_USER_EMAIL,
       password: TEST_USER_PASSWORD,
     });
