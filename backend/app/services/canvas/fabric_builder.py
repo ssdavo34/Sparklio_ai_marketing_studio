@@ -360,86 +360,91 @@ def create_product_detail_canvas(text_data: Dict[str, Any]) -> Dict[str, Any]:
         ry=0
     )
 
-    # 2. 헤드라인
-    if text_data.get("headline"):
-        builder.add_text(
-            text=text_data["headline"],
+    # 2. 헤드라인 (항상 표시, 기본값 사용)
+    headline_text = text_data.get("headline") or "Product Headline"
+    builder.add_text(
+        text=headline_text,
+        left=100,
+        top=100,
+        font_size=48,
+        font_weight="bold",
+        fill="#1f2937"
+    )
+
+    # 3. 서브헤드라인 (항상 표시, 기본값 사용)
+    subheadline_text = text_data.get("subheadline") or "Product subheadline - waiting for content generation"
+    builder.add_text(
+        text=subheadline_text,
+        left=100,
+        top=180,
+        font_size=24,
+        font_weight="normal",
+        fill="#6b7280"
+    )
+
+    # 4. 본문 (항상 표시, 기본값 사용)
+    body_text = text_data.get("body") or "Product description will appear here once content is generated."
+    # 본문이 너무 길면 150자로 제한
+    if len(body_text) > 150:
+        body_text = body_text[:150] + "..."
+
+    builder.add_text(
+        text=body_text,
+        left=100,
+        top=450,
+        font_size=16,
+        font_weight="normal",
+        fill="#374151"
+    )
+
+    # 5. Bullet Points (항상 표시, 기본값 3개)
+    bullets = text_data.get("bullets") or [
+        "Feature 1",
+        "Feature 2",
+        "Feature 3"
+    ]
+    for idx, bullet in enumerate(bullets[:3]):  # 최대 3개
+        # 아이콘 (원)
+        builder.add_circle(
             left=100,
-            top=100,
-            font_size=48,
-            font_weight="bold",
+            top=650 + idx * 100,
+            radius=12,
+            fill="#3b82f6"
+        )
+
+        # Bullet 텍스트
+        builder.add_text(
+            text=bullet,
+            left=140,
+            top=640 + idx * 100,
+            font_size=18,
+            font_weight="normal",
             fill="#1f2937"
         )
 
-    # 3. 서브헤드라인
-    if text_data.get("subheadline"):
-        builder.add_text(
-            text=text_data["subheadline"],
-            left=100,
-            top=180,
-            font_size=24,
-            font_weight="normal",
-            fill="#6b7280"
-        )
+    # 6. CTA 버튼 (항상 표시, 기본값 사용)
+    cta_text = text_data.get("cta") or "Learn More"
 
-    # 4. 본문
-    if text_data.get("body"):
-        # 본문이 너무 길면 150자로 제한
-        body_text = text_data["body"][:150] + "..." if len(text_data.get("body", "")) > 150 else text_data.get("body", "")
+    # 버튼 배경
+    builder.add_rect(
+        left=100,
+        top=1050,
+        width=200,
+        height=60,
+        fill="#3b82f6",
+        rx=8,
+        ry=8
+    )
 
-        builder.add_text(
-            text=body_text,
-            left=100,
-            top=450,
-            font_size=16,
-            font_weight="normal",
-            fill="#374151"
-        )
-
-    # 5. Bullet Points
-    if text_data.get("bullets"):
-        bullets = text_data["bullets"]
-        for idx, bullet in enumerate(bullets[:3]):  # 최대 3개
-            # 아이콘 (원)
-            builder.add_circle(
-                left=100,
-                top=650 + idx * 100,
-                radius=12,
-                fill="#3b82f6"
-            )
-
-            # Bullet 텍스트
-            builder.add_text(
-                text=bullet,
-                left=140,
-                top=640 + idx * 100,
-                font_size=18,
-                font_weight="normal",
-                fill="#1f2937"
-            )
-
-    # 6. CTA 버튼
-    if text_data.get("cta"):
-        # 버튼 배경
-        builder.add_rect(
-            left=100,
-            top=1050,
-            width=200,
-            height=60,
-            fill="#3b82f6",
-            rx=8,
-            ry=8
-        )
-
-        # 버튼 텍스트
-        builder.add_text(
-            text=text_data["cta"],
-            left=150,
-            top=1070,
-            font_size=18,
-            font_weight="bold",
-            fill="#ffffff"
-        )
+    # 버튼 텍스트
+    builder.add_text(
+        text=cta_text,
+        left=150,
+        top=1070,
+        font_size=18,
+        font_weight="bold",
+        fill="#ffffff"
+    )
 
     return builder.build()
 
