@@ -1,8 +1,12 @@
 """
-Agents API 엔드포인트
+Agents API 엔드포인트 (DEPRECATED)
+
+⚠️ DEPRECATED - Use /agents (agents_new.py) instead.
+This endpoint is available at /agents-v1 for legacy compatibility only.
 
 Agent 실행 및 관리를 위한 API
 """
+# flake8: noqa
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -15,12 +19,12 @@ from app.models.user import User
 from app.models.project import Project
 from app.models.brand import Brand
 from app.schemas.agent import A2ARequest, A2AResponse, SystemContext
-from app.agents.brief import BriefAgent
-from app.agents.brand_agent import BrandAgent
-from app.agents.strategist import StrategistAgent
-from app.agents.copywriter import CopywriterAgent
-from app.agents.vision_generator import VisionGeneratorAgent
-from app.agents.reviewer import ReviewerAgent
+from app._deprecated.agents.brief import BriefAgent
+from app._deprecated.agents.brand_agent import BrandAgent
+from app._deprecated.agents.strategist import StrategistAgent
+from app._deprecated.agents.copywriter import CopywriterAgent
+from app._deprecated.agents.vision_generator import VisionGeneratorAgent
+from app._deprecated.agents.reviewer import ReviewerAgent
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
