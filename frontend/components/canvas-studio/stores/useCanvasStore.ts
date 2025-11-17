@@ -138,6 +138,7 @@ export const useCanvasStore = create<CanvasState>()(
       /**
        * 모든 객체가 보이도록 줌 조정
        * - 단축키: Ctrl+0
+       * - 줌 조정 후 스크롤 위치를 중앙으로 이동
        */
       zoomToFit: () => {
         const { fabricCanvas, minZoom, maxZoom } = get();
@@ -148,6 +149,14 @@ export const useCanvasStore = create<CanvasState>()(
 
         if (objects.length === 0) {
           get().resetZoom();
+
+          // 객체가 없으면 스크롤을 (0, 0)으로
+          const canvas = fabricCanvas.getElement();
+          const section = canvas?.closest('section');
+          if (section) {
+            section.scrollLeft = 0;
+            section.scrollTop = 0;
+          }
           return;
         }
 
@@ -184,6 +193,30 @@ export const useCanvasStore = create<CanvasState>()(
         const clampedZoom = Math.max(minZoom, newZoom);
 
         get().setZoom(clampedZoom);
+
+        // 줌 적용 후 스크롤 위치를 중앙으로 조정
+        // setTimeout을 사용하여 Zoom 적용 후 스크롤 조정
+        setTimeout(() => {
+          const canvas = fabricCanvas.getElement();
+          const section = canvas?.closest('section');
+
+          if (section) {
+            // 스케일된 캔버스의 실제 크기
+            const scaledWidth = canvasWidth * clampedZoom;
+            const scaledHeight = canvasHeight * clampedZoom;
+
+            // 뷰포트(section) 크기
+            const viewportWidth = section.clientWidth;
+            const viewportHeight = section.clientHeight;
+
+            // 중앙 정렬을 위한 스크롤 위치 계산
+            const scrollLeft = Math.max(0, (scaledWidth - viewportWidth) / 2);
+            const scrollTop = Math.max(0, (scaledHeight - viewportHeight) / 2);
+
+            section.scrollLeft = scrollLeft;
+            section.scrollTop = scrollTop;
+          }
+        }, 50); // CSS transform 적용 후 실행
       },
 
       /**

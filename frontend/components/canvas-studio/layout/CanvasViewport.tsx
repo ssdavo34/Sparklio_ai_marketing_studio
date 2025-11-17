@@ -197,8 +197,8 @@ export function CanvasViewport() {
         </button>
       </div>
 
-      {/* 우측 하단 컨트롤 그룹 */}
-      <div className="absolute bottom-4 right-4 flex items-center gap-2">
+      {/* 우측 하단 컨트롤 그룹 - sticky로 스크롤 시에도 고정 */}
+      <div className="sticky bottom-4 right-4 z-50 flex items-center gap-2 self-end ml-auto mr-4 mb-4">
         {/* 캔버스 상태 표시 */}
         <div className="rounded-lg bg-white px-3 py-2 text-xs text-neutral-500 shadow-md">
           800 × 600 px
