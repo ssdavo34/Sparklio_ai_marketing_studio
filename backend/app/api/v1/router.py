@@ -1,9 +1,10 @@
 from fastapi import APIRouter
 from app.api.v1.endpoints import (
-    assets, brands, projects, users, agents, agents_new,
+    assets, brands, projects, users, agents_new,
     generate, documents, templates, editor, admin,
     llm_gateway, media_gateway, debug
 )
+# agents (legacy) - Deprecated, import 에러로 주석 처리
 
 api_router = APIRouter()
 
@@ -88,12 +89,12 @@ api_router.include_router(
     tags=["agents-v2"]
 )
 
-# Agent API v1 (내부 전용, Deprecated 예정)
-api_router.include_router(
-    agents.router,
-    prefix="/agents-v1",
-    tags=["agents-v1 (deprecated)"]
-)
+# Agent API v1 (내부 전용, Deprecated - import 에러로 비활성화)
+# api_router.include_router(
+#     agents.router,
+#     prefix="/agents-v1",
+#     tags=["agents-v1 (deprecated)"]
+# )
 
 # Debug API (개발/디버깅용)
 api_router.include_router(
