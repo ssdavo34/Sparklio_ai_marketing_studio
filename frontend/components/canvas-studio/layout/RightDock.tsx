@@ -24,7 +24,7 @@
 
 import { useLayoutStore, useTabsStore } from '../stores';
 import type { RightDockTabId } from '../stores';
-import { LayersPanel, InspectorPanel } from '../components';
+import { LayersPanel, InspectorPanel, ChatPanel } from '../components';
 
 // 탭 목록
 const TABS: Array<{
@@ -111,16 +111,7 @@ export function RightDock() {
       {/* 탭 컨텐츠 */}
       <div className="flex-1 overflow-auto">
         {/* Chat 탭 */}
-        {activeTab === 'chat' && (
-          <div className="flex h-full flex-col items-center justify-center p-4 text-center">
-            <div className="mb-3 text-5xl">💬</div>
-            <p className="text-sm font-medium text-neutral-700">Spark Chat</p>
-            <p className="mt-2 text-xs text-neutral-500">
-              AI와 대화하여 콘텐츠를 생성하고 수정하세요
-            </p>
-            <p className="mt-1 text-xs text-neutral-400">Phase 4에서 구현</p>
-          </div>
-        )}
+        {activeTab === 'chat' && <ChatPanel />}
 
         {/* Inspector 탭 */}
         {activeTab === 'inspector' && <InspectorPanel />}
