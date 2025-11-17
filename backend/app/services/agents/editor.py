@@ -86,6 +86,7 @@ class EditorAgent(AgentBase):
             elapsed = (datetime.utcnow() - start_time).total_seconds()
             usage = {
                 "llm_tokens": llm_response.usage.get("total_tokens", 0),
+                "total_tokens": llm_response.usage.get("total_tokens", 0),
                 "elapsed_seconds": round(elapsed, 2)
             }
 

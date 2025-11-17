@@ -112,6 +112,7 @@ class FabricCanvasBuilder:
             "charSpacing": 0,
             "minWidth": 20,
             "splitByGrapheme": False,
+            "textBaseline": "alphabetic",  # 🔴 FIX: C팀 요청 - 올바른 값 사용
             **kwargs
         }
 

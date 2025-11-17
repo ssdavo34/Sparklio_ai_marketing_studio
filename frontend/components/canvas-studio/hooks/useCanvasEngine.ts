@@ -406,17 +406,48 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
     historyIndex.current--;
 
     const state = historyStack.current[historyIndex.current];
+
+    // History stack이 비어있는 경우 방어 코드
+    if (!state) {
+      log.warning('History state is undefined, skipping undo');
+      historyIndex.current++;
+      return;
+    }
+
+    // 🔒 JSON 파싱 및 유효성 검증 (TypeError 방지)
+    let parsedState: any;
+    try {
+      parsedState = JSON.parse(state);
+    } catch (error) {
+      log.error(`Failed to parse history state JSON, skipping undo: ${error}`);
+      historyIndex.current++;
+      return;
+    }
+
+    // objects 배열 검증
+    if (!parsedState || !Array.isArray(parsedState.objects)) {
+      log.error(`Invalid history state (missing objects array), skipping undo: ${JSON.stringify(parsedState)}`);
+      historyIndex.current++;
+      return;
+    }
+
     isHistoryAction.current = true;
 
-    fabricCanvas.loadFromJSON(state, () => {
-      fabricCanvas.renderAll();
-      log.history(`Undo complete [${historyIndex.current}/${historyStack.current.length - 1}]`);
+    try {
+      fabricCanvas.loadFromJSON(parsedState, () => {
+        fabricCanvas.renderAll();
+        log.history(`Undo complete [${historyIndex.current}/${historyStack.current.length - 1}]`);
 
-      // 300ms 후에 플래그 해제 (모든 이벤트가 처리될 때까지 대기)
-      setTimeout(() => {
-        isHistoryAction.current = false;
-      }, 300);
-    });
+        // 300ms 후에 플래그 해제 (모든 이벤트가 처리될 때까지 대기)
+        setTimeout(() => {
+          isHistoryAction.current = false;
+        }, 300);
+      });
+    } catch (error) {
+      log.error(`Exception during undo loadFromJSON: ${error}`);
+      historyIndex.current++;
+      isHistoryAction.current = false;
+    }
   };
 
   // 1️⃣2 Redo 함수
@@ -432,17 +463,48 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
     historyIndex.current++;
 
     const state = historyStack.current[historyIndex.current];
+
+    // History stack이 비어있는 경우 방어 코드
+    if (!state) {
+      log.warning('History state is undefined, skipping redo');
+      historyIndex.current--;
+      return;
+    }
+
+    // 🔒 JSON 파싱 및 유효성 검증 (TypeError 방지)
+    let parsedState: any;
+    try {
+      parsedState = JSON.parse(state);
+    } catch (error) {
+      log.error(`Failed to parse history state JSON, skipping redo: ${error}`);
+      historyIndex.current--;
+      return;
+    }
+
+    // objects 배열 검증
+    if (!parsedState || !Array.isArray(parsedState.objects)) {
+      log.error(`Invalid history state (missing objects array), skipping redo: ${JSON.stringify(parsedState)}`);
+      historyIndex.current--;
+      return;
+    }
+
     isHistoryAction.current = true;
 
-    fabricCanvas.loadFromJSON(state, () => {
-      fabricCanvas.renderAll();
-      log.history(`Redo complete [${historyIndex.current}/${historyStack.current.length - 1}]`);
+    try {
+      fabricCanvas.loadFromJSON(parsedState, () => {
+        fabricCanvas.renderAll();
+        log.history(`Redo complete [${historyIndex.current}/${historyStack.current.length - 1}]`);
 
-      // 300ms 후에 플래그 해제 (모든 이벤트가 처리될 때까지 대기)
-      setTimeout(() => {
-        isHistoryAction.current = false;
-      }, 300);
-    });
+        // 300ms 후에 플래그 해제 (모든 이벤트가 처리될 때까지 대기)
+        setTimeout(() => {
+          isHistoryAction.current = false;
+        }, 300);
+      });
+    } catch (error) {
+      log.error(`Exception during redo loadFromJSON: ${error}`);
+      historyIndex.current--;
+      isHistoryAction.current = false;
+    }
   };
 
   // 1️⃣ Fabric.js Canvas 초기화
@@ -473,6 +535,8 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
 
     // 히스토리 이벤트 리스너 (canvas 인스턴스 직접 사용)
     // 🐛 FIX: debounce 시간을 300ms로 증가하여 동시 이벤트 발생 시 한 번만 저장
+    // canvasInstance를 클로저로 캡처하여 사용
+    const canvasInstance = canvas;
     let saveTimeout: NodeJS.Timeout | null = null;
     const saveHistoryDebounced = () => {
       if (saveTimeout) {
@@ -485,7 +549,28 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
           return;
         }
 
-        const json = JSON.stringify(canvas.toJSON());
+        // Canvas가 없으면 저장 스킵
+        if (!canvasInstance) {
+          log.warning('Canvas is not initialized, skipping history save');
+          return;
+        }
+
+        // Canvas 상태 검증 후 저장
+        let canvasJSON: any;
+        try {
+          canvasJSON = canvasInstance.toJSON();
+        } catch (error) {
+          log.error(`Failed to serialize Canvas to JSON: ${error}`);
+          return; // 저장 실패 시 스킵
+        }
+
+        // JSON 유효성 검증
+        if (!canvasJSON || !Array.isArray(canvasJSON.objects)) {
+          log.error(`Invalid Canvas JSON (missing objects array), skipping save`);
+          return;
+        }
+
+        const json = JSON.stringify(canvasJSON);
         historyStack.current = historyStack.current.slice(0, historyIndex.current + 1);
         historyStack.current.push(json);
         historyIndex.current++;
@@ -508,6 +593,13 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
     // 클린업: 컴포넌트 언마운트 시 Canvas 제거
     return () => {
       log.init('Cleaning up Canvas and event listeners');
+
+      // Pending timeout clear (중요!)
+      if (saveTimeout) {
+        clearTimeout(saveTimeout);
+        saveTimeout = null;
+      }
+
       canvas.off('object:added', saveHistoryDebounced);
       canvas.off('object:removed', saveHistoryDebounced);
       canvas.off('object:modified', saveHistoryDebounced);

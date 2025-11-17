@@ -88,6 +88,7 @@ class CopywriterAgent(AgentBase):
             elapsed = (datetime.utcnow() - start_time).total_seconds()
             usage = {
                 "llm_tokens": llm_response.usage.get("total_tokens", 0),
+                "total_tokens": llm_response.usage.get("total_tokens", 0),  # GeneratorService가 사용
                 "elapsed_seconds": round(elapsed, 2)
             }
 
@@ -202,6 +203,67 @@ class CopywriterAgent(AgentBase):
 
         return enhanced
 
+    def _normalize_product_detail(self, content: dict) -> dict:
+        """
+        product_detail 응답의 필드명을 정규화
+
+        LLM이 다른 필드명을 사용할 경우를 대비하여
+        표준 필드명으로 변환하고 누락된 필드는 기본값으로 채움
+
+        Args:
+            content: LLM 응답 JSON
+
+        Returns:
+            정규화된 dict (headline, subheadline, body, bullets, cta)
+        """
+        normalized = {}
+
+        # headline (title, name 등으로 올 수 있음)
+        normalized["headline"] = (
+            content.get("headline") or
+            content.get("title") or
+            content.get("name") or
+            "제품명"
+        )
+
+        # subheadline (subtitle, tagline 등으로 올 수 있음)
+        normalized["subheadline"] = (
+            content.get("subheadline") or
+            content.get("subtitle") or
+            content.get("tagline") or
+            content.get("description", "")[:100] or  # body에서 첫 부분
+            "제품 설명"
+        )
+
+        # body (description, content 등으로 올 수 있음)
+        normalized["body"] = (
+            content.get("body") or
+            content.get("description") or
+            content.get("content") or
+            ""
+        )
+
+        # bullets (features, highlights, benefits 등으로 올 수 있음)
+        bullets = (
+            content.get("bullets") or
+            content.get("features") or
+            content.get("highlights") or
+            content.get("benefits") or
+            []
+        )
+        # 리스트가 아니면 빈 리스트로
+        normalized["bullets"] = bullets if isinstance(bullets, list) else []
+
+        # cta (call_to_action, action 등으로 올 수 있음)
+        normalized["cta"] = (
+            content.get("cta") or
+            content.get("call_to_action") or
+            content.get("action") or
+            "자세히 보기"
+        )
+
+        return normalized
+
     def _parse_llm_response(
         self,
         llm_output: LLMProviderOutput,
@@ -225,10 +287,12 @@ class CopywriterAgent(AgentBase):
 
             # 작업별로 적절한 이름으로 출력 생성
             if task == "product_detail":
+                # 필드명 정규화 (LLM이 다른 필드명을 사용할 경우 대비)
+                normalized_content = self._normalize_product_detail(content)
                 outputs.append(self._create_output(
                     output_type="json",
                     name="product_copy",
-                    value=content,
+                    value=normalized_content,
                     meta={"format": "structured_copy"}
                 ))
             elif task == "sns":

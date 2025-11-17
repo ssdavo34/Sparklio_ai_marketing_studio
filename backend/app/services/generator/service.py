@@ -120,18 +120,27 @@ class GeneratorService:
         # Document ID 생성
         doc_id = f"doc_{uuid.uuid4().hex[:12]}"
 
-        # 마지막 Agent 결과에서 텍스트 추출
-        last_result = workflow_result.results[-1] if workflow_result.results else None  # noqa: E501
+        # Copywriter Agent 결과에서 텍스트 추출 (첫 번째 Agent)
+        copywriter_result = None
+        for result in workflow_result.results:
+            if result.agent == "copywriter":
+                copywriter_result = result
+                break
 
         text_data = {}
 
-        if last_result and last_result.outputs:
+        if copywriter_result and copywriter_result.outputs:
+            logger.info(f"Found copywriter with {len(copywriter_result.outputs)} outputs")  # noqa: E501
             # outputs에서 텍스트 추출
-            for output in last_result.outputs:
+            for idx, output in enumerate(copywriter_result.outputs):
+                logger.info(f"Output[{idx}]: type={output.type}, name={output.name}")  # noqa: E501
                 if output.type == "json" and isinstance(output.value, dict):
+                    logger.info(f"  JSON keys: {list(output.value.keys())}")
                     text_data.update(output.value)
                 elif output.type == "text":
                     text_data["body"] = output.value
+        else:
+            logger.warning(f"No copywriter outputs found!")
 
         # TextPayload 생성
         text = TextPayload(
