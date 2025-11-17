@@ -67,7 +67,7 @@ export function CanvasViewport() {
   const toggleRightDock = useLayoutStore((state) => state.toggleRightDock);
 
   return (
-    <section className="relative flex flex-1 items-center justify-center overflow-auto bg-neutral-100">
+    <section className="relative flex flex-1 justify-center overflow-auto bg-neutral-100">
       {/* 캔버스 컨테이너 */}
       <div
         className="relative"
@@ -98,8 +98,8 @@ export function CanvasViewport() {
         )}
       </div>
 
-      {/* 줌 컨트롤 (우측 상단) */}
-      <div className="absolute right-4 top-4 flex items-center gap-2 rounded-lg bg-white px-3 py-2 shadow-md">
+      {/* 줌 컨트롤 (우측 상단) - sticky로 스크롤 시에도 고정 */}
+      <div className="sticky right-4 top-4 z-50 flex items-center gap-2 rounded-lg bg-white px-3 py-2 shadow-md self-start ml-auto mr-4 mt-4">
         {/* 줌 아웃 버튼 */}
         <button
           onClick={zoomOut}
@@ -166,8 +166,8 @@ export function CanvasViewport() {
         </button>
       </div>
 
-      {/* 좌측 하단 컨트롤 그룹 */}
-      <div className="absolute bottom-4 left-4 flex items-center gap-2">
+      {/* 좌측 하단 컨트롤 그룹 - sticky로 스크롤 시에도 고정 */}
+      <div className="sticky bottom-4 left-4 z-50 flex items-center gap-2 self-end ml-4 mb-4">
         {/* 좌측 패널 토글 (패널이 닫혀있을 때만 표시) */}
         {isLeftPanelCollapsed && (
           <button

@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "docs/PRD/Sparklio_V4_PRD_Final.md",
+                "file": "docs/API_CONTRACTS/README.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Sparklio_V4_PRD_Final"
+              "title": "README"
             }
           }
         ]
@@ -44,7 +44,7 @@
                 "autoReveal": false
               },
               "icon": "lucide-folder-closed",
-              "title": "파일 탐색기"
+              "title": "Files"
             }
           },
           {
@@ -78,7 +78,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 612.5
+    "width": 447.5
   },
   "right": {
     "id": "15beb3670869435c",
@@ -174,24 +174,33 @@
   },
   "left-ribbon": {
     "hiddenItems": {
-      "switcher:빠른 전환기 열기": false,
-      "graph:그래프 뷰 열기": false,
-      "canvas:새 캔버스 만들기": false,
-      "daily-notes:오늘의 일일 노트 열기": false,
-      "templates:템플릿 삽입": false,
-      "command-palette:명령어 팔레트 열기": false,
-      "bases:새 베이스 생성하기": false
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false
     }
   },
   "active": "6eb772d2c3e11c27",
   "lastOpenFiles": [
+    "frontend/components/canvas-studio/layout/CanvasViewport.tsx.tmp.37396.1763343076454",
+    "frontend/components/canvas-studio/hooks/useCanvasEngine.ts.tmp.37396.1763343018749",
+    "frontend/components/canvas-studio/hooks/useCanvasEngine.ts.tmp.37396.1763342980633",
+    "frontend/components/canvas-studio/layout/CanvasViewport.tsx.tmp.37396.1763342894379",
+    "docs/API_CONTRACTS/changelog.md",
+    "docs/DAILY_LOG_2025_11_15.md",
+    "docs/A_TEAM_DAILY_REPORT_2025_11_15.md",
+    "docs/A_TEAM_GUIDELINES.md",
+    "docs/WORK_PLANS/TEAM_A_INSTRUCTIONS.md",
+    "docs/PRD/Sparklio_V4_PRD_Final.md",
     "docs/PROJECT_STATUS_2025-11-15.md",
     "docs/PROJECT_STATUS_2025-11-15.md.tmp.35236.1763217494524",
     "docs/A_TEAM_NEXT_DAY_PLAN_2025_11_16.md",
     "docs/A_TEAM_NEXT_DAY_PLAN_2025_11_16.md.tmp.40472.1763217471876",
     "README_TEAMS_2025-11-18.md",
     "README_TEAMS_2025-11-18.md.tmp.24416.1763217454056",
-    "docs/A_TEAM_DAILY_REPORT_2025_11_15.md",
     "docs/A_TEAM_DAILY_REPORT_2025_11_15.md.tmp.40472.1763217397409",
     "docs/daily_reports/2025-11-15_C_TEAM_REPORT.md",
     "docs/daily_reports/2025-11-15_C_TEAM_REPORT.md.tmp.35236.1763217391617",
@@ -202,9 +211,6 @@
     "docs/DAILY_REPORT_2025_11_15.md.tmp.40472.1763217314391",
     "backend/B_TEAM_DAILY_REPORT_2025-11-15.md",
     "docs/daily_reports/2025-11-15_A_TEAM_REPORT.md",
-    "docs/daily_reports/2025-11-15_A_TEAM_REPORT.md.tmp.35236.1763217284530",
-    "docs/daily_reports",
-    "node_modules/yaml-js/test/yaml-spec/platform/javascript.js",
     "node_modules/yaml-js/test/yaml-spec/README.md",
     "node_modules/moment/CHANGELOG.md",
     "node_modules/jake/node_modules/async/CHANGELOG.md",
@@ -215,12 +221,6 @@
     "node_modules/undici/docs/docs/best-practices/client-certificate.md",
     "node_modules/undici/docs/docs/api/WebSocket.md",
     "node_modules/undici/docs/docs/api/Util.md",
-    "node_modules/undici/docs/docs/api/SnapshotAgent.md",
-    "node_modules/undici/docs/docs/api/RetryHandler.md",
-    "node_modules/undici/docs/docs/api/RetryAgent.md",
-    "node_modules/undici/docs/docs/api/RedirectHandler.md",
-    "node_modules/undici/docs/docs/api/ProxyAgent.md",
-    "node_modules/undici/docs/docs/api/PoolStats.md",
     "node_modules/artillery-plugin-expect/docs/expect-output.png",
     "node_modules/seedrandom/coverage/lcov-report/sort-arrow-sprite.png",
     "node_modules/nanotimer/test/nanotimer_non_deferred.png",

@@ -79,8 +79,7 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
   // Zustand Store에서 상태 가져오기
   // zoom은 useCanvasStore.ts의 setZoom()에서 직접 처리됨
   const showGrid = useCanvasStore((state) => state.showGrid);
-  const panX = useCanvasStore((state) => state.panX);
-  const panY = useCanvasStore((state) => state.panY);
+  // panX, panY는 CSS scroll로 대체되어 더 이상 사용하지 않음
   const setFabricCanvasToStore = useCanvasStore((state) => state.setFabricCanvas);
   const toggleLeftPanel = useLayoutStore((state) => state.toggleLeftPanel);
   const toggleRightDock = useLayoutStore((state) => state.toggleRightDock);
@@ -522,14 +521,8 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
   // 2️⃣ Zoom은 useCanvasStore.ts의 setZoom()에서 처리됨
   // (중복 적용 방지 - 이전에는 여기서도 줌을 적용해서 문제 발생)
 
-  // 3️⃣ Pan (이동) 변경 시 Canvas Viewport 업데이트
-  useEffect(() => {
-    if (!fabricCanvas || !fabricCanvas.viewportTransform) return;
-
-    fabricCanvas.viewportTransform[4] = panX;
-    fabricCanvas.viewportTransform[5] = panY;
-    fabricCanvas.requestRenderAll();
-  }, [fabricCanvas, panX, panY]);
+  // 3️⃣ Pan (이동)은 CSS scroll로 처리됨 (handleMouseMove에서 직접 조작)
+  // viewportTransform 사용 안 함 - CSS transform: scale()과 충돌 방지
 
   // 4️⃣ Grid 표시/숨김
   useEffect(() => {
@@ -625,12 +618,17 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
     const handleMouseMove = (opt: any) => {
       if (isPanning && isSpacePressed) {
         const evt = opt.e;
-        const vpt = fabricCanvas.viewportTransform;
-        if (vpt) {
-          vpt[4] += evt.clientX - lastPosX;
-          vpt[5] += evt.clientY - lastPosY;
-          fabricCanvas.requestRenderAll();
+
+        // CSS scroll 직접 조작 (CanvasViewport의 section 요소 찾기)
+        const section = canvasRef.current?.closest('section');
+        if (section) {
+          const deltaX = evt.clientX - lastPosX;
+          const deltaY = evt.clientY - lastPosY;
+
+          section.scrollLeft -= deltaX;
+          section.scrollTop -= deltaY;
         }
+
         lastPosX = evt.clientX;
         lastPosY = evt.clientY;
       }
