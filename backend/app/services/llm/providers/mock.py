@@ -145,15 +145,15 @@ class MockProvider(LLMProvider):
         if role == "copywriter":
             if task == "product_detail":
                 return {
-                    "title": "프리미엄 무선 이어폰 X1",
-                    "description": "완벽한 음질과 편안한 착용감을 제공하는 차세대 무선 이어폰",
-                    "features": [
-                        "노이즈 캔슬링 기술",
-                        "24시간 배터리",
-                        "IPX7 방수"
+                    "headline": "프리미엄 무선 이어폰 X1 - 완벽한 사운드의 시작",
+                    "subheadline": "음질과 편안함이 만나 새로운 경험을 선사합니다",
+                    "body": "완벽한 음질과 편안한 착용감을 제공하는 차세대 무선 이어폰. 혁신적인 기술로 당신의 일상에 특별함을 더합니다.",
+                    "bullets": [
+                        "프리미엄 노이즈 캔슬링 기술",
+                        "24시간 장시간 배터리",
+                        "IPX7 완벽 방수"
                     ],
-                    "target_audience": "음질을 중시하는 2030 세대",
-                    "tone": "프리미엄, 혁신적"
+                    "cta": "지금 바로 경험하기"
                 }
             elif task == "sns":
                 return {

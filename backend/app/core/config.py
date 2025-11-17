@@ -1,4 +1,4 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 from typing import Optional, Literal
 import os
@@ -44,6 +44,43 @@ class Settings(BaseSettings):
     )
     ollama_timeout: int = Field(120, env="OLLAMA_TIMEOUT")
     ollama_default_model: str = Field("qwen2.5:7b", env="OLLAMA_DEFAULT_MODEL")
+
+    # OpenAI API
+    openai_api_key: str = Field("", env="OPENAI_API_KEY")
+    openai_default_model: str = Field("gpt-4o-mini", env="OPENAI_DEFAULT_MODEL")
+    openai_timeout: int = Field(60, env="OPENAI_TIMEOUT")
+
+    # Anthropic API (Claude)
+    anthropic_api_key: str = Field("", env="ANTHROPIC_API_KEY")
+    anthropic_default_model: str = Field(
+        "claude-3-5-haiku-20241022",
+        env="ANTHROPIC_DEFAULT_MODEL"
+    )
+    anthropic_timeout: int = Field(60, env="ANTHROPIC_TIMEOUT")
+
+    # Google Gemini API
+    google_api_key: str = Field("", env="GOOGLE_API_KEY")
+    gemini_text_model: str = Field(
+        "gemini-2.5-flash-preview",
+        env="GEMINI_TEXT_MODEL"
+    )
+    gemini_image_model: str = Field(
+        "gemini-2.5-flash-image",
+        env="GEMINI_IMAGE_MODEL"
+    )
+    gemini_timeout: int = Field(60, env="GEMINI_TIMEOUT")
+
+    # Novita AI (Llama 3.3 70B)
+    novita_api_key: str = Field("", env="NOVITA_API_KEY")
+    novita_base_url: str = Field(
+        "https://api.novita.ai/v3/openai",
+        env="NOVITA_BASE_URL"
+    )
+    novita_default_model: str = Field(
+        "meta-llama/llama-3.3-70b-instruct",
+        env="NOVITA_DEFAULT_MODEL"
+    )
+    novita_timeout: int = Field(60, env="NOVITA_TIMEOUT")
 
     # AI Workers - Media (ComfyUI) - 소문자 필드명 사용
     comfyui_base_url: str = Field(
@@ -97,6 +134,66 @@ class Settings(BaseSettings):
         """Deprecated: Use ollama_default_model instead"""
         return self.ollama_default_model
 
+    # OpenAI 대문자 속성
+    @property
+    def OPENAI_API_KEY(self) -> str:
+        return self.openai_api_key
+
+    @property
+    def OPENAI_DEFAULT_MODEL(self) -> str:
+        return self.openai_default_model
+
+    @property
+    def OPENAI_TIMEOUT(self) -> int:
+        return self.openai_timeout
+
+    # Anthropic 대문자 속성
+    @property
+    def ANTHROPIC_API_KEY(self) -> str:
+        return self.anthropic_api_key
+
+    @property
+    def ANTHROPIC_DEFAULT_MODEL(self) -> str:
+        return self.anthropic_default_model
+
+    @property
+    def ANTHROPIC_TIMEOUT(self) -> int:
+        return self.anthropic_timeout
+
+    # Google 대문자 속성
+    @property
+    def GOOGLE_API_KEY(self) -> str:
+        return self.google_api_key
+
+    @property
+    def GEMINI_TEXT_MODEL(self) -> str:
+        return self.gemini_text_model
+
+    @property
+    def GEMINI_IMAGE_MODEL(self) -> str:
+        return self.gemini_image_model
+
+    @property
+    def GEMINI_TIMEOUT(self) -> int:
+        return self.gemini_timeout
+
+    # Novita 대문자 속성
+    @property
+    def NOVITA_API_KEY(self) -> str:
+        return self.novita_api_key
+
+    @property
+    def NOVITA_BASE_URL(self) -> str:
+        return self.novita_base_url
+
+    @property
+    def NOVITA_DEFAULT_MODEL(self) -> str:
+        return self.novita_default_model
+
+    @property
+    def NOVITA_TIMEOUT(self) -> int:
+        return self.novita_timeout
+
     @property
     def COMFYUI_BASE_URL(self) -> str:
         """Deprecated: Use comfyui_base_url instead"""
@@ -107,11 +204,12 @@ class Settings(BaseSettings):
         """Deprecated: Use comfyui_timeout instead"""
         return self.comfyui_timeout
 
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = True
-        extra = "ignore"  # Ignore extra fields from .env
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore"
+    )
 
 # Global settings instance
 settings = Settings()

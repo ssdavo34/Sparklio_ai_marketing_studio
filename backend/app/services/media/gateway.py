@@ -16,6 +16,7 @@ from app.core.config import settings
 from .providers.base import MediaProvider, MediaProviderResponse, ProviderError
 from .providers.mock import MockMediaProvider
 from .providers.comfyui import ComfyUIProvider
+from .providers.nanobanana_provider import NanoBananaProvider
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +64,16 @@ class MediaGateway:
                 timeout=settings.comfyui_timeout
             )
             logger.info("ComfyUI Provider initialized successfully")
+
+            # Nano Banana Provider (Gemini Image Generation)
+            if hasattr(settings, 'GOOGLE_API_KEY') and settings.GOOGLE_API_KEY:
+                logger.info("Initializing Nano Banana Provider...")
+                self.providers["nanobanana"] = NanoBananaProvider(
+                    api_key=settings.GOOGLE_API_KEY,
+                    default_model=settings.GEMINI_IMAGE_MODEL,
+                    timeout=settings.GEMINI_TIMEOUT
+                )
+                logger.info("Nano Banana Provider initialized successfully")
 
             logger.info(f"All Media Providers initialized: {list(self.providers.keys())}")
 
@@ -169,7 +180,11 @@ class MediaGateway:
 
         # Live 모드 - 미디어 타입별 Provider 결정
         if media_type == "image":
-            provider_name = "comfyui"
+            # 나노바나나 우선, 없으면 ComfyUI
+            if "nanobanana" in self.providers:
+                provider_name = "nanobanana"
+            else:
+                provider_name = "comfyui"
         elif media_type == "video":
             # 추후 비디오 Provider 추가
             logger.warning("Video provider not implemented, falling back to mock")

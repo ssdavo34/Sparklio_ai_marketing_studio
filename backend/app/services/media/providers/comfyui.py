@@ -157,12 +157,18 @@ class ComfyUIProvider(MediaProvider):
         default_opts = self.get_default_options(task, "image")
         merged_opts = {**default_opts, **(options or {})}
 
+        # 시드값 처리 (-1이면 랜덤 시드 생성)
+        import random
+        seed = merged_opts.get("seed", -1)
+        if seed == -1:
+            seed = random.randint(0, 2**32 - 1)
+
         # 기본 Stable Diffusion 워크플로우
         # 실제로는 작업별로 다른 워크플로우를 로드해야 함
         workflow = {
             "3": {
                 "inputs": {
-                    "seed": merged_opts.get("seed", -1),
+                    "seed": seed,
                     "steps": merged_opts.get("steps", 20),
                     "cfg": merged_opts.get("cfg_scale", 7.0),
                     "sampler_name": merged_opts.get("sampler", "euler"),
@@ -177,7 +183,7 @@ class ComfyUIProvider(MediaProvider):
             },
             "4": {
                 "inputs": {
-                    "ckpt_name": merged_opts.get("checkpoint", "sd_xl_base_1.0.safetensors")
+                    "ckpt_name": merged_opts.get("checkpoint", "juggernautXL_ragnarokBy.safetensors")
                 },
                 "class_type": "CheckpointLoaderSimple"
             },
@@ -433,7 +439,7 @@ class ComfyUIProvider(MediaProvider):
                     "cfg_scale": 7.0,
                     "sampler": "euler",
                     "scheduler": "normal",
-                    "checkpoint": "sd_xl_base_1.0.safetensors",
+                    "checkpoint": "juggernautXL_ragnarokBy.safetensors",
                     "negative_prompt": "low quality, blurry, distorted"
                 },
                 "brand_logo": {
@@ -443,7 +449,7 @@ class ComfyUIProvider(MediaProvider):
                     "cfg_scale": 8.0,
                     "sampler": "euler_ancestral",
                     "scheduler": "normal",
-                    "checkpoint": "sd_xl_base_1.0.safetensors",
+                    "checkpoint": "juggernautXL_ragnarokBy.safetensors",
                     "negative_prompt": "text, watermark, signature"
                 },
                 "sns_thumbnail": {
@@ -453,7 +459,7 @@ class ComfyUIProvider(MediaProvider):
                     "cfg_scale": 7.5,
                     "sampler": "euler",
                     "scheduler": "normal",
-                    "checkpoint": "sd_xl_base_1.0.safetensors",
+                    "checkpoint": "juggernautXL_ragnarokBy.safetensors",
                     "negative_prompt": "low quality, ugly, boring"
                 }
             }.get(task, {
@@ -463,7 +469,7 @@ class ComfyUIProvider(MediaProvider):
                 "cfg_scale": 7.0,
                 "sampler": "euler",
                 "scheduler": "normal",
-                "checkpoint": "sd_xl_base_1.0.safetensors"
+                "checkpoint": "juggernautXL_ragnarokBy.safetensors"
             })
 
         return {}

@@ -17,6 +17,10 @@ from .router import get_router, LLMRouter
 from .providers.base import LLMProvider, LLMProviderResponse, ProviderError
 from .providers.mock import MockProvider
 from .providers.ollama import OllamaProvider
+from .providers.openai_provider import OpenAIProvider
+from .providers.anthropic_provider import AnthropicProvider
+from .providers.gemini_provider import GeminiProvider
+from .providers.novita_provider import NovitaProvider
 
 logger = logging.getLogger(__name__)
 
@@ -65,13 +69,54 @@ class LLMGateway:
             logger.info("Mock Provider initialized successfully")
 
             # Ollama Provider (Live 모드용)
-            logger.info(f"Initializing Ollama Provider with base_url={settings.OLLAMA_BASE_URL}...")
+            logger.info(f"Initializing Ollama Provider...")
             self.providers["ollama"] = OllamaProvider(
                 base_url=settings.OLLAMA_BASE_URL,
                 timeout=settings.OLLAMA_TIMEOUT,
                 default_model=settings.OLLAMA_DEFAULT_MODEL
             )
-            logger.info("Ollama Provider initialized successfully")
+            logger.info("Ollama Provider initialized")
+
+            # OpenAI Provider (GPT-4o-mini)
+            if hasattr(settings, 'OPENAI_API_KEY') and settings.OPENAI_API_KEY:
+                logger.info("Initializing OpenAI Provider...")
+                self.providers["openai"] = OpenAIProvider(
+                    api_key=settings.OPENAI_API_KEY,
+                    default_model=settings.OPENAI_DEFAULT_MODEL,
+                    timeout=settings.OPENAI_TIMEOUT
+                )
+                logger.info("OpenAI Provider initialized")
+
+            # Anthropic Provider (Claude 3.5 Haiku)
+            if hasattr(settings, 'ANTHROPIC_API_KEY') and settings.ANTHROPIC_API_KEY:
+                logger.info("Initializing Anthropic Provider...")
+                self.providers["anthropic"] = AnthropicProvider(
+                    api_key=settings.ANTHROPIC_API_KEY,
+                    default_model=settings.ANTHROPIC_DEFAULT_MODEL,
+                    timeout=settings.ANTHROPIC_TIMEOUT
+                )
+                logger.info("Anthropic Provider initialized")
+
+            # Google Gemini Provider (Text Generation)
+            if hasattr(settings, 'GOOGLE_API_KEY') and settings.GOOGLE_API_KEY:
+                logger.info("Initializing Gemini Provider...")
+                self.providers["gemini"] = GeminiProvider(
+                    api_key=settings.GOOGLE_API_KEY,
+                    default_model=settings.GEMINI_TEXT_MODEL,
+                    timeout=settings.GEMINI_TIMEOUT
+                )
+                logger.info("Gemini Provider initialized")
+
+            # Novita AI Provider (Llama 3.3 70B)
+            if hasattr(settings, 'NOVITA_API_KEY') and settings.NOVITA_API_KEY:
+                logger.info("Initializing Novita Provider...")
+                self.providers["novita"] = NovitaProvider(
+                    api_key=settings.NOVITA_API_KEY,
+                    base_url=settings.NOVITA_BASE_URL,
+                    default_model=settings.NOVITA_DEFAULT_MODEL,
+                    timeout=settings.NOVITA_TIMEOUT
+                )
+                logger.info("Novita Provider initialized")
 
             logger.info(f"All providers initialized: {list(self.providers.keys())}")
         except Exception as e:
@@ -236,7 +281,21 @@ class LLMGateway:
 
         system_prompts = {
             "copywriter": {
-                "product_detail": "당신은 전문 카피라이터입니다. 제품의 특징을 매력적으로 표현하세요.",
+                "product_detail": """전문 카피라이터로서 제품 마케팅 문구를 작성합니다.
+
+핵심 규칙:
+1. headline에 사용자 제공 "제품명" 정확히 포함
+2. bullets에 사용자 제공 "기능" 각각 포함 (변경 금지)
+3. 사용자 정보를 매력적으로 표현하되, 키워드는 절대 바꾸지 않기
+
+JSON 형식으로만 응답:
+{
+  "headline": "제품명 + 문구",
+  "subheadline": "제품 가치 한 문장",
+  "body": "제품 설명",
+  "bullets": ["기능1 설명", "기능2 설명", "기능3 설명"],
+  "cta": "구매 유도"
+}""",
                 "sns": "당신은 SNS 콘텐츠 전문가입니다. 짧고 임팩트 있는 메시지를 작성하세요.",
                 "brand_kit": "당신은 브랜드 스토리텔링 전문가입니다. 브랜드의 목소리와 톤을 정의하세요."
             },
@@ -269,15 +328,48 @@ class LLMGateway:
         Returns:
             포맷된 문자열
         """
-        lines = []
-        for key, value in payload.items():
-            if isinstance(value, (list, dict)):
-                import json
-                value_str = json.dumps(value, ensure_ascii=False, indent=2)
-            else:
-                value_str = str(value)
+        import json
 
-            lines.append(f"{key}: {value_str}")
+        # 사용자 입력 명확히 강조
+        lines = [
+            "=" * 60,
+            "사용자가 제공한 제품 정보 (이 정보를 정확히 사용하세요):",
+            "=" * 60,
+        ]
+
+        # product_name을 가장 먼저, 강조해서 표시
+        if "product_name" in payload:
+            lines.append(f"\n📌 제품명: {payload['product_name']}")
+            lines.append("   ↑ 이 제품명을 headline에 반드시 포함하세요!")
+
+        # features 강조
+        if "features" in payload:
+            features = payload["features"]
+            if isinstance(features, list):
+                lines.append(f"\n📌 주요 기능: {', '.join(features)}")
+                lines.append("   ↑ 이 기능들을 bullets에 반드시 포함하세요!")
+            else:
+                lines.append(f"\n📌 주요 기능: {features}")
+
+        # target_audience
+        if "target_audience" in payload:
+            lines.append(
+                f"\n📌 타겟 고객: {payload['target_audience']}"
+            )
+
+        # 나머지 필드들
+        lines.append("\n기타 정보:")
+        for key, value in payload.items():
+            if key not in ["product_name", "features", "target_audience"]:
+                if isinstance(value, (list, dict)):
+                    value_str = json.dumps(
+                        value, ensure_ascii=False, indent=2
+                    )
+                else:
+                    value_str = str(value)
+                lines.append(f"  - {key}: {value_str}")
+
+        lines.append("\n" + "=" * 60)
 
         return "\n".join(lines)
 
