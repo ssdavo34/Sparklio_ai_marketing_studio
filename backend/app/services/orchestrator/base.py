@@ -6,7 +6,7 @@ Orchestrator Base Classes
 작성일: 2025-11-17
 """
 
-from typing import List, Dict, Any, Optional, Literal
+from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
 from enum import Enum
 import asyncio
@@ -244,10 +244,12 @@ class WorkflowExecutor:
                         value = value[key_name][index]
                     else:
                         value = value[key]
-                return json.dumps(value) if not isinstance(value, str) else value
+                # JSON 값으로 변환
+                return json.dumps(value, ensure_ascii=False)
             except (KeyError, IndexError, TypeError):
                 return match.group(0)  # 치환 실패 시 원본 유지
 
-        payload_str = re.sub(r'\$\{([^}]+)\}', replace_var, payload_str)
+        # 템플릿에서 "${...}" 패턴을 찾아서 치환 (따옴표 포함)
+        payload_str = re.sub(r'"\$\{([^}]+)\}"', replace_var, payload_str)
 
         return json.loads(payload_str)
