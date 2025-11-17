@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "docs/API_CONTRACTS/README.md",
+                "file": "docs/A_TEAM_COMPREHENSIVE_PROGRESS_REPORT_2025_11_17.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "README"
+              "title": "A_TEAM_COMPREHENSIVE_PROGRESS_REPORT_2025_11_17"
             }
           }
         ]
@@ -78,7 +78,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 447.5
+    "width": 342.5
   },
   "right": {
     "id": "15beb3670869435c",
@@ -185,18 +185,20 @@
   },
   "active": "6eb772d2c3e11c27",
   "lastOpenFiles": [
+    "backend/app/services/orchestrator/workflows.py",
+    "backend/app/services/orchestrator/workflows.py.tmp.28564.1763344261580",
+    "backend/app/services/orchestrator/base.py",
+    "backend/app/services/orchestrator/base.py.tmp.28564.1763344211915",
+    "backend/app/services/orchestrator/__init__.py",
+    "backend/app/services/orchestrator/__init__.py.tmp.28564.1763344173923",
+    "backend/app/services/orchestrator",
+    "docs/API_CONTRACTS/README.md",
     "backend/EOD_REPORT_2025-11-17_Phase2-2.md",
     "backend/EOD_REPORT_2025-11-17_Phase2-2.md.tmp.28564.1763343969694",
     "docs/A_TEAM_COMPREHENSIVE_PROGRESS_REPORT_2025_11_17.md",
     "docs/A_TEAM_COMPREHENSIVE_PROGRESS_REPORT_2025_11_17.md.tmp.10384.1763343684565",
     "backend/app/api/v1/endpoints/__pycache__/agents_new.cpython-311.pyc",
     "backend/test_agents_api.py",
-    "backend/test_agents_api.py.tmp.28564.1763343437033",
-    "backend/app/api/v1/router.py.tmp.28564.1763343145246",
-    "backend/app/api/v1/endpoints/agents_new.py",
-    "backend/app/api/v1/endpoints/agents_new.py.tmp.28564.1763343128004",
-    "frontend/components/canvas-studio/layout/CanvasViewport.tsx.tmp.37396.1763343076454",
-    "frontend/components/canvas-studio/hooks/useCanvasEngine.ts.tmp.37396.1763343018749",
     "docs/API_CONTRACTS/changelog.md",
     "docs/DAILY_LOG_2025_11_15.md",
     "docs/A_TEAM_DAILY_REPORT_2025_11_15.md",
@@ -219,8 +221,6 @@
     "node_modules/undici/docs/docs/best-practices/writing-tests.md",
     "node_modules/undici/docs/docs/best-practices/proxy.md",
     "node_modules/undici/docs/docs/best-practices/mocking-request.md",
-    "node_modules/undici/docs/docs/best-practices/client-certificate.md",
-    "node_modules/undici/docs/docs/api/WebSocket.md",
     "node_modules/artillery-plugin-expect/docs/expect-output.png",
     "node_modules/seedrandom/coverage/lcov-report/sort-arrow-sprite.png",
     "node_modules/nanotimer/test/nanotimer_non_deferred.png",
