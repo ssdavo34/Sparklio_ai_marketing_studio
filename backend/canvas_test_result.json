@@ -1,0 +1,65 @@
+{
+  "kind": "product_detail",
+  "document": {
+    "documentId": "doc_dc03b9767c5e",
+    "type": "product_detail",
+    "canvas_json": {
+      "version": "5.3.0",
+      "objects": [
+        {
+          "type": "rect",
+          "version": "5.3.0",
+          "originX": "left",
+          "originY": "top",
+          "left": 0,
+          "top": 0,
+          "width": 1200,
+          "height": 400,
+          "fill": "#f3f4f6",
+          "stroke": null,
+          "strokeWidth": 0,
+          "strokeDashArray": null,
+          "strokeLineCap": "butt",
+          "strokeLineJoin": "miter",
+          "strokeMiterLimit": 4,
+          "scaleX": 1,
+          "scaleY": 1,
+          "angle": 0,
+          "flipX": false,
+          "flipY": false,
+          "opacity": 1,
+          "shadow": null,
+          "visible": true,
+          "backgroundColor": "",
+          "fillRule": "nonzero",
+          "paintFirst": "fill",
+          "globalCompositeOperation": "source-over",
+          "skewX": 0,
+          "skewY": 0,
+          "rx": 0,
+          "ry": 0
+        }
+      ],
+      "background": "#ffffff"
+    }
+  },
+  "text": {
+    "headline": null,
+    "subheadline": null,
+    "body": null,
+    "bullets": null,
+    "cta": null
+  },
+  "meta": {
+    "workflow": "product_content_pipeline",
+    "agents_used": [
+      "copywriter",
+      "reviewer",
+      "optimizer"
+    ],
+    "elapsed_seconds": 11.094802856445312,
+    "tokens_used": 0,
+    "steps_completed": 3,
+    "total_steps": 3
+  }
+}

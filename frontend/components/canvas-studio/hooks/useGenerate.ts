@@ -70,16 +70,16 @@ export function useGenerate(): UseGenerateResult {
   async function generate(
     kind: GenerateKind,
     prompt: string,
-    brandId?: string,
-    locale: string = "ko-KR"
+    brandId?: string
   ): Promise<GenerateResponse> {
     setIsLoading(true);
     setError(null);
 
     try {
       // Backend 서버가 없을 경우 Mock 데이터 사용
+      // 포트 8001 = 실제 Backend, 그 외 = Mock
       const USE_MOCK = !process.env.NEXT_PUBLIC_API_BASE_URL ||
-                       process.env.NEXT_PUBLIC_API_BASE_URL.includes('localhost:8000');
+                       !process.env.NEXT_PUBLIC_API_BASE_URL.includes('localhost:8001');
 
       let res: GenerateResponse;
 
@@ -94,10 +94,12 @@ export function useGenerate(): UseGenerateResult {
         // 실제 Backend API 호출
         res = await apiClient.generate({
           kind,
-          brandId: brandId || null,
-          locale,
-          input: { prompt },
-          context: {},
+          brandId: brandId || "brand_demo", // Backend는 null 불가, 기본값 사용
+          input: { prompt }, // 프롬프트를 input에 포함
+          options: {
+            tone: "professional",
+            length: "medium",
+          },
         });
       }
 
@@ -180,23 +182,27 @@ function createMockResponse(kind: GenerateKind, prompt: string): GenerateRespons
     background: "#f3f4f6",
   };
 
+  // Backend 실제 스키마 형식으로 반환
   return {
-    taskId: `mock_task_${Date.now()}`,
     kind,
-    textBlocks: {
-      headline: `${kind} - Mock 헤드라인`,
-      description: `프롬프트: ${prompt}`,
-    },
-    editorDocument: {
+    document: {
       documentId: `mock_doc_${Date.now()}`,
       type: kind,
       canvas_json: mockCanvasJson,
-      pages: [],
+    },
+    text: {
+      headline: `${kind} - Mock 헤드라인`,
+      subheadline: "Mock 서브헤드라인",
+      body: `프롬프트: ${prompt}`,
+      bullets: ["Mock 포인트 1", "Mock 포인트 2", "Mock 포인트 3"],
     },
     meta: {
-      templates_used: ["mock_template"],
-      agents_trace: [],
-      llm_cost: {},
+      workflow: "mock_workflow",
+      agents_used: ["mock_agent_1", "mock_agent_2"],
+      elapsed_seconds: 1.0,
+      tokens_used: 100,
+      steps_completed: 1,
+      total_steps: 1,
     },
   };
 }

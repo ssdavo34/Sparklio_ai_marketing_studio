@@ -1,9 +1,11 @@
 /**
  * API Type Definitions
  *
- * Backend API 스펙 기반 타입 정의
+ * Backend API 스펙 기반 타입 정의 (B팀 실제 스키마에 정렬)
  * - POST /api/v1/generate
  * - GET/POST/PATCH /api/v1/documents
+ *
+ * @version 2.0 - Backend 스키마 정렬 완료 (2025-11-17)
  */
 
 // ============================================================================
@@ -28,36 +30,92 @@ export type GenerateKind =
  * Generate 요청
  *
  * POST /api/v1/generate
+ *
+ * Backend 실제 스키마:
+ * - brandId: string (필수, "brand_demo" 사용 가능)
+ * - input: 구조화된 데이터 (kind에 따라 다름)
+ * - options: 선택적 옵션 (tone, length 등)
  */
 export interface GenerateRequest {
   kind: GenerateKind;
-  brandId?: string | null;
-  locale?: string; // default: "ko-KR"
-  channel?: string | null; // shop_detail, instagram, blog 등
-  input: Record<string, any>;
-  context?: Record<string, any>;
+  brandId: string; // 필수 (null 불가)
+  input: GenerateInput;
+  options?: GenerateOptions;
+}
+
+/**
+ * Generate 입력 데이터
+ *
+ * kind에 따라 필요한 필드가 다름:
+ * - product_detail: product_name, features, target_audience
+ * - sns: topic, platform, style
+ * - brand_kit: brand_name, description
+ */
+export interface GenerateInput {
+  // Product Detail 전용
+  product_name?: string;
+  features?: string[];
+  target_audience?: string;
+
+  // SNS 전용
+  topic?: string;
+  platform?: string; // instagram, facebook 등
+  style?: string;
+
+  // Brand Kit 전용
+  brand_name?: string;
+  description?: string;
+
+  // 자유 프롬프트 (fallback)
+  prompt?: string;
+
+  // 기타 kind별 필드 확장 가능
+  [key: string]: any;
+}
+
+/**
+ * Generate 옵션
+ */
+export interface GenerateOptions {
+  tone?: string; // professional, casual, friendly 등
+  length?: string; // short, medium, long
+  [key: string]: any;
 }
 
 /**
  * Generate 응답
  *
- * Backend의 GenerationResult 스키마
+ * Backend 실제 스키마:
+ * - kind: string
+ * - document: { documentId, type, canvas_json }
+ * - text: { headline, subheadline, body, bullets }
+ * - meta: { workflow, agents_used, elapsed_seconds, tokens_used, ... }
  */
 export interface GenerateResponse {
-  taskId: string;
   kind: GenerateKind;
-  textBlocks: Record<string, any>; // headline, description 등
-  editorDocument: {
-    documentId?: string;
+  document: {
+    documentId: string;
     type: string;
-    pages: any[]; // Fabric.js 페이지 배열
-    // OR
-    canvas_json?: any; // Fabric.Canvas.toJSON() 결과 (간소화 버전)
+    canvas_json: {
+      version: string;
+      objects: any[];
+      background?: string;
+    };
   };
-  meta?: {
-    templates_used?: string[];
-    agents_trace?: any[];
-    llm_cost?: Record<string, any>;
+  text: {
+    headline?: string;
+    subheadline?: string;
+    body?: string;
+    bullets?: string[];
+    [key: string]: any; // kind별 추가 필드
+  };
+  meta: {
+    workflow: string;
+    agents_used: string[];
+    elapsed_seconds: number;
+    tokens_used: number;
+    steps_completed: number;
+    total_steps: number;
   };
 }
 

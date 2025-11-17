@@ -22,6 +22,11 @@ from app.services.orchestrator.workflows import (
     BrandIdentityWorkflow,
     ContentReviewWorkflow
 )
+from app.services.canvas import (
+    create_product_detail_canvas,
+    create_brand_identity_canvas,
+    create_sns_set_canvas
+)
 
 logger = logging.getLogger(__name__)
 
@@ -119,7 +124,6 @@ class GeneratorService:
         last_result = workflow_result.results[-1] if workflow_result.results else None  # noqa: E501
 
         text_data = {}
-        canvas_data = {"version": "5.3.0", "objects": []}
 
         if last_result and last_result.outputs:
             # outputs에서 텍스트 추출
@@ -138,7 +142,12 @@ class GeneratorService:
             cta=text_data.get("cta")
         )
 
-        # DocumentPayload 생성 (향후 Canvas 통합)
+        # Canvas JSON 생성 (kind별 레이아웃)
+        logger.info(f"Creating canvas for kind={kind}, text_data={text_data}")
+        canvas_data = self._create_canvas(kind, text_data)
+        logger.info(f"Canvas created: {len(canvas_data.get('objects', []))} objects")
+
+        # DocumentPayload 생성
         document = DocumentPayload(
             documentId=doc_id,
             type=kind,
@@ -166,3 +175,24 @@ class GeneratorService:
             text=text,
             meta=meta
         )
+
+    def _create_canvas(self, kind: str, text_data: dict) -> dict:
+        """
+        kind에 따라 Canvas JSON 생성
+
+        Args:
+            kind: 생성 타입
+            text_data: 텍스트 데이터
+
+        Returns:
+            Fabric.js Canvas JSON
+        """
+        if kind == "product_detail":
+            return create_product_detail_canvas(text_data)
+        elif kind == "brand_identity":
+            return create_brand_identity_canvas(text_data)
+        elif kind == "sns_set":
+            return create_sns_set_canvas(text_data)
+        else:
+            # 기본 Canvas (빈 객체)
+            return {"version": "5.3.0", "objects": [], "background": "#ffffff"}

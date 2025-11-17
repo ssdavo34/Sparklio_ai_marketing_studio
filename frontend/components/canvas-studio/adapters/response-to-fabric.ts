@@ -17,8 +17,7 @@ import type { GenerateResponse } from "@/lib/api/types";
 /**
  * Generate 응답을 Fabric.js Canvas에 적용
  *
- * Backend의 editorDocument.canvas_json 또는 editorDocument.pages를 파싱하여
- * Fabric.js Canvas에 객체로 로드합니다.
+ * Backend의 document.canvas_json을 파싱하여 Fabric.js Canvas에 객체로 로드합니다.
  *
  * @param canvas - Fabric.js Canvas 인스턴스
  * @param response - Generate API 응답
@@ -33,69 +32,26 @@ export async function applyGenerateResponseToCanvas(
     return;
   }
 
-  const { editorDocument } = response;
+  const { document } = response;
 
-  if (!editorDocument) {
-    console.error("[Fabric Adapter] No editorDocument in response");
+  if (!document || !document.canvas_json) {
+    console.error("[Fabric Adapter] No document.canvas_json in response");
     return;
   }
 
-  // 방법 1: editorDocument.canvas_json이 있는 경우 (Fabric.js 직렬화 형식)
-  if (editorDocument.canvas_json) {
-    console.log(
-      "[Fabric Adapter] Loading from canvas_json:",
-      editorDocument.canvas_json
-    );
-
-    return new Promise((resolve, reject) => {
-      canvas.loadFromJSON(editorDocument.canvas_json, () => {
-        console.log("[Fabric Adapter] Canvas loaded successfully");
-        canvas.renderAll();
-        resolve();
-      }, (error: any) => {
-        console.error("[Fabric Adapter] Failed to load canvas_json:", error);
-        reject(error);
-      });
-    });
-  }
-
-  // 방법 2: editorDocument.pages가 있는 경우 (Multi-page format)
-  if (editorDocument.pages && Array.isArray(editorDocument.pages)) {
-    console.log(
-      `[Fabric Adapter] Loading from pages (${editorDocument.pages.length} pages)`
-    );
-
-    // P0: 첫 번째 페이지만 로드 (Single Page Editor)
-    const firstPage = editorDocument.pages[0];
-
-    if (!firstPage) {
-      console.warn("[Fabric Adapter] No pages found in editorDocument");
-      return;
-    }
-
-    // pages[0]에 Fabric JSON이 있다고 가정
-    return new Promise((resolve, reject) => {
-      canvas.loadFromJSON(firstPage, () => {
-        console.log("[Fabric Adapter] First page loaded successfully");
-        canvas.renderAll();
-        resolve();
-      }, (error: any) => {
-        console.error("[Fabric Adapter] Failed to load first page:", error);
-        reject(error);
-      });
-    });
-  }
-
-  // 방법 3: editorDocument 자체가 Fabric JSON인 경우
-  console.log("[Fabric Adapter] Trying to load editorDocument as Fabric JSON");
+  // Backend 스키마: document.canvas_json (Fabric.js 직렬화 형식)
+  console.log(
+    "[Fabric Adapter] Loading from document.canvas_json:",
+    document.canvas_json
+  );
 
   return new Promise((resolve, reject) => {
-    canvas.loadFromJSON(editorDocument, () => {
-      console.log("[Fabric Adapter] editorDocument loaded successfully");
+    canvas.loadFromJSON(document.canvas_json, () => {
+      console.log("[Fabric Adapter] Canvas loaded successfully");
       canvas.renderAll();
       resolve();
     }, (error: any) => {
-      console.error("[Fabric Adapter] Failed to load editorDocument:", error);
+      console.error("[Fabric Adapter] Failed to load canvas_json:", error);
       reject(error);
     });
   });
