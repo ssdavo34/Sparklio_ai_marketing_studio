@@ -4,9 +4,10 @@ Generator Service
 WorkflowExecutor + Agent를 사용한 콘텐츠 생성 서비스
 
 작성일: 2025-11-17
+수정일: 2025-11-18 (prompt 자동 변환 추가)
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import logging
 import uuid
 
@@ -82,11 +83,10 @@ class GeneratorService:
         workflow_def = workflow_cls.get_definition()
 
         # input을 initial_payload로 변환
-        initial_payload = {
-            **req.input,
-            "brand_id": req.brandId,
-            **(req.options or {})
-        }
+        # 🔴 자유 형식 입력(prompt) → 구조화된 데이터 자동 변환
+        initial_payload = self._prepare_workflow_payload(req.kind, req.input, req.brandId, req.options)
+
+        logger.info(f"Workflow payload prepared: {initial_payload}")
 
         result = await self.executor.execute(
             workflow=workflow_def,
@@ -101,6 +101,54 @@ class GeneratorService:
 
         # 3. 응답 변환 (AgentResponse → GenerateResponse)
         return self._build_response(req.kind, result)
+
+    def _prepare_workflow_payload(
+        self,
+        kind: str,
+        input_data: Dict[str, Any],
+        brand_id: str,
+        options: Optional[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """
+        Workflow 실행을 위한 payload 준비
+
+        자유 형식 입력(prompt)을 구조화된 데이터로 변환
+
+        Args:
+            kind: 생성 타입
+            input_data: 사용자 입력
+            brand_id: 브랜드 ID
+            options: 추가 옵션
+
+        Returns:
+            Workflow에 전달할 initial_payload
+        """
+        payload = {
+            "brand_id": brand_id,
+            **(options or {})
+        }
+
+        # product_detail의 경우 특별 처리
+        if kind in ["product_detail", "sns_set", "presentation_simple"]:
+            if "prompt" in input_data:
+                # 자유 형식 입력 → 구조화
+                user_prompt = input_data["prompt"]
+                payload.update({
+                    "product_name": user_prompt,  # "지성 피부용 진정 토너"
+                    "features": [user_prompt],
+                    "target_audience": "일반 소비자",
+                    "category": "제품",
+                    "description": user_prompt
+                })
+                logger.info(f"Auto-converted prompt to structured payload: {user_prompt}")
+            else:
+                # 구조화된 입력은 그대로 사용
+                payload.update(input_data)
+        else:
+            # 다른 kind는 그대로 사용
+            payload.update(input_data)
+
+        return payload
 
     def _build_response(
         self,

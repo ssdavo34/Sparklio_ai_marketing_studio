@@ -8,8 +8,8 @@ Google AI Studio의 네이티브 이미지 생성 기능
 import base64
 import logging
 from typing import Dict, Any, Optional, Literal
-from google import genai  # New unified Google GenAI SDK
-from google.genai import types  # Types from new SDK
+from google import genai  # Official Google GenAI SDK (requires: pip install google-genai)
+from google.genai import types
 from PIL import Image
 from io import BytesIO
 
@@ -99,17 +99,19 @@ class NanoBananaProvider(MediaProvider):
                 config=config
             )
 
-            # 응답에서 이미지 추출
+            # 응답에서 이미지 추출 (공식 문서 방식)
             outputs = []
 
             # Gemini는 이미지를 response.parts에 반환
             for part in response.parts:
                 if part.inline_data is not None:
-                    # 이미지 데이터 직접 추출
-                    img_bytes = part.inline_data.data
+                    # 공식 문서 방식: part.as_image() 사용
+                    pil_image = part.as_image()
 
-                    # PIL Image로 변환 (크기 정보 얻기 위해)
-                    pil_image = Image.open(BytesIO(img_bytes))
+                    # PIL Image를 bytes로 변환
+                    img_buffer = BytesIO()
+                    pil_image.save(img_buffer, format='PNG')
+                    img_bytes = img_buffer.getvalue()
 
                     # Base64로 인코딩
                     img_data = base64.b64encode(img_bytes).decode('utf-8')

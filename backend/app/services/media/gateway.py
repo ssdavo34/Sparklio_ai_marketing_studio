@@ -16,9 +16,16 @@ from app.core.config import settings
 from .providers.base import MediaProvider, MediaProviderResponse, ProviderError
 from .providers.mock import MockMediaProvider
 from .providers.comfyui import ComfyUIProvider
-from .providers.nanobanana_provider import NanoBananaProvider
 
 logger = logging.getLogger(__name__)
+
+# NanoBanana Provider - optional (requires google-genai package)
+try:
+    from .providers.nanobanana_provider import NanoBananaProvider
+    NANOBANANA_AVAILABLE = True
+except ImportError:
+    NANOBANANA_AVAILABLE = False
+    logger.warning("NanoBanana Provider not available (missing google-genai package)")
 
 
 class MediaGateway:
@@ -66,7 +73,7 @@ class MediaGateway:
             logger.info("ComfyUI Provider initialized successfully")
 
             # Nano Banana Provider (Gemini Image Generation)
-            if hasattr(settings, 'GOOGLE_API_KEY') and settings.GOOGLE_API_KEY:
+            if NANOBANANA_AVAILABLE and hasattr(settings, 'GOOGLE_API_KEY') and settings.GOOGLE_API_KEY:
                 logger.info("Initializing Nano Banana Provider...")
                 self.providers["nanobanana"] = NanoBananaProvider(
                     api_key=settings.GOOGLE_API_KEY,
@@ -74,6 +81,8 @@ class MediaGateway:
                     timeout=settings.GEMINI_TIMEOUT
                 )
                 logger.info("Nano Banana Provider initialized successfully")
+            elif not NANOBANANA_AVAILABLE:
+                logger.info("Nano Banana Provider skipped (google-genai not installed)")
 
             logger.info(f"All Media Providers initialized: {list(self.providers.keys())}")
 
