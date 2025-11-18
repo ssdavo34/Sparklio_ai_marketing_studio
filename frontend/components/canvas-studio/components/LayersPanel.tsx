@@ -13,7 +13,7 @@
 
 import { useEffect, useState } from 'react';
 import { useCanvas } from '../context';
-import type { fabric } from 'fabric';
+import type * as fabric from 'fabric';
 
 export function LayersPanel() {
   const { fabricCanvas } = useCanvas();
@@ -73,8 +73,10 @@ export function LayersPanel() {
   // 객체 타입에 따른 이름 반환
   const getObjectName = (obj: fabric.Object, index: number) => {
     // 커스텀 이름이 있으면 사용
-    if (obj.data && typeof obj.data === 'object' && 'customName' in obj.data) {
-      return (obj.data as { customName: string }).customName;
+    // Fabric.js 6.x: data 속성 대신 커스텀 속성 직접 사용
+    const customName = (obj as any).customName;
+    if (customName && typeof customName === 'string') {
+      return customName;
     }
 
     // 역순 배열이므로 실제 순서는 (총 개수 - 현재 인덱스)
@@ -83,7 +85,7 @@ export function LayersPanel() {
     if (obj.type === 'circle') return `Circle ${actualIndex}`;
     if (obj.type === 'triangle') return `Triangle ${actualIndex}`;
     if (obj.type === 'i-text' || obj.type === 'text') {
-      const text = (obj as fabric.IText).text;
+      const text = (obj as any).text;
       if (text && text.length > 20) {
         return `${text.substring(0, 20)}...`;
       }
@@ -105,8 +107,8 @@ export function LayersPanel() {
       return;
     }
 
-    // Fabric.js 객체의 data 속성에 커스텀 이름 저장
-    obj.set('data', { ...(obj.data as object || {}), customName: editingName.trim() });
+    // Fabric.js 6.x: 커스텀 속성 직접 설정
+    obj.set('customName' as any, editingName.trim());
     fabricCanvas.requestRenderAll();
 
     setEditingIndex(null);
@@ -207,10 +209,11 @@ export function LayersPanel() {
     fabricCanvas.remove(draggedObj);
 
     // 올바른 인덱스에 다시 삽입
+    // Fabric.js 6.x: insertAt(index, ...objects) 시그니처로 변경됨
     if (dropActualIndex > draggedActualIndex) {
-      fabricCanvas.insertAt(draggedObj, dropActualIndex, false);
+      fabricCanvas.insertAt(dropActualIndex, draggedObj);
     } else {
-      fabricCanvas.insertAt(draggedObj, dropActualIndex, false);
+      fabricCanvas.insertAt(dropActualIndex, draggedObj);
     }
 
     fabricCanvas.requestRenderAll();

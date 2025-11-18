@@ -202,13 +202,26 @@ export async function applyGenerateResponseToCanvas(
 
   return new Promise((resolve, reject) => {
     try {
+      // Fabric.js 6.x: loadFromJSON 콜백이 각 객체마다 호출되므로
+      // 완료 플래그를 사용하여 한 번만 resolve
+      let isResolved = false;
+
       canvas.loadFromJSON(sanitizedJson, () => {
-        console.log("[Fabric Adapter] ✅ Canvas loaded successfully");
-        canvas.renderAll();
-        resolve();
-      }, (error: any) => {
-        console.error("[Fabric Adapter] ❌ Failed to load canvas_json:", error);
-        reject(error);
+        if (!isResolved) {
+          isResolved = true;
+          console.log("[Fabric Adapter] ✅ Canvas loaded successfully");
+
+          // 🔥 Fabric.js 6.x: 렌더링 강제 실행
+          canvas.requestRenderAll();
+          canvas.renderAll();
+
+          // 추가: 모든 객체의 coords 재계산
+          canvas.getObjects().forEach((obj: any) => {
+            obj.setCoords();
+          });
+
+          resolve();
+        }
       });
     } catch (error) {
       console.error("[Fabric Adapter] ❌ Exception during loadFromJSON:", error);

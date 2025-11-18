@@ -12,7 +12,6 @@ import { useAuthStore } from '@/store/auth-store';
  * Canvas Studio 통합 완료 (2025-11-16)
  * - 로그인/회원가입 → Canvas Studio (VSCode 스타일 에디터)
  * - 모든 고급 기능 포함 (Layers, Inspector, Undo/Redo 등)
- * - /studio 라우트는 제거 예정
  *
  * @author C팀 (Frontend Team)
  * @version 5.0

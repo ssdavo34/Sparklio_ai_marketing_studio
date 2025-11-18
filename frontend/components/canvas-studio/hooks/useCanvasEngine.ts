@@ -22,7 +22,7 @@
 'use client';
 
 import { useRef, useEffect, useState } from 'react';
-import { fabric } from 'fabric';
+import * as fabric from 'fabric';
 import { useCanvasStore, useLayoutStore } from '../stores';
 
 export interface UseCanvasEngineReturn {
@@ -199,8 +199,8 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
 
     log.action(`Duplicating object: ${activeObject.type}`);
 
-    // clone 메서드로 객체 복제
-    activeObject.clone((cloned: fabric.Object) => {
+    // Fabric.js 6.x: clone은 이제 Promise를 반환
+    activeObject.clone().then((cloned: fabric.Object) => {
       // 복제된 객체 위치를 조금 이동 (10px 오른쪽 아래)
       cloned.set({
         left: (cloned.left || 0) + 10,
@@ -292,8 +292,14 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
 
     log.action('Grouping selected objects');
 
+    // Fabric.js 6.x: toGroup() 제거됨, 수동으로 Group 생성
     const selection = activeObject as fabric.ActiveSelection;
-    selection.toGroup();
+    const objects = selection.getObjects();
+    fabricCanvas.discardActiveObject();
+    fabricCanvas.remove(...objects);
+    const group = new fabric.Group(objects);
+    fabricCanvas.add(group);
+    fabricCanvas.setActiveObject(group);
     fabricCanvas.requestRenderAll();
     log.success('Objects grouped successfully');
   };
@@ -315,16 +321,12 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
 
     log.action('Ungrouping object');
 
+    // Fabric.js 6.x: _restoreObjectsState() 제거됨, removeAll() 사용
     const group = activeObject as fabric.Group;
-    const items = group.getObjects();
-    group._restoreObjectsState();
     fabricCanvas.remove(group);
-
-    items.forEach((item) => {
-      fabricCanvas.add(item);
-    });
-
-      fabricCanvas.requestRenderAll();
+    const items = group.removeAll(); // detaches all children from the group
+    fabricCanvas.add(...items); // add them back to canvas
+    fabricCanvas.requestRenderAll();
     log.success('Group ungrouped successfully');
   };
 
@@ -339,7 +341,8 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
     }
 
     log.action('Copying object to clipboard');
-    activeObject.clone((cloned: fabric.Object) => {
+    // Fabric.js 6.x: clone은 이제 Promise를 반환
+    activeObject.clone().then((cloned: fabric.Object) => {
       clipboard.current = cloned;
       log.success('Object copied to clipboard');
     });
@@ -353,7 +356,8 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
     }
 
     log.action('Pasting object from clipboard');
-    clipboard.current.clone((clonedObj: fabric.Object) => {
+    // Fabric.js 6.x: clone은 이제 Promise를 반환
+    clipboard.current.clone().then((clonedObj: fabric.Object) => {
       fabricCanvas.discardActiveObject();
       clonedObj.set({
         left: (clonedObj.left || 0) + 10,
@@ -433,15 +437,34 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
 
     isHistoryAction.current = true;
 
-    try {
-      fabricCanvas.loadFromJSON(parsedState, () => {
-        fabricCanvas.renderAll();
-        log.history(`Undo complete [${historyIndex.current}/${historyStack.current.length - 1}]`);
+    // 🔥 Fabric.js 6.x 중요: loadFromJSON 완료 후 히스토리 액션 플래그 해제
+    // 500ms로 증가하여 모든 object:added/modified 이벤트가 완료될 때까지 대기
+    const resetFlag = () => {
+      setTimeout(() => {
+        isHistoryAction.current = false;
+        log.history('History action flag reset after undo');
+      }, 500);
+    };
 
-        // 300ms 후에 플래그 해제 (모든 이벤트가 처리될 때까지 대기)
-        setTimeout(() => {
-          isHistoryAction.current = false;
-        }, 300);
+    try {
+      // Fabric.js 6.x: loadFromJSON 콜백이 각 객체마다 호출되므로 isResolved 플래그 사용
+      let isResolved = false;
+      fabricCanvas.loadFromJSON(parsedState, () => {
+        if (!isResolved) {
+          isResolved = true;
+
+          // 🔥 Fabric.js 6.x: 렌더링 강제 실행
+          fabricCanvas.requestRenderAll();
+          fabricCanvas.renderAll();
+
+          // 추가: 모든 객체의 coords 재계산
+          fabricCanvas.getObjects().forEach(obj => {
+            obj.setCoords();
+          });
+
+          log.history(`Undo complete [${historyIndex.current}/${historyStack.current.length - 1}] (${fabricCanvas.getObjects().length} objects)`);
+          resetFlag();
+        }
       });
     } catch (error) {
       log.error(`Exception during undo loadFromJSON: ${error}`);
@@ -490,15 +513,34 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
 
     isHistoryAction.current = true;
 
-    try {
-      fabricCanvas.loadFromJSON(parsedState, () => {
-        fabricCanvas.renderAll();
-        log.history(`Redo complete [${historyIndex.current}/${historyStack.current.length - 1}]`);
+    // 🔥 Fabric.js 6.x 중요: loadFromJSON 완료 후 히스토리 액션 플래그 해제
+    // 500ms로 증가하여 모든 object:added/modified 이벤트가 완료될 때까지 대기
+    const resetFlag = () => {
+      setTimeout(() => {
+        isHistoryAction.current = false;
+        log.history('History action flag reset after redo');
+      }, 500);
+    };
 
-        // 300ms 후에 플래그 해제 (모든 이벤트가 처리될 때까지 대기)
-        setTimeout(() => {
-          isHistoryAction.current = false;
-        }, 300);
+    try {
+      // Fabric.js 6.x: loadFromJSON 콜백이 각 객체마다 호출되므로 isResolved 플래그 사용
+      let isResolved = false;
+      fabricCanvas.loadFromJSON(parsedState, () => {
+        if (!isResolved) {
+          isResolved = true;
+
+          // 🔥 Fabric.js 6.x: 렌더링 강제 실행
+          fabricCanvas.requestRenderAll();
+          fabricCanvas.renderAll();
+
+          // 추가: 모든 객체의 coords 재계산
+          fabricCanvas.getObjects().forEach(obj => {
+            obj.setCoords();
+          });
+
+          log.history(`Redo complete [${historyIndex.current}/${historyStack.current.length - 1}] (${fabricCanvas.getObjects().length} objects)`);
+          resetFlag();
+        }
       });
     } catch (error) {
       log.error(`Exception during redo loadFromJSON: ${error}`);
@@ -621,7 +663,8 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
     if (!fabricCanvas) return;
 
     // 기존 그리드 제거
-    const gridObjects = fabricCanvas.getObjects().filter((obj) => obj.name === 'grid-line');
+    // Fabric.js 6.x: name 속성은 커스텀 속성으로 직접 접근
+    const gridObjects = fabricCanvas.getObjects().filter((obj) => (obj as any).name === 'grid-line');
     gridObjects.forEach((obj) => fabricCanvas.remove(obj));
 
     // Grid 표시
@@ -640,7 +683,7 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
           name: 'grid-line',
         });
         fabricCanvas.add(line);
-        fabricCanvas.sendToBack(line); // 그리드를 맨 뒤로
+        fabricCanvas.sendObjectToBack(line); // Fabric.js 6.x: sendToBack → sendObjectToBack
       }
 
       // 가로선 그리기
@@ -653,7 +696,7 @@ export function useCanvasEngine(): UseCanvasEngineReturn {
           name: 'grid-line',
         });
         fabricCanvas.add(line);
-        fabricCanvas.sendToBack(line); // 그리드를 맨 뒤로
+        fabricCanvas.sendObjectToBack(line); // Fabric.js 6.x: sendToBack → sendObjectToBack
       }
     }
 
