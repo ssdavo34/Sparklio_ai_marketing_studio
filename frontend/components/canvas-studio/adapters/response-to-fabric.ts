@@ -15,6 +15,60 @@
 import type { GenerateResponse } from "@/lib/api/types";
 
 /**
+ * Canvas JSON 타입
+ */
+type CanvasJson = {
+  version?: string;
+  objects?: any[];
+  [key: string]: any;
+};
+
+/**
+ * textBaseline 정규화 (alphabetical → alphabetic)
+ *
+ * Fabric.js v5.3.0은 "alphabetic"만 허용하지만,
+ * 이전 버전이나 잘못된 데이터에 "alphabetical"이 있을 수 있음
+ *
+ * @param obj - Fabric 객체
+ */
+function normalizeTextBaseline(obj: any): void {
+  if (obj && typeof obj === "object" && "textBaseline" in obj) {
+    if (obj.textBaseline === "alphabetical") {
+      console.warn(
+        `[Fabric Adapter] 🔧 Fixing textBaseline: "alphabetical" → "alphabetic" for object:`,
+        obj.type
+      );
+      obj.textBaseline = "alphabetic";
+    }
+  }
+}
+
+/**
+ * Canvas JSON 정규화 (안전장치)
+ *
+ * Backend 또는 DB에서 잘못된 값이 올 경우를 대비하여
+ * Fabric.js에 전달하기 전에 정규화
+ *
+ * @param json - Canvas JSON
+ * @returns 정규화된 Canvas JSON
+ */
+function sanitizeCanvasJson(json: CanvasJson): CanvasJson {
+  if (!json || !Array.isArray(json.objects)) return json;
+
+  // 최상위 객체들 정규화
+  json.objects.forEach((obj) => {
+    normalizeTextBaseline(obj);
+
+    // 그룹/복합 객체 내부도 재귀적으로 정리
+    if (Array.isArray(obj.objects)) {
+      obj.objects.forEach((child: any) => normalizeTextBaseline(child));
+    }
+  });
+
+  return json;
+}
+
+/**
  * Fabric.js JSON 유효성 검증
  *
  * @param json - 검증할 JSON 객체
@@ -131,18 +185,24 @@ export async function applyGenerateResponseToCanvas(
     document.canvas_json
   );
 
+  // 🔧 안전장치: textBaseline 등 정규화 (alphabetical → alphabetic)
+  // Deep copy를 위해 JSON.parse(JSON.stringify()) 사용
+  const sanitizedJson = sanitizeCanvasJson(
+    JSON.parse(JSON.stringify(document.canvas_json))
+  );
+
   // 🔒 JSON 유효성 검증 (TypeError 방지)
-  if (!isValidFabricJSON(document.canvas_json)) {
+  if (!isValidFabricJSON(sanitizedJson)) {
     console.error(
       "[Fabric Adapter] ❌ Invalid Fabric.js JSON format from Backend. Aborting load."
     );
-    console.error("[Fabric Adapter] Received JSON:", JSON.stringify(document.canvas_json, null, 2));
+    console.error("[Fabric Adapter] Received JSON:", JSON.stringify(sanitizedJson, null, 2));
     return;
   }
 
   return new Promise((resolve, reject) => {
     try {
-      canvas.loadFromJSON(document.canvas_json, () => {
+      canvas.loadFromJSON(sanitizedJson, () => {
         console.log("[Fabric Adapter] ✅ Canvas loaded successfully");
         canvas.renderAll();
         resolve();

@@ -2,6 +2,10 @@ import axios from 'axios';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://100.123.51.5:8000';
 
+// 👉 실제로 어떤 값이 들어오는지 확인
+console.log("[api-client.ts] API_BASE =", API_BASE);
+console.log("[api-client.ts] NEXT_PUBLIC_API_URL =", process.env.NEXT_PUBLIC_API_URL);
+
 export const api = axios.create({
   baseURL: API_BASE,
   headers: {

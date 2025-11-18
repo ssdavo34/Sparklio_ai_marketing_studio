@@ -26,6 +26,9 @@ import type {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL!;
 
+// 👉 실제로 어떤 값이 들어오는지 확인
+console.log("[API Client] API_BASE_URL =", API_BASE_URL);
+
 if (!API_BASE_URL) {
   console.error(
     "[API Client] NEXT_PUBLIC_API_BASE_URL is not defined in .env.local"

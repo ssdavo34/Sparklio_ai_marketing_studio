@@ -77,9 +77,8 @@ export function useGenerate(): UseGenerateResult {
 
     try {
       // Backend 서버가 없을 경우 Mock 데이터 사용
-      // 포트 8001 = 실제 Backend, 그 외 = Mock
-      const USE_MOCK = !process.env.NEXT_PUBLIC_API_BASE_URL ||
-                       !process.env.NEXT_PUBLIC_API_BASE_URL.includes('localhost:8001');
+      // .env.local에 NEXT_PUBLIC_API_BASE_URL이 설정되어 있으면 실제 Backend 사용
+      const USE_MOCK = !process.env.NEXT_PUBLIC_API_BASE_URL;
 
       let res: GenerateResponse;
 
@@ -101,6 +100,9 @@ export function useGenerate(): UseGenerateResult {
             length: "medium",
           },
         });
+
+        // 👉 실제 응답 데이터 확인 (디버깅용)
+        console.log('[useGenerate] 🔍 Full API Response:', JSON.stringify(res, null, 2));
       }
 
       setLastResponse(res);
