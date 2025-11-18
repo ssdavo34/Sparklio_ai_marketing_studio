@@ -72,6 +72,13 @@
   ```
   > 예상 응답: `{"status":"healthy","services":{"api":"ok","database":"ok","storage":"ok"}}`
 
+  > **중요**: Health Check가 실패하면 Backend 로그 확인:
+  > ```bash
+  > ssh woosun@100.123.51.5 "tail -50 /tmp/sparklio_backend.log"
+  > # 또는 (nohup 사용 시)
+  > ssh woosun@100.123.51.5 "tail -50 ~/sparklio_ai_marketing_studio/backend/nohup.out"
+  > ```
+
 ### Desktop 인프라 상태
 - [ ] **Ollama 서버 상태 확인**
   ```bash
@@ -189,13 +196,17 @@
 ## 4️⃣ 서비스 상태 빠른 점검 (1분)
 
 ### LLM Gateway 테스트
-- [ ] **LLM Gateway 기본 호출 테스트**
+- [ ] **전체 Generate API 테스트 (실제 워크플로우)**
   ```bash
-  curl -s -X POST http://100.123.51.5:8000/api/v1/llm/generate \
+  curl -s -X POST http://100.123.51.5:8000/api/v1/generate \
     -H "Content-Type: application/json" \
-    -d '{"prompt":"Hello","provider":"ollama","model":"qwen2.5:7b"}' | head -20
+    -d '{"kind":"product_detail","brandId":"brand_demo","input":{"prompt":"무선 이어폰"},"options":{}}' | head -50
   ```
-  > 정상 응답 시: JSON 형식의 LLM 응답 반환
+  > 정상 응답 시:
+  > - `meta.elapsed_seconds`: 15-30초 (Ollama Live 모드)
+  > - `meta.tokens_used`: 1000+ (실제 LLM 사용 중)
+  > - `meta.agents_used`: ["copywriter", "reviewer", "optimizer"]
+  > - `document.canvas_json.objects`: textBaseline: "alphabetic" 확인
 
 ### Agent API 테스트
 - [ ] **Agent 목록 조회 테스트**
@@ -294,9 +305,14 @@
 
 ### 자주 사용하는 명령어 모음
 
-**맥미니 Backend 서버 재시작**:
+**맥미니 Backend 서버 자동 시작** (추천):
 ```bash
-ssh woosun@100.123.51.5 "pkill -f uvicorn && cd ~/sparklio_ai_marketing_studio/backend && source .venv/bin/activate && nohup python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 > /tmp/backend.log 2>&1 &"
+ssh woosun@100.123.51.5 "cd ~/sparklio_ai_marketing_studio/backend && ./start_macmini.sh"
+```
+
+**맥미니 Backend 서버 수동 재시작** (필요 시):
+```bash
+ssh woosun@100.123.51.5 "pkill -f uvicorn && cd ~/sparklio_ai_marketing_studio/backend && source .venv/bin/activate && nohup python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 > /tmp/sparklio_backend.log 2>&1 &"
 ```
 
 **Docker 컨테이너 재시작**:
@@ -314,7 +330,12 @@ git fetch origin && git status && git log origin/master --oneline -5
 **Backend 서버 응답 없음**:
 1. Docker 컨테이너 상태 확인 (`docker ps`)
 2. Backend 프로세스 확인 (`ssh woosun@100.123.51.5 "ps aux | grep uvicorn"`)
-3. Backend 로그 확인 (`ssh woosun@100.123.51.5 "tail -50 /tmp/backend.log"`)
+3. Backend 로그 확인:
+   ```bash
+   ssh woosun@100.123.51.5 "tail -50 /tmp/sparklio_backend.log"
+   # 또는 (start_macmini.sh 사용 전)
+   ssh woosun@100.123.51.5 "tail -50 ~/sparklio_ai_marketing_studio/backend/nohup.out"
+   ```
 
 **의존성 에러 발생**:
 1. requirements.txt 확인
