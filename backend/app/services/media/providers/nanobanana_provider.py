@@ -8,8 +8,8 @@ Google AI Studio의 네이티브 이미지 생성 기능
 import base64
 import logging
 from typing import Dict, Any, Optional, Literal
-from google import genai
-from google.genai import types
+from google import genai  # New unified Google GenAI SDK
+from google.genai import types  # Types from new SDK
 from PIL import Image
 from io import BytesIO
 
