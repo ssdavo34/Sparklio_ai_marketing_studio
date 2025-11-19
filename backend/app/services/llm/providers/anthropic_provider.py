@@ -154,6 +154,162 @@ class AnthropicProvider(LLMProvider):
                 details={"role": role, "task": task}
             )
 
+    async def generate_with_vision(
+        self,
+        prompt: str,
+        image_url: Optional[str] = None,
+        image_base64: Optional[str] = None,
+        role: str = "vision_analyzer",
+        task: str = "image_analysis",
+        mode: str = "json",
+        options: Optional[Dict[str, Any]] = None
+    ) -> LLMProviderResponse:
+        """
+        Anthropic Vision API 호출
+
+        Args:
+            prompt: 분석 프롬프트
+            image_url: 이미지 URL
+            image_base64: Base64 인코딩 이미지
+            role: Agent 역할
+            task: 작업 유형
+            mode: 출력 모드 ('json' | 'text')
+            options: 생성 옵션
+
+        Returns:
+            LLMProviderResponse
+        """
+        start_time = datetime.utcnow()
+
+        # 옵션 병합
+        merged_options = self.get_default_options(role, task)
+        if options:
+            merged_options.update(options)
+
+        model = merged_options.pop("model", "claude-3-5-sonnet-20241022")
+        temperature = merged_options.get("temperature", 0.7)
+        max_tokens = merged_options.get("max_tokens", 4000)
+
+        logger.info(
+            f"[Anthropic Vision] Generating: model={model}, role={role}, task={task}, "
+            f"mode={mode}, temp={temperature}, max_tokens={max_tokens}"
+        )
+
+        try:
+            # 이미지 콘텐츠 준비
+            image_content = []
+
+            if image_url:
+                # URL 방식
+                image_content.append({
+                    "type": "image",
+                    "source": {
+                        "type": "url",
+                        "url": image_url
+                    }
+                })
+            elif image_base64:
+                # Base64 방식
+                # data:image/png;base64,... 형식에서 실제 base64 부분만 추출
+                if image_base64.startswith("data:"):
+                    media_type = image_base64.split(";")[0].split(":")[1]
+                    base64_data = image_base64.split(",")[1]
+                else:
+                    media_type = "image/png"
+                    base64_data = image_base64
+
+                image_content.append({
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": media_type,
+                        "data": base64_data
+                    }
+                })
+            else:
+                raise ValueError("Either image_url or image_base64 is required")
+
+            # 메시지 구성: 이미지 + 텍스트
+            message_content = [
+                *image_content,
+                {
+                    "type": "text",
+                    "text": prompt
+                }
+            ]
+
+            # Anthropic Vision API 호출
+            response = self.client.messages.create(
+                model=model,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                messages=[
+                    {"role": "user", "content": message_content}
+                ]
+            )
+
+            content = response.content[0].text
+            usage = {
+                "prompt_tokens": response.usage.input_tokens,
+                "completion_tokens": response.usage.output_tokens,
+                "total_tokens": response.usage.input_tokens + response.usage.output_tokens
+            }
+
+            elapsed = (datetime.utcnow() - start_time).total_seconds()
+
+            logger.info(
+                f"[Anthropic Vision] Success: {model} - {usage['total_tokens']} tokens, "
+                f"elapsed={elapsed:.2f}s"
+            )
+
+            # JSON 파싱 시도
+            output_type = "text"
+            output_value = content
+
+            if mode == "json":
+                try:
+                    # Claude는 종종 ```json ... ``` 형식으로 반환
+                    if "```json" in content:
+                        json_str = content.split("```json")[1].split("```")[0].strip()
+                    elif "```" in content:
+                        json_str = content.split("```")[1].split("```")[0].strip()
+                    else:
+                        json_str = content.strip()
+
+                    json_data = json.loads(json_str)
+                    output_type = "json"
+                    output_value = json_data
+                except (json.JSONDecodeError, IndexError) as e:
+                    logger.warning(f"[Anthropic Vision] JSON parsing failed: {e}, returning as text")
+
+            # LLMProviderResponse 반환
+            return LLMProviderResponse(
+                provider=self.vendor,
+                model=model,
+                usage=usage,
+                output=LLMProviderOutput(
+                    type=output_type,
+                    value=output_value
+                ),
+                meta={
+                    "role": role,
+                    "task": task,
+                    "mode": mode,
+                    "latency": elapsed,
+                    "temperature": temperature,
+                    "vision": True
+                },
+                timestamp=datetime.utcnow()
+            )
+
+        except Exception as e:
+            logger.error(f"[Anthropic Vision] Error: {e}", exc_info=True)
+            raise ProviderError(
+                message=f"Anthropic Vision API failed: {str(e)}",
+                provider=self.vendor,
+                details={"role": role, "task": task}
+            )
+
     def get_name(self) -> str:
         return "anthropic"
 

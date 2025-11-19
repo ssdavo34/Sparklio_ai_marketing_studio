@@ -477,22 +477,34 @@ JSON 형식으로만 응답:
             merged_options = self._merge_vision_options(provider, options)
 
             # 4. Vision API 호출
-            # TODO: Provider에 vision 메서드 추가 후 구현
-            # 현재는 일반 generate로 폴백 (임시)
-            logger.warning(
-                "Vision API not fully implemented yet. "
-                "Using text-only generation as fallback."
-            )
+            # Provider에 generate_with_vision 메서드가 있는지 확인
+            if hasattr(provider, 'generate_with_vision'):
+                # 실제 Vision API 호출
+                response = await provider.generate_with_vision(
+                    prompt=prompt,
+                    image_url=image_url,
+                    image_base64=image_base64,
+                    role="vision_analyzer",
+                    task="image_analysis",
+                    mode="json",
+                    options=merged_options
+                )
+            else:
+                # Vision API 미지원 Provider의 경우 폴백
+                logger.warning(
+                    f"Provider {provider_name} does not support Vision API. "
+                    "Using text-only generation as fallback."
+                )
 
-            # 임시: 텍스트 전용으로 폴백
-            full_prompt = f"{prompt}\n\n이미지: {image_url or '(Base64 데이터)'}"
-            response = await provider.generate(
-                prompt=full_prompt,
-                role="vision_analyzer",
-                task="image_analysis",
-                mode="json",
-                options=merged_options
-            )
+                # 임시: 텍스트 전용으로 폴백
+                full_prompt = f"{prompt}\n\n이미지: {image_url or '(Base64 데이터)'}"
+                response = await provider.generate(
+                    prompt=full_prompt,
+                    role="vision_analyzer",
+                    task="image_analysis",
+                    mode="json",
+                    options=merged_options
+                )
 
             # 5. 로깅
             elapsed = (datetime.utcnow() - start_time).total_seconds()
