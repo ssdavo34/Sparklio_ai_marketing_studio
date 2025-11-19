@@ -1,6 +1,6 @@
-# Sparklio Editor v2.0 Documentation
+# Canvas Studio v3 Documentation
 
-**환영합니다!** 이 문서는 Sparklio Editor v2.0의 설계 및 구현 가이드입니다.
+**환영합니다!** 이 문서는 Canvas Studio v3의 설계 및 구현 가이드입니다.
 
 ---
 
@@ -27,7 +27,7 @@
    - DesignTokens 구조
 
 4. **[008_AGENTS_INTEGRATION.md](./008_AGENTS_INTEGRATION.md)** 🤖 **NEW**
-   - Editor v2.0 ↔ 24 Multi-Agent 연계 맵
+   - Canvas Studio v3 ↔ 24 Multi-Agent 연계 맵
    - Agent Families (A~F 계열)
    - 메뉴별 에이전트 플로우 (Spark Chat, Meeting AI, Trend Engine 등)
    - EditorAgent, MeetingAIAgent, LayoutDesignerAgent 정의
@@ -172,16 +172,20 @@ User Action → Konva Event → EditorStore Update → React Re-render → Konva
 ## 📁 폴더 구조 요약
 
 ```
-src/modules/editor/
+components/canvas-studio/
 ├── types/              # 타입 정의
-├── store/              # Zustand Store
+├── stores/             # Zustand Store
 ├── core/               # CanvasEngine, Executor
-├── components/         # React 컴포넌트
-│   ├── TopBar/
+├── layout/             # 레이아웃 컴포넌트
+│   ├── TopToolbar/
 │   ├── ActivityBar/
 │   ├── LeftPanel/
-│   ├── Canvas/
+│   ├── CanvasViewport/
 │   └── RightDock/
+├── canvas/             # 캔버스 컴포넌트
+│   ├── KonvaStage/
+│   ├── objects/
+│   └── controls/
 ├── features/           # 기능 모듈
 │   ├── alignment/
 │   ├── snap/
@@ -292,11 +296,17 @@ A: Phase 4 (Meeting AI, Spark Chat)
 
 ## 🔄 업데이트 로그
 
-### 2025-11-19 (v2.1) 🆕
+### 2025-11-19 (v3.0) 🆕
+
+**Canvas Studio v3 업그레이드:**
+- ✅ Editor v2.0 → Canvas Studio v3 리브랜딩
+- ✅ Fabric.js 제거, Konva.js 단독 사용
+- ✅ 폴더 구조 변경: `src/modules/editor/` → `components/canvas-studio/`
+- ✅ 레거시 에디터 완전 제거
 
 **에이전트 연계 문서 추가:**
 - ✅ [008_AGENTS_INTEGRATION.md](./008_AGENTS_INTEGRATION.md) 작성
-  - Editor v2.0 ↔ 24 Multi-Agent 연계 맵
+  - Canvas Studio v3 ↔ 24 Multi-Agent 연계 맵
   - Agent Families (A~F 계열) 정리
   - 메뉴별 에이전트 플로우 (Spark Chat, Meeting AI, Trend Engine)
   - EditorAgent, MeetingAIAgent, LayoutDesignerAgent 정의

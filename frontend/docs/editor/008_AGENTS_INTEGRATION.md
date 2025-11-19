@@ -1,7 +1,7 @@
-# Sparklio Editor v2.0 ↔ Multi-Agent Integration
+# Canvas Studio v3 ↔ Multi-Agent Integration
 
 **작성일**: 2025-11-19
-**버전**: 1.0
+**버전**: 3.0
 **참조**: [AGENTS_SPEC.md](../../../../docs/PHASE0/AGENTS_SPEC.md), [000_MASTER_PLAN.md](./000_MASTER_PLAN.md)
 
 ---
@@ -21,7 +21,7 @@
 
 ### 문서 목적
 
-이 문서는 **Sparklio Editor v2.0 (One-Page Editor)**와 **24개의 Multi-Agent 시스템**이 어떻게 연결되는지 정의합니다.
+이 문서는 **Canvas Studio v3 (One-Page Editor)**와 **24개의 Multi-Agent 시스템**이 어떻게 연결되는지 정의합니다.
 
 **핵심 질문에 대한 답:**
 - Spark Chat에서 "상품 상세페이지 만들어줘"라고 하면 어떤 Agent들이 호출되나?
@@ -635,7 +635,7 @@ POST /api/v1/agents/execute
 ### EditorStore에서 Agent 호출 예시
 
 ```typescript
-// src/modules/editor/store/editorStore.ts
+// components/canvas-studio/stores/useEditorStore.ts
 
 export const useEditorStore = create<EditorState>((set, get) => ({
   // ... existing state
@@ -740,5 +740,5 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
 ---
 
-**문서 버전**: 1.0
+**문서 버전**: 3.0
 **마지막 업데이트**: 2025-11-19

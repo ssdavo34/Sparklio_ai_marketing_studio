@@ -1,7 +1,7 @@
-# Sparklio Editor v2.0 — Implementation Roadmap
+# Canvas Studio v3 — Implementation Roadmap
 
 **작성일**: 2025-11-19
-**버전**: 2.0.0
+**버전**: 3.0.0
 **전략**: "메뉴 하나씩 성공시키기"
 
 ---
@@ -49,18 +49,19 @@ Week 13:    Phase 8 (Insight Radar)
 
 ### 왜 1번?
 
-- 나머지 메뉴들이 모두 EditorDocument를 만들어 Editor로 보냄
+- 나머지 메뉴들이 모두 EditorDocument를 만들어 Canvas Studio로 보냄
 - 이게 안정적이어야 Meeting AI / Spark Chat / 템플릿이 의미 있음
 
 ### ✅ 1차 성공 조건
 
 ```
-[ ] Konva + Zustand 기반 Editor v2 작동
+[ ] Konva + Zustand 기반 Canvas Studio v3 작동
 [ ] 페이지 로딩 / 저장 (백엔드 CRUD)
 [ ] 텍스트 / 이미지 / 사각형 추가·이동·리사이즈·삭제
 [ ] 선택 / 레이어 / Inspector 기본 속성 편집
-[ ] 기존 Fabric.js 없이도 상품상세 1페이지 정도는 편하게 제작 가능
-[ ] /editor 한 화면에서 작업 가능 (레이아웃 고정)
+[ ] 레거시 Fabric.js 에디터 완전 제거 완료
+[ ] 상품상세 1페이지 정도는 편하게 제작 가능
+[ ] /studio 한 화면에서 작업 가능 (레이아웃 고정)
 ```
 
 ### 🔧 Frontend 작업 (A팀)
@@ -814,5 +815,5 @@ TrendCollectorAgent (크롤링)
 
 ---
 
-**문서 버전**: v2.0.0
+**문서 버전**: v3.0.0
 **마지막 업데이트**: 2025-11-19
