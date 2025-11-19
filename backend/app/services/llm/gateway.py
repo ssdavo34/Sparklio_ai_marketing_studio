@@ -473,8 +473,9 @@ JSON 형식으로만 응답:
                 f"Vision API Generate: provider={provider_name}, model={model}"
             )
 
-            # 3. 옵션 병합
+            # 3. 옵션 병합 (모델 정보 포함)
             merged_options = self._merge_vision_options(provider, options)
+            merged_options["model"] = model  # 선택된 모델 전달
 
             # 4. Vision API 호출
             # Provider에 generate_with_vision 메서드가 있는지 확인
@@ -556,10 +557,10 @@ JSON 형식으로만 응답:
                 if "openai" in self.providers:
                     return "openai", self.providers["openai"], override_model
 
-        # Primary: Claude 3.5 Sonnet
+        # Primary: Claude 3 Opus (most reliable vision-capable model)
         if "anthropic" in self.providers:
-            model = "claude-3-5-sonnet-20241022"
-            logger.info(f"Using Claude 3.5 Sonnet for vision analysis")
+            model = "claude-3-opus-20240229"  # Most capable vision model
+            logger.info(f"Using Claude 3 Opus for vision analysis")
             return "anthropic", self.providers["anthropic"], model
 
         # Fallback: GPT-4o

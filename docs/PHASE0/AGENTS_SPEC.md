@@ -396,6 +396,67 @@ Sparklio의 에이전트 시스템은 다음 **3축**으로 구성됩니다:
 
 ---
 
+## 2.10 EditorAgent
+
+**역할**: 자연어 명령을 EditorCommand로 변환하여 문서 편집 수행
+
+**입력**:
+```json
+{
+  "role": "editor",
+  "task": "update_background",
+  "document": { ... },
+  "selection": ["obj_123"],
+  "natural_language": "배경을 차분한 파란색 그라데이션으로 바꿔줘"
+}
+```
+
+**출력**:
+```json
+{
+  "commands": [
+    {
+      "type": "UPDATE_BACKGROUND",
+      "payload": { "gradient": "..." }
+    }
+  ],
+  "message": "배경을 변경했습니다."
+}
+```
+
+**KPI**:
+- Command Accuracy: > 95%
+- Latency: < 2s
+
+---
+
+## 2.11 MeetingAIAgent
+
+**역할**: 회의록 분석 및 초안 문서 생성
+
+**입력**:
+```json
+{
+  "transcript": "A: 이번 신제품은 20대 여성을 타겟으로...",
+  "context": { "brand_id": "..." }
+}
+```
+
+**출력**:
+```json
+{
+  "summary": "신제품 런칭 캠페인 기획 회의...",
+  "action_items": ["인스타 광고 시안 제작"],
+  "draft_document": { ...EditorDocument }
+}
+```
+
+**KPI**:
+- Summary Accuracy: > 90%
+- Draft Relevance: > 85%
+
+---
+
 # 3. Intelligence Agents (브랜드·트렌드·학습)
 
 ## 3.1 TrendCollectorAgent

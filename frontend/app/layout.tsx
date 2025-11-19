@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import Navigation from "@/components/Layout/Navigation";
-import Footer from "@/components/Layout/Footer";
+import Navigation from "../components/Layout/Navigation";
+import Footer from "../components/Layout/Footer";
 
 export const metadata: Metadata = {
   title: "Sparklio AI Marketing Studio",

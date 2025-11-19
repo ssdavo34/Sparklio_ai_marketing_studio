@@ -563,6 +563,50 @@ def create_objects_from_structure(structure: List[dict], page_width: int, page_h
     return objects
 ```
 
+#### Week 5: Agent Execution API
+
+```python
+# backend/app/api/v1/agents.py
+
+class AgentExecuteRequest(BaseModel):
+    role: str                       # "editor", "copywriter"
+    task: str                       # "update_background"
+    document: dict                  # Current document snapshot
+    selection: List[str]            # Selected object IDs
+    natural_language: str           # User instruction
+    brandId: Optional[str] = None
+
+class AgentExecuteResponse(BaseModel):
+    commands: List[dict]            # EditorCommand list
+    message: Optional[str] = None
+
+@router.post('/agents/execute', response_model=AgentExecuteResponse)
+async def execute_agent(request: AgentExecuteRequest):
+    """
+    에이전트 실행 및 커맨드 생성
+
+    Request:
+    {
+        "role": "editor",
+        "natural_language": "배경을 파란색으로 바꿔줘",
+        ...
+    }
+
+    Response:
+    {
+        "commands": [
+            { "type": "UPDATE_BACKGROUND", "payload": { ... } }
+        ],
+        "message": "배경을 변경했습니다."
+    }
+    """
+    [ ] 구현 필요:
+        - Agent Router (Role 기반 분기)
+        - LLM Context 구성 (Document + Brand + Instruction)
+        - LLM 호출 (JSON Mode)
+        - Command 유효성 검증
+```
+
 ### 📝 완료 기준
 
 - [ ] A팀이 Spark Chat에서 "초안 만들기" → 새 문서 생성

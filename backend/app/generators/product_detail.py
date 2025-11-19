@@ -81,11 +81,23 @@ class ProductDetailGenerator(BaseGenerator):
         task_id = self._generate_task_id()
         logger.info(f"[ProductDetailGenerator] Starting generation, task_id={task_id}")
 
-        # 입력 검증
-        if not request.input.get("product"):
-            raise ValueError("Product 정보가 필요합니다 (input.product)")
-
-        product_input = request.input["product"]
+        # 입력 검증 및 파싱 (유연한 입력 처리)
+        if "product" in request.input:
+            # 구조화된 입력
+            product_input = request.input["product"]
+        elif "prompt" in request.input:
+            # 자유 형식 입력 → 자동 파싱
+            user_prompt = request.input["prompt"]
+            product_input = {
+                "name": user_prompt,  # "지성 피부용 진정 토너"
+                "category": "스킨케어",  # 기본값
+                "features": [user_prompt],  # 사용자 입력을 그대로 특징으로 사용
+                "target_audience": "일반 소비자",
+                "usp": user_prompt  # Unique Selling Point
+            }
+            logger.info(f"[ProductDetailGenerator] Auto-parsed from prompt: {user_prompt}")
+        else:
+            raise ValueError("Product 정보 또는 prompt가 필요합니다 (input.product or input.prompt)")
 
         try:
             # Step 1: Strategist - 상세페이지 구조 설계
@@ -145,6 +157,8 @@ class ProductDetailGenerator(BaseGenerator):
                     risk_level="low"
                 ),
                 payload={
+                    "prompt": f"'{product_input.get('name')}' 제품의 매력적인 헤드라인을 작성하세요",  # 🔴 사용자 입력 명시
+                    "product_name": product_input.get("name"),  # 🔴 제품명 직접 전달
                     "brief": {
                         "goal": f"{product_input.get('name')} 제품 헤드라인 작성",
                         "target_audience": product_input.get("target_audience", ""),
@@ -177,6 +191,9 @@ class ProductDetailGenerator(BaseGenerator):
                     risk_level="low"
                 ),
                 payload={
+                    "prompt": f"'{product_input.get('name')}' 제품의 매력적인 소개글을 작성하세요",  # 🔴 사용자 입력 명시
+                    "product_name": product_input.get("name"),  # 🔴 제품명 직접 전달
+                    "features": product_input.get("features", []),  # 🔴 특징 직접 전달
                     "brief": {
                         "goal": f"{product_input.get('name')} 제품 소개 작성",
                         "target_audience": product_input.get("target_audience", ""),
@@ -339,14 +356,14 @@ class ProductDetailGenerator(BaseGenerator):
                     "height": 2400,
                     "background": "#FFFFFF",
                     "objects": [
-                        # Hero Section - 제품명
+                        # Hero Section - 제품명 (실제 데이터 사용)
                         {
                             "id": "obj_product_name",
                             "type": "text",
                             "role": "PRODUCT_NAME",
                             "bounds": {"x": 100, "y": 80, "width": 1000, "height": 100},
                             "props": {
-                                "text": product_input.get("name", "제품명"),
+                                "text": product_input.get("name", "제품명"),  # 실제 값
                                 "fontFamily": "Pretendard",
                                 "fontSize": 56,
                                 "fontWeight": 700,
@@ -355,14 +372,14 @@ class ProductDetailGenerator(BaseGenerator):
                             },
                             "bindings": {"field": "product.name"}
                         },
-                        # Headline
+                        # Headline (LLM 생성 결과)
                         {
                             "id": "obj_headline",
                             "type": "text",
                             "role": "HEADLINE",
                             "bounds": {"x": 100, "y": 200, "width": 1000, "height": 80},
                             "props": {
-                                "text": text_blocks.get("headline", ""),
+                                "text": text_blocks.get("headline", ""),  # LLM 결과
                                 "fontFamily": "Pretendard",
                                 "fontSize": 32,
                                 "fontWeight": 600,
@@ -371,14 +388,14 @@ class ProductDetailGenerator(BaseGenerator):
                             },
                             "bindings": {"field": "headline"}
                         },
-                        # Hero Copy
+                        # Hero Copy (LLM 생성 결과)
                         {
                             "id": "obj_hero_copy",
                             "type": "text",
                             "role": "HERO_COPY",
                             "bounds": {"x": 100, "y": 300, "width": 1000, "height": 100},
                             "props": {
-                                "text": text_blocks.get("hero_copy", ""),
+                                "text": text_blocks.get("hero_copy", ""),  # LLM 결과
                                 "fontFamily": "Pretendard",
                                 "fontSize": 20,
                                 "fontWeight": 400,

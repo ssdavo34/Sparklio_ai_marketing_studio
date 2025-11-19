@@ -243,6 +243,25 @@ Sparklio Editor v2.0의 **모든 Frontend UI/UX**를 구현합니다.
 [ ] /editor?docId=xxx 이동
 [ ] URL 파라미터 → GET /api/v1/documents/:id
 [ ] EditorStore.loadDocument(document)
+
+#### Week 5: Agent Integration
+
+```typescript
+// 1. Agent Execution Hook
+// src/modules/editor/hooks/useAgent.ts
+
+[ ] useAgent 훅 구현
+    - POST /api/v1/agents/execute 호출
+    - Loading 상태 관리
+    - Error 핸들링
+
+// 2. Agent Command Handler
+// src/modules/editor/store/agentMiddleware.ts
+
+[ ] Agent가 반환한 Command 리스트 실행
+    - EditorStore.dispatch(commands)
+    - History에 'Agent Action'으로 기록
+```
 ```
 
 ### 📝 완료 기준

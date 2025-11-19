@@ -1,236 +1,158 @@
 /**
  * Canvas Viewport
  *
- * 중앙에 위치한 캔버스 영역
- * - 크기: flex-1 (남은 공간 전부)
- * - 최소 너비: 400px
- * - 배경: 연한 회색 (bg-neutral-100)
- *
- * 기능:
- * - Fabric.js 캔버스 렌더링
- * - 줌/팬 컨트롤
- * - 그리드/가이드라인 표시
- *
- * Phase 1: 빈 캔버스 영역만 구현
- * Phase 3: Canvas Context에서 canvasRef만 받아오기 ✅
+ * 중앙 캔버스 영역
+ * - 역할: 실제 디자인 작업이 이루어지는 무한 캔버스 공간
+ * - 렌더링 엔진: Konva.js (Phase 1) -> Fabric.js (Phase 3 고려)
+ * - 기능: 줌, 팬, 객체 선택/조작
  *
  * @author C팀 (Frontend Team)
- * @version 3.0
+ * @version 3.1
  */
 
 'use client';
 
-import { useState } from 'react';
-import { useCanvasStore, useLayoutStore } from '../stores';
-import { useCanvas } from '../context';
-import { ContextMenu } from '../components';
+import { useEffect, useRef, useState } from 'react';
+import { Stage, Layer, Rect, Text } from 'react-konva';
+import { useEditorStore } from '../stores';
+import type { KonvaEventObject } from 'konva/lib/Node';
+import { CanvasObjectRenderer } from '../canvas/CanvasObjectRenderer';
 
 export function CanvasViewport() {
-  // Phase 3: Canvas Context에서 canvasRef와 isReady 가져오기
-  const {
-    canvasRef,
-    isReady,
-    fabricCanvas,
-    copySelected,
-    pasteSelected,
-    duplicateSelected,
-    deleteSelected,
-    groupSelected,
-    ungroupSelected,
-  } = useCanvas();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const currentMode = useEditorStore((state) => state.currentMode);
+  const document = useEditorStore((state) => state.document);
+  const selectedObjectIds = useEditorStore((state) => state.selectedObjectIds);
+  const selectObjects = useEditorStore((state) => state.selectObjects);
 
-  // 컨텍스트 메뉴 상태
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  // 캔버스 크기 상태
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  const [scale, setScale] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
 
-  // 우클릭 이벤트 핸들러
-  const handleContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setContextMenu({ x: e.clientX, y: e.clientY });
+  // 현재 페이지 (첫 번째 페이지 사용)
+  const currentPage = document?.pages?.[0];
+
+  // 리사이즈 핸들러
+  useEffect(() => {
+    const updateDimensions = () => {
+      if (containerRef.current) {
+        setDimensions({
+          width: containerRef.current.offsetWidth,
+          height: containerRef.current.offsetHeight,
+        });
+        // 초기 중앙 정렬 (임시)
+        setPosition({
+          x: containerRef.current.offsetWidth / 2 - 400,
+          y: containerRef.current.offsetHeight / 2 - 300,
+        });
+      }
+    };
+
+    window.addEventListener('resize', updateDimensions);
+    updateDimensions();
+
+    return () => window.removeEventListener('resize', updateDimensions);
+  }, []);
+
+  // 휠 줌 핸들러
+  const handleWheel = (e: KonvaEventObject<WheelEvent>) => {
+    e.evt.preventDefault();
+
+    const scaleBy = 1.1;
+    const stage = e.target.getStage();
+    if (!stage) return;
+
+    const oldScale = stage.scaleX();
+    const pointer = stage.getPointerPosition();
+
+    if (!pointer) return;
+
+    const mousePointTo = {
+      x: (pointer.x - stage.x()) / oldScale,
+      y: (pointer.y - stage.y()) / oldScale,
+    };
+
+    let newScale = e.evt.deltaY < 0 ? oldScale * scaleBy : oldScale / scaleBy;
+
+    // 줌 제한
+    if (newScale < 0.1) newScale = 0.1;
+    if (newScale > 5) newScale = 5;
+
+    setScale(newScale);
+    setPosition({
+      x: pointer.x - mousePointTo.x * newScale,
+      y: pointer.y - mousePointTo.y * newScale,
+    });
   };
 
-  // 선택된 객체가 있는지 확인
-  const hasSelection = fabricCanvas?.getActiveObject() !== undefined && fabricCanvas?.getActiveObject() !== null;
-
-  // Zustand Store 사용 (Phase 2 완료!)
-  const zoom = useCanvasStore((state) => Math.round(state.zoom * 100));
-  const zoomIn = useCanvasStore((state) => state.zoomIn);
-  const zoomOut = useCanvasStore((state) => state.zoomOut);
-  const resetZoom = useCanvasStore((state) => state.resetZoom);
-  const zoomToFit = useCanvasStore((state) => state.zoomToFit);
-  const toggleGrid = useCanvasStore((state) => state.toggleGrid);
-  const showGrid = useCanvasStore((state) => state.showGrid);
-
-  // Layout Store - 패널 토글
-  const isLeftPanelCollapsed = useLayoutStore((state) => state.isLeftPanelCollapsed);
-  const isRightDockCollapsed = useLayoutStore((state) => state.isRightDockCollapsed);
-  const toggleLeftPanel = useLayoutStore((state) => state.toggleLeftPanel);
-  const toggleRightDock = useLayoutStore((state) => state.toggleRightDock);
+  // Stage 클릭 시 선택 해제
+  const handleStageClick = (e: KonvaEventObject<MouseEvent>) => {
+    // Stage 자체를 클릭한 경우에만 선택 해제
+    if (e.target === e.target.getStage()) {
+      selectObjects([]);
+    }
+  };
 
   return (
-    <section className="relative flex flex-1 items-center justify-center bg-neutral-100">
-      {/* 캔버스 컨테이너 */}
-      <div
-        className="relative"
-        onContextMenu={handleContextMenu}
-        style={{
-          transform: `scale(${zoom / 100})`,
-          transformOrigin: 'center center',
-          transition: 'transform 0.1s ease-out',
-        }}
+    <div
+      ref={containerRef}
+      className="flex-1 relative bg-[#1e1e1e] overflow-hidden"
+    >
+      {/* Konva Stage */}
+      <Stage
+        width={dimensions.width}
+        height={dimensions.height}
+        onWheel={handleWheel}
+        onClick={handleStageClick}
+        scaleX={scale}
+        scaleY={scale}
+        x={position.x}
+        y={position.y}
+        draggable
       >
-        {/* Phase 3: Fabric.js Canvas 렌더링 */}
-        <canvas
-          ref={canvasRef}
-          className="rounded-lg shadow-2xl"
-        />
+        <Layer>
+          {/* 배경 (임시 A4 사이즈) */}
+          <Rect
+            x={0}
+            y={0}
+            width={800}
+            height={600}
+            fill="white"
+            shadowBlur={10}
+            shadowOpacity={0.1}
+          />
 
-        {/* 로딩 상태 표시 (초기화 중일 때만) */}
-        {!isReady && (
-          <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-white">
-            <div className="text-center">
-              <div className="mb-4 text-6xl text-neutral-200">🎨</div>
-              <p className="text-lg font-medium text-neutral-400">Canvas Studio v3.0</p>
-              <p className="mt-2 text-sm text-neutral-400">
-                Initializing Fabric.js...
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* 줌 컨트롤 (우측 상단) - absolute로 고정 */}
-      <div className="absolute right-4 top-4 z-50 flex items-center gap-2 rounded-lg bg-white px-3 py-2 shadow-md">
-        {/* 줌 아웃 버튼 */}
-        <button
-          onClick={zoomOut}
-          className="rounded p-1 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
-          title="Zoom Out (Ctrl+-)"
-          aria-label="Zoom Out"
-        >
-          <svg
-            className="h-4 w-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M20 12H4"
+          {/* 객체 렌더링 */}
+          {currentPage?.objects.map((obj) => (
+            <CanvasObjectRenderer
+              key={obj.id}
+              object={obj}
+              isSelected={selectedObjectIds.includes(obj.id)}
+              onSelect={() => selectObjects([obj.id])}
             />
-          </svg>
-        </button>
+          ))}
+        </Layer>
+      </Stage>
 
-        {/* 줌 퍼센트 */}
+      {/* 줌/팬 컨트롤 (우측 하단 플로팅) */}
+      <div className="absolute bottom-4 right-4 flex gap-2 bg-neutral-800 p-1 rounded shadow-lg border border-neutral-700">
         <button
-          onClick={resetZoom}
-          className="min-w-[50px] text-sm font-medium text-neutral-700 hover:text-neutral-900"
-          title="Reset Zoom (Ctrl+0)"
+          className="w-8 h-8 flex items-center justify-center text-neutral-300 hover:bg-neutral-700 rounded"
+          onClick={() => setScale(s => Math.max(0.1, s / 1.1))}
         >
-          {zoom}%
+          -
         </button>
-
-        {/* 줌 인 버튼 */}
+        <span className="flex items-center justify-center w-12 text-xs text-neutral-300">
+          {Math.round(scale * 100)}%
+        </span>
         <button
-          onClick={zoomIn}
-          className="rounded p-1 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
-          title="Zoom In (Ctrl++)"
-          aria-label="Zoom In"
+          className="w-8 h-8 flex items-center justify-center text-neutral-300 hover:bg-neutral-700 rounded"
+          onClick={() => setScale(s => Math.min(5, s * 1.1))}
         >
-          <svg
-            className="h-4 w-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 4v16m8-8H4"
-            />
-          </svg>
-        </button>
-
-        {/* 구분선 */}
-        <div className="mx-1 h-4 w-px bg-neutral-200" />
-
-        {/* Fit 버튼 */}
-        <button
-          onClick={zoomToFit}
-          className="rounded px-2 py-1 text-xs font-medium text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
-          title="Zoom to Fit"
-        >
-          Fit
+          +
         </button>
       </div>
-
-      {/* 좌측 하단 컨트롤 그룹 - absolute로 고정 */}
-      <div className="absolute bottom-4 left-4 z-50 flex items-center gap-2">
-        {/* 좌측 패널 토글 (패널이 닫혀있을 때만 표시) */}
-        {isLeftPanelCollapsed && (
-          <button
-            onClick={toggleLeftPanel}
-            className="rounded-lg bg-white px-3 py-2 text-xs font-medium text-neutral-600 shadow-md transition-colors hover:bg-neutral-50 hover:text-neutral-900"
-            title="Show Left Panel (Ctrl+B)"
-          >
-            ☰ Pages
-          </button>
-        )}
-
-        {/* 그리드 토글 */}
-        <button
-          className={`
-            rounded-lg px-3 py-2 text-xs font-medium shadow-md
-            transition-colors duration-200
-            ${
-              showGrid
-                ? 'bg-blue-500 text-white hover:bg-blue-600'
-                : 'bg-white text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900'
-            }
-          `}
-          onClick={toggleGrid}
-          title="Toggle Grid (Ctrl+G)"
-        >
-          Grid
-        </button>
-      </div>
-
-      {/* 우측 하단 컨트롤 그룹 - absolute로 고정 */}
-      <div className="absolute bottom-4 right-4 z-50 flex items-center gap-2">
-        {/* 캔버스 상태 표시 */}
-        <div className="rounded-lg bg-white px-3 py-2 text-xs text-neutral-500 shadow-md">
-          800 × 600 px
-        </div>
-
-        {/* 우측 Dock 토글 (Dock이 닫혀있을 때만 표시) */}
-        {isRightDockCollapsed && (
-          <button
-            onClick={toggleRightDock}
-            className="rounded-lg bg-white px-3 py-2 text-xs font-medium text-neutral-600 shadow-md transition-colors hover:bg-neutral-50 hover:text-neutral-900"
-            title="Show Right Dock (Ctrl+Shift+B)"
-          >
-            📋 Dock
-          </button>
-        )}
-      </div>
-
-      {/* 컨텍스트 메뉴 */}
-      {contextMenu && (
-        <ContextMenu
-          x={contextMenu.x}
-          y={contextMenu.y}
-          onClose={() => setContextMenu(null)}
-          onCopy={copySelected}
-          onPaste={pasteSelected}
-          onDuplicate={duplicateSelected}
-          onDelete={deleteSelected}
-          onGroup={groupSelected}
-          onUngroup={ungroupSelected}
-          hasSelection={hasSelection}
-        />
-      )}
-    </section>
+    </div>
   );
 }
