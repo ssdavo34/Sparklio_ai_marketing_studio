@@ -19,6 +19,7 @@ from app.services.agents import (
     get_reviewer_agent,
     get_optimizer_agent,
     get_editor_agent,
+    get_meeting_ai_agent,
     AgentRequest,
     AgentResponse,
     AgentError
@@ -35,7 +36,8 @@ AGENTS = {
     "designer": get_designer_agent,
     "reviewer": get_reviewer_agent,
     "optimizer": get_optimizer_agent,
-    "editor": get_editor_agent
+    "editor": get_editor_agent,
+    "meeting_ai": get_meeting_ai_agent
 }
 
 
@@ -71,7 +73,8 @@ async def execute_agent(
         "designer",
         "reviewer",
         "optimizer",
-        "editor"
+        "editor",
+        "meeting_ai"
     ] = Path(..., description="Agent 이름"),
     request: AgentExecuteRequest = ...
 ):
@@ -87,6 +90,7 @@ async def execute_agent(
     - `reviewer`: 콘텐츠 품질 검토
     - `optimizer`: 콘텐츠 최적화
     - `editor`: 콘텐츠 편집/교정
+    - `meeting_ai`: 회의록 분석 및 문서 초안 생성
 
     Returns:
         AgentResponse: Agent 실행 결과 (outputs, usage, meta)
@@ -175,7 +179,12 @@ async def list_agents():
             {
                 "name": "editor",
                 "description": "콘텐츠 편집/교정 (교정, 재작성, 요약, 번역)",
-                "tasks": ["proofread", "rewrite", "summarize", "expand", "translate"]
+                "tasks": ["proofread", "rewrite", "summarize", "expand", "translate", "generate_commands"]
+            },
+            {
+                "name": "meeting_ai",
+                "description": "회의록 분석 및 문서 초안 생성",
+                "tasks": ["analyze_transcript", "generate_draft"]
             }
         ]
     }
@@ -189,7 +198,8 @@ async def get_agent_info(
         "designer",
         "reviewer",
         "optimizer",
-        "editor"
+        "editor",
+        "meeting_ai"
     ] = Path(..., description="Agent 이름")
 ):
     """

@@ -1,7 +1,8 @@
 from fastapi import APIRouter
+from app.api.v1 import auth, users, projects, assets, brand, chat, meeting, admin
 from app.api.v1.endpoints import (
     assets, brands, projects, users, agents_new,
-    generate, documents, templates, editor, admin,
+    generate, documents, templates, editor,
     llm_gateway, media_gateway, debug, chat, meeting
 )
 # agents (legacy) - Deprecated, import 에러로 주석 처리
@@ -104,15 +105,10 @@ api_router.include_router(
 )
 
 # Chat API (Phase 2)
-api_router.include_router(
-    chat.router,
-    prefix="/chat",
-    tags=["chat"]
-)
+api_router.include_router(chat.router, prefix="/chat", tags=["chat"])
 
 # Meeting AI API (Phase 3)
-api_router.include_router(
-    meeting.router,
-    prefix="/meeting",
-    tags=["meeting"]
-)
+api_router.include_router(meeting.router, prefix="/meeting", tags=["meeting"])
+
+# Admin API (관리자 전용 모니터링)
+api_router.include_router(admin.router, prefix="/admin", tags=["admin"])

@@ -3,8 +3,12 @@ from pydantic import BaseModel
 from typing import List, Optional
 from uuid import uuid4
 import datetime
+import asyncio
+import logging
+from app.services.agents import get_editor_agent, AgentRequest
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 # --- Pydantic Models ---
 
@@ -12,14 +16,17 @@ class ChatAnalysisRequest(BaseModel):
     message: str
     brandId: Optional[str] = None
 
-class SuggestedSection(BaseModel):
-    role: str
-    suggestion: str
+class Suggestion(BaseModel):
+    id: str
+    type: str
+    label: str
+    description: str
+    preview_image: Optional[str] = None
+    payload: Optional[dict] = None
 
 class ChatAnalysisResponse(BaseModel):
-    chatSessionId: str
-    contentType: str
-    suggestedStructure: List[SuggestedSection]
+    analysis: str
+    suggestions: List[Suggestion]
 
 class GenerateDocumentRequest(BaseModel):
     chatSessionId: str
@@ -29,27 +36,56 @@ class GenerateDocumentResponse(BaseModel):
     documentId: str
     document: dict  # Simplified for mock
 
-# --- Mock Data & Logic ---
+# --- Logic ---
 
 @router.post('/analyze', response_model=ChatAnalysisResponse)
 async def analyze_chat(request: ChatAnalysisRequest):
     """
-    Mock API for analyzing chat messages.
-    Returns a fixed suggestion for 'instagram-ad' regardless of input.
+    Analyze chat message using EditorAgent to generate commands.
     """
-    # Simulate processing time
-    # await asyncio.sleep(1) 
+    try:
+        # EditorAgent를 사용하여 자연어 -> 명령 변환
+        agent = get_editor_agent()
+        
+        agent_request = AgentRequest(
+            task="generate_commands",
+            payload={
+                "natural_language": request.message,
+                "context": "spark_chat"
+            },
+            options={"model": "gpt-4o"} # 고성능 모델 권장
+        )
+        
+        response = await agent.execute(agent_request)
+        
+        # Agent 응답에서 commands와 message 추출
+        commands = []
+        message = "명령을 생성했습니다."
+        
+        for output in response.outputs:
+            if output.name == "commands" and isinstance(output.value, list):
+                commands = output.value
+            elif output.name == "message":
+                message = output.value
+                
+        # 제안 구조 생성
+        return ChatAnalysisResponse(
+            analysis="사용자 요청을 분석하여 편집 명령을 생성했습니다.",
+            suggestions=[
+                Suggestion(
+                    id="sug_generated",
+                    type="command_execution",
+                    label="요청 실행",
+                    description=message,
+                    preview_image="/images/preview_placeholder.png",
+                    payload={"commands": commands}
+                )
+            ]
+        )
 
-    return ChatAnalysisResponse(
-        chatSessionId=str(uuid4()),
-        contentType="instagram-ad",
-        suggestedStructure=[
-            SuggestedSection(role="headline", suggestion="New Arrival: Air Max 2025"),
-            SuggestedSection(role="product-image", suggestion="Hero Image of Air Max"),
-            SuggestedSection(role="body", suggestion="Experience the ultimate comfort and style."),
-            SuggestedSection(role="cta", suggestion="Shop Now"),
-        ]
-    )
+    except Exception as e:
+        logger.error(f"Chat analysis failed: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post('/generate-document', response_model=GenerateDocumentResponse)
 async def generate_document(request: GenerateDocumentRequest):
@@ -103,13 +139,13 @@ async def generate_document(request: GenerateDocumentRequest):
                         "width": 400, "height": 80,
                         "fontSize": 36, "fontWeight": "bold", "textAlign": "center",
                         "fill": "#FFFFFF",
-                        "backgroundColor": "#000000", # Note: Text object doesn't usually have bg color in Konva, but for mock logic
+                        "backgroundColor": "#000000",
                         "zIndex": 2
                     },
                     {
                         "id": str(uuid4()),
                         "type": "shape",
-                        "role": "cta-bg", # Mocking button bg as a separate shape for now or just assuming Text has it
+                        "role": "cta-bg",
                         "shapeKind": "rect",
                         "x": 340, "y": 790,
                         "width": 400, "height": 100,

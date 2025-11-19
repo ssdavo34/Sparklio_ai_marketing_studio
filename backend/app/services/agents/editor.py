@@ -30,6 +30,7 @@ class EditorAgent(AgentBase):
     3. summarize: 요약
     4. expand: 확장 (내용 추가)
     5. translate: 번역 (다국어 지원)
+    6. generate_commands: Spark Chat 명령 생성 (자연어 -> EditorCommand)
 
     사용 예시:
         agent = EditorAgent()
@@ -200,6 +201,28 @@ class EditorAgent(AgentBase):
             enhanced["_instructions"] = task_instructions[request.task]["instruction"]
             enhanced["_output_structure"] = task_instructions[request.task]["structure"]
 
+        # Spark Chat: 자연어 -> EditorCommand 변환
+        if request.task == "generate_commands":
+            enhanced["_instructions"] = (
+                "사용자의 자연어 요청을 분석하여 Canvas Studio Editor에서 실행 가능한 "
+                "EditorCommand 목록으로 변환하세요. "
+                "사용 가능한 Command Type: UPDATE_BACKGROUND, ADD_TEXT, UPDATE_TEXT_STYLE, "
+                "ADD_IMAGE, REPLACE_IMAGE, ARRANGE_OBJECTS. "
+                "각 Command는 id, type, payload, source('agent'), timestamp를 포함해야 합니다."
+            )
+            enhanced["_output_structure"] = {
+                "commands": [
+                    {
+                        "id": "cmd_uuid",
+                        "type": "COMMAND_TYPE",
+                        "payload": { "key": "value" },
+                        "source": "agent",
+                        "timestamp": "ISO8601"
+                    }
+                ],
+                "message": "사용자에게 전달할 완료 메시지 또는 질문"
+            }
+
         return enhanced
 
     def _parse_llm_response(
@@ -229,7 +252,8 @@ class EditorAgent(AgentBase):
                 "rewrite": "rewritten_content",
                 "summarize": "summary",
                 "expand": "expanded_content",
-                "translate": "translation"
+                "translate": "translation",
+                "generate_commands": "commands"
             }
 
             output_name = output_names.get(task, "edited_content")

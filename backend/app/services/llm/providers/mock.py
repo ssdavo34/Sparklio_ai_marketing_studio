@@ -213,6 +213,59 @@ class MockProvider(LLMProvider):
                 "approved": True
             }
 
+        # Editor 역할 (Spark Chat)
+        elif role == "editor":
+            if task == "generate_commands":
+                return {
+                    "message": "배경을 파란색 그라데이션으로 변경했습니다.",
+                    "commands": [
+                        {
+                            "command": "update_background",
+                            "params": {
+                                "type": "color",
+                                "value": "linear-gradient(to bottom, #00c6ff, #0072ff)"
+                            }
+                        }
+                    ]
+                }
+
+        # Meeting AI 역할
+        elif role == "meeting_ai":
+            if task == "analyze_transcript":
+                return {
+                    "summary": "이번 회의에서는 신제품 런칭 캠페인의 타겟과 주요 채널을 확정했습니다. 2030 여성을 메인 타겟으로 하며, 인스타그램과 틱톡을 중심으로 마케팅을 진행하기로 했습니다. 예산은 5천만원으로 책정되었습니다.",
+                    "key_topics": [
+                        "신제품 런칭 캠페인 타겟 설정",
+                        "메인 마케팅 채널 선정 (인스타그램, 틱톡)",
+                        "예산 배정 및 인플루언서 마케팅"
+                    ],
+                    "decisions": [
+                        "타겟: 2030 여성",
+                        "채널: 인스타그램, 틱톡",
+                        "예산: 5,000만원"
+                    ],
+                    "action_items": [
+                        {"task": "인플루언서 리스트업", "assignee": "김철수", "due_date": "2025-11-27"},
+                        {"task": "상세 미디어 믹스안 작성", "assignee": "이영희", "due_date": "2025-11-25"}
+                    ]
+                }
+            elif task == "generate_draft":
+                return {
+                    "document": {
+                        "title": "신제품 런칭 캠페인 기획안",
+                        "pages": [
+                            {
+                                "id": "page_1",
+                                "elements": [
+                                    {"type": "text", "content": "신제품 런칭 캠페인", "style": {"fontSize": 48, "fontWeight": "bold"}},
+                                    {"type": "text", "content": "타겟: 2030 여성", "style": {"fontSize": 24}}
+                                ]
+                            }
+                        ]
+                    },
+                    "rationale": "회의에서 논의된 타겟과 핵심 메시지를 강조하여 문서를 구성했습니다."
+                }
+
         # 기본 응답
         return {
             "role": role,
