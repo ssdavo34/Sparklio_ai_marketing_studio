@@ -21,6 +21,7 @@ from .designer import DesignerAgent, get_designer_agent
 from .reviewer import ReviewerAgent, get_reviewer_agent
 from .optimizer import OptimizerAgent, get_optimizer_agent
 from .editor import EditorAgent, get_editor_agent
+from .vision_analyzer import VisionAnalyzerAgent, get_vision_analyzer_agent
 
 __all__ = [
     # Base classes
@@ -37,6 +38,7 @@ __all__ = [
     "ReviewerAgent",
     "OptimizerAgent",
     "EditorAgent",
+    "VisionAnalyzerAgent",
 
     # Factory functions
     "get_copywriter_agent",
@@ -44,5 +46,6 @@ __all__ = [
     "get_designer_agent",
     "get_reviewer_agent",
     "get_optimizer_agent",
-    "get_editor_agent"
+    "get_editor_agent",
+    "get_vision_analyzer_agent"
 ]

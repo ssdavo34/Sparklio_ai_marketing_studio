@@ -429,6 +429,174 @@ JSON 형식으로만 응답:
 
         return options
 
+    async def generate_with_vision(
+        self,
+        prompt: str,
+        image_url: Optional[str] = None,
+        image_base64: Optional[str] = None,
+        override_model: Optional[str] = None,
+        options: Optional[Dict[str, Any]] = None
+    ) -> LLMProviderResponse:
+        """
+        Vision API를 사용한 이미지 분석
+
+        Args:
+            prompt: 분석 지시사항
+            image_url: 이미지 URL (선택)
+            image_base64: Base64 인코딩된 이미지 (선택)
+            override_model: 강제로 사용할 모델 (선택)
+            options: Provider별 추가 옵션
+
+        Returns:
+            LLMProviderResponse: 분석 결과
+
+        Raises:
+            ProviderError: Vision API 호출 실패 시
+            ValueError: 이미지 입력이 없을 때
+
+        Note:
+            Vision-capable 모델만 지원:
+            - Claude 3.5 Sonnet (claude-3-5-sonnet-20241022)
+            - GPT-4o (gpt-4o)
+        """
+        start_time = datetime.utcnow()
+
+        try:
+            # 1. 이미지 입력 검증
+            if not image_url and not image_base64:
+                raise ValueError("Either image_url or image_base64 is required")
+
+            # 2. Vision-capable Provider 선택
+            provider_name, provider, model = self._select_vision_provider(override_model)
+
+            logger.info(
+                f"Vision API Generate: provider={provider_name}, model={model}"
+            )
+
+            # 3. 옵션 병합
+            merged_options = self._merge_vision_options(provider, options)
+
+            # 4. Vision API 호출
+            # TODO: Provider에 vision 메서드 추가 후 구현
+            # 현재는 일반 generate로 폴백 (임시)
+            logger.warning(
+                "Vision API not fully implemented yet. "
+                "Using text-only generation as fallback."
+            )
+
+            # 임시: 텍스트 전용으로 폴백
+            full_prompt = f"{prompt}\n\n이미지: {image_url or '(Base64 데이터)'}"
+            response = await provider.generate(
+                prompt=full_prompt,
+                role="vision_analyzer",
+                task="image_analysis",
+                mode="json",
+                options=merged_options
+            )
+
+            # 5. 로깅
+            elapsed = (datetime.utcnow() - start_time).total_seconds()
+            logger.info(
+                f"Vision API Success: {provider_name}/{model} - "
+                f"elapsed={elapsed:.2f}s"
+            )
+
+            return response
+
+        except ProviderError as e:
+            logger.error(f"Vision API provider error: {e.message}", exc_info=True)
+            raise
+
+        except Exception as e:
+            logger.error(f"Vision API error: {str(e)}", exc_info=True)
+            raise ProviderError(
+                message=f"Vision API error: {str(e)}",
+                provider="gateway",
+                details={"image_provided": bool(image_url or image_base64)}
+            )
+
+    def _select_vision_provider(
+        self,
+        override_model: Optional[str] = None
+    ) -> tuple[str, LLMProvider, str]:
+        """
+        Vision-capable Provider 선택
+
+        Args:
+            override_model: 강제 모델 (선택)
+
+        Returns:
+            (provider_name, provider_instance, model) 튜플
+
+        Raises:
+            ProviderError: Vision-capable Provider가 없을 때
+        """
+        # Vision-capable 모델 우선순위
+        # 1. Claude 3.5 Sonnet (Primary)
+        # 2. GPT-4o (Fallback)
+
+        if override_model:
+            # 사용자가 모델 지정한 경우
+            if "claude" in override_model.lower():
+                if "anthropic" in self.providers:
+                    return "anthropic", self.providers["anthropic"], override_model
+            elif "gpt" in override_model.lower():
+                if "openai" in self.providers:
+                    return "openai", self.providers["openai"], override_model
+
+        # Primary: Claude 3.5 Sonnet
+        if "anthropic" in self.providers:
+            model = "claude-3-5-sonnet-20241022"
+            logger.info(f"Using Claude 3.5 Sonnet for vision analysis")
+            return "anthropic", self.providers["anthropic"], model
+
+        # Fallback: GPT-4o
+        if "openai" in self.providers:
+            model = "gpt-4o"
+            logger.info(f"Using GPT-4o for vision analysis")
+            return "openai", self.providers["openai"], model
+
+        # 둘 다 없으면 에러
+        raise ProviderError(
+            message="No vision-capable provider available",
+            provider="gateway",
+            details={
+                "available_providers": list(self.providers.keys()),
+                "required": ["anthropic (Claude 3.5 Sonnet)", "openai (GPT-4o)"]
+            }
+        )
+
+    def _merge_vision_options(
+        self,
+        provider: LLMProvider,
+        user_options: Optional[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """
+        Vision API용 옵션 병합
+
+        Args:
+            provider: Provider 인스턴스
+            user_options: 사용자 지정 옵션
+
+        Returns:
+            병합된 옵션
+        """
+        # Vision API 기본 옵션
+        options = {
+            "temperature": 0.2,  # 분석의 일관성을 위해 낮은 온도
+            "max_tokens": 2000   # 상세한 분석을 위해 충분한 토큰
+        }
+
+        # Provider 기본값 병합
+        provider_defaults = provider.get_default_options("vision_analyzer", "image_analysis")
+        options.update(provider_defaults)
+
+        # 사용자 옵션으로 오버라이드
+        if user_options:
+            options.update(user_options)
+
+        return options
+
     async def health_check(self) -> Dict[str, Any]:
         """
         Gateway 및 모든 Provider 상태 확인

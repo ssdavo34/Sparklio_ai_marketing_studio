@@ -1,113 +1,193 @@
 # 다음 세션 작업 가이드 - 2025년 11월 20일
 
 **대상**: 다음 세션을 담당할 Claude AI
-**이전 작업자**: B팀 Backend (2025-11-19)
-**작성일**: 2025-11-19 23:00
+**이전 작업자**: B팀 Backend (2025-11-19 학원 노트북)
+**작성일**: 2025-11-19 15:00
+**최종 업데이트**: 2025-11-19 15:00
+
+---
+
+## ⚠️ 중요: 오늘(2025-11-19) 작업 완료
+
+### 완료된 작업 (오전 + 오후)
+
+**오전 작업**
+- ✅ LLM Provider 구조적 버그 수정 (Anthropic, Gemini, Novita)
+- ✅ Prompt 자동 변환 기능 구현 (`_prepare_workflow_payload()`)
+- ✅ LLM 한국어 응답 강제 (system prompt 수정)
+
+**오후 작업 (P0 + P1 전체 완료)**
+- ✅ Backend Canvas Abstract Spec v2.0 완성 (800+ 줄 문서)
+- ✅ Pydantic 스키마 구현 (350+ 줄)
+- ✅ Abstract Canvas Builder 구현 (600+ 줄)
+- ✅ 샘플 데이터 작성 (product_detail, sns_feed_set)
+- ✅ Generator Service v2.0 통합
+- ✅ TypeScript 타입 자동 생성 (250+ 줄)
+- ✅ Agent 확장 플랜 검토
+
+**Git 커밋**:
+- `e899b3b` - LLM Provider 수정 + Prompt 변환
+- `7b76994` - Canvas Abstract Spec v2.0 (P0)
+- `49d35c9` - Generator Service v2.0 (P1)
+
+**총 작업량**: 16개 파일, 2,400+ 줄 신규 코드
+
+자세한 내용은 `EOD_REPORT_2025-11-19.md` 참고
 
 ---
 
 ## 🎯 세션 시작 시 필수 확인사항
 
-### 1. 서버 상태 확인
+### 1. 환경 확인
 ```bash
-# 포트 8000에서 실행 중인 프로세스 확인
+# 현재 날짜/시간 확인
+date
+
+# 작업 위치 확인 (집 서버 vs 학원 노트북)
+# 집 서버: Mac mini (Redis 사용 가능)
+# 학원 노트북: Redis 연결 불가 (100.123.51.5:6379)
+```
+
+### 2. Git 상태 확인
+```bash
+# 최근 커밋 확인
+git log --oneline -5
+
+# 예상 출력:
+# 49d35c9 feat(backend): Generator Service v2.0 완성
+# 7b76994 feat(backend): Canvas Abstract Spec v2.0 완성
+# e899b3b fix(backend): LLM Provider 구조적 결함 수정
+
+# 변경사항 확인
+git status
+```
+
+### 3. 서버 상태 확인 (집 서버인 경우)
+```bash
+# 포트 8000 확인
 netstat -ano | findstr ":8000"
 
-# 서버가 실행 중이 아니면 시작
+# 서버 시작 (필요시)
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-### 2. 어제 작업 결과 확인
-```bash
-# 간단한 API 테스트
-curl -X POST http://localhost:8000/api/v1/generate \
-  -H "Content-Type: application/json" \
-  -d '{"kind":"product_detail","brandId":"test","input":{"prompt":"테스트 제품"}}'
-
-# 헤드라인에 "테스트 제품"이 포함되어야 함 (템플릿 변수 X)
-```
-
-### 3. 문서 읽기
-1. `EOD_REPORT_2025-11-19.md` - 어제 작업 내용
-2. `AGENT_EXPANSION_PLAN_2025-11-18.md` - 전체 로드맵
-3. 이 문서 - 오늘 할 일
+### 4. 필수 문서 읽기
+1. `EOD_REPORT_2025-11-19.md` - 오늘 작업 내용
+2. `docs/BACKEND_CANVAS_SPEC_V2.md` - 새로 작성된 Canvas 추상 스펙
+3. `AGENT_EXPANSION_PLAN_2025-11-18.md` - Agent 확장 로드맵
+4. 이 문서 - 다음 작업 계획
 
 ---
 
-## 📋 오늘의 작업 계획 (우선순위)
+## 📋 작업 계획 (우선순위)
 
 ### P0: 긴급 - 당장 해야 할 일
 
-#### 1. LLM 응답 언어 문제 해결 ⚠️
-**문제**: LLM이 한국어 입력에 중국어로 응답하는 경우 발생
+#### 1. VisionAnalyzerAgent 구현 시작 (Agent 확장 Phase 1) 🎯
 
-**원인 추정**:
-- System prompt에 언어 지정 누락
-- LLM 모델 자체 문제 (Ollama qwen2.5:7b)
-
-**해결 방법**:
-1. `app/services/llm/gateway.py`의 system prompt에 명시적 언어 지정 추가
-   ```python
-   system_prompt = f"""당신은 전문 {role}입니다.
-
-   🔴 중요: 모든 응답은 반드시 한국어로 작성하세요.
-
-   {task_specific_instructions}
-   """
-   ```
-
-2. 테스트:
-   ```bash
-   curl -X POST http://localhost:8000/api/v1/generate \
-     -H "Content-Type: application/json" \
-     -d '{"kind":"product_detail","brandId":"test","input":{"prompt":"지성 피부용 진정 토너"}}'
-   ```
-
-**예상 소요 시간**: 30분
-
----
-
-#### 2. Agent 확장 플랜 검토 및 공유
-**목표**: AGENT_EXPANSION_PLAN_2025-11-18.md를 A팀(QA), C팀(Frontend)과 공유
+**목표**: 이미지 품질 자동 평가 Agent 구현
 
 **작업 순서**:
-1. 플랜 문서 재검토 및 업데이트
-2. A팀/C팀과 공유 가능한 요약 문서 작성
-3. Slack/Discord 등을 통해 공유 (사용자 확인 필요)
 
-**예상 소요 시간**: 1시간
+**STEP 1: Agent 클래스 구현 (3일 예상)**
+- 파일: `app/services/agents/vision_analyzer.py`
+- 클래스: `VisionAnalyzerAgent`
+- Input 스키마: `VisionAnalysisInput`
+- Output 스키마: `VisionAnalysisOutput`
+
+```python
+# app/services/agents/vision_analyzer.py 구조
+class VisionAnalyzerAgent(BaseAgent):
+    """이미지 품질 평가 Agent"""
+
+    async def execute(
+        self,
+        image_input: Union[str, bytes],  # URL or base64
+        criteria: Dict[str, bool],
+        brand_guidelines: Optional[Dict] = None
+    ) -> VisionAnalysisOutput:
+        """
+        Returns:
+            quality_score: 0-1 (종합 점수)
+            composition: 구도 분석 (score, analysis, issues)
+            color_harmony: 색상 조화 (score, analysis, issues)
+            brand_consistency: 브랜드 일관성 (score, matches, deviations)
+            technical_quality: 기술적 품질 (score, resolution, clarity)
+            improvements: 개선 제안 리스트
+            overall_verdict: excellent/good/fair/poor
+            requires_regeneration: bool
+        """
+```
+
+**STEP 2: Vision API 통합 (2일 예상)**
+- LLM Gateway에 Vision 지원 추가
+- Vision-capable 모델 선택 로직
+  - Primary: Claude 3.5 Sonnet (`claude-3-5-sonnet-20241022`)
+  - Fallback: GPT-4o (`gpt-4o`)
+- 이미지 입력 처리 (URL/base64 지원)
+- Prompt Engineering (분석 정확도 최적화)
+
+**STEP 3: 품질 평가 로직 구현 (2일 예상)**
+- Composition 분석 (배치, 균형, 시선 흐름)
+- Color Harmony 분석 (색상 조화, 대비, 가독성)
+- Brand Consistency 체크 (컬러, 폰트, 스타일)
+- Technical Quality 평가 (해상도, 선명도)
+- 종합 점수 계산 알고리즘
+
+**STEP 4: 통합 테스트 (2일 예상)**
+- Unit Test 작성
+- Workflow 통합 (Designer → VisionAnalyzer)
+- 샘플 이미지 테스트
+- KPI 검증 (분석 정확도 >95%)
+
+**STEP 5: 문서화 (1일 예상)**
+- Agent 사용 가이드
+- API 명세 업데이트
+- 샘플 코드 작성
+
+**총 예상 기간**: 10일 (2주)
+
+**성공 기준**:
+- [ ] VisionAnalyzerAgent 클래스 구현 완료
+- [ ] Vision API 통합 완료 (Claude/GPT-4o)
+- [ ] 품질 평가 로직 구현 완료
+- [ ] 테스트 통과 (정확도 >95%)
+- [ ] 문서 작성 완료
 
 ---
 
-### P1: 중요 - 오늘 완료하면 좋은 일
+### P1: 중요 - 빠르게 완료하면 좋은 일
 
-#### 3. AGENTS_SPEC.md 작성
+#### 2. AGENTS_SPEC.md 작성
+
 **목표**: 모든 Agent의 명세를 하나의 문서로 통합
 
-**포함 내용**:
-- 각 Agent의 역할 및 책임
+**내용**:
+- 현재 구현된 6개 Agent 상세 명세
+  - CopywriterAgent
+  - StrategistAgent
+  - DesignerAgent
+  - ReviewerAgent
+  - OptimizerAgent
+  - EditorAgent
+- 계획된 14개 Agent 개요
 - Input/Output 스키마
 - 사용 예시
-- 제약사항 및 주의사항
-
-**참고 파일**:
-- `app/services/agents/copywriter.py`
-- `app/services/agents/strategist.py`
-- `app/services/agents/reviewer.py`
-- 기타 Agent 파일들
+- 제약사항
 
 **예상 소요 시간**: 2시간
 
 ---
 
-#### 4. GENERATORS_SPEC.md 작성
+#### 3. GENERATORS_SPEC.md 작성
+
 **목표**: 모든 Generator의 명세를 하나의 문서로 통합
 
-**포함 내용**:
+**내용**:
 - Generator 종류 및 용도
 - Workflow 구조
 - Input/Output 형식
-- Canvas 생성 규칙
+- Canvas 생성 규칙 (v1.0 Legacy vs v2.0 Abstract)
 
 **참고 파일**:
 - `app/services/generator/service.py`
@@ -120,58 +200,69 @@ curl -X POST http://localhost:8000/api/v1/generate \
 
 ### P2: 보통 - 시간이 남으면 하면 좋은 일
 
+#### 4. LLM 한국어 응답 안정성 테스트
+
+**목표**: 한국어 강제 prompt가 제대로 작동하는지 검증
+
+**조건**: 집 서버 환경 필요 (Redis 접근 가능)
+
+**테스트 케이스**:
+```bash
+# 1. Product Detail 생성
+curl -X POST http://localhost:8000/api/v1/generate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "kind": "product_detail",
+    "brandId": "test_brand",
+    "input": {"prompt": "지성 피부용 진정 토너"}
+  }'
+
+# 2. 응답에서 중국어 포함 여부 확인
+# 3. 100% 한국어 응답 확인
+```
+
+**예상 소요 시간**: 1시간
+
+---
+
 #### 5. NanoBanana Provider 활성화
+
 **목표**: Gemini Image Generation 기능 활성화
 
 **작업 순서**:
-1. `google-genai` 패키지 설치
-   ```bash
-   pip install google-genai==1.50.1
-   ```
+```bash
+# 1. 패키지 설치
+pip install google-genai==1.50.1
 
-2. `.env` 파일 확인 (GOOGLE_API_KEY 존재 여부)
+# 2. .env 파일 확인
+# GOOGLE_API_KEY 존재 여부 체크
 
-3. 서버 재시작 후 테스트
-   ```bash
-   # 서버 로그에서 확인
-   # "NanoBanana Provider initialized successfully" 메시지 확인
-   ```
+# 3. 서버 재시작 및 로그 확인
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+# "NanoBanana Provider initialized successfully" 확인
+```
 
 **예상 소요 시간**: 30분
 
 ---
 
-#### 6. 코드 품질 개선
-
-##### 6-1. Type Hints 추가
-- 모든 함수/메서드에 타입 힌트 추가
-- mypy로 타입 체크
-
-##### 6-2. Docstring 보완
-- Google Style Docstring 형식 통일
-- 모든 public 메서드에 docstring 추가
-
-##### 6-3. 로깅 개선
-- 중요 포인트에 DEBUG 로그 추가
-- 에러 로그에 context 정보 포함
-
-**예상 소요 시간**: 2-3시간
-
----
-
 ## 🚧 알려진 이슈 및 제약사항
 
-### 1. LLM Provider 관련
+### 1. 환경 관련
+- **노트북 환경**: Redis 연결 불가 (Mac mini 서버 100.123.51.5:6379)
+- **LLM 테스트**: 서버 환경에서만 가능
+
+### 2. LLM Provider 관련
 - **NanoBanana**: `google-genai` 미설치로 비활성화 상태
-- **Novita**: API 키가 placeholder (`your-novita-api-key-here`) - 실제 사용 불가
+- **Novita**: API 키가 placeholder (`your-novita-api-key-here`)
 
-### 2. Workflow 관련
-- ProductContentWorkflow가 Reviewer, Optimizer를 호출하지만 실제로는 Copywriter만 결과 사용
+### 3. Canvas 관련
+- **v1.0 (Fabric.js)**: Legacy, 하위 호환성 유지만
+- **v2.0 (Abstract)**: 신규 구현 완료, 프론트엔드 통합 대기
+
+### 4. Workflow 관련
+- ProductContentWorkflow가 Reviewer, Optimizer 호출하지만 결과 미사용
 - 불필요한 Agent 호출로 비용/시간 낭비 가능성
-
-### 3. 프론트엔드 연동 관련
-- Canvas JSON 형식이 Fabric.js v5.3.0 기준
-- 프론트엔드에서 제대로 렌더링되는지 미확인
 
 ---
 
@@ -179,18 +270,19 @@ curl -X POST http://localhost:8000/api/v1/generate \
 
 ### 프로젝트 개요
 - `README.md` - 프로젝트 전체 구조
-- `ARCHITECTURE.md` - 아키텍처 문서 (있다면)
 
-### 어제까지의 작업
-- `EOD_REPORT_2025-11-18.md` - 11/18 작업 보고
-- `EOD_REPORT_2025-11-19.md` - 11/19 작업 보고
+### 최근 작업 보고
+- `EOD_REPORT_2025-11-19.md` - 오늘(11/19) 작업 내용
+- `EOD_REPORT_2025-11-18.md` - 11/18 작업 내용
 
-### 계획 문서
-- `AGENT_EXPANSION_PLAN_2025-11-18.md` - 8주 확장 로드맵
-- `SESSION_START_CHECKLIST.md` - 세션 시작 체크리스트
-
-### API 문서
+### 기술 스펙
+- `docs/BACKEND_CANVAS_SPEC_V2.md` - Canvas 추상 스펙 v2.0
 - `docs/OPENAPI_SPEC_V4_AGENT.md` - Agent API 명세
+- `AGENT_EXPANSION_PLAN_2025-11-18.md` - Agent 확장 로드맵
+
+### 팀 협업
+- `C_TEAM_COORDINATION_REQUEST_2025-11-19.md` - C팀 조율 요청
+- `C_TEAM_FEEDBACK_REVIEW_2025-11-19.md` - C팀 피드백 분석
 
 ---
 
@@ -211,6 +303,7 @@ anthropic==0.73.0
 google-generativeai==0.8.5
 sqlalchemy==2.0.23
 redis==5.0.1
+pydantic==2.10.5
 ```
 
 ### 환경 변수
@@ -220,6 +313,10 @@ GENERATOR_MODE=live
 LOG_LEVEL=INFO
 OLLAMA_BASE_URL=http://100.120.180.42:11434
 OLLAMA_DEFAULT_MODEL=qwen2.5:7b
+
+# Vision API 권장 설정
+ANTHROPIC_MODEL=claude-3-5-sonnet-20241022  # VisionAnalyzer용
+OPENAI_MODEL=gpt-4o  # VisionAnalyzer Fallback
 ```
 
 ---
@@ -240,7 +337,7 @@ find app -type d -name __pycache__ -exec rm -rf {} +
 
 ### 테스트 관련
 ```bash
-# 간단한 API 테스트
+# Health Check
 curl http://localhost:8000/health
 
 # Generator 테스트
@@ -264,30 +361,36 @@ git status
 git add .
 
 # 커밋
-git commit -m "commit message"
+git commit -m "feat: commit message"
 
 # 푸시
 git push origin main
+```
+
+### TypeScript 타입 재생성
+```bash
+# Pydantic 스키마 변경 후 실행
+python scripts/generate_types.py
 ```
 
 ---
 
 ## 🎯 성공 기준
 
-오늘 세션이 성공했다고 평가할 수 있는 기준:
-
 ### 필수 (Must Have)
-- [ ] LLM이 한국어로 일관되게 응답
-- [ ] Agent 확장 플랜 공유 완료
-- [ ] AGENTS_SPEC.md 작성 완료
+- [ ] VisionAnalyzerAgent 구현 시작 (STEP 1-2 완료)
+- [ ] Agent 클래스 기본 구조 완성
+- [ ] Vision API 통합 완료
 
 ### 권장 (Should Have)
+- [ ] AGENTS_SPEC.md 작성 완료
 - [ ] GENERATORS_SPEC.md 작성 완료
-- [ ] NanoBanana Provider 활성화
+- [ ] VisionAnalyzerAgent STEP 3-4 완료 (평가 로직, 테스트)
 
 ### 선택 (Nice to Have)
-- [ ] 코드 품질 개선 (Type hints, Docstring)
-- [ ] 추가 테스트 케이스 작성
+- [ ] LLM 한국어 응답 안정성 테스트
+- [ ] NanoBanana Provider 활성화
+- [ ] VisionAnalyzerAgent 문서화 완료
 
 ---
 
@@ -312,13 +415,25 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 pip install -r requirements.txt
 ```
 
-### 문제: Workflow 실행 실패
-```bash
-# 디버깅: 로그 레벨 변경
-# .env 파일 수정
-LOG_LEVEL=DEBUG
+### 문제: Redis Connection Error (노트북 환경)
+```
+ConnectionRefusedError: [WinError 10061]
+```
+**해결**: 정상 동작 - 노트북에서는 Redis 접근 불가
+- Mock 모드로 테스트: `GENERATOR_MODE=mock`
+- 또는 집 서버에서 작업
 
-# 서버 재시작 후 로그 확인
+### 문제: Vision API 호출 실패
+```bash
+# 확인 1: API 키 존재 여부
+echo $ANTHROPIC_API_KEY
+echo $OPENAI_API_KEY
+
+# 확인 2: 모델 설정
+# .env에서 claude-3-5-sonnet-20241022 또는 gpt-4o 사용 확인
+
+# 확인 3: 로그 확인
+# LOG_LEVEL=DEBUG로 설정 후 재시작
 ```
 
 ---
@@ -326,28 +441,29 @@ LOG_LEVEL=DEBUG
 ## 📞 도움이 필요할 때
 
 ### 사용자에게 물어봐야 하는 경우
-1. Slack/Discord 공유 방법 및 채널 정보
-2. API 키 관련 (Novita 등)
-3. 프론트엔드 팀과의 연동 테스트 일정
+1. Vision API 키 확인 (Anthropic, OpenAI)
+2. Agent 확장 우선순위 변경 필요 시
+3. 프론트엔드 팀(C팀)과 연동 테스트 일정
 
 ### 문서를 참고해야 하는 경우
-1. Agent 동작 원리 → `app/services/agents/` 코드 직접 확인
+1. Agent 동작 원리 → `app/services/agents/` 코드
 2. Workflow 구조 → `app/services/orchestrator/workflows.py`
-3. 전체 아키텍처 → `EOD_REPORT` 파일들 연대기순 확인
+3. Canvas 스펙 → `docs/BACKEND_CANVAS_SPEC_V2.md`
+4. 전체 아키텍처 → EOD Report 파일들 시간순 확인
 
 ---
 
-**작성 완료**: 2025-11-19 23:00
-**다음 리뷰**: 2025-11-20 EOD
-
----
-
-## ✅ 오늘 작업 완료 체크리스트
-
-세션 종료 전 확인:
+## ✅ 세션 종료 전 체크리스트
 
 - [ ] EOD 보고서 작성 완료
-- [ ] 다음 세션 가이드 작성 완료
+- [ ] 다음 세션 가이드 업데이트 완료
 - [ ] Git 커밋 및 푸시 완료
-- [ ] 서버 정상 작동 확인
+- [ ] 서버 정상 작동 확인 (집 서버인 경우)
 - [ ] 중요 파일 백업 확인
+
+---
+
+**작성 완료**: 2025-11-19 15:00
+**다음 리뷰**: 2025-11-20 EOD
+
+**Note**: VisionAnalyzerAgent 구현이 다음 세션의 핵심 작업입니다. Agent 확장 Phase 1의 P0 우선순위 작업이며, C팀과 충돌 없이 진행 가능합니다.
