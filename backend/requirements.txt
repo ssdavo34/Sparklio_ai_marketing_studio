@@ -34,7 +34,8 @@ websockets==15.0.1
 openai==2.8.1
 
 # Anthropic (Claude 시리즈)
-anthropic==0.73.0
+# 업데이트: 2025-11-20 - Vision API 지원을 위한 0.74.0 업그레이드
+anthropic==0.74.0
 
 # Google Gemini LLM (텍스트 생성 - 기존 SDK)
 google-generativeai==0.8.5
