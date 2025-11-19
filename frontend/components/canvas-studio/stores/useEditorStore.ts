@@ -87,7 +87,7 @@ export const useEditorStore = create<EditorState>()(
         document: null,
         isSaved: true,
         isSaving: false,
-        currentMode: 'concept-board',
+        currentMode: 'planning',
         viewMode: 'studio',
         selectedObjectIds: [],
         selectedPageId: null,

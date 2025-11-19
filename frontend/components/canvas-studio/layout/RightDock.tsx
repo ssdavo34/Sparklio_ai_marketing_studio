@@ -1,157 +1,88 @@
 /**
  * Right Dock
  *
- * 우측 Dock 컨테이너
- * - 기본 너비: 360px (리사이즈 가능, 300px ~ 600px)
- * - 배경: 흰색 (bg-white)
- * - 접기/펼치기 가능 (버튼 클릭 or Ctrl+Shift+B)
+ * 우측 Dock (VSCode의 우측 패널과 유사)
+ * - 너비: 360px (기본값, 리사이즈 가능)
+ * - 배경: 다크 (bg-neutral-900)
  *
- * 5개 탭:
- * 1. Spark Chat: AI 대화
- * 2. Inspector: 속성 편집
- * 3. Layers: 레이어 트리
- * 4. Data: 데이터 소스
- * 5. Brand: 브랜드 킷
- *
- * Phase 1: 탭 구조만 구현
- * Phase 4: 각 탭 컨텐츠 구현
+ * 역할:
+ * - 선택된 객체의 속성 편집 (Properties)
+ * - Brand Kit 패널 (색상, 폰트)
+ * - Spark Chat (AI Co-pilot) 인터페이스
+ * - Export / Publish 설정
  *
  * @author C팀 (Frontend Team)
- * @version 3.0
+ * @version 3.1
  */
 
 'use client';
 
-import { useLayoutStore, useTabsStore } from '../stores';
-import type { RightDockTabId } from '../stores';
-import { LayersPanel, InspectorPanel, ChatPanel } from '../components';
+import { useState } from 'react';
+import { PropertiesPanel } from '../components/PropertiesPanel';
 
-// 탭 목록
-const TABS: Array<{
-  id: RightDockTabId;
-  label: string;
-  icon: string;
-}> = [
-  { id: 'chat', label: 'Chat', icon: '💬' },
-  { id: 'inspector', label: 'Inspector', icon: '🔍' },
-  { id: 'layers', label: 'Layers', icon: '📋' },
-  { id: 'data', label: 'Data', icon: '📊' },
-  { id: 'brand', label: 'Brand', icon: '🎨' },
-];
+type RightDockTab = 'properties' | 'chat' | 'brand';
 
 export function RightDock() {
-  // Zustand Store 사용 (Phase 2 완료!)
-  const isCollapsed = useLayoutStore((state) => state.isRightDockCollapsed);
-  const width = useLayoutStore((state) => state.rightDockWidth);
-  const toggleRightDock = useLayoutStore((state) => state.toggleRightDock);
-  const activeTab = useTabsStore((state) => state.activeRightDockTab);
-  const setActiveTab = useTabsStore((state) => state.setActiveRightDockTab);
-
-  // 접혀있으면 렌더링 안함
-  if (isCollapsed) {
-    return null;
-  }
+  const [activeTab, setActiveTab] = useState<RightDockTab>('properties');
 
   return (
-    <aside
-      className="relative flex flex-col border-l border-neutral-200 bg-white"
-      style={{ width: `${width}px` }}
-    >
-      {/* 탭 헤더 */}
-      <div className="flex border-b border-neutral-200">
-        {TABS.map((tab) => {
-          const isActive = activeTab === tab.id;
-
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`
-                flex-1 px-3 py-2 text-xs font-medium
-                transition-colors duration-200
-                ${
-                  isActive
-                    ? 'border-b-2 border-blue-500 text-neutral-900'
-                    : 'text-neutral-600 hover:text-neutral-900'
-                }
-              `}
-              title={tab.label}
-              aria-label={tab.label}
-              aria-current={isActive ? 'page' : undefined}
-            >
-              <span className="mr-1">{tab.icon}</span>
-              {tab.label}
-            </button>
-          );
-        })}
-
-        {/* 닫기 버튼 */}
+    <aside className="flex w-[360px] flex-col border-l border-neutral-800 bg-neutral-900">
+      {/* 탭 헤더 (Properties / Chat / Brand) */}
+      <div className="flex h-9 items-center border-b border-neutral-800 px-2">
         <button
-          onClick={toggleRightDock}
-          className="ml-auto px-2 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700"
-          title="Close Dock (Ctrl+Shift+B)"
-          aria-label="Close Dock"
+          onClick={() => setActiveTab('properties')}
+          className={`px-3 py-1 text-xs font-medium rounded-t-sm ${
+            activeTab === 'properties'
+              ? 'text-white bg-neutral-800'
+              : 'text-neutral-400 hover:text-neutral-200'
+          }`}
         >
-          <svg
-            className="h-4 w-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
+          Properties
+        </button>
+        <button
+          onClick={() => setActiveTab('chat')}
+          className={`px-3 py-1 text-xs font-medium rounded-t-sm ${
+            activeTab === 'chat'
+              ? 'text-white bg-neutral-800'
+              : 'text-neutral-400 hover:text-neutral-200'
+          }`}
+        >
+          Spark Chat
+        </button>
+        <button
+          onClick={() => setActiveTab('brand')}
+          className={`px-3 py-1 text-xs font-medium rounded-t-sm ${
+            activeTab === 'brand'
+              ? 'text-white bg-neutral-800'
+              : 'text-neutral-400 hover:text-neutral-200'
+          }`}
+        >
+          Brand Kit
         </button>
       </div>
 
-      {/* 탭 컨텐츠 */}
-      <div className="flex-1 overflow-auto">
-        {/* Chat 탭 */}
-        {activeTab === 'chat' && <ChatPanel />}
-
-        {/* Inspector 탭 */}
-        {activeTab === 'inspector' && <InspectorPanel />}
-
-        {/* Layers 탭 */}
-        {activeTab === 'layers' && <LayersPanel />}
-
-        {/* Data 탭 */}
-        {activeTab === 'data' && (
-          <div className="flex h-full flex-col items-center justify-center p-4 text-center">
-            <div className="mb-3 text-5xl">📊</div>
-            <p className="text-sm font-medium text-neutral-700">Data</p>
-            <p className="mt-2 text-xs text-neutral-500">
-              표, 그래프에 사용할 데이터를 관리하세요
-            </p>
-            <p className="mt-1 text-xs text-neutral-400">Phase 4에서 구현</p>
+      {/* 컨텐츠 영역 */}
+      <div className="flex-1 overflow-y-auto p-4">
+        {activeTab === 'properties' && <PropertiesPanel />}
+        {activeTab === 'chat' && (
+          <div className="flex h-full flex-col items-center justify-center text-neutral-500">
+            <svg className="w-16 h-16 mb-4 text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+            </svg>
+            <p className="text-sm font-medium">Spark Chat</p>
+            <p className="text-xs mt-1 text-neutral-600">AI Co-pilot (Phase 3)</p>
           </div>
         )}
-
-        {/* Brand 탭 */}
         {activeTab === 'brand' && (
-          <div className="flex h-full flex-col items-center justify-center p-4 text-center">
-            <div className="mb-3 text-5xl">🎨</div>
-            <p className="text-sm font-medium text-neutral-700">Brand Kit</p>
-            <p className="mt-2 text-xs text-neutral-500">
-              브랜드 로고, 색상, 폰트를 사용하세요
-            </p>
-            <p className="mt-1 text-xs text-neutral-400">Phase 4에서 구현</p>
+          <div className="flex h-full flex-col items-center justify-center text-neutral-500">
+            <svg className="w-16 h-16 mb-4 text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+            </svg>
+            <p className="text-sm font-medium">Brand Kit</p>
+            <p className="text-xs mt-1 text-neutral-600">브랜드 컬러 & 폰트 (Phase 2.5)</p>
           </div>
         )}
       </div>
-
-      {/* 리사이즈 핸들 (좌측 경계) */}
-      <div
-        className="absolute left-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
-        onMouseDown={() => {
-          // TODO: Phase 7에서 리사이즈 기능 구현
-          console.log('Resize handle clicked');
-        }}
-      />
     </aside>
   );
 }

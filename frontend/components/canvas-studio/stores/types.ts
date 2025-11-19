@@ -13,18 +13,8 @@
 
 /**
  * Studio 작업 모드
- * - concept-board: 컨셉보드 (무드보드, 이미지/색상/키워드 수집)
- * - pitch-deck: 프리젠테이션 (슬라이드 형식)
- * - product-story: 상품상세 페이지 (세로 스크롤)
- * - brand-dna: 브랜드 DNA (P1에서 추가)
- * - ad-studio: 광고 스튜디오 (P1에서 추가)
  */
-export type StudioMode =
-  | 'concept-board'
-  | 'pitch-deck'
-  | 'product-story'
-  | 'brand-dna'
-  | 'ad-studio';
+export type StudioMode = 'planning' | 'editor' | 'video' | 'admin';
 
 /**
  * 뷰 모드
@@ -44,22 +34,64 @@ export type ViewMode = 'studio' | 'canvas-focus' | 'chat-focus';
 export type CanvasObjectType = 'text' | 'image' | 'shape' | 'table' | 'chart';
 
 /**
- * 캔버스 객체
+ * 캔버스 객체 기본 속성
  */
-export interface CanvasObject {
+export interface CanvasObjectBase {
   id: string;
   type: CanvasObjectType;
   fabricObject?: any; // fabric.Object (Phase 3에서 추가)
-  props: Record<string, any>;
   x: number;
   y: number;
-  width: number;
-  height: number;
-  rotation: number;
-  opacity: number;
-  locked: boolean;
-  hidden: boolean;
+  width?: number;
+  height?: number;
+  rotation?: number;
+  opacity?: number;
+  locked?: boolean;
+  hidden?: boolean;
 }
+
+/**
+ * 텍스트 객체
+ */
+export interface TextObject extends CanvasObjectBase {
+  type: 'text';
+  text: string;
+  fontSize?: number;
+  fontFamily?: string;
+  fontWeight?: number | string;
+  fill?: string;
+  align?: 'left' | 'center' | 'right';
+  lineHeight?: number;
+  letterSpacing?: number;
+}
+
+/**
+ * 도형 객체
+ */
+export interface ShapeObject extends CanvasObjectBase {
+  type: 'shape';
+  shapeType: 'rect' | 'circle' | 'line' | 'polygon';
+  fill?: string;
+  stroke?: string;
+  strokeWidth?: number;
+  cornerRadius?: number;
+  radius?: number; // circle 전용
+}
+
+/**
+ * 이미지 객체
+ */
+export interface ImageObject extends CanvasObjectBase {
+  type: 'image';
+  assetId?: string;
+  src?: string;
+  fit?: 'cover' | 'contain' | 'fill';
+}
+
+/**
+ * 캔버스 객체 (Union Type)
+ */
+export type CanvasObject = TextObject | ShapeObject | ImageObject;
 
 // ============================================================================
 // 페이지 관련 타입

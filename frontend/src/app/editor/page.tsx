@@ -1,28 +1,17 @@
 /**
- * Editor Test Page
- *
- * URL: http://localhost:3000/editor
- *
- * Phase 1 Day 2 첫 렌더링 테스트:
- * - EditorShell + CanvasStage + CanvasEngine
- * - 샘플 문서 자동 로드
- * - 드래그, 선택, 변형 테스트
+ * Editor Test Page - MINIMAL VERSION (Testing Route Only)
  */
 
 'use client';
 
-import React, { useEffect } from 'react';
-import { useEditorStore } from '@/modules/editor/store/editorStore';
-import { EditorShell } from '@/modules/editor/components/EditorShell';
-import { sampleDocument } from '@/modules/editor/mock/sampleDocument';
-
 export default function EditorPage() {
-  const { loadDocument } = useEditorStore();
-
-  // 샘플 문서 자동 로드
-  useEffect(() => {
-    loadDocument(sampleDocument);
-  }, [loadDocument]);
-
-  return <EditorShell />;
+  return (
+    <div style={{ padding: 40, fontSize: 24, backgroundColor: '#f0f0f0', minHeight: '100vh' }}>
+      <h1>✅ /editor 라우트 정상 작동!</h1>
+      <p>Next.js가 이 페이지를 제대로 인식했습니다.</p>
+      <p style={{ fontSize: 14, color: '#666', marginTop: 20 }}>
+        (임시 테스트 버전 - 실제 Editor는 다음 단계에서 로드)
+      </p>
+    </div>
+  );
 }
