@@ -10,11 +10,14 @@ from app.services.agents import get_editor_agent, AgentRequest
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+from app.schemas.llm import LLMSelection
+
 # --- Pydantic Models ---
 
 class ChatAnalysisRequest(BaseModel):
     message: str
     brandId: Optional[str] = None
+    llm_selection: Optional[LLMSelection] = None
 
 class Suggestion(BaseModel):
     id: str
@@ -44,6 +47,8 @@ async def analyze_chat(request: ChatAnalysisRequest):
     Analyze chat message using EditorAgent to generate commands.
     """
     try:
+        with open("debug_log.txt", "a", encoding="utf-8") as f:
+            f.write(f"Received request: {request.message}\n")
         # EditorAgent를 사용하여 자연어 -> 명령 변환
         agent = get_editor_agent()
         
@@ -53,20 +58,33 @@ async def analyze_chat(request: ChatAnalysisRequest):
                 "natural_language": request.message,
                 "context": "spark_chat"
             },
-            options={"model": "gpt-4o"} # 고성능 모델 권장
+            options={
+                "model": "gpt-4o", # 기본값 (Gateway에서 override 가능)
+                "llm_selection": request.llm_selection.model_dump() if request.llm_selection else None
+            }
         )
         
         response = await agent.execute(agent_request)
         
+        with open("debug_log.txt", "a", encoding="utf-8") as f:
+            f.write(f"Agent response received. Outputs: {[o.name for o in response.outputs]}\n")
+
         # Agent 응답에서 commands와 message 추출
         commands = []
         message = "명령을 생성했습니다."
         
         for output in response.outputs:
-            if output.name == "commands" and isinstance(output.value, list):
-                commands = output.value
+            if output.name == "commands":
+                if isinstance(output.value, dict):
+                    commands = output.value.get("commands", [])
+                    message = output.value.get("message", "명령을 생성했습니다.")
+                elif isinstance(output.value, list):
+                    commands = output.value
             elif output.name == "message":
                 message = output.value
+        
+        with open("debug_log.txt", "a", encoding="utf-8") as f:
+            f.write(f"Parsed commands: {commands}, message: {message}\n")
                 
         # 제안 구조 생성
         return ChatAnalysisResponse(
@@ -84,6 +102,8 @@ async def analyze_chat(request: ChatAnalysisRequest):
         )
 
     except Exception as e:
+        with open("debug_log.txt", "a", encoding="utf-8") as f:
+            f.write(f"ERROR in chat.py: {str(e)}\n")
         logger.error(f"Chat analysis failed: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 

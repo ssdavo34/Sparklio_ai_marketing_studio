@@ -33,7 +33,7 @@ class Settings(BaseSettings):
 
     # Generator Mode (mock | live) - 소문자 필드명 사용
     generator_mode: Literal["mock", "live"] = Field(
-        "live",
+        "mock", # Changed default from "live" to "mock"
         env="GENERATOR_MODE"
     )
 

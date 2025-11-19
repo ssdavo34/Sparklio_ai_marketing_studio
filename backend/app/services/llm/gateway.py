@@ -9,10 +9,11 @@ LLM Gateway Service
 """
 
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Literal
 from datetime import datetime
 
 from app.core.config import settings
+from app.schemas.llm import LLMSelection
 from .router import get_router, LLMRouter
 from .providers.base import LLMProvider, LLMProviderResponse, ProviderError
 from .providers.mock import MockProvider
@@ -20,7 +21,6 @@ from .providers.ollama import OllamaProvider
 from .providers.openai_provider import OpenAIProvider
 from .providers.anthropic_provider import AnthropicProvider
 from .providers.gemini_provider import GeminiProvider
-from .providers.novita_provider import NovitaProvider
 
 logger = logging.getLogger(__name__)
 
@@ -35,8 +35,9 @@ class LLMGateway:
     1. Provider 추상화 (Ollama, OpenAI, Anthropic 등)
     2. Mock/Live 모드 자동 전환
     3. 모델 자동 선택 (Router 사용)
-    4. 에러 핸들링 및 재시도
-    5. 로깅 및 모니터링
+    4. 사용자 지정 모델 선택 (LLMSelection)
+    5. 에러 핸들링 및 재시도
+    6. 로깅 및 모니터링
 
     사용 예시:
         gateway = LLMGateway()
@@ -107,17 +108,6 @@ class LLMGateway:
                 )
                 logger.info("Gemini Provider initialized")
 
-            # Novita AI Provider (Llama 3.3 70B)
-            if hasattr(settings, 'NOVITA_API_KEY') and settings.NOVITA_API_KEY:
-                logger.info("Initializing Novita Provider...")
-                self.providers["novita"] = NovitaProvider(
-                    api_key=settings.NOVITA_API_KEY,
-                    base_url=settings.NOVITA_BASE_URL,
-                    default_model=settings.NOVITA_DEFAULT_MODEL,
-                    timeout=settings.NOVITA_TIMEOUT
-                )
-                logger.info("Novita Provider initialized")
-
             logger.info(f"All providers initialized: {list(self.providers.keys())}")
         except Exception as e:
             logger.error(f"Provider initialization failed: {type(e).__name__}: {str(e)}", exc_info=True)
@@ -130,7 +120,9 @@ class LLMGateway:
         payload: Dict[str, Any],
         mode: str = "json",
         override_model: Optional[str] = None,
-        options: Optional[Dict[str, Any]] = None
+        options: Optional[Dict[str, Any]] = None,
+        llm_selection: Optional[LLMSelection] = None,
+        channel: Literal["text", "image", "video"] = "text",
     ) -> LLMProviderResponse:
         """
         LLM 텍스트 생성
@@ -142,6 +134,8 @@ class LLMGateway:
             mode: 출력 모드 ('json' | 'text')
             override_model: 강제로 사용할 모델 (선택)
             options: Provider별 추가 옵션
+            llm_selection: 사용자 지정 LLM 선택 (선택)
+            channel: 생성 채널 ('text' | 'image' | 'video')
 
         Returns:
             LLMProviderResponse: 표준 형식의 응답
@@ -149,15 +143,6 @@ class LLMGateway:
         Raises:
             ProviderError: Provider 호출 실패 시
             ValueError: 잘못된 파라미터
-
-        Example:
-            >>> gateway = LLMGateway()
-            >>> response = await gateway.generate(
-            ...     role="copywriter",
-            ...     task="sns",
-            ...     payload={"product": "무선 이어폰", "target": "2030 여성"}
-            ... )
-            >>> print(response.output)
         """
         start_time = datetime.utcnow()
 
@@ -165,12 +150,24 @@ class LLMGateway:
             # 1. 프롬프트 구성
             prompt = self._build_prompt(role, task, payload)
 
-            # 2. Provider 선택 (Mock/Live 모드)
-            provider_name, provider = self._select_provider(role, task, override_model)
+            # 2. Provider 선택 (Mock/Live 모드 + 사용자 지정)
+            provider_name, provider = self._select_provider(
+                role, task, override_model, llm_selection, channel
+            )
 
-            # 3. 모델 선택 (Router 사용)
+            # 3. 모델 선택 (Router 사용 또는 사용자 지정)
             if provider_name != "mock":
-                model, _ = self.router.route(role, task, mode, override_model)
+                # 사용자 지정이 있으면 Router 건너뜀 (이미 _select_provider에서 처리됨)
+                # 단, override_model이 있으면 그것을 우선
+                if override_model:
+                    model = override_model
+                elif llm_selection and llm_selection.mode == "manual":
+                    # Manual 모드에서는 Provider의 기본 모델 사용 (또는 추후 모델 지정 로직 추가)
+                    # 현재는 Provider 선택까지만 구현됨
+                    model = provider.default_model
+                else:
+                    # Auto 모드에서는 Router 사용
+                    model, _ = self.router.route(role, task, mode, override_model)
             else:
                 model = "mock-model-v1"
 
@@ -216,27 +213,45 @@ class LLMGateway:
         self,
         role: str,
         task: str,
-        override_model: Optional[str] = None
+        override_model: Optional[str] = None,
+        llm_selection: Optional[LLMSelection] = None,
+        channel: str = "text"
     ) -> tuple[str, LLMProvider]:
         """
-        Provider 선택 (Mock/Live 모드 자동 전환)
+        Provider 선택 (Mock/Live 모드 + 사용자 지정)
 
         Args:
             role: Agent 역할
             task: 작업 유형
             override_model: 강제 모델 (선택)
+            llm_selection: 사용자 지정 LLM 선택
+            channel: 채널 (text/image/video)
 
         Returns:
             (provider_name, provider_instance) 튜플
-
-        Raises:
-            ProviderError: Provider를 찾을 수 없을 때
         """
-        # Mock 모드 확인 (소문자 필드 사용)
+        # 1. Mock 모드 확인 (최우선)
         if settings.generator_mode == "mock":
             return "mock", self.providers["mock"]
 
-        # Live 모드 - Router로 Provider 결정
+        # 2. 사용자 지정 모드 (Manual)
+        if llm_selection and llm_selection.mode == "manual":
+            selected = None
+            if channel == "text":
+                selected = llm_selection.text
+            elif channel == "image":
+                selected = llm_selection.image
+            elif channel == "video":
+                selected = llm_selection.video
+
+            if selected and selected != "auto":
+                try:
+                    return selected, self._provider_from_name(selected)
+                except ProviderError:
+                    logger.warning(f"Selected provider '{selected}' not available, falling back to auto")
+                    # Fallback to auto logic below
+
+        # 3. Live 모드 - Router로 Provider 결정 (Auto)
         _, provider_name = self.router.route(role, task, override_model=override_model)
 
         # Provider 인스턴스 가져오기
@@ -250,6 +265,31 @@ class LLMGateway:
             return "mock", self.providers["mock"]
 
         return provider_name, provider
+
+    def _provider_from_name(self, name: str) -> LLMProvider:
+        """이름으로 Provider 인스턴스 반환"""
+        mapping = {
+            "mock": self.providers.get("mock"),
+            "openai": self.providers.get("openai"),
+            "gemini": self.providers.get("gemini"),
+            "ollama": self.providers.get("ollama"),
+            "anthropic": self.providers.get("anthropic"),
+            # "qwen": self.providers.get("ollama"), # Alias if needed
+            # "llama": self.providers.get("ollama"), # Alias if needed
+            # "nanobanana": self.providers.get("nanobanana"), # Not implemented yet
+            # "comfyui_image": self.providers.get("comfyui_image"), # Not implemented yet
+            # "comfyui_video": self.providers.get("comfyui_video"), # Not implemented yet
+        }
+        
+        provider = mapping.get(name)
+        if not provider:
+             # Fallback for aliases mapping to same provider instance if available
+            if name in ["qwen", "llama"] and "ollama" in self.providers:
+                return self.providers["ollama"]
+            
+            raise ProviderError(f"Unknown or unavailable provider: {name}")
+            
+        return provider
 
     def _build_prompt(self, role: str, task: str, payload: Dict[str, Any]) -> str:
         """

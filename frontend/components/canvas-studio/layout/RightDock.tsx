@@ -19,6 +19,7 @@
 
 import { useState } from 'react';
 import { PropertiesPanel } from '../components/PropertiesPanel';
+import { ChatInterface } from '../../spark/ChatInterface';
 
 type RightDockTab = 'properties' | 'chat' | 'brand';
 
@@ -31,31 +32,28 @@ export function RightDock() {
       <div className="flex h-9 items-center border-b border-neutral-800 px-2">
         <button
           onClick={() => setActiveTab('properties')}
-          className={`px-3 py-1 text-xs font-medium rounded-t-sm ${
-            activeTab === 'properties'
-              ? 'text-white bg-neutral-800'
-              : 'text-neutral-400 hover:text-neutral-200'
-          }`}
+          className={`px-3 py-1 text-xs font-medium rounded-t-sm ${activeTab === 'properties'
+            ? 'text-white bg-neutral-800'
+            : 'text-neutral-400 hover:text-neutral-200'
+            }`}
         >
           Properties
         </button>
         <button
           onClick={() => setActiveTab('chat')}
-          className={`px-3 py-1 text-xs font-medium rounded-t-sm ${
-            activeTab === 'chat'
-              ? 'text-white bg-neutral-800'
-              : 'text-neutral-400 hover:text-neutral-200'
-          }`}
+          className={`px-3 py-1 text-xs font-medium rounded-t-sm ${activeTab === 'chat'
+            ? 'text-white bg-neutral-800'
+            : 'text-neutral-400 hover:text-neutral-200'
+            }`}
         >
           Spark Chat
         </button>
         <button
           onClick={() => setActiveTab('brand')}
-          className={`px-3 py-1 text-xs font-medium rounded-t-sm ${
-            activeTab === 'brand'
-              ? 'text-white bg-neutral-800'
-              : 'text-neutral-400 hover:text-neutral-200'
-          }`}
+          className={`px-3 py-1 text-xs font-medium rounded-t-sm ${activeTab === 'brand'
+            ? 'text-white bg-neutral-800'
+            : 'text-neutral-400 hover:text-neutral-200'
+            }`}
         >
           Brand Kit
         </button>
@@ -64,15 +62,7 @@ export function RightDock() {
       {/* 컨텐츠 영역 */}
       <div className="flex-1 overflow-y-auto p-4">
         {activeTab === 'properties' && <PropertiesPanel />}
-        {activeTab === 'chat' && (
-          <div className="flex h-full flex-col items-center justify-center text-neutral-500">
-            <svg className="w-16 h-16 mb-4 text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-            </svg>
-            <p className="text-sm font-medium">Spark Chat</p>
-            <p className="text-xs mt-1 text-neutral-600">AI Co-pilot (Phase 3)</p>
-          </div>
-        )}
+        {activeTab === 'chat' && <ChatInterface />}
         {activeTab === 'brand' && (
           <div className="flex h-full flex-col items-center justify-center text-neutral-500">
             <svg className="w-16 h-16 mb-4 text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">

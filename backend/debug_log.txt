@@ -1,0 +1,9 @@
+Received request: test
+ERROR in chat.py: Editor execution failed: Ollama API error: 404
+Received request: test
+ERROR in chat.py: Editor execution failed: Gateway error: OpenAI API failed: Error code: 400 - {'error': {'message': "'messages' must contain the word 'json' in some form, to use 'response_format' of type 'json_object'.", 'type': 'invalid_request_error', 'param': 'messages', 'code': None}}
+Received request: test
+ERROR in chat.py: Editor execution failed: Gateway error: OpenAI API failed: Error code: 400 - {'error': {'message': "'messages' must contain the word 'json' in some form, to use 'response_format' of type 'json_object'.", 'type': 'invalid_request_error', 'param': 'messages', 'code': None}}
+Received request: test
+Agent response received. Outputs: ['commands']
+Parsed commands: [{'command': 'update_background', 'params': {'type': 'color', 'value': 'linear-gradient(to bottom, #00c6ff, #0072ff)'}}], message: 배경을 파란색 그라데이션으로 변경했습니다.

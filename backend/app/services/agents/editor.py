@@ -72,12 +72,21 @@ class EditorAgent(AgentBase):
             enhanced_payload = self._enhance_payload(request)
 
             # 3. LLM 호출 (JSON 모드)
+            model = request.options.get("model") if request.options else None
+            llm_selection_dict = request.options.get("llm_selection") if request.options else None
+            
+            # 딕셔너리를 LLMSelection 객체로 변환
+            from app.schemas.llm import LLMSelection
+            llm_selection = LLMSelection(**llm_selection_dict) if llm_selection_dict else None
+
             llm_response = await self.llm_gateway.generate(
                 role=self.name,
                 task=request.task,
                 payload=enhanced_payload,
                 mode="json",
-                options=request.options
+                override_model=model,
+                options=request.options,
+                llm_selection=llm_selection
             )
 
             # 4. 응답 파싱

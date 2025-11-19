@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useSparkChat } from '../../hooks/useSparkChat';
 import { Send, Sparkles, Loader2 } from 'lucide-react';
+import { LLMSelector } from './LLMSelector';
 
 export const ChatInterface = () => {
     const { messages, isLoading, analysisResult, sendMessage, createDraft } = useSparkChat();
@@ -26,21 +27,24 @@ export const ChatInterface = () => {
     return (
         <div className="flex flex-col h-full bg-slate-50">
             {/* Header */}
-            <div className="p-4 border-b bg-white shadow-sm flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                    <Sparkles className="w-5 h-5 text-indigo-600" />
-                    <h1 className="font-bold text-lg text-slate-800">Spark Chat</h1>
+            <div className="p-4 border-b bg-white shadow-sm flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <Sparkles className="w-5 h-5 text-indigo-600" />
+                        <h1 className="font-bold text-lg text-slate-800">Spark Chat</h1>
+                    </div>
+                    {analysisResult && (
+                        <button
+                            onClick={createDraft}
+                            disabled={isLoading}
+                            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2 transition-colors"
+                        >
+                            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                            초안 만들기
+                        </button>
+                    )}
                 </div>
-                {analysisResult && (
-                    <button
-                        onClick={createDraft}
-                        disabled={isLoading}
-                        className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2 transition-colors"
-                    >
-                        {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                        초안 만들기
-                    </button>
-                )}
+                <LLMSelector />
             </div>
 
             {/* Messages Area */}
@@ -52,8 +56,8 @@ export const ChatInterface = () => {
                     >
                         <div
                             className={`max-w-[80%] p-4 rounded-2xl shadow-sm whitespace-pre-wrap ${msg.role === 'user'
-                                    ? 'bg-indigo-600 text-white rounded-tr-none'
-                                    : 'bg-white text-slate-800 border border-slate-200 rounded-tl-none'
+                                ? 'bg-indigo-600 text-white rounded-tr-none'
+                                : 'bg-white text-slate-800 border border-slate-200 rounded-tl-none'
                                 }`}
                         >
                             {msg.content}

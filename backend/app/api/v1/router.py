@@ -1,9 +1,9 @@
 from fastapi import APIRouter
-from app.api.v1 import auth, users, projects, assets, brand, chat, meeting, admin
+from app.api.v1 import chat, meeting, admin
 from app.api.v1.endpoints import (
     assets, brands, projects, users, agents_new,
     generate, documents, templates, editor,
-    llm_gateway, media_gateway, debug, chat, meeting
+    llm_gateway, media_gateway, debug
 )
 # agents (legacy) - Deprecated, import 에러로 주석 처리
 

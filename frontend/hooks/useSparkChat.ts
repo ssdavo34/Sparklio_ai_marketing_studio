@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { useLLMStore } from '@/store/llmStore';
 
 export interface Message {
     id: string;
@@ -21,6 +22,7 @@ export interface ChatAnalysisResult {
 
 export const useSparkChat = () => {
     const router = useRouter();
+    const llmSelection = useLLMStore((state) => state.selection);
     const [messages, setMessages] = useState<Message[]>([
         {
             id: 'welcome',
@@ -46,11 +48,14 @@ export const useSparkChat = () => {
         setIsLoading(true);
 
         try {
-            // Mock API call for analysis
+            // API call with LLM selection
             const response = await fetch('/api/v1/chat/analyze', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: content }),
+                body: JSON.stringify({
+                    message: content,
+                    llm_selection: llmSelection
+                }),
             });
 
             if (!response.ok) {
