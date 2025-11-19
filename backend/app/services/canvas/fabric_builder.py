@@ -1,11 +1,20 @@
 """
-Fabric.js Canvas Builder
+Fabric.js Canvas Builder (Legacy v1.0)
+
+⚠️ DEPRECATED: This is legacy code for Fabric.js compatibility.
+New code should use abstract_builder.py (v2.0 Abstract Spec).
 
 Fabric.js 호환 Canvas JSON 생성
 
 작성일: 2025-11-17
+수정일: 2025-11-19 (Legacy 표시 추가)
 작성자: B팀 (Backend)
 참고: Fabric.js v5.3.0 toJSON() 형식
+
+Legacy Status:
+- 하위 호환성을 위해 유지
+- 신규 기능은 abstract_builder.py에 구현
+- Frontend가 Fabric.js 사용 시에만 필요
 """
 
 from typing import Dict, Any, List, Optional

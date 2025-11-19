@@ -26,8 +26,12 @@ from app.services.orchestrator.workflows import (
 from app.services.canvas import (
     create_product_detail_canvas,
     create_brand_identity_canvas,
-    create_sns_set_canvas
+    create_sns_set_canvas,
+    # v2.0 Abstract Canvas
+    create_product_detail_document,
+    create_sns_feed_document
 )
+from app.schemas.canvas import DocumentPayload as CanvasDocumentPayload
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +88,9 @@ class GeneratorService:
 
         # input을 initial_payload로 변환
         # 🔴 자유 형식 입력(prompt) → 구조화된 데이터 자동 변환
-        initial_payload = self._prepare_workflow_payload(req.kind, req.input, req.brandId, req.options)
+        initial_payload = self._prepare_workflow_payload(
+            req.kind, req.input, req.brandId, req.options
+        )
 
         logger.info(f"Workflow payload prepared: {initial_payload}")
 
@@ -140,7 +146,10 @@ class GeneratorService:
                     "category": "제품",
                     "description": user_prompt
                 })
-                logger.info(f"Auto-converted prompt to structured payload: {user_prompt}")
+                logger.info(
+                    "Auto-converted prompt to structured payload: "
+                    f"{user_prompt}"
+                )
             else:
                 # 구조화된 입력은 그대로 사용
                 payload.update(input_data)
@@ -178,17 +187,23 @@ class GeneratorService:
         text_data = {}
 
         if copywriter_result and copywriter_result.outputs:
-            logger.info(f"Found copywriter with {len(copywriter_result.outputs)} outputs")  # noqa: E501
+            logger.info(
+                f"Found copywriter with "
+                f"{len(copywriter_result.outputs)} outputs"
+            )
             # outputs에서 텍스트 추출
             for idx, output in enumerate(copywriter_result.outputs):
-                logger.info(f"Output[{idx}]: type={output.type}, name={output.name}")  # noqa: E501
+                logger.info(
+                    f"Output[{idx}]: type={output.type}, "
+                    f"name={output.name}"
+                )
                 if output.type == "json" and isinstance(output.value, dict):
                     logger.info(f"  JSON keys: {list(output.value.keys())}")
                     text_data.update(output.value)
                 elif output.type == "text":
                     text_data["body"] = output.value
         else:
-            logger.warning(f"No copywriter outputs found!")
+            logger.warning("No copywriter outputs found!")
 
         # TextPayload 생성
         text = TextPayload(
@@ -199,16 +214,22 @@ class GeneratorService:
             cta=text_data.get("cta")
         )
 
-        # Canvas JSON 생성 (kind별 레이아웃)
+        # Canvas Document 생성 (v2.0 Abstract Spec)
         logger.info(f"Creating canvas for kind={kind}, text_data={text_data}")
-        canvas_data = self._create_canvas(kind, text_data)
-        logger.info(f"Canvas created: {len(canvas_data.get('objects', []))} objects")
+        canvas_document = self._create_canvas_v2(kind, text_data)
+        logger.info(
+            f"Canvas created: {len(canvas_document.pages)} pages, "
+            f"{sum(len(p.objects) for p in canvas_document.pages)} objects"
+        )
 
-        # DocumentPayload 생성
+        # DocumentPayload 생성 (v2.0)
+        # canvas_document는 이미 CanvasDocumentPayload 타입
+        # GenerateResponse의 document는 generator.DocumentPayload 타입
+        # 따라서 변환 필요
         document = DocumentPayload(
             documentId=doc_id,
             type=kind,
-            canvas_json=canvas_data
+            canvas_json=canvas_document.model_dump()
         )
 
         # Meta 정보
@@ -233,9 +254,38 @@ class GeneratorService:
             meta=meta
         )
 
+    def _create_canvas_v2(
+        self,
+        kind: str,
+        text_data: dict
+    ) -> CanvasDocumentPayload:
+        """
+        kind에 따라 Abstract Canvas Document 생성 (v2.0)
+
+        Args:
+            kind: 생성 타입
+            text_data: 텍스트 데이터
+
+        Returns:
+            CanvasDocumentPayload (v2.0 Abstract Spec)
+        """
+        if kind == "product_detail":
+            return create_product_detail_document(text_data)
+        elif kind == "sns_set":
+            return create_sns_feed_document(text_data)
+        elif kind == "brand_identity":
+            # 아직 v2.0 미구현, v1.0 fallback
+            canvas_json = create_brand_identity_canvas(text_data)
+            # TODO: create_brand_identity_document 구현
+            # 임시로 product_detail 사용
+            return create_product_detail_document(text_data)
+        else:
+            # 기본 Document (product_detail 기본값)
+            return create_product_detail_document(text_data)
+
     def _create_canvas(self, kind: str, text_data: dict) -> dict:
         """
-        kind에 따라 Canvas JSON 생성
+        kind에 따라 Canvas JSON 생성 (v1.0 Legacy)
 
         Args:
             kind: 생성 타입
