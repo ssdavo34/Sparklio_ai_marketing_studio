@@ -2,6 +2,8 @@
 Redis 클라이언트
 
 Template 캐싱, 세션 관리 등에 사용
+
+Redis 연결 실패 시에도 애플리케이션이 정상 작동하도록 Graceful Degradation 지원
 """
 
 import redis
@@ -18,10 +20,19 @@ class RedisClient:
     Redis 클라이언트 래퍼
 
     Template 캐싱, 세션 관리, Rate Limiting 등에 사용
+
+    Redis 연결 실패 시에도 예외를 발생시키지 않고,
+    is_connected 플래그로 상태를 확인할 수 있습니다.
     """
 
     def __init__(self):
         """Redis 클라이언트 초기화"""
+        self.client = None
+        self._connected = False
+
+        # 환경별 Redis 필수 여부 (기본값: False, 개발/테스트 환경 친화적)
+        redis_required = getattr(settings, "REDIS_REQUIRED", False)
+
         try:
             self.client = redis.Redis(
                 host=settings.REDIS_HOST,
@@ -33,10 +44,28 @@ class RedisClient:
             )
             # 연결 테스트
             self.client.ping()
-            logger.info(f"[RedisClient] Connected to Redis at {settings.REDIS_HOST}:{settings.REDIS_PORT}")
-        except redis.ConnectionError as e:
-            logger.error(f"[RedisClient] Failed to connect to Redis: {e}")
-            raise
+            self._connected = True
+            logger.info(
+                f"[RedisClient] ✅ Connected to Redis at "
+                f"{settings.REDIS_HOST}:{settings.REDIS_PORT}"
+            )
+        except Exception as e:
+            logger.warning(f"[RedisClient] ⚠️ Failed to connect to Redis: {e}")
+            logger.warning("[RedisClient] Running in NO-REDIS mode. Cache features will be disabled.")
+
+            if redis_required:
+                # 프로덕션 환경에서는 Redis 필수
+                logger.error("[RedisClient] ❌ Redis is REQUIRED in this environment. Exiting.")
+                raise
+
+            # 개발/테스트 환경에서는 계속 진행
+            self.client = None
+            self._connected = False
+
+    @property
+    def is_connected(self) -> bool:
+        """Redis 연결 상태 확인"""
+        return self._connected
 
     def get(self, key: str) -> Optional[str]:
         """
@@ -48,6 +77,9 @@ class RedisClient:
         Returns:
             값 (없으면 None)
         """
+        if not self.is_connected:
+            return None
+
         try:
             return self.client.get(key)
         except Exception as e:
@@ -73,6 +105,9 @@ class RedisClient:
         Returns:
             성공 여부
         """
+        if not self.is_connected:
+            return False
+
         try:
             return self.client.set(key, value, ex=ex, nx=nx)
         except Exception as e:
@@ -89,6 +124,9 @@ class RedisClient:
         Returns:
             파싱된 JSON 객체 (없으면 None)
         """
+        if not self.is_connected:
+            return None
+
         try:
             value = self.client.get(key)
             if value:
@@ -118,6 +156,9 @@ class RedisClient:
         Returns:
             성공 여부
         """
+        if not self.is_connected:
+            return False
+
         try:
             json_str = json.dumps(value, ensure_ascii=False)
             return self.client.set(key, json_str, ex=ex)
@@ -135,6 +176,9 @@ class RedisClient:
         Returns:
             성공 여부
         """
+        if not self.is_connected:
+            return False
+
         try:
             return self.client.delete(key) > 0
         except Exception as e:
@@ -151,6 +195,9 @@ class RedisClient:
         Returns:
             존재 여부
         """
+        if not self.is_connected:
+            return False
+
         try:
             return self.client.exists(key) > 0
         except Exception as e:
@@ -168,6 +215,9 @@ class RedisClient:
         Returns:
             성공 여부
         """
+        if not self.is_connected:
+            return False
+
         try:
             return self.client.expire(key, seconds)
         except Exception as e:
@@ -184,6 +234,9 @@ class RedisClient:
         Returns:
             남은 시간 (초), -1이면 만료 시간 없음, -2이면 키 없음
         """
+        if not self.is_connected:
+            return -2
+
         try:
             return self.client.ttl(key)
         except Exception as e:
@@ -200,6 +253,9 @@ class RedisClient:
         Returns:
             삭제된 키 개수
         """
+        if not self.is_connected:
+            return 0
+
         try:
             keys = self.client.keys(pattern)
             if keys:
@@ -216,6 +272,9 @@ class RedisClient:
         Returns:
             연결 상태
         """
+        if not self.is_connected:
+            return False
+
         try:
             return self.client.ping()
         except Exception as e:
@@ -223,5 +282,13 @@ class RedisClient:
             return False
 
 
-# Global Redis client instance
-redis_client = RedisClient()
+# ============================================================================
+# Global Redis client instance (안전한 초기화)
+# ============================================================================
+
+try:
+    redis_client = RedisClient()
+except Exception as e:
+    # __init__에서 이미 예외를 잡고 있지만, 혹시 모를 예외를 한 번 더 방어
+    logger.error(f"[RedisClient] ❌ Fatal error during initialization: {e}")
+    redis_client = None
