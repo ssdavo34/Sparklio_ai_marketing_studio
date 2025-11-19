@@ -2,7 +2,7 @@ from fastapi import APIRouter
 from app.api.v1.endpoints import (
     assets, brands, projects, users, agents_new,
     generate, documents, templates, editor, admin,
-    llm_gateway, media_gateway, debug
+    llm_gateway, media_gateway, debug, chat
 )
 # agents (legacy) - Deprecated, import 에러로 주석 처리
 
@@ -101,4 +101,11 @@ api_router.include_router(
     debug.router,
     prefix="/debug",
     tags=["debug"]
+)
+
+# Chat API (Phase 2)
+api_router.include_router(
+    chat.router,
+    prefix="/chat",
+    tags=["chat"]
 )
