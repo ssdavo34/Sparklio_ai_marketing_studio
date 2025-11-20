@@ -61,7 +61,7 @@ class Settings(BaseSettings):
     # Google Gemini API
     google_api_key: str = Field("", env="GOOGLE_API_KEY")
     gemini_text_model: str = Field(
-        "gemini-2.0-flash-exp",
+        "gemini-2.5-flash",
         env="GEMINI_TEXT_MODEL"
     )
     gemini_image_model: str = Field(

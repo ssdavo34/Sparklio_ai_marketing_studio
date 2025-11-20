@@ -29,7 +29,7 @@ export const ChatInterface = ({ embedded = false }: ChatInterfaceProps) => {
     };
 
     return (
-        <div className={`relative h-full bg-slate-50 ${embedded ? '' : 'rounded-lg'} flex flex-col`}>
+        <div className={`h-full bg-slate-50 ${embedded ? '' : 'rounded-lg'} flex flex-col relative`}>
             {/* Header - Hide if embedded */}
             {!embedded && (
                 <div className="p-4 border-b bg-white shadow-sm flex flex-col gap-3 flex-shrink-0">
@@ -61,7 +61,7 @@ export const ChatInterface = ({ embedded = false }: ChatInterfaceProps) => {
             )}
 
             {/* Messages Area - Takes remaining space with padding for input */}
-            <div className="flex-1 overflow-y-auto p-4 pb-24" style={{ minHeight: 0 }}>
+            <div className="flex-1 overflow-y-auto p-4 pb-20">
                 {messages.map((msg) => (
                     <div
                         key={msg.id}
@@ -92,7 +92,7 @@ export const ChatInterface = ({ embedded = false }: ChatInterfaceProps) => {
             </div>
 
             {/* Input Area - Fixed at bottom */}
-            <div className="absolute bottom-0 left-0 right-0 p-3 bg-white border-t">
+            <div className="p-3 bg-white border-t flex-shrink-0">
                 <form onSubmit={handleSubmit} className="flex gap-2">
                     <input
                         type="text"

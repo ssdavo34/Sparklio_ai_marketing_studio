@@ -13,14 +13,13 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Stage, Layer, Rect, Text } from 'react-konva';
+import { Stage, Layer, Rect } from 'react-konva';
 import { useEditorStore } from '../stores';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import { CanvasObjectRenderer } from '../canvas/CanvasObjectRenderer';
 
 export function CanvasViewport() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const currentMode = useEditorStore((state) => state.currentMode);
   const document = useEditorStore((state) => state.document);
   const selectedObjectIds = useEditorStore((state) => state.selectedObjectIds);
   const selectObjects = useEditorStore((state) => state.selectObjects);
@@ -121,6 +120,7 @@ export function CanvasViewport() {
             fill="white"
             shadowBlur={10}
             shadowOpacity={0.1}
+            onClick={() => selectObjects([])}
           />
 
           {/* 객체 렌더링 */}

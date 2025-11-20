@@ -17,14 +17,23 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { PropertiesPanel } from '../components/PropertiesPanel';
 import { ChatInterface } from '../../spark/ChatInterface';
+import { useEditorStore } from '../stores';
 
 type RightDockTab = 'properties' | 'chat' | 'brand';
 
 export function RightDock() {
   const [activeTab, setActiveTab] = useState<RightDockTab>('properties');
+  const selectedObjectIds = useEditorStore((state) => state.selectedObjectIds);
+
+  // 객체가 선택되면 자동으로 Properties 탭으로 전환
+  useEffect(() => {
+    if (selectedObjectIds.length > 0) {
+      setActiveTab('properties');
+    }
+  }, [selectedObjectIds]);
 
   return (
     <aside className="flex w-[360px] flex-col border-l border-neutral-800 bg-neutral-900">
@@ -32,41 +41,48 @@ export function RightDock() {
       <div className="flex h-9 items-center border-b border-neutral-800 px-2">
         <button
           onClick={() => setActiveTab('properties')}
-          className={`px-3 py-1 text-xs font-medium rounded-t-sm ${activeTab === 'properties'
-            ? 'text-white bg-neutral-800'
-            : 'text-neutral-400 hover:text-neutral-200'
-            }`}
+          className={`px-3 py-1 text-xs font-medium rounded-t-sm ${
+            activeTab === 'properties'
+              ? 'text-white bg-neutral-800'
+              : 'text-neutral-400 hover:text-neutral-200'
+          }`}
         >
           Properties
         </button>
         <button
           onClick={() => setActiveTab('chat')}
-          className={`px-3 py-1 text-xs font-medium rounded-t-sm ${activeTab === 'chat'
-            ? 'text-white bg-neutral-800'
-            : 'text-neutral-400 hover:text-neutral-200'
-            }`}
+          className={`px-3 py-1 text-xs font-medium rounded-t-sm ${
+            activeTab === 'chat'
+              ? 'text-white bg-neutral-800'
+              : 'text-neutral-400 hover:text-neutral-200'
+          }`}
         >
           Spark Chat
         </button>
         <button
           onClick={() => setActiveTab('brand')}
-          className={`px-3 py-1 text-xs font-medium rounded-t-sm ${activeTab === 'brand'
-            ? 'text-white bg-neutral-800'
-            : 'text-neutral-400 hover:text-neutral-200'
-            }`}
+          className={`px-3 py-1 text-xs font-medium rounded-t-sm ${
+            activeTab === 'brand'
+              ? 'text-white bg-neutral-800'
+              : 'text-neutral-400 hover:text-neutral-200'
+          }`}
         >
           Brand Kit
         </button>
       </div>
 
       {/* 컨텐츠 영역 */}
-      <div className="flex-1 overflow-y-auto bg-neutral-900">
+      <div className="flex-1 overflow-hidden bg-neutral-900">
         {activeTab === 'properties' && (
-          <div className="p-4">
+          <div className="h-full p-4 overflow-y-auto">
             <PropertiesPanel />
           </div>
         )}
-        {activeTab === 'chat' && <ChatInterface embedded={true} />}
+        {activeTab === 'chat' && (
+          <div className="h-full">
+            <ChatInterface embedded={true} />
+          </div>
+        )}
         {activeTab === 'brand' && (
           <div className="flex h-full flex-col items-center justify-center text-neutral-500 p-4">
             <svg className="w-16 h-16 mb-4 text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">

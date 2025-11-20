@@ -20,3 +20,9 @@ Received request: 사각형을 그려줘
 ERROR in chat.py: Editor execution failed: Ollama API error: 404
 Received request: 사각형을 그려줘
 ERROR in chat.py: Editor execution failed: Gemini API failed: 404 models/gpt-4o is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+Received request: 사각형의 색상을 바꾸어줘 빨간색으로
+Agent response received. Outputs: ['commands']
+Parsed commands: [{'id': 'cmd_001', 'type': 'UPDATE_BACKGROUND', 'payload': {'color': 'red'}, 'source': 'agent', 'timestamp': '2023-10-17T10:00:00Z'}], message: 사각형의 색상을 빨간색으로 변경하였습니다.
+Received request: 원을 빨강색으로 바꿔줘
+Agent response received. Outputs: ['commands']
+Parsed commands: [{'id': 'cmd_001', 'type': 'UPDATE_BACKGROUND', 'payload': {'color': 'red', 'shape': 'circle'}, 'source': 'agent', 'timestamp': '2023-10-17T12:00:00Z'}], message: 원을 빨강색으로 변경했습니다.

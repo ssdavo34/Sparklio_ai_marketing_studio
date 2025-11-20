@@ -65,7 +65,7 @@ class LLMRouter:
         }
 
         # Provider별 우선순위 (향후 확장용)
-        self.provider_priority = ["ollama", "openai", "anthropic"]
+        self.provider_priority = ["ollama", "openai", "anthropic", "gemini"]
 
     def route(
         self,
@@ -96,6 +96,7 @@ class LLMRouter:
         """
         # 명시적 모델 지정 시
         if override_model:
+            # 모델명으로 적절한 provider 자동 추론
             return override_model, self._get_provider_for_model(override_model)
 
         # 모델 티어 결정 (작업 우선, 없으면 역할 기본값)
@@ -146,19 +147,26 @@ class LLMRouter:
         Returns:
             Provider명
         """
-        # Ollama 모델 패턴
-        if ":" in model or model.startswith("qwen") or model.startswith("llama"):
-            return "ollama"
+        # 모델명을 소문자로 변환하여 대소문자 구분 없이 매칭
+        model_lower = model.lower()
 
-        # OpenAI 모델 패턴
-        if model.startswith("gpt-"):
+        # OpenAI 모델 패턴 (gpt, o1 시리즈 등)
+        if "gpt" in model_lower or "o1" in model_lower:
             return "openai"
 
-        # Anthropic 모델 패턴
-        if model.startswith("claude-"):
+        # Gemini 모델 패턴
+        elif "gemini" in model_lower:
+            return "gemini"
+
+        # Anthropic 모델 패턴 (claude 시리즈)
+        elif "claude" in model_lower:
             return "anthropic"
 
-        # 기본값
+        # Ollama 모델 패턴 (qwen, llama, mistral 등)
+        elif "qwen" in model_lower or "llama" in model_lower or "mistral" in model_lower or ":" in model:
+            return "ollama"
+
+        # 기본값은 ollama로 설정
         return "ollama"
 
     def get_model_info(self, model: str, provider: str) -> Dict[str, Any]:

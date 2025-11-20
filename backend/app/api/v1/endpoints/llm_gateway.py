@@ -18,7 +18,7 @@ from app.services.llm.providers.base import ProviderError, LLMProviderOutput
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/llm", tags=["LLM Gateway"])
+router = APIRouter(tags=["LLM Gateway"])
 
 
 # Request/Response Models

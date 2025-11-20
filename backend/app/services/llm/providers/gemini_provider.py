@@ -21,13 +21,13 @@ class GeminiProvider(LLMProvider):
     def __init__(
         self,
         api_key: str,
-        default_model: str = "gemini-2.5-flash-preview",
+        default_model: str = "gemini-2.5-flash",
         timeout: int = 60
     ):
         """
         Args:
             api_key: Google API Key
-            default_model: 기본 모델 (gemini-2.5-flash-preview)
+            default_model: 기본 모델 (gemini-2.5-flash)
             timeout: 타임아웃 (초)
         """
         genai.configure(api_key=api_key)
@@ -162,7 +162,8 @@ class GeminiProvider(LLMProvider):
 
     def get_available_models(self) -> list:
         return [
-            "gemini-2.0-flash-exp",
+            "gemini-2.5-flash",
+            "gemini-2.0-flash",
             "gemini-1.5-flash",
             "gemini-1.5-pro"
         ]

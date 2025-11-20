@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLLMStore } from '@/store/llmStore';
+import { useEditorStore } from '@/components/canvas-studio/stores';
 
 export interface Message {
     id: string;
@@ -26,6 +27,7 @@ export interface ChatAnalysisResult {
 export const useSparkChat = () => {
     const router = useRouter();
     const llmSelection = useLLMStore((state) => state.selection);
+    const { addObject, selectedObjectIds, objects } = useEditorStore();
     const [messages, setMessages] = useState<Message[]>([
         {
             id: 'welcome',
@@ -67,6 +69,60 @@ export const useSparkChat = () => {
 
             const data: ChatAnalysisResult = await response.json();
             setAnalysisResult(data);
+
+            // Apply suggestions to the canvas
+            if (data.suggestions && data.suggestions.length > 0) {
+                for (const suggestion of data.suggestions) {
+                    const payload = suggestion.payload;
+
+                    // Handle different types of actions
+                    if (suggestion.type === 'shape' && payload) {
+                        // Add a new shape
+                        if (payload.shapeType === 'rect') {
+                            addObject({
+                                type: 'shape',
+                                shapeType: 'rect',
+                                x: 100 + Math.random() * 200,
+                                y: 100 + Math.random() * 200,
+                                width: 100,
+                                height: 100,
+                                fill: payload.fill || '#3b82f6',
+                            });
+                        } else if (payload.shapeType === 'circle') {
+                            addObject({
+                                type: 'shape',
+                                shapeType: 'circle',
+                                x: 150 + Math.random() * 200,
+                                y: 150 + Math.random() * 200,
+                                radius: 50,
+                                fill: payload.fill || '#3b82f6',
+                            });
+                        }
+                    } else if (suggestion.type === 'element' && payload?.type === 'text') {
+                        // Add text element
+                        addObject({
+                            type: 'text',
+                            text: payload.content || '새 텍스트',
+                            x: 100 + Math.random() * 200,
+                            y: 100 + Math.random() * 200,
+                            fontSize: 24,
+                            fill: '#000000',
+                        });
+                    } else if (suggestion.type === 'style' && payload?.backgroundColor) {
+                        // Change background color - this would need to be implemented in the canvas store
+                        // For now, we'll add a background rectangle
+                        addObject({
+                            type: 'shape',
+                            shapeType: 'rect',
+                            x: 0,
+                            y: 0,
+                            width: 800,
+                            height: 600,
+                            fill: payload.backgroundColor,
+                        });
+                    }
+                }
+            }
 
             // Backend returns 'analysis' (text) and 'suggestions' (commands)
             // We display the 'analysis' text or the description from the first suggestion

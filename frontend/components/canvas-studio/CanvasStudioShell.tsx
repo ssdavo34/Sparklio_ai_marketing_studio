@@ -17,9 +17,39 @@
 
 'use client';
 
+import { useEffect } from 'react';
 import { StudioLayout } from './layout/StudioLayout';
+import { useEditorStore } from './stores';
 
 export function CanvasStudioShell() {
+  // 초기 빈 document 설정
+  useEffect(() => {
+    const store = useEditorStore.getState();
+
+    // 기존 document가 없거나 빈 페이지가 필요한 경우
+    if (!store.document || !store.document.pages || store.document.pages.length === 0) {
+      store.setDocument({
+        id: 'doc-' + Date.now(),
+        title: 'Untitled Design',
+        mode: 'editor',
+        pages: [{
+          id: 'page-1',
+          title: 'Page 1',
+          order: 0,
+          objects: [], // 빈 캔버스로 시작
+          width: 800,
+          height: 600,
+        }],
+        currentPageId: 'page-1',
+        metadata: {
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          author: 'User',
+        },
+      });
+    }
+  }, []);
+
   return (
     // TODO: Phase 2에서 Provider 추가
     // <EditorStoreProvider>

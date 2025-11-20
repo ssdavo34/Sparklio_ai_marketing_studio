@@ -55,13 +55,24 @@ export function CanvasObjectRenderer({ object, isSelected, onSelect }: CanvasObj
         node.scaleX(1);
         node.scaleY(1);
 
-        updateObject(object.id, {
-            x: node.x(),
-            y: node.y(),
-            width: Math.max(5, node.width() * scaleX),
-            height: Math.max(5, node.height() * scaleY),
-            rotation: node.rotation(),
-        });
+        // Circle의 경우 radius 업데이트, 그 외는 width/height 업데이트
+        if (object.type === 'shape' && object.shapeType === 'circle') {
+            const avgScale = (scaleX + scaleY) / 2; // 평균 스케일 사용
+            updateObject(object.id, {
+                x: node.x(),
+                y: node.y(),
+                radius: Math.max(5, (object.radius || 50) * avgScale),
+                rotation: node.rotation(),
+            });
+        } else {
+            updateObject(object.id, {
+                x: node.x(),
+                y: node.y(),
+                width: Math.max(5, node.width() * scaleX),
+                height: Math.max(5, node.height() * scaleY),
+                rotation: node.rotation(),
+            });
+        }
     };
 
     // 공통 속성
