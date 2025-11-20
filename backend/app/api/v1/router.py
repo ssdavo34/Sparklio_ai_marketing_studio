@@ -3,7 +3,8 @@ from app.api.v1 import chat, meeting, admin
 from app.api.v1.endpoints import (
     assets, brands, projects, users, agents_new,
     generate, documents, templates, editor,
-    llm_gateway, media_gateway, debug
+    llm_gateway, media_gateway, debug,
+    sparklio_editor  # Sparklio Editor API 추가
 )
 # agents (legacy) - Deprecated, import 에러로 주석 처리
 
@@ -60,6 +61,13 @@ api_router.include_router(
     editor.router,
     prefix="/editor",
     tags=["editor"]
+)
+
+# Sparklio Editor API (신규 Editor API - C팀 지원)
+api_router.include_router(
+    sparklio_editor.router,
+    prefix="/sparklio",
+    tags=["sparklio-editor"]
 )
 
 # Admin API (관리자 전용 모니터링)
