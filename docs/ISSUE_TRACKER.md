@@ -1,12 +1,33 @@
 # 이슈 트래커
-**최종 업데이트**: 2025-11-20
+**최종 업데이트**: 2025-11-20 오후
 **담당**: A팀 QA
 
-## 🔴 P0 - 긴급 (Critical)
+## 🔴 최우선 과제
+
+### CRITICAL: 에디터 전환 (Konva → Polotno)
+**상태**: 🔴 **진행 중** (2025-11-20 시작)
+**담당**: C팀 (Frontend)
+**목표**: 2주 내 완성
+
+**배경**:
+- Konva 에디터 구현 복잡도로 전체 프로젝트 진행 차질
+- LLM/Brand Kit/Meeting AI 통합 불가능
+- 학원 발표 데드라인 임박
+
+**액션**:
+- ✅ 결정 및 문서화 완료
+- ⏳ C팀 Polotno SDK 도입 중
+- ⏳ B팀 EditorAPI 구현 대기
+- 📌 상세 계획: [EDITOR_TRANSITION_PRIORITY.md](./EDITOR_TRANSITION_PRIORITY.md)
+
+---
+
+## ✅ P0 - 해결됨 (Resolved)
 
 ### ISSUE-001: LLM Router 모델 매칭 오류
-**상태**: 🔴 Open
+**상태**: ✅ **Resolved** (2025-11-20)
 **발견일**: 2025-11-19
+**해결일**: 2025-11-20
 **영향도**: High - 모든 AI 기능 영향
 
 **증상**:
@@ -14,29 +35,23 @@
 - 에러 메시지: "Gemini API failed: 404 models/gpt-4o is not found"
 
 **원인**:
-- `backend/app/services/llm/router.py`에서 모델-프로바이더 매칭 실패
-- gpt-4o 모델을 Gemini Provider로 잘못 라우팅
 
-**재현 방법**:
-1. Frontend에서 채팅 메시지 입력
-2. Send 버튼 클릭
-3. Network 탭에서 500 에러 확인
+- Gemini 모델명 오류: `gemini-2.5-flash-preview` (존재하지 않는 모델)
+- 실제 모델명: `gemini-2.5-flash`
 
-**임시 해결책**:
-- 환경 변수에서 DEFAULT_LLM_MODEL을 gemini-pro로 변경
+**해결 내용**:
 
-**영구 해결 방안**:
-```python
-# backend/app/services/llm/router.py 수정 필요
-MODEL_PROVIDER_MAP = {
-    "gpt-4o": "openai",
-    "gpt-4o-mini": "openai",
-    "gemini-pro": "gemini",
-    "gemini-2.5-flash": "gemini",
-    "llama3": "ollama",
-    # ...
-}
-```
+- ✅ B팀이 모든 관련 파일에서 모델명 수정
+- ✅ `.env`: `GEMINI_TEXT_MODEL=gemini-2.5-flash`
+- ✅ `config.py`: 기본값 `"gemini-2.5-flash"`로 변경
+- ✅ `gemini_provider.py`: 모델 리스트 업데이트
+- ✅ A팀 QA 검증 완료 (테스트 통과)
+
+**테스트 결과**:
+
+- Gemini API 직접 연결: ✅ PASS
+- LLM Router 매핑: ✅ PASS (10/10)
+- gpt-4o → OpenAI 라우팅: ✅ 정상
 
 ---
 
