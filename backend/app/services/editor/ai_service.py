@@ -8,7 +8,7 @@ AI 기반 문서/요소 생성 및 수정
 """
 
 from sqlalchemy.orm import Session
-from typing import Optional, List, Dict, Any
+from typing import Optional, Dict, Any
 from uuid import UUID
 import json
 import logging
@@ -17,9 +17,6 @@ from app.models.sparklio_document import SparklioDocument
 from app.schemas.sparklio_document import (
     SparklioDocumentBase,
     SparklioDocumentResponse,
-    SparklioPage,
-    SparklioElement,
-    ElementProps,
     AICommandResponse
 )
 from app.services.llm.gateway import LLMGateway
@@ -94,10 +91,12 @@ class EditorAIService:
 """
 
             # LLM 호출
-            response = await self.llm_gateway.generate_content(
-                prompt=prompt,
-                system_prompt=system_prompt,
-                model="gpt-4o-mini"  # 빠른 응답을 위해 mini 모델 사용
+            response = await self.llm_gateway.generate(
+                role="designer",
+                task="document_generation",
+                payload={"prompt": prompt, "system_prompt": system_prompt},
+                mode="json",
+                override_model="gpt-4o-mini"  # 빠른 응답을 위해 mini 모델 사용
             )
 
             # JSON 파싱
@@ -175,10 +174,12 @@ class EditorAIService:
 }}
 """
 
-            response = await self.llm_gateway.generate_content(
-                prompt=prompt,
-                system_prompt=system_prompt,
-                model="gpt-4o-mini"
+            response = await self.llm_gateway.generate(
+                role="designer",
+                task="element_generation",
+                payload={"prompt": prompt, "system_prompt": system_prompt},
+                mode="json",
+                override_model="gpt-4o-mini"
             )
 
             element_data = json.loads(response)
@@ -236,10 +237,12 @@ class EditorAIService:
 }}
 """
 
-            response = await self.llm_gateway.generate_content(
-                prompt=prompt,
-                system_prompt=system_prompt,
-                model="gpt-4o-mini"
+            response = await self.llm_gateway.generate(
+                role="designer",
+                task="element_generation",
+                payload={"prompt": prompt, "system_prompt": system_prompt},
+                mode="json",
+                override_model="gpt-4o-mini"
             )
 
             modification = json.loads(response)
@@ -296,10 +299,12 @@ class EditorAIService:
 ]
 """
 
-            response = await self.llm_gateway.generate_content(
-                prompt=prompt,
-                system_prompt=system_prompt,
-                model="gpt-4o-mini"
+            response = await self.llm_gateway.generate(
+                role="designer",
+                task="element_generation",
+                payload={"prompt": prompt, "system_prompt": system_prompt},
+                mode="json",
+                override_model="gpt-4o-mini"
             )
 
             suggestions = json.loads(response)
