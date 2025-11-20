@@ -34,7 +34,9 @@ export const LLMSelector = () => {
                             <option value="openai">GPT-4o</option>
                             <option value="gemini">Gemini 2.5 Flash</option>
                             <option value="anthropic">Claude 3.5 Sonnet</option>
-                            <option value="ollama">Ollama (Local)</option>
+                            <option value="ollama">Ollama (Qwen)</option>
+                            <option value="llama">Ollama (Llama 3)</option>
+                            <option value="mistral">Ollama (Mistral)</option>
                             <option value="mock">Mock (Dev)</option>
                         </select>
                     </div>

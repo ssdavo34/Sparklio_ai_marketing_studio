@@ -148,7 +148,7 @@ class LLMGateway:
 
         try:
             # 1. 프롬프트 구성
-            prompt = self._build_prompt(role, task, payload)
+            prompt = self._build_prompt(role, task, payload, mode)
 
             # 2. Provider 선택 (Mock/Live 모드 + 사용자 지정)
             provider_name, provider = self._select_provider(
@@ -291,7 +291,7 @@ class LLMGateway:
             
         return provider
 
-    def _build_prompt(self, role: str, task: str, payload: Dict[str, Any]) -> str:
+    def _build_prompt(self, role: str, task: str, payload: Dict[str, Any], mode: str = "text") -> str:
         """
         프롬프트 구성
 
@@ -301,6 +301,7 @@ class LLMGateway:
             role: Agent 역할
             task: 작업 유형
             payload: 입력 데이터
+            mode: 출력 모드
 
         Returns:
             구성된 프롬프트
@@ -313,6 +314,10 @@ class LLMGateway:
 
         # 결합
         prompt = f"{system_prompt}\n\n{user_input}"
+
+        # OpenAI JSON 모드 요구사항: 프롬프트에 'json' 단어가 포함되어야 함
+        if mode == "json" and "json" not in prompt.lower():
+            prompt += "\n\nIMPORTANT: You must output valid JSON."
 
         return prompt
 

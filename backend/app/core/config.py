@@ -33,7 +33,7 @@ class Settings(BaseSettings):
 
     # Generator Mode (mock | live) - 소문자 필드명 사용
     generator_mode: Literal["mock", "live"] = Field(
-        "mock", # Changed default from "live" to "mock"
+        "live", # Default to live
         env="GENERATOR_MODE"
     )
 
@@ -61,7 +61,7 @@ class Settings(BaseSettings):
     # Google Gemini API
     google_api_key: str = Field("", env="GOOGLE_API_KEY")
     gemini_text_model: str = Field(
-        "gemini-2.5-flash-preview",
+        "gemini-2.0-flash-exp",
         env="GEMINI_TEXT_MODEL"
     )
     gemini_image_model: str = Field(
@@ -70,17 +70,7 @@ class Settings(BaseSettings):
     )
     gemini_timeout: int = Field(60, env="GEMINI_TIMEOUT")
 
-    # Novita AI (Llama 3.3 70B)
-    novita_api_key: str = Field("", env="NOVITA_API_KEY")
-    novita_base_url: str = Field(
-        "https://api.novita.ai/v3/openai",
-        env="NOVITA_BASE_URL"
-    )
-    novita_default_model: str = Field(
-        "meta-llama/llama-3.3-70b-instruct",
-        env="NOVITA_DEFAULT_MODEL"
-    )
-    novita_timeout: int = Field(60, env="NOVITA_TIMEOUT")
+
 
     # AI Workers - Media (ComfyUI) - 소문자 필드명 사용
     comfyui_base_url: str = Field(
@@ -177,22 +167,7 @@ class Settings(BaseSettings):
     def GEMINI_TIMEOUT(self) -> int:
         return self.gemini_timeout
 
-    # Novita 대문자 속성
-    @property
-    def NOVITA_API_KEY(self) -> str:
-        return self.novita_api_key
 
-    @property
-    def NOVITA_BASE_URL(self) -> str:
-        return self.novita_base_url
-
-    @property
-    def NOVITA_DEFAULT_MODEL(self) -> str:
-        return self.novita_default_model
-
-    @property
-    def NOVITA_TIMEOUT(self) -> int:
-        return self.novita_timeout
 
     @property
     def COMFYUI_BASE_URL(self) -> str:

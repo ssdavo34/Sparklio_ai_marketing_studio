@@ -9,6 +9,8 @@ LLMProviderName = Literal[
     "ollama",
     "qwen",
     "llama",
+    "mistral",
+    "anthropic",
     "nanobanana",
     "comfyui_image",
     "comfyui_video",

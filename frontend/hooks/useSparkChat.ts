@@ -9,15 +9,18 @@ export interface Message {
     timestamp: Date;
 }
 
-export interface SuggestedSection {
-    role: string;
-    suggestion: string;
+export interface Suggestion {
+    id: string;
+    type: string;
+    label: string;
+    description: string;
+    preview_image?: string;
+    payload?: any;
 }
 
 export interface ChatAnalysisResult {
-    chatSessionId: string;
-    contentType: string;
-    suggestedStructure: SuggestedSection[];
+    analysis: string;
+    suggestions: Suggestion[];
 }
 
 export const useSparkChat = () => {
@@ -27,7 +30,7 @@ export const useSparkChat = () => {
         {
             id: 'welcome',
             role: 'assistant',
-            content: '안녕하세요! 어떤 마케팅 콘텐츠를 만들고 싶으신가요? (예: 나이키 에어맥스 인스타그램 광고 만들어줘)',
+            content: '안녕하세요! Spark Editor입니다. 무엇을 도와드릴까요? (예: 배경을 파란색으로 바꿔줘)',
             timestamp: new Date(),
         },
     ]);
@@ -65,12 +68,15 @@ export const useSparkChat = () => {
             const data: ChatAnalysisResult = await response.json();
             setAnalysisResult(data);
 
+            // Backend returns 'analysis' (text) and 'suggestions' (commands)
+            // We display the 'analysis' text or the description from the first suggestion
+            const responseText = data.analysis ||
+                (data.suggestions.length > 0 ? data.suggestions[0].description : "처리를 완료했습니다.");
+
             const assistantMessage: Message = {
                 id: (Date.now() + 1).toString(),
                 role: 'assistant',
-                content: `네, 알겠습니다. "${data.contentType}" 형식으로 초안을 만들어드릴까요?\n\n제안된 구조:\n${data.suggestedStructure
-                    .map((s) => `- ${s.role}: ${s.suggestion}`)
-                    .join('\n')}`,
+                content: responseText,
                 timestamp: new Date(),
             };
 
@@ -89,35 +95,13 @@ export const useSparkChat = () => {
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [llmSelection]);
 
+    // createDraft is likely not needed for Editor Chat, but keeping it as placeholder or for future use
     const createDraft = useCallback(async () => {
-        if (!analysisResult) return;
-
-        setIsLoading(true);
-        try {
-            // Mock API call for document generation
-            const response = await fetch('/api/v1/chat/generate-document', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ chatSessionId: analysisResult.chatSessionId }),
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to generate document');
-            }
-
-            const data = await response.json();
-
-            // Redirect to editor
-            router.push(`/studio?docId=${data.documentId}`);
-        } catch (error) {
-            console.error('Generation error:', error);
-            alert('문서 생성 중 오류가 발생했습니다.');
-        } finally {
-            setIsLoading(false);
-        }
-    }, [analysisResult, router]);
+        console.log("Create Draft clicked - Not implemented for Editor Chat yet");
+        // Logic to apply commands or create a new doc could go here
+    }, []);
 
     return {
         messages,
