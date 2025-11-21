@@ -1,9 +1,10 @@
 """
 Agent API Endpoints (v2)
 
-6개 Agent를 REST API로 노출
+21개 Agent를 REST API로 노출
 
 작성일: 2025-11-17
+업데이트: 2025-11-22 (21개 Agent로 확장)
 작성자: B팀 (Backend)
 """
 
@@ -25,6 +26,15 @@ from app.services.agents import (
     create_template_agent,
     create_pm_agent,
     create_qa_agent,
+    get_trend_collector_agent,
+    get_data_cleaner_agent,
+    create_embedder_agent,
+    create_rag_agent,
+    create_ingestor_agent,
+    create_performance_analyzer_agent,
+    create_self_learning_agent,
+    create_error_handler_agent,
+    create_logger_agent,
     AgentRequest,
     AgentResponse,
     AgentError
@@ -36,6 +46,7 @@ logger = logging.getLogger(__name__)
 
 # Agent Factory 매핑
 AGENTS = {
+    # Creation Agents
     "copywriter": get_copywriter_agent,
     "strategist": get_strategist_agent,
     "designer": get_designer_agent,
@@ -46,8 +57,19 @@ AGENTS = {
     "vision_analyzer": get_vision_analyzer_agent,
     "scene_planner": get_scene_planner_agent,
     "template": create_template_agent,
+    # System Agents
     "pm": create_pm_agent,
-    "qa": create_qa_agent
+    "qa": create_qa_agent,
+    "error_handler": create_error_handler_agent,
+    "logger": create_logger_agent,
+    # Intelligence Agents
+    "trend_collector": get_trend_collector_agent,
+    "data_cleaner": get_data_cleaner_agent,
+    "embedder": create_embedder_agent,
+    "rag": create_rag_agent,
+    "ingestor": create_ingestor_agent,
+    "performance_analyzer": create_performance_analyzer_agent,
+    "self_learning": create_self_learning_agent
 }
 
 
@@ -78,6 +100,7 @@ class AgentExecuteRequest(BaseModel):
 @router.post("/{agent_name}/execute", response_model=AgentResponse)
 async def execute_agent(
     agent_name: Literal[
+        # Creation Agents
         "copywriter",
         "strategist",
         "designer",
@@ -88,17 +111,28 @@ async def execute_agent(
         "vision_analyzer",
         "scene_planner",
         "template",
+        # System Agents
         "pm",
-        "qa"
+        "qa",
+        "error_handler",
+        "logger",
+        # Intelligence Agents
+        "trend_collector",
+        "data_cleaner",
+        "embedder",
+        "rag",
+        "ingestor",
+        "performance_analyzer",
+        "self_learning"
     ] = Path(..., description="Agent 이름"),
     request: AgentExecuteRequest = ...
 ):
     """
     Agent 실행
 
-    12개 Agent 중 하나를 선택하여 작업 실행
+    21개 Agent 중 하나를 선택하여 작업 실행
 
-    **사용 가능한 Agent**:
+    **Creation Agents (10개)**:
     - `copywriter`: 텍스트 콘텐츠 생성
     - `strategist`: 마케팅 전략 수립
     - `designer`: 비주얼 콘텐츠 생성
@@ -109,8 +143,21 @@ async def execute_agent(
     - `vision_analyzer`: 이미지 분석 및 설명 생성
     - `scene_planner`: 영상 씬 구성 및 스토리보드 생성
     - `template`: 마케팅 템플릿 자동 생성
+
+    **System Agents (4개)**:
     - `pm`: 워크플로우 조율 및 태스크 분배
     - `qa`: 품질 검증 및 테스트
+    - `error_handler`: 에러 감지 및 복구
+    - `logger`: 로깅 및 모니터링
+
+    **Intelligence Agents (7개)**:
+    - `trend_collector`: 트렌드 데이터 수집
+    - `data_cleaner`: 데이터 정제
+    - `embedder`: 벡터 임베딩 생성
+    - `rag`: 검색 증강 생성
+    - `ingestor`: 데이터 저장 관리
+    - `performance_analyzer`: 성과 분석
+    - `self_learning`: 자기 학습
 
     Returns:
         AgentResponse: Agent 실행 결과 (outputs, usage, meta)
@@ -230,6 +277,51 @@ async def list_agents():
                 "name": "qa",
                 "description": "품질 검증 및 테스트 (콘텐츠 품질 검사, 브랜드 가이드라인 준수)",
                 "tasks": ["quality_check", "brand_compliance", "grammar_check", "seo_validation", "accessibility_check"]
+            },
+            {
+                "name": "error_handler",
+                "description": "에러 감지 및 복구 (자동 재시도, 폴백 처리)",
+                "tasks": ["detect_error", "recover", "retry", "fallback", "log_error"]
+            },
+            {
+                "name": "logger",
+                "description": "로깅 및 모니터링 (이벤트 로깅, 메트릭 수집)",
+                "tasks": ["log_event", "track_metric", "monitor_performance", "generate_report", "alert"]
+            },
+            {
+                "name": "trend_collector",
+                "description": "트렌드 데이터 수집 (소셜미디어, 검색 트렌드)",
+                "tasks": ["collect_trends", "analyze_keywords", "track_hashtags", "monitor_competitors", "identify_emerging"]
+            },
+            {
+                "name": "data_cleaner",
+                "description": "데이터 정제 (중복 제거, 정규화, 검증)",
+                "tasks": ["remove_duplicates", "normalize", "validate", "sanitize", "transform"]
+            },
+            {
+                "name": "embedder",
+                "description": "벡터 임베딩 생성 (텍스트/이미지 임베딩)",
+                "tasks": ["embed_text", "embed_image", "batch_embed", "similarity_search", "cluster"]
+            },
+            {
+                "name": "rag",
+                "description": "검색 증강 생성 (RAG - 문서 검색 + LLM 생성)",
+                "tasks": ["search_and_generate", "retrieve_context", "answer_question", "summarize_docs", "fact_check"]
+            },
+            {
+                "name": "ingestor",
+                "description": "데이터 저장 관리 (벡터 DB, 문서 저장)",
+                "tasks": ["ingest_documents", "store_embeddings", "index_data", "update_storage", "delete_data"]
+            },
+            {
+                "name": "performance_analyzer",
+                "description": "성과 분석 (캠페인 성과, ROI 분석)",
+                "tasks": ["analyze_campaign", "calculate_roi", "track_kpi", "compare_performance", "predict_trends"]
+            },
+            {
+                "name": "self_learning",
+                "description": "자기 학습 (피드백 학습, 모델 개선)",
+                "tasks": ["learn_from_feedback", "update_model", "improve_accuracy", "adapt_strategy", "optimize_params"]
             }
         ]
     }
@@ -238,6 +330,7 @@ async def list_agents():
 @router.get("/{agent_name}/info")
 async def get_agent_info(
     agent_name: Literal[
+        # Creation Agents
         "copywriter",
         "strategist",
         "designer",
@@ -248,8 +341,19 @@ async def get_agent_info(
         "vision_analyzer",
         "scene_planner",
         "template",
+        # System Agents
         "pm",
-        "qa"
+        "qa",
+        "error_handler",
+        "logger",
+        # Intelligence Agents
+        "trend_collector",
+        "data_cleaner",
+        "embedder",
+        "rag",
+        "ingestor",
+        "performance_analyzer",
+        "self_learning"
     ] = Path(..., description="Agent 이름")
 ):
     """

@@ -27,6 +27,15 @@ from .scene_planner import ScenePlannerAgent, get_scene_planner_agent
 from .template import TemplateAgent, create_template_agent
 from .pm import PMAgent, create_pm_agent
 from .qa import QAAgent, create_qa_agent
+from .trend_collector import TrendCollectorAgent, get_trend_collector_agent
+from .data_cleaner import DataCleanerAgent, get_data_cleaner_agent
+from .embedder import EmbedderAgent, create_embedder_agent
+from .rag import RAGAgent, create_rag_agent
+from .ingestor import IngestorAgent, create_ingestor_agent
+from .performance_analyzer import PerformanceAnalyzerAgent, create_performance_analyzer_agent
+from .self_learning import SelfLearningAgent, create_self_learning_agent
+from .error_handler import ErrorHandlerAgent, create_error_handler_agent
+from .logger import LoggerAgent, create_logger_agent
 
 __all__ = [
     # Base classes
@@ -49,6 +58,15 @@ __all__ = [
     "TemplateAgent",
     "PMAgent",
     "QAAgent",
+    "TrendCollectorAgent",
+    "DataCleanerAgent",
+    "EmbedderAgent",
+    "RAGAgent",
+    "IngestorAgent",
+    "PerformanceAnalyzerAgent",
+    "SelfLearningAgent",
+    "ErrorHandlerAgent",
+    "LoggerAgent",
 
     # Factory functions
     "get_copywriter_agent",
@@ -62,5 +80,14 @@ __all__ = [
     "get_scene_planner_agent",
     "create_template_agent",
     "create_pm_agent",
-    "create_qa_agent"
+    "create_qa_agent",
+    "get_trend_collector_agent",
+    "get_data_cleaner_agent",
+    "create_embedder_agent",
+    "create_rag_agent",
+    "create_ingestor_agent",
+    "create_performance_analyzer_agent",
+    "create_self_learning_agent",
+    "create_error_handler_agent",
+    "create_logger_agent"
 ]
