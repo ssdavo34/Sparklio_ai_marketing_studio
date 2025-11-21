@@ -65,6 +65,65 @@ services:
     networks:
       - sparklio-network
 
+  # FastAPI Backend Service
+  backend:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    container_name: sparklio-backend
+    restart: unless-stopped
+    environment:
+      # Database
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-sparklio}
+      POSTGRES_USER: ${POSTGRES_USER:-sparklio}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+
+      # MinIO
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      MINIO_USE_SSL: "false"
+
+      # GPU Worker (Desktop)
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://100.120.180.42:11434}
+      COMFYUI_BASE_URL: ${COMFYUI_BASE_URL:-http://100.120.180.42:8188}
+
+      # API Keys (from .env file)
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+
+      # App Settings
+      GENERATOR_MODE: ${GENERATOR_MODE:-live}
+      DEBUG: ${DEBUG:-false}
+    volumes:
+      - ../../backend:/app
+    ports:
+      - "${API_PORT:-8000}:8000"
+      - "${ADMIN_PORT:-8001}:8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - sparklio-network
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
   # MinIO Client (mc) for initial bucket setup
   minio-init:
     image: minio/mc:latest

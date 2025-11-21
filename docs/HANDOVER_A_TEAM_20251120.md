@@ -122,7 +122,7 @@
 ### Backend (.env)
 ```env
 GEMINI_TEXT_MODEL=gemini-2.5-flash  # ✅ 수정됨
-GOOGLE_API_KEY=AIzaSyCJRMtsJBGAamgw75sqgnVwTgrcoRy-S7s
+GOOGLE_API_KEY=YOUR_GOOGLE_API_KEY_HERE  # ⚠️ 실제 키는 .env 파일에 저장하고 절대 커밋하지 마세요!
 ```
 
 ### Frontend (.env.local) - 추가 필요

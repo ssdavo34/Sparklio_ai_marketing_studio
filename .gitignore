@@ -10,8 +10,12 @@ playwright-report/
 
 # Environment variables
 .env
+.env.*
 .env.local
 .env.test
+.env.production
+.env.mini
+*.env
 
 # OS files
 .DS_Store
@@ -37,3 +41,21 @@ venv/
 nul
 *.tmp
 *.temp
+
+# Security - API Keys and Secrets
+**/secrets/
+**/credentials/
+*.key
+*.pem
+*.p12
+*.pfx
+*_api_key*
+*_secret*
+config.json
+secrets.json
+credentials.json
+
+# Backup files that might contain sensitive data
+*.backup
+*.bak
+*.old
