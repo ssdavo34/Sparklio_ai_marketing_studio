@@ -99,8 +99,8 @@ class EditorAIService:
                 override_model="gpt-4o-mini"  # 빠른 응답을 위해 mini 모델 사용
             )
 
-            # JSON 파싱
-            document_data = json.loads(response)
+            # JSON 파싱 (LLMProviderResponse의 content 필드 사용)
+            document_data = json.loads(response.content)
 
             # 문서 생성
             db_document = SparklioDocument(
@@ -182,7 +182,7 @@ class EditorAIService:
                 override_model="gpt-4o-mini"
             )
 
-            element_data = json.loads(response)
+            element_data = json.loads(response.content)
 
             return AICommandResponse(
                 success=True,
@@ -245,7 +245,7 @@ class EditorAIService:
                 override_model="gpt-4o-mini"
             )
 
-            modification = json.loads(response)
+            modification = json.loads(response.content)
 
             return AICommandResponse(
                 success=True,
@@ -307,7 +307,7 @@ class EditorAIService:
                 override_model="gpt-4o-mini"
             )
 
-            suggestions = json.loads(response)
+            suggestions = json.loads(response.content)
 
             return AICommandResponse(
                 success=True,
