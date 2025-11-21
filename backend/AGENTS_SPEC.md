@@ -355,34 +355,69 @@ response = await editor.execute(AgentRequest(
 
 ---
 
-### 7. VisionAnalyzerAgent
+### 7. VisionAnalyzerAgent ✅ **구현 완료**
 
 **역할**: 생성 이미지 품질 자동 평가 전문 Agent
 
 **파일**: [app/services/agents/vision_analyzer.py](app/services/agents/vision_analyzer.py)
 
+**구현 상태**:
+- ✅ **STEP 1**: Agent 클래스 구현 완료 (2025-11-19)
+- ✅ **STEP 2**: Vision API 연동 완료 (Claude 3.5 Sonnet, GPT-4o)
+- ✅ **STEP 3**: 품질 평가 로직 구현 완료
+- ✅ **STEP 4**: 통합 테스트 완료 (Mock 모드 지원)
+- ✅ **STEP 5**: 문서화 완료 (2025-11-21)
+
 **지원 작업**:
 | Task | 설명 | Input | Output |
 |------|------|-------|--------|
-| `image_analysis` | 이미지 종합 분석 | `image_url`, `criteria`, `brand_guidelines` | `quality_score`, `composition`, `color_harmony`, `brand_consistency`, `technical_quality`, `improvements` |
-| `composition_check` | 구도 분석 | `image_url` | `composition` 분석 |
-| `color_check` | 색상 조화 분석 | `image_url` | `color_harmony` 분석 |
-| `brand_check` | 브랜드 일관성 체크 | `image_url`, `brand_guidelines` | `brand_consistency` 분석 |
-| `quality_check` | 기술적 품질 평가 | `image_url` | `technical_quality` 분석 |
+| `image_analysis` | 이미지 종합 분석 | `image_url` 또는 `image_base64`, `criteria`, `brand_guidelines` | `quality_score`, `composition`, `color_harmony`, `brand_consistency`, `technical_quality`, `improvements` |
+| `composition_check` | 구도 분석 | `image_url` 또는 `image_base64` | `composition` 분석 |
+| `color_check` | 색상 조화 분석 | `image_url` 또는 `image_base64` | `color_harmony` 분석 |
+| `brand_check` | 브랜드 일관성 체크 | `image_url` 또는 `image_base64`, `brand_guidelines` | `brand_consistency` 분석 |
+| `quality_check` | 기술적 품질 평가 | `image_url` 또는 `image_base64` | `technical_quality` 분석 |
+
+**입력 형식**:
+```python
+# URL 형식
+payload = {
+    "image_url": "https://example.com/image.jpg",
+    "criteria": {...},
+    "brand_guidelines": {...}
+}
+
+# Base64 형식 (프론트엔드 직접 업로드 시)
+payload = {
+    "image_base64": "data:image/png;base64,iVBORw0KGgoAAAANS...",
+    "criteria": {...},
+    "brand_guidelines": {...}
+}
+```
+
+**Vision API 연동**:
+- **Primary Provider**: Claude 3.5 Sonnet (`claude-3-5-sonnet-20241022`)
+- **Fallback Provider**: GPT-4o (`gpt-4o`)
+- **Mock Mode**: 개발/테스트 시 자동 폴백
 
 **사용 예시**:
 ```python
-response = await vision_analyzer.execute(AgentRequest(
+from app.services.agents import get_vision_analyzer_agent, AgentRequest
+
+# Agent 인스턴스 생성
+agent = get_vision_analyzer_agent()
+
+# 이미지 분석 요청
+response = await agent.execute(AgentRequest(
     task="image_analysis",
     payload={
         "image_url": "https://example.com/product.jpg",
         "criteria": {
-            "composition": True,
-            "color_harmony": True,
-            "brand_consistency": True,
-            "technical_quality": True
+            "composition": True,      # 구도 분석
+            "color_harmony": True,     # 색상 조화
+            "brand_consistency": True, # 브랜드 일관성
+            "technical_quality": True  # 기술적 품질
         },
-        "brand_guidelines": {
+        "brand_guidelines": {  # 선택적
             "primary_colors": ["#FF0000", "#0000FF"],
             "style": "minimalist",
             "tone": "professional"
@@ -390,17 +425,17 @@ response = await vision_analyzer.execute(AgentRequest(
     }
 ))
 
-# response.outputs[0].value:
+# response.outputs[0].value 결과:
 {
-    "quality_score": 0.87,
+    "quality_score": 0.87,  # 종합 점수 (0-1)
     "composition": {
         "score": 0.9,
-        "analysis": "요소 배치가 균형적이며 시선 흐름이 자연스러움",
+        "analysis": "요소 배치가 균형적이며 시선 흐름이 자연스러움. 주요 메시지가 적절히 강조됨.",
         "issues": ["텍스트와 이미지 간격이 약간 좁음"]
     },
     "color_harmony": {
         "score": 0.85,
-        "analysis": "색상 조합이 조화로우며 브랜드 아이덴티티를 잘 반영함",
+        "analysis": "색상 조합이 조화로우며 브랜드 아이덴티티를 잘 반영함.",
         "issues": ["배경색이 일부 텍스트 가독성을 저해할 수 있음"]
     },
     "brand_consistency": {
@@ -416,24 +451,68 @@ response = await vision_analyzer.execute(AgentRequest(
     },
     "improvements": [
         "텍스트와 이미지 사이 여백을 20px에서 40px로 증가 권장",
-        "배경색을 약간 밝게 조정하여 가독성 향상"
+        "배경색을 약간 밝게 조정하여 가독성 향상",
+        "헤드라인 폰트 크기를 36px로 조정"
     ],
     "overall_verdict": "good",
-    "requires_regeneration": False
+    "requires_regeneration": false
 }
 ```
 
-**Vision API Provider**: Claude 3.5 Sonnet (Primary) / GPT-4o (Fallback)
+**API 엔드포인트**:
+```python
+# POST /api/v1/agents/vision_analyzer
+{
+    "task": "image_analysis",
+    "payload": {
+        "image_url": "https://...",  # 또는 image_base64
+        "criteria": {...},
+        "brand_guidelines": {...}
+    }
+}
+```
+
+**Frontend 통합 가이드**:
+```javascript
+// A팀/C팀 프론트엔드 사용 예시
+const analyzeImage = async (imageUrl, brandGuidelines) => {
+    const response = await fetch('/api/v1/agents/vision_analyzer', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+            task: 'image_analysis',
+            payload: {
+                image_url: imageUrl,
+                criteria: {
+                    composition: true,
+                    color_harmony: true,
+                    brand_consistency: !!brandGuidelines,
+                    technical_quality: true
+                },
+                brand_guidelines: brandGuidelines
+            }
+        })
+    });
+
+    const result = await response.json();
+    return result.outputs[0].value;
+};
+```
+
+**에러 처리**:
+- `404 Not Found`: Vision 모델이 사용 불가능할 때 → Mock 데이터로 자동 폴백
+- `413 Payload Too Large`: 이미지 크기가 너무 클 때 (5MB 제한)
+- `422 Validation Error`: 필수 파라미터 누락
+- `500 Internal Server Error`: Vision API 오류 → 재시도 로직 포함
 
 **KPI**:
 - 분석 정확도: >95%
 - 응답 시간: <3초
 - False Positive Rate: <5%
-
-**구현 상태**: ✅ STEP 1-2 완료 (2025-11-19)
-- Agent 클래스 구현
-- Vision API 통합 (LLM Gateway)
-- 기본 테스트 완료
+- Mock 모드 전환 시간: <100ms
 
 **남은 작업**:
 - STEP 3: 품질 평가 로직 고도화 (2일)
