@@ -879,27 +879,40 @@ for scene in scenes:
 
 ---
 
-#### 13. IngestorAgent (P1)
+#### 13. IngestorAgent ✅ **구현 완료**
 
-**역할**: 데이터 저장 전문 Agent (PostgreSQL, Redis, S3)
+**역할**: 다양한 스토리지 시스템 데이터 저장 및 관리 전문 Agent
 
-**예상 구현**: Phase 3 (2025-12-16~12-29)
+**파일**: [app/services/agents/ingestor.py](app/services/agents/ingestor.py)
+
+**구현 상태**:
+- ✅ Agent 클래스 구현 완료 (2025-11-21)
+- ✅ 다중 스토리지 지원 (PostgreSQL, Redis, S3, Elasticsearch)
+- ✅ 배치 처리 및 트랜잭션 관리
+- ✅ 캐싱 및 파일 업로드
+- ✅ 데이터 조회 및 삭제
 
 **지원 작업**:
 | Task | 설명 | Input | Output |
 |------|------|-------|--------|
-| `ingest_data` | 데이터 저장 | `data`, `destination` | `ingestion_result` |
+| `ingest_data` | 데이터 저장 | `data`, `destination`, `data_type` | `ingest_result` |
+| `batch_ingest` | 배치 저장 | `items`, `batch_size`, `strategy` | `batch_result` |
+| `cache_data` | Redis 캐싱 | `key`, `value`, `ttl` | `cache_result` |
+| `upload_file` | S3 파일 업로드 | `file_content`, `file_name`, `bucket` | `upload_result` |
+| `query_data` | 데이터 조회 | `destination`, `query` | `query_result` |
+| `delete_data` | 데이터 삭제 | `destination`, `conditions` | `delete_result` |
 
 **Input 스키마**:
 ```json
 {
     "data": [
-        {"text": "...", "embedding": [...], "metadata": {...}}
+        {"title": "문서 제목", "content": "내용", "category": "guide"}
     ],
     "destination": "postgresql",
+    "data_type": "document",
     "options": {
-        "batch_size": 1000,
-        "cache_enabled": true
+        "table": "documents",
+        "batch_size": 1000
     }
 }
 ```
@@ -907,12 +920,11 @@ for scene in scenes:
 **Output 스키마**:
 ```json
 {
-    "ingestion_result": {
-        "success": true,
-        "inserted_count": 1000,
-        "failed_count": 0,
-        "duration": 2.5
-    }
+    "success": true,
+    "inserted_count": 1000,
+    "failed_count": 0,
+    "duration": 2.5,
+    "errors": null
 }
 ```
 
@@ -921,84 +933,118 @@ for scene in scenes:
 **KPI**:
 - Insertion Rate: >1000 records/sec
 - Error Rate: <1%
+- Cache Hit Rate: >70%
 
 ---
 
-#### 14. PerformanceAnalyzerAgent (P2)
+#### 14. PerformanceAnalyzerAgent ✅ **구현 완료**
 
-**역할**: SNS·광고 성과 데이터 분석 전문 Agent
+**역할**: SNS 및 광고 캠페인 성과 분석 및 최적화 제안 전문 Agent
 
-**예상 구현**: Phase 3 (2025-12-16~12-29)
+**파일**: [app/services/agents/performance_analyzer.py](app/services/agents/performance_analyzer.py)
+
+**구현 상태**:
+- ✅ Agent 클래스 구현 완료 (2025-11-21)
+- ✅ SNS 성과 분석 (Instagram, Facebook, YouTube 등)
+- ✅ A/B 테스트 분석 및 통계적 유의성 검정
+- ✅ 업계 벤치마킹
+- ✅ 성과 예측 및 최적화 제안
 
 **지원 작업**:
 | Task | 설명 | Input | Output |
 |------|------|-------|--------|
-| `analyze_performance` | 성과 분석 | `platform`, `post_id` | `metrics`, `insights` |
+| `performance` | 성과 분석 | `platform`, `post_id`, `period`, `metrics` | `performance_report` |
+| `ab_test` | A/B 테스트 | `variant_a`, `variant_b`, `metric` | `test_result` |
+| `benchmark` | 벤치마크 분석 | `platform`, `industry`, `competitors` | `benchmark_report` |
+| `prediction` | 성과 예측 | `historical_data`, `forecast_days` | `predictions` |
+| `optimization` | 최적화 제안 | `current_performance`, `goals` | `suggestions` |
 
 **Input 스키마**:
 ```json
 {
     "platform": "instagram",
-    "post_id": "abc123"
+    "post_id": "abc123",
+    "period": {"start": "2025-01-01", "end": "2025-01-31"},
+    "metrics": ["engagement", "reach", "ctr"]
 }
 ```
 
 **Output 스키마**:
 ```json
 {
-    "metrics": {
-        "likes": 1250,
-        "comments": 45,
-        "shares": 12,
-        "engagement_rate": 0.083
-    },
-    "performance_grade": 0.85,
+    "platform": "instagram",
+    "period": {"start": "2025-01-01", "end": "2025-01-31"},
+    "metrics": [
+        {"name": "engagement", "value": 0.035, "change": 0.15, "benchmark": 0.03}
+    ],
+    "grade": "A",
+    "score": 85.5,
     "insights": [
-        "감성형 짧은 카피의 CTR이 35% 높음",
-        "주말 오전 게시물의 engagement가 40% 높음"
+        "engagement 지표가 15% 증가했습니다",
+        "업계 평균보다 16.7% 높습니다"
+    ],
+    "recommendations": [
+        "최적 게시 시간대 분석을 통한 도달률 향상"
     ]
 }
 ```
 
 **API 엔드포인트**: `POST /api/v1/agents/performance_analyzer/execute`
 
-**연동**: Instagram API, Naver Ad API
-
 **KPI**:
-- Data Collection Rate: >95%
 - 분석 정확도: >90%
+- 예측 정확도: >75%
+- A/B 테스트 신뢰도: >95%
 
 ---
 
-#### 15. SelfLearningAgent (P2)
+#### 15. SelfLearningAgent ✅ **구현 완료**
 
-**역할**: 사용자 피드백 기반 브랜드 벡터 조정 전문 Agent
+**역할**: 사용자 피드백 기반 학습 및 지속적 개선 전문 Agent
 
-**예상 구현**: Phase 3 (2025-12-16~12-29)
+**파일**: [app/services/agents/self_learning.py](app/services/agents/self_learning.py)
+
+**구현 상태**:
+- ✅ Agent 클래스 구현 완료 (2025-11-21)
+- ✅ 브랜드 벡터 학습 및 업데이트
+- ✅ 사용자 선호도 분석
+- ✅ 파라미터 자동 최적화
+- ✅ 개인화 프로파일 구축
 
 **지원 작업**:
 | Task | 설명 | Input | Output |
 |------|------|-------|--------|
-| `update_brand_vector` | 브랜드 벡터 업데이트 | `brand_id`, `feedback_data` | `updated_vector` |
+| `update_brand_vector` | 브랜드 벡터 업데이트 | `brand_id`, `feedback_data`, `learning_mode` | `vector_update_result` |
+| `analyze_preferences` | 선호도 분석 | `user_id`, `history_window` | `preference_profile` |
+| `optimize_parameters` | 파라미터 최적화 | `brand_id`, `target_metric`, `performance_history` | `optimized_params` |
+| `build_profile` | 개인화 프로파일 | `user_id`, `interactions` | `personalization_profile` |
+| `record_feedback` | 피드백 기록 | `user_id`, `content_id`, `feedback_type` | `record_result` |
+| `get_metrics` | 학습 지표 | `brand_id` | `learning_metrics` |
 
 **Input 스키마**:
 ```json
 {
     "brand_id": "brand_001",
     "feedback_data": [
-        {"content_id": "c001", "rating": 4.5, "feedback": "톤이 좋음"}
-    ]
+        {
+            "user_id": "user_001",
+            "content_id": "c001",
+            "feedback_type": "like",
+            "features": {"tone": "professional", "style": "modern"}
+        }
+    ],
+    "learning_mode": "incremental"
 }
 ```
 
 **Output 스키마**:
 ```json
 {
-    "updated_vector": {
-        "brand_id": "brand_001",
-        "vector": [0.1, 0.2, ..., 0.9],
-        "confidence": 0.92
-    }
+    "previous_vector": [0.1, 0.2, ...],
+    "updated_vector": [0.15, 0.25, ...],
+    "change_magnitude": 0.08,
+    "improvement_score": 0.75,
+    "applied_feedback": 10
 }
 ```
 
@@ -1007,6 +1053,7 @@ for scene in scenes:
 **KPI**:
 - Learning Effectiveness: >85%
 - 업데이트 시간: <2초
+- Preference Accuracy: >80%
 
 ---
 
