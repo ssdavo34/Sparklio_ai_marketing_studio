@@ -1,6 +1,11 @@
 /** @type {import('next').NextConfig} */
+const path = require('path');
+
 const nextConfig = {
-  reactStrictMode: true,
+  // Temporarily disable StrictMode to prevent double-render issues
+  // TODO: Re-enable after Polotno integration is stable
+  reactStrictMode: false,
+
   images: {
     remotePatterns: [
       {
@@ -11,6 +16,16 @@ const nextConfig = {
       },
     ],
   },
+
+  webpack: (config) => {
+    // Fix Konva canvas library resolution for Polotno
+    config.resolve.alias = {
+      ...(config.resolve.alias || {}),
+      konva: path.resolve(__dirname, 'node_modules/konva'),
+    };
+    return config;
+  },
+
   async rewrites() {
     return [
       {

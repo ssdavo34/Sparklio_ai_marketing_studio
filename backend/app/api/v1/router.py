@@ -4,7 +4,8 @@ from app.api.v1.endpoints import (
     assets, brands, projects, users, agents_new,
     generate, documents, templates, editor,
     llm_gateway, media_gateway, debug,
-    sparklio_editor  # Sparklio Editor API 추가
+    sparklio_editor,  # Sparklio Editor API 추가
+    workflows  # Workflow Orchestration API 추가
 )
 # agents (legacy) - Deprecated, import 에러로 주석 처리
 
@@ -96,6 +97,13 @@ api_router.include_router(
     agents_new.router,
     prefix="/agents",
     tags=["agents-v2"]
+)
+
+# Workflow Orchestration API (신규 - Phase 3)
+api_router.include_router(
+    workflows.router,
+    prefix="/workflows",
+    tags=["workflows"]
 )
 
 # Agent API v1 (내부 전용, Deprecated - import 에러로 비활성화)

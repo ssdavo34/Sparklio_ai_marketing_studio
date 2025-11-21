@@ -10,7 +10,7 @@
 
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import { PolotnoContainer, SidePanelWrap, WorkspaceWrap } from 'polotno';
 import { Workspace } from 'polotno/canvas/workspace';
 import { SidePanel } from 'polotno/side-panel';
@@ -27,35 +27,51 @@ interface PolotnoEditorProps {
 }
 
 export function PolotnoEditor({ apiKey, onStoreReady }: PolotnoEditorProps) {
-    const storeRef = useRef<any>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+    const onStoreReadyRef = useRef(onStoreReady);
 
+    // Update ref when callback changes
     useEffect(() => {
-        // Create store with API key
-        const store = createStore({
-            key: apiKey || process.env.NEXT_PUBLIC_POLOTNO_API_KEY || 'free',
-            // Enable all features
-            showCredit: !apiKey, // Show credit only in free mode
+        onStoreReadyRef.current = onStoreReady;
+    }, [onStoreReady]);
+
+    // Create store once using useMemo
+    const store = useMemo(() => {
+        // API key must be passed from parent component
+        if (!apiKey) {
+            console.error('[PolotnoEditor] ❌ API key is required but not provided!');
+            throw new Error('Polotno API key is required');
+        }
+
+        console.log('[PolotnoEditor] Creating store with key (ONCE):', apiKey.substring(0, 8) + '...');
+
+        const newStore = createStore({
+            key: apiKey,
+            showCredit: false,
         });
 
         // Set default page size (A4)
-        store.setSize(595, 842);
+        newStore.setSize(595, 842);
 
-        // Save store reference
-        storeRef.current = store;
+        return newStore;
+    }, [apiKey]); // Recreate if apiKey changes
 
-        // Notify parent component
-        if (onStoreReady) {
-            onStoreReady(store);
+    // Notify parent component when store is ready
+    useEffect(() => {
+        if (store && onStoreReadyRef.current) {
+            onStoreReadyRef.current(store);
         }
+    }, [store]);
 
-        // Cleanup
+    // Cleanup on unmount
+    useEffect(() => {
         return () => {
+            console.log('[PolotnoEditor] Cleaning up store');
             store.clear();
         };
-    }, [apiKey, onStoreReady]);
+    }, [store]);
 
-    if (!storeRef.current) {
+    if (!store) {
         return (
             <div className="h-full w-full flex items-center justify-center bg-gray-100">
                 <div className="text-center">
@@ -71,14 +87,14 @@ export function PolotnoEditor({ apiKey, onStoreReady }: PolotnoEditorProps) {
             <PolotnoContainer className="h-full">
                 <SidePanelWrap>
                     <SidePanel
-                        store={storeRef.current}
+                        store={store}
                         sections={DEFAULT_SECTIONS}
                     />
                 </SidePanelWrap>
                 <WorkspaceWrap>
-                    <Toolbar store={storeRef.current} />
-                    <Workspace store={storeRef.current} />
-                    <ZoomButtons store={storeRef.current} />
+                    <Toolbar store={store} />
+                    <Workspace store={store} />
+                    <ZoomButtons store={store} />
                 </WorkspaceWrap>
             </PolotnoContainer>
         </div>

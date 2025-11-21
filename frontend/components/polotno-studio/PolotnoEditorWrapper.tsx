@@ -45,22 +45,18 @@ export function PolotnoEditorWrapper({ onStoreReady }: PolotnoEditorWrapperProps
   const [showKeyDialog, setShowKeyDialog] = useState(false);
 
   useEffect(() => {
-    // Check if API key exists and is valid
-    const apiKey = process.env.NEXT_PUBLIC_POLOTNO_API_KEY;
-    const isValidKey = apiKey &&
-                       apiKey !== 'your_polotno_api_key_here' &&
-                       apiKey.length > 10;
+    // Check if API key is available from environment
+    const envKey = process.env.NEXT_PUBLIC_POLOTNO_API_KEY;
 
-    setHasApiKey(isValidKey);
-    setChecking(false);
-
-    if (process.env.NEXT_PUBLIC_DEBUG_MODE === 'true') {
-      console.log('[PolotnoEditorWrapper] API Key check:', {
-        hasKey: !!apiKey,
-        isValid: isValidKey,
-        keyLength: apiKey?.length || 0
-      });
+    if (envKey && envKey.length > 10) {
+      console.log('[PolotnoEditorWrapper] ✅ Using Polotno key from env:', envKey.substring(0, 8) + '...');
+      setHasApiKey(true);
+    } else {
+      console.error('[PolotnoEditorWrapper] ❌ NEXT_PUBLIC_POLOTNO_API_KEY is missing or invalid!');
+      setHasApiKey(false);
     }
+
+    setChecking(false);
   }, []);
 
   const handleApiKeyRequired = () => {
@@ -91,7 +87,8 @@ export function PolotnoEditorWrapper({ onStoreReady }: PolotnoEditorWrapperProps
   }
 
   // API key is available, load the actual editor
-  return <PolotnoEditor onStoreReady={onStoreReady} />;
+  const apiKey = process.env.NEXT_PUBLIC_POLOTNO_API_KEY;
+  return <PolotnoEditor apiKey={apiKey} onStoreReady={onStoreReady} />;
 }
 
 /**
