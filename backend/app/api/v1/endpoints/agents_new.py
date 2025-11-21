@@ -20,6 +20,11 @@ from app.services.agents import (
     get_optimizer_agent,
     get_editor_agent,
     get_meeting_ai_agent,
+    get_vision_analyzer_agent,
+    get_scene_planner_agent,
+    create_template_agent,
+    create_pm_agent,
+    create_qa_agent,
     AgentRequest,
     AgentResponse,
     AgentError
@@ -37,7 +42,12 @@ AGENTS = {
     "reviewer": get_reviewer_agent,
     "optimizer": get_optimizer_agent,
     "editor": get_editor_agent,
-    "meeting_ai": get_meeting_ai_agent
+    "meeting_ai": get_meeting_ai_agent,
+    "vision_analyzer": get_vision_analyzer_agent,
+    "scene_planner": get_scene_planner_agent,
+    "template": create_template_agent,
+    "pm": create_pm_agent,
+    "qa": create_qa_agent
 }
 
 
@@ -74,14 +84,19 @@ async def execute_agent(
         "reviewer",
         "optimizer",
         "editor",
-        "meeting_ai"
+        "meeting_ai",
+        "vision_analyzer",
+        "scene_planner",
+        "template",
+        "pm",
+        "qa"
     ] = Path(..., description="Agent 이름"),
     request: AgentExecuteRequest = ...
 ):
     """
     Agent 실행
 
-    6개 Agent 중 하나를 선택하여 작업 실행
+    12개 Agent 중 하나를 선택하여 작업 실행
 
     **사용 가능한 Agent**:
     - `copywriter`: 텍스트 콘텐츠 생성
@@ -91,6 +106,11 @@ async def execute_agent(
     - `optimizer`: 콘텐츠 최적화
     - `editor`: 콘텐츠 편집/교정
     - `meeting_ai`: 회의록 분석 및 문서 초안 생성
+    - `vision_analyzer`: 이미지 분석 및 설명 생성
+    - `scene_planner`: 영상 씬 구성 및 스토리보드 생성
+    - `template`: 마케팅 템플릿 자동 생성
+    - `pm`: 워크플로우 조율 및 태스크 분배
+    - `qa`: 품질 검증 및 테스트
 
     Returns:
         AgentResponse: Agent 실행 결과 (outputs, usage, meta)
@@ -185,6 +205,31 @@ async def list_agents():
                 "name": "meeting_ai",
                 "description": "회의록 분석 및 문서 초안 생성",
                 "tasks": ["analyze_transcript", "generate_draft"]
+            },
+            {
+                "name": "vision_analyzer",
+                "description": "이미지 분석 및 설명 생성 (이미지 해석, 대체 텍스트 생성)",
+                "tasks": ["analyze_image", "generate_description", "extract_text", "detect_objects", "assess_quality"]
+            },
+            {
+                "name": "scene_planner",
+                "description": "영상 씬 구성 및 스토리보드 생성 (광고 영상, 쇼츠)",
+                "tasks": ["scene_plan", "storyboard", "optimize_timing", "suggest_transitions", "emotion_arc"]
+            },
+            {
+                "name": "template",
+                "description": "마케팅 템플릿 자동 생성 (산업군/채널/목적별 템플릿)",
+                "tasks": ["generate_template", "list_templates", "customize_template", "apply_template", "get_template"]
+            },
+            {
+                "name": "pm",
+                "description": "워크플로우 조율 및 태스크 분배 (프로젝트 관리)",
+                "tasks": ["plan_workflow", "assign_tasks", "monitor_progress", "coordinate_agents", "optimize_workflow"]
+            },
+            {
+                "name": "qa",
+                "description": "품질 검증 및 테스트 (콘텐츠 품질 검사, 브랜드 가이드라인 준수)",
+                "tasks": ["quality_check", "brand_compliance", "grammar_check", "seo_validation", "accessibility_check"]
             }
         ]
     }
@@ -199,7 +244,12 @@ async def get_agent_info(
         "reviewer",
         "optimizer",
         "editor",
-        "meeting_ai"
+        "meeting_ai",
+        "vision_analyzer",
+        "scene_planner",
+        "template",
+        "pm",
+        "qa"
     ] = Path(..., description="Agent 이름")
 ):
     """

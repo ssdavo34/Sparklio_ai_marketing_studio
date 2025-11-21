@@ -21,7 +21,7 @@ from pydantic import BaseModel, Field, ValidationError
 import logging
 
 from app.services.agents.base import AgentBase, AgentRequest, AgentResponse, AgentError
-from app.services.llm.service import LLMService
+from app.services.llm import LLMGateway as LLMService
 
 logger = logging.getLogger(__name__)
 

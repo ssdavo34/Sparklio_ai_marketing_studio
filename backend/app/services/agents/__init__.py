@@ -23,6 +23,10 @@ from .optimizer import OptimizerAgent, get_optimizer_agent
 from .editor import EditorAgent, get_editor_agent
 from .vision_analyzer import VisionAnalyzerAgent, get_vision_analyzer_agent
 from .meeting_ai import MeetingAIAgent, get_meeting_ai_agent
+from .scene_planner import ScenePlannerAgent, get_scene_planner_agent
+from .template import TemplateAgent, create_template_agent
+from .pm import PMAgent, create_pm_agent
+from .qa import QAAgent, create_qa_agent
 
 __all__ = [
     # Base classes
@@ -41,6 +45,10 @@ __all__ = [
     "EditorAgent",
     "VisionAnalyzerAgent",
     "MeetingAIAgent",
+    "ScenePlannerAgent",
+    "TemplateAgent",
+    "PMAgent",
+    "QAAgent",
 
     # Factory functions
     "get_copywriter_agent",
@@ -50,5 +58,9 @@ __all__ = [
     "get_optimizer_agent",
     "get_editor_agent",
     "get_vision_analyzer_agent",
-    "get_meeting_ai_agent"
+    "get_meeting_ai_agent",
+    "get_scene_planner_agent",
+    "create_template_agent",
+    "create_pm_agent",
+    "create_qa_agent"
 ]
