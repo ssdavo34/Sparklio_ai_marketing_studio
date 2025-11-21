@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "docs/11-20 Plan Change/000. Sparklio Editor Plan v1.md",
+                "file": "docs/SPARKLIO_MVP_MASTER_PLAN_2025-11-21.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "000. Sparklio Editor Plan v1"
+              "title": "SPARKLIO_MVP_MASTER_PLAN_2025-11-21"
             }
           }
         ]
@@ -78,7 +78,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 342.5
+    "width": 406.5
   },
   "right": {
     "id": "15beb3670869435c",
@@ -185,18 +185,20 @@
   },
   "active": "6eb772d2c3e11c27",
   "lastOpenFiles": [
+    "frontend/store/editor/index.ts",
+    "frontend/store/editor/index.ts.tmp.72948.1763694586168",
+    "frontend/lib/sparklio/templates/index.ts",
+    "frontend/lib/sparklio/templates/index.ts.tmp.72948.1763694574375",
+    "frontend/store/editor/editorStore.ts",
+    "frontend/store/editor/editorStore.ts.tmp.72948.1763694559813",
+    "docs/11-20 Plan Change/000. Sparklio Editor Plan v1.md",
+    "frontend/store/editor",
+    "frontend/lib/sparklio/auto-save.ts",
+    "frontend/lib/sparklio/auto-save.ts.tmp.72948.1763694464096",
+    "backend/AGENTS_SPEC.md.tmp.62996.1763694420623",
     "backend/DOCUMENT_STRUCTURE_REPORT_2025-11-20.md",
     "backend/DOCUMENT_STRUCTURE_REPORT_2025-11-20.md.tmp.36728.1763631094810",
-    "backend/test_sparklio_editor.py",
-    "backend/test_sparklio_editor.py.tmp.36728.1763630329148",
-    "backend/app/services/editor/ai_service.py.tmp.36728.1763630167309",
-    "backend/app/services/editor/ai_service.py.tmp.36728.1763630115939",
-    "backend/app/services/editor/ai_service.py.tmp.36728.1763630103496",
-    "backend/app/services/editor/ai_service.py.tmp.36728.1763630088036",
-    "backend/app/services/editor/ai_service.py.tmp.36728.1763630073245",
-    "backend/app/services/editor/ai_service.py.tmp.36728.1763629901138",
     "docs/A_TEAM_DAILY_REPORT_20251120.md",
-    "docs/A_TEAM_DAILY_REPORT_20251120.md.tmp.69640.1763629815481",
     "docs/HANDOVER_A_TEAM_20251120.md",
     "frontend/SUMMARY_REPORT_2024-11-20.md",
     "frontend/HANDOVER_REPORT_2024-11-20.md",
@@ -219,8 +221,6 @@
     "frontend/node_modules/@blueprintjs/core/src/components/progress-bar/progress-bar.md",
     "frontend/node_modules/@blueprintjs/core/src/components/portal/portal.md",
     "frontend/node_modules/@blueprintjs/core/src/components/popover/popover.md",
-    "frontend/node_modules/@blueprintjs/core/src/components/popover/menu-item.md",
-    "frontend/node_modules/@blueprintjs/core/src/components/panel-stack2/panel-stack2.md",
     "frontend/node_modules/@icons/material/svg/zip-box.svg",
     "frontend/node_modules/@icons/material/svg/youtube-tv.svg",
     "frontend/node_modules/@icons/material/svg/youtube-play.svg",
