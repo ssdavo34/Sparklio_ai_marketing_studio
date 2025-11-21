@@ -1,7 +1,16 @@
+/**
+ * Root Layout
+ *
+ * Main layout for Sparklio application
+ * Navigation is included globally, but can be hidden on full-screen pages
+ *
+ * @author C팀 (Frontend Team)
+ * @version 2.0
+ * @date 2025-11-21
+ */
+
 import type { Metadata } from "next";
 import "./globals.css";
-import Navigation from "../components/Layout/Navigation";
-import Footer from "../components/Layout/Footer";
 
 export const metadata: Metadata = {
   title: "Sparklio AI Marketing Studio",
@@ -15,12 +24,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko">
-      <body className="antialiased flex flex-col min-h-screen bg-gray-50">
-        <Navigation />
-        <main className="flex-1">
-          {children}
-        </main>
-        <Footer />
+      <body className="antialiased">
+        {children}
       </body>
     </html>
   );

@@ -287,22 +287,17 @@ export const useEditorStore = create<EditorStore>()(
             const page = state.document.pages.find(p => p.id === targetPageId);
             if (!page) return;
 
-            const newObject: SparklioObject = {
+            const newObject: any = {
               id: `obj_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
               type: objectData.type || 'text',
               x: objectData.x ?? 100,
               y: objectData.y ?? 100,
-              width: objectData.width,
-              height: objectData.height,
-              rotation: objectData.rotation || 0,
+              width: objectData.width ?? 100,
+              height: objectData.height ?? 50,
               opacity: objectData.opacity ?? 1,
               visible: objectData.visible ?? true,
               locked: objectData.locked || false,
-              name: objectData.name,
-              role: objectData.role,
-              style: objectData.style || {},
-              content: objectData.content,
-              children: objectData.children || [],
+              ...objectData,
             };
 
             page.objects.push(newObject);
