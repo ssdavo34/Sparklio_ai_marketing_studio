@@ -16,8 +16,8 @@ import { ChatInterface } from '../spark/ChatInterface';
 import { Sparkles, Video, Palette, Menu, X } from 'lucide-react';
 
 // Dynamic import to avoid SSR issues
-const PolotnoEditor = dynamic(
-    () => import('./PolotnoEditor').then(mod => ({ default: mod.PolotnoEditor })),
+const PolotnoEditorWrapper = dynamic(
+    () => import('./PolotnoEditorWrapper').then(mod => ({ default: mod.PolotnoEditorWrapper })),
     { ssr: false }
 );
 
@@ -94,7 +94,7 @@ export function PolotnoStudioShell() {
             <div className="flex-1 flex relative">
                 {/* Polotno Editor */}
                 <div className="flex-1">
-                    <PolotnoEditor onStoreReady={handleStoreReady} />
+                    <PolotnoEditorWrapper onStoreReady={handleStoreReady} />
                 </div>
 
                 {/* Right Panel - Sparklio Features */}

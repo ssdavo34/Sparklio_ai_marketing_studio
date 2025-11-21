@@ -71,7 +71,7 @@ class SparklioDocument(Base):
     # ]
 
     # 메타데이터
-    metadata = Column(JSON, nullable=True)
+    document_metadata = Column(JSON, nullable=True)
     # metadata 구조:
     # {
     #   "width": 1920,

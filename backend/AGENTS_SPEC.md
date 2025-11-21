@@ -525,27 +525,39 @@ const analyzeImage = async (imageUrl, brandGuidelines) => {
 
 ### Creation Agents (2개)
 
-#### 8. ScenePlannerAgent (P1)
+#### 8. ScenePlannerAgent ✅ **구현 완료**
 
 **역할**: 광고 영상·쇼츠의 씬 구성 설계 전문 Agent
 
-**예상 구현**: Phase 2 (2025-12-02~12-15)
+**파일**: [app/services/agents/scene_planner.py](app/services/agents/scene_planner.py)
+
+**구현 상태**:
+- ✅ Agent 클래스 구현 완료 (2025-11-21)
+- ✅ 씬 구성 로직 구현
+- ✅ 스토리보드 생성 기능
+- ✅ 타이밍 최적화 알고리즘
+- ✅ Mock 데이터 지원
 
 **지원 작업**:
 | Task | 설명 | Input | Output |
 |------|------|-------|--------|
-| `scene_plan` | 씬 구성 설계 | `product_info`, `duration`, `style` | `scenes` 배열 |
-| `storyboard` | 스토리보드 생성 | `concept`, `duration` | `storyboard` JSON |
+| `scene_plan` | 씬 구성 설계 | `product_info`, `duration`, `style`, `platform` | `scenes` 배열, `suggestions` |
+| `storyboard` | 스토리보드 생성 | `product_info`, `concept`, `duration` | `storyboard` JSON |
+| `optimize_timing` | 타이밍 최적화 | `scenes`, `duration` | `optimized_scenes` |
+| `suggest_transitions` | 트랜지션 제안 | `scenes`, `style` | `transitions` 배열 |
+| `emotion_arc` | 감정 곡선 설계 | `scenes` | `emotion_arc` 데이터 |
 
 **Input 스키마**:
 ```json
 {
     "product_info": {
         "name": "무선 이어폰 X1",
-        "features": ["노이즈캔슬링", "24시간 배터리"]
+        "features": ["노이즈캔슬링", "24시간 배터리"],
+        "target": "2030 직장인"
     },
-    "duration": 30,
-    "style": "modern"
+    "duration": 30,  // 15, 30, 60초 지원
+    "style": "modern",  // modern, classic, dynamic 등
+    "platform": "youtube"  // youtube, instagram, tiktok 등
 }
 ```
 
@@ -555,28 +567,70 @@ const analyzeImage = async (imageUrl, brandGuidelines) => {
     "scenes": [
         {
             "id": "scene_001",
+            "type": "intro",
             "duration": 3.5,
-            "description": "제품 클로즈업 + 자연 배경",
-            "shots": [
-                {"type": "close_up", "duration": 1.5, "angle": "45deg"},
-                {"type": "medium", "duration": 2.0, "angle": "front"}
-            ],
-            "audio": "경쾌한 배경음악",
-            "text_overlay": "완벽한 몰입"
+            "description": "제품 클로즈업 샷",
+            "visual_elements": ["product", "logo", "natural_background"],
+            "camera_movement": "zoom_in",
+            "shot_type": "close_up",
+            "narration": "혁신적인 무선 이어폰",
+            "sound_effects": ["swoosh", "ambient"],
+            "music_mood": "upbeat",
+            "text_overlay": "완벽한 몰입",
+            "transition_in": "fade",
+            "transition_out": "cut",
+            "emotion": "excitement",
+            "energy_level": 8
         }
     ],
-    "total_duration": 30.0,
-    "scene_count": 5
+    "suggestions": [
+        "음악 비트에 맞춰 컷 편집 권장",
+        "브랜드 컬러 일관성 유지",
+        "CTA 버튼 강조 필요"
+    ],
+    "estimated_production_time": 15.0,
+    "difficulty_level": "medium"
 }
 ```
 
-**API 엔드포인트**: `POST /api/v1/agents/scene_planner/execute`
+**사용 예시**:
+```python
+from app.services.agents import get_scene_planner_agent, AgentRequest
 
-**LLM Provider**: Ollama (Qwen2.5:7b)
+agent = get_scene_planner_agent()
+
+# 30초 YouTube 광고 씬 계획
+response = await agent.execute(AgentRequest(
+    task="scene_plan",
+    payload={
+        "product_info": {
+            "name": "무선 이어폰 X1",
+            "features": ["노이즈 캔슬링", "24시간 배터리"],
+            "target": "2030 직장인"
+        },
+        "duration": 30,
+        "style": "modern",
+        "platform": "youtube"
+    }
+))
+
+# response.outputs[0].value에서 씬 계획 확인
+scenes = response.outputs[0].value["scenes"]
+for scene in scenes:
+    print(f"Scene {scene['id']}: {scene['duration']}초 - {scene['description']}")
+```
+
+**API 엔드포인트**: `POST /api/v1/agents/scene_planner`
+
+**LLM Provider**:
+- **Primary**: Ollama (Qwen2.5:7b) - 구조화된 JSON 출력
+- **Fallback**: GPT-4o-mini - 빠른 응답
+- **Mock Mode**: 개발/테스트 시 자동 전환
 
 **KPI**:
-- Scene Clarity: >85%
-- 응답 시간: <10초
+- 씬 구성 정확도: >90%
+- 응답 시간: <5초
+- 타이밍 정밀도: ±0.5초
 
 ---
 
@@ -634,23 +688,34 @@ const analyzeImage = async (imageUrl, brandGuidelines) => {
 
 ### Intelligence Agents (7개)
 
-#### 10. TrendCollectorAgent (P1)
+#### 10. TrendCollectorAgent ✅ **구현 완료**
 
-**역할**: 트렌드 데이터 크롤링 전문 Agent (Naver, Instagram, YouTube)
+**역할**: 마케팅 트렌드 데이터 수집 및 분석 전문 Agent
 
-**예상 구현**: Phase 3 (2025-12-16~12-29)
+**파일**: [app/services/agents/trend_collector.py](app/services/agents/trend_collector.py)
+
+**구현 상태**:
+- ✅ Agent 클래스 구현 완료 (2025-11-21)
+- ✅ 다중 데이터 소스 지원 (Google Trends, Twitter, Instagram, Naver)
+- ✅ 키워드 분석 및 경쟁사 모니터링
+- ✅ 트렌드 리포트 생성
+- ✅ Mock 데이터 지원
 
 **지원 작업**:
 | Task | 설명 | Input | Output |
 |------|------|-------|--------|
 | `collect_trends` | 트렌드 데이터 수집 | `keywords`, `sources`, `period` | `collected_data` 배열 |
+| `analyze_keywords` | 키워드 분석 | `keywords`, `market` | `analysis` 결과 |
+| `monitor_competitors` | 경쟁사 모니터링 | `competitors`, `metrics` | `monitoring_data` |
+| `generate_report` | 리포트 생성 | `data`, `format` | `report` |
 
 **Input 스키마**:
 ```json
 {
     "keywords": ["친환경", "비건"],
-    "sources": ["naver_trends", "instagram", "youtube"],
-    "period": {"start": "2025-01-01", "end": "2025-01-31"}
+    "sources": ["google_trends", "twitter", "instagram", "naver"],
+    "period": {"start": "2025-01-01", "end": "2025-01-31"},
+    "region": "KR"
 }
 ```
 
@@ -659,53 +724,69 @@ const analyzeImage = async (imageUrl, brandGuidelines) => {
 {
     "collected_data": [
         {
-            "source": "naver_trends",
+            "source": "google_trends",
             "keyword": "친환경",
             "volume": 12500,
             "trend": "rising",
             "growth_rate": 0.35,
-            "related_keywords": ["제로웨이스트", "업사이클링"]
+            "related_keywords": ["제로웨이스트", "업사이클링"],
+            "region_data": {
+                "KR": 100,
+                "US": 45
+            }
         }
     ],
     "metadata": {
         "total_items": 1250,
         "collection_time": 45.2,
-        "success_rate": 0.98
+        "success_rate": 0.98,
+        "data_quality_score": 0.92
     }
 }
 ```
 
 **API 엔드포인트**: `POST /api/v1/agents/trend_collector/execute`
 
-**연동**: Selenium + BeautifulSoup + Naver API
-
 **KPI**:
 - Collection Success Rate: >95%
 - 처리 속도: >100 items/min
+- Data Quality Score: >0.9
 
 ---
 
-#### 11. DataCleanerAgent (P1)
+#### 11. DataCleanerAgent ✅ **구현 완료**
 
-**역할**: 수집 데이터 정제 전문 Agent (HTML 제거, 중복 제거, OCR)
+**역할**: 데이터 정제 및 품질 개선 전문 Agent
 
-**예상 구현**: Phase 3 (2025-12-16~12-29)
+**파일**: [app/services/agents/data_cleaner.py](app/services/agents/data_cleaner.py)
+
+**구현 상태**:
+- ✅ Agent 클래스 구현 완료 (2025-11-21)
+- ✅ 중복 제거, 표준화, 이상치 탐지
+- ✅ 결측값 처리 및 데이터 검증
+- ✅ 6가지 품질 지표 평가
+- ✅ Mock 데이터 지원
 
 **지원 작업**:
 | Task | 설명 | Input | Output |
 |------|------|-------|--------|
-| `clean_data` | 데이터 정제 | `raw_data`, `options` | `cleaned_data` |
+| `clean_data` | 데이터 정제 | `data`, `rules` | `cleaned_data` |
+| `validate_data` | 데이터 검증 | `data`, `schema` | `validation_result` |
+| `detect_outliers` | 이상치 탐지 | `data`, `method` | `outliers` |
+| `standardize_format` | 형식 표준화 | `data`, `format_rules` | `standardized_data` |
+| `assess_quality` | 품질 평가 | `data` | `quality_metrics` |
 
 **Input 스키마**:
 ```json
 {
-    "raw_data": [
-        {"text": "<p>HTML 태그 포함 텍스트</p>", "source": "web"}
+    "data": [
+        {"text": "<p>HTML 태그 포함 텍스트</p>", "phone": "010-1234-5678"}
     ],
-    "options": {
+    "rules": {
         "remove_html": true,
         "remove_duplicates": true,
-        "ocr_enabled": false
+        "standardize_phone": true,
+        "fill_missing": "mean"
     }
 }
 ```
@@ -714,12 +795,21 @@ const analyzeImage = async (imageUrl, brandGuidelines) => {
 ```json
 {
     "cleaned_data": [
-        {"text": "HTML 태그 포함 텍스트", "source": "web"}
+        {"text": "HTML 태그 포함 텍스트", "phone": "01012345678"}
     ],
+    "quality_metrics": {
+        "completeness": 0.95,
+        "accuracy": 0.92,
+        "consistency": 0.88,
+        "validity": 0.91,
+        "uniqueness": 0.99,
+        "timeliness": 0.87
+    },
     "stats": {
         "original_count": 1000,
         "cleaned_count": 850,
-        "duplicates_removed": 150
+        "duplicates_removed": 150,
+        "outliers_detected": 25
     }
 }
 ```
@@ -729,49 +819,63 @@ const analyzeImage = async (imageUrl, brandGuidelines) => {
 **KPI**:
 - Cleaning Accuracy: >95%
 - 처리 속도: >500 items/sec
+- Quality Score: >0.9
 
 ---
 
-#### 12. EmbedderAgent (P1)
+#### 12. EmbedderAgent ✅ **구현 완료**
 
-**역할**: 텍스트 임베딩 생성 전문 Agent
+**역할**: 텍스트/이미지 임베딩 생성 및 벡터 검색 전문 Agent
 
-**예상 구현**: Phase 3 (2025-12-16~12-29)
+**파일**: [app/services/agents/embedder.py](app/services/agents/embedder.py)
+
+**구현 상태**:
+- ✅ Agent 클래스 구현 완료 (2025-11-21)
+- ✅ 텍스트/이미지 임베딩 생성
+- ✅ 다양한 모델 지원 (OpenAI, CLIP, BERT)
+- ✅ 유사도 검색 및 클러스터링
+- ✅ 차원 축소 기능
 
 **지원 작업**:
 | Task | 설명 | Input | Output |
 |------|------|-------|--------|
-| `embed_texts` | 텍스트 임베딩 | `texts`, `model` | `embeddings` 배열 |
+| `embed_text` | 텍스트 임베딩 | `text`, `model` | `embedding` |
+| `embed_image` | 이미지 임베딩 | `image`, `model` | `embedding` |
+| `embed_batch` | 배치 임베딩 | `items`, `batch_size` | `embeddings` 배열 |
+| `search_similar` | 유사도 검색 | `query`, `embeddings`, `top_k` | `results` |
+| `cluster_embeddings` | 클러스터링 | `embeddings`, `n_clusters` | `clusters` |
 
 **Input 스키마**:
 ```json
 {
-    "texts": ["텍스트1", "텍스트2"],
-    "model": "text-embedding-3-large"
+    "text": "텍스트 콘텐츠",
+    "model": "openai_text_embedding_3_small",
+    "normalize": true
 }
 ```
 
 **Output 스키마**:
 ```json
 {
-    "embeddings": [
-        {"text": "텍스트1", "embedding": [0.1, 0.2, ..., 0.9], "dimension": 1536},
-        {"text": "텍스트2", "embedding": [0.3, 0.4, ..., 0.8], "dimension": 1536}
-    ],
+    "embedding": [0.1, 0.2, ..., 0.9],
+    "model": "openai_text_embedding_3_small",
+    "dimensions": 1536,
     "metadata": {
-        "model": "text-embedding-3-large",
-        "total_tokens": 120
+        "text_length": 15,
+        "normalized": true,
+        "language": "ko"
     }
 }
 ```
 
 **API 엔드포인트**: `POST /api/v1/agents/embedder/execute`
 
-**Provider**: OpenAI (text-embedding-3-large) / SentenceTransformers (BGE-M3)
+**Provider**: OpenAI / CLIP / SentenceTransformers
 
 **KPI**:
 - Embedding Generation: <1s per 100 texts
 - Cache Hit Rate: >70%
+- Clustering Accuracy: >0.85
 
 ---
 
@@ -906,23 +1010,36 @@ const analyzeImage = async (imageUrl, brandGuidelines) => {
 
 ---
 
-#### 16. RAGAgent (P1)
+#### 16. RAGAgent ✅ **구현 완료**
 
-**역할**: 지식 검색 및 컨텍스트 제공 전문 Agent
+**역할**: 검색 증강 생성(RAG) 및 지식 베이스 관리 전문 Agent
 
-**예상 구현**: Phase 3 (2025-12-16~12-29)
+**파일**: [app/services/agents/rag.py](app/services/agents/rag.py)
+
+**구현 상태**:
+- ✅ Agent 클래스 구현 완료 (2025-11-21)
+- ✅ 문서 인덱싱 및 청킹
+- ✅ 하이브리드 검색 (키워드 + 벡터)
+- ✅ 컨텍스트 증강 생성
+- ✅ 답변 추출 기능
 
 **지원 작업**:
 | Task | 설명 | Input | Output |
 |------|------|-------|--------|
-| `search_knowledge` | 지식 검색 | `query`, `brand_id`, `top_k` | `results`, `summary` |
+| `index_document` | 문서 인덱싱 | `documents`, `chunking_strategy` | `index_result` |
+| `search_knowledge` | 지식 검색 | `query`, `top_k`, `strategy` | `search_results` |
+| `generate_with_context` | 컨텍스트 증강 생성 | `prompt`, `context_query` | `generated_text` |
+| `hybrid_search` | 하이브리드 검색 | `query`, `weights` | `results` |
+| `extract_answers` | 답변 추출 | `question`, `context` | `answers` |
 
 **Input 스키마**:
 ```json
 {
     "query": "비건 화장품 트렌드",
-    "brand_id": "brand_001",
-    "top_k": 5
+    "top_k": 5,
+    "strategy": "hybrid",
+    "doc_types": ["marketing_guide", "industry_report"],
+    "min_score": 0.7
 }
 ```
 
@@ -931,23 +1048,28 @@ const analyzeImage = async (imageUrl, brandGuidelines) => {
 {
     "results": [
         {
-            "content": "비건 화장품 시장은 2025년 35% 성장 예상...",
-            "source": "report_2025.pdf",
-            "relevance_score": 0.92,
+            "doc_id": "doc_001",
+            "title": "비건 뷰티 시장 분석",
+            "snippet": "비건 화장품 시장이 연평균 15% 성장...",
+            "score": 0.89,
+            "doc_type": "industry_report",
             "metadata": {"date": "2025-01-15"}
         }
     ],
-    "summary": "비건 화장품 시장 급성장 중, MZ세대 주도"
+    "total_found": 5,
+    "search_time": 45.2,
+    "strategy_used": "hybrid_rerank"
 }
 ```
 
 **API 엔드포인트**: `POST /api/v1/agents/rag/execute`
 
-**연동**: PostgreSQL (pgvector) + Embedding
+**연동**: In-memory (개발) / PostgreSQL (pgvector) + Redis Cache (프로덕션)
 
 **KPI**:
 - Retrieval@10: >0.85
 - 응답 시간: <2초
+- Context Relevance: >0.85
 
 ---
 
