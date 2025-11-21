@@ -1122,184 +1122,260 @@ for scene in scenes:
 
 ### System Agents (4개)
 
-#### 17. PMAgent (P2)
+#### 17. PMAgent ✅ **구현 완료**
 
-**역할**: 전체 워크플로우 조율 및 태스크 분배 Agent
+**역할**: 워크플로우 조율 및 태스크 분배 전문 Agent
 
-**예상 구현**: Phase 4 (2025-12-30~2026-01-12)
+**파일**: [app/services/agents/pm.py](app/services/agents/pm.py)
+
+**구현 상태**:
+- ✅ Agent 클래스 구현 완료 (2025-11-21)
+- ✅ 워크플로우 계획 수립
+- ✅ 태스크 분해 및 우선순위 결정
+- ✅ 병렬/순차 실행 관리
+- ✅ 진행 상황 모니터링
 
 **지원 작업**:
 | Task | 설명 | Input | Output |
 |------|------|-------|--------|
-| `plan_workflow` | 워크플로우 계획 | `user_request` (자연어) | `execution_plan` |
+| `plan_workflow` | 워크플로우 계획 | `request_text`, `context` | `workflow_plan` |
+| `execute_workflow` | 워크플로우 실행 | `workflow_id` | `workflow_result` |
+| `assign_task` | 태스크 할당 | `task`, `workflow_id` | `assignment` |
+| `monitor_progress` | 진행 상황 모니터링 | `workflow_id` | `execution_status` |
+| `optimize_workflow` | 워크플로우 최적화 | `workflow_id` | `optimization_suggestions` |
 
 **Input 스키마**:
 ```json
 {
-    "user_request": "친환경 비건 화장품 브랜드 론칭을 위한 마케팅 콘텐츠 생성해줘"
+    "request_text": "비건 화장품 광고 캠페인을 만들어주세요",
+    "context": {
+        "brand": "EcoBeauty",
+        "target_audience": "MZ세대"
+    },
+    "constraints": {},
+    "preferences": {}
 }
 ```
 
 **Output 스키마**:
 ```json
 {
-    "execution_plan": [
-        {"agent": "StrategistAgent", "task": "brand_kit", "priority": "P0"},
-        {"agent": "CopywriterAgent", "task": "brand_message", "priority": "P0"},
-        {"agent": "DesignerAgent", "task": "brand_logo", "priority": "P1"}
+    "workflow_id": "wf_20251121153045",
+    "tasks": [
+        {
+            "task_id": "task_001",
+            "description": "트렌드 데이터 수집",
+            "agent_type": "trend_collector",
+            "priority": "high",
+            "dependencies": [],
+            "estimated_duration": 5.0
+        }
     ],
-    "estimated_time": 180,
-    "estimated_cost": 15000
+    "execution_mode": "mixed",
+    "total_estimated_time": 40.0,
+    "resource_requirements": {
+        "required_agents": {"trend_collector": 1, "copy_writer": 1},
+        "estimated_memory_mb": 400
+    }
 }
 ```
 
 **API 엔드포인트**: `POST /api/v1/agents/pm/execute`
 
-**LLM Provider**: GPT-4o / Claude 3.5 Sonnet
-
 **KPI**:
 - Planning Time: <5초
 - Plan Accuracy: >90%
+- Workflow Success Rate: >85%
 
 ---
 
-#### 18. SecurityAgent (P2)
+#### 18. QAAgent ✅ **구현 완료**
 
-**역할**: 민감정보 탐지 및 정책 위반 검사 Agent
+**역할**: 콘텐츠 품질 검증 및 테스트 전문 Agent
 
-**예상 구현**: Phase 4 (2025-12-30~2026-01-12)
+**파일**: [app/services/agents/qa.py](app/services/agents/qa.py)
+
+**구현 상태**:
+- ✅ Agent 클래스 구현 완료 (2025-11-21)
+- ✅ 문법/맞춤법 검사
+- ✅ 브랜드 가이드라인 준수 확인
+- ✅ SEO 최적화 검증
+- ✅ 접근성 검사
+- ✅ 자동 수정 기능
 
 **지원 작업**:
 | Task | 설명 | Input | Output |
 |------|------|-------|--------|
-| `check_compliance` | 컴플라이언스 검사 | `content`, `policy` | `compliance_status`, `violations` |
+| `quality_check` | 종합 품질 검증 | `content`, `content_type`, `checks` | `qa_report` |
+| `brand_compliance` | 브랜드 준수 검사 | `content`, `brand_guidelines` | `compliance_check` |
+| `seo_analysis` | SEO 분석 | `content`, `keywords` | `seo_analysis` |
+| `accessibility_check` | 접근성 검사 | `content` | `accessibility_report` |
+| `grammar_check` | 문법 검사 | `content` | `grammar_issues` |
+| `auto_fix` | 자동 수정 | `content`, `issues` | `fixed_content` |
 
 **Input 스키마**:
 ```json
 {
-    "content": {
-        "text": "...",
-        "images": ["url1", "url2"]
-    },
-    "policy": "korea_pii"
+    "content": "비건 화장품으로 아름다워지세요!",
+    "content_type": "text",
+    "checks": ["grammar", "spelling", "brand_alignment", "seo"],
+    "brand_guidelines": {
+        "tone": "professional",
+        "banned_words": []
+    }
 }
 ```
 
 **Output 스키마**:
 ```json
 {
-    "compliance_status": true,
-    "violations": [],
-    "risk_score": 0.05,
-    "details": {
-        "pii_detected": false,
-        "offensive_content": false
-    }
+    "overall_quality": "excellent",
+    "quality_score": 92.5,
+    "issues": [
+        {
+            "issue_id": "seo_001",
+            "check_type": "seo",
+            "severity": "medium",
+            "description": "타겟 키워드 밀도가 낮습니다",
+            "suggestion": "관련 키워드를 추가하세요",
+            "auto_fixable": false
+        }
+    ],
+    "passed_checks": ["grammar", "spelling", "brand_alignment"],
+    "failed_checks": ["seo"],
+    "recommendations": ["키워드 밀도를 높이세요"],
+    "execution_time": 0.25
 }
 ```
 
-**API 엔드포인트**: `POST /api/v1/agents/security/execute`
-
-**연동**: PII Detection Library
+**API 엔드포인트**: `POST /api/v1/agents/qa/execute`
 
 **KPI**:
+- Quality Detection Accuracy: >95%
 - False Positive Rate: <5%
 - 검사 시간: <1초
 
 ---
 
-#### 19. BudgetAgent (P2)
+#### 19. ErrorHandlerAgent ✅ **구현 완료**
 
-**역할**: LLM Token/Cost 추적 및 비용 최적화 Agent
+**역할**: 에러 처리 및 자동 복구 전문 Agent
 
-**예상 구현**: Phase 4 (2025-12-30~2026-01-12)
+**파일**: [app/services/agents/error_handler.py](app/services/agents/error_handler.py)
+
+**구현 상태**:
+- ✅ Agent 클래스 구현 완료 (2025-11-21)
+- ✅ 에러 감지 및 분류
+- ✅ 심각도 평가
+- ✅ 자동 복구 시도 (재시도, 폴백)
+- ✅ 에러 패턴 학습
+- ✅ 알림 시스템
 
 **지원 작업**:
 | Task | 설명 | Input | Output |
 |------|------|-------|--------|
-| `track_cost` | 비용 추적 | `project_id`, `budget_limit` | `current_spend`, `projected_spend`, `optimization_opportunities` |
+| `handle_error` | 에러 처리 | `error_report` | `handling_result` |
+| `analyze_error` | 에러 분석 | `error_report` | `error_analysis` |
+| `retry_operation` | 작업 재시도 | `operation`, `retry_config` | `retry_result` |
+| `get_error_summary` | 에러 요약 | `time_range` | `error_summary` |
+| `suggest_fix` | 수정 방법 제안 | `error_id` | `suggestions` |
 
 **Input 스키마**:
 ```json
 {
-    "project_id": "proj_001",
-    "budget_limit": 50000
+    "error_id": "err_001",
+    "timestamp": "2025-11-21T15:30:00Z",
+    "error_type": "ConnectionError",
+    "error_message": "Database connection timeout",
+    "stacktrace": "...",
+    "context": {"database": "postgresql"},
+    "affected_component": "database"
 }
 ```
 
 **Output 스키마**:
 ```json
 {
-    "current_spend": 12500,
-    "projected_spend": 45000,
-    "breakdown": {
-        "llm_tokens": 8000,
-        "image_generation": 3500,
-        "data_storage": 1000
+    "error_id": "err_001",
+    "handled": true,
+    "analysis": {
+        "severity": "high",
+        "category": "database",
+        "root_cause": "작업 처리 시간 초과",
+        "recommended_action": "retry"
     },
-    "optimization_opportunities": [
-        {"area": "LLM", "potential_savings": 2000, "suggestion": "Ollama 활용 확대"}
-    ]
+    "recovery_attempted": true,
+    "recovery_result": {
+        "success": true,
+        "attempts": 2,
+        "strategy": "retry"
+    },
+    "notification_sent": true
 }
 ```
 
-**API 엔드포인트**: `POST /api/v1/agents/budget/execute`
-
-**연동**: Prometheus + Cost Tracking DB
+**API 엔드포인트**: `POST /api/v1/agents/error_handler/execute`
 
 **KPI**:
-- Cost Prediction Accuracy: ±10%
-- 최적화 제안 수용률: >60%
+- Error Recovery Rate: >70%
+- Mean Time To Recovery: <5분
+- False Alarm Rate: <10%
 
 ---
 
-#### 20. ADAgent (P2)
+#### 20. LoggerAgent ✅ **구현 완료**
 
-**역할**: 광고 퍼포먼스 최적화 Agent (Google Ads, Naver, Kakao)
+**역할**: 시스템 로깅 및 성능 모니터링 전문 Agent
 
-**예상 구현**: Phase 4 (2025-12-30~2026-01-12)
+**파일**: [app/services/agents/logger.py](app/services/agents/logger.py)
+
+**구현 상태**:
+- ✅ Agent 클래스 구현 완료 (2025-11-21)
+- ✅ 구조화된 로깅
+- ✅ 성능 메트릭 추적
+- ✅ 로그 검색 및 필터링
+- ✅ 실시간 모니터링
+- ✅ 알림 시스템
 
 **지원 작업**:
 | Task | 설명 | Input | Output |
 |------|------|-------|--------|
-| `optimize_campaign` | 캠페인 최적화 | `campaign_info`, `performance_data` | `optimizations` |
+| `log` | 로그 기록 | `log_entry` | `log_result` |
+| `record_metric` | 메트릭 기록 | `metric_entry` | `metric_result` |
+| `query_logs` | 로그 쿼리 | `query` | `log_results` |
+| `get_stats` | 로그 통계 | `time_range` | `log_stats` |
+| `get_performance` | 성능 메트릭 | - | `performance_metrics` |
+| `set_alert` | 알림 설정 | `alert_rule` | `alert_config` |
 
 **Input 스키마**:
 ```json
 {
-    "campaign_info": {
-        "platform": "google_ads",
-        "campaign_id": "camp_001"
-    },
-    "performance_data": {
-        "ctr": 0.02,
-        "cpc": 500
-    }
+    "timestamp": "2025-11-21T15:30:00Z",
+    "level": "info",
+    "category": "application",
+    "message": "사용자 로그인 성공",
+    "source": "auth_service",
+    "user_id": "user_001",
+    "metadata": {"ip": "192.168.1.1"}
 }
 ```
 
 **Output 스키마**:
 ```json
 {
-    "optimizations": [
-        {
-            "element": "keyword_bid",
-            "current": 500,
-            "recommended": 650,
-            "expected_impact": "+15% CTR",
-            "confidence": 0.85
-        }
-    ]
+    "logged": true,
+    "timestamp": "2025-11-21T15:30:00Z",
+    "level": "info",
+    "alerts_triggered": 0
 }
 ```
 
-**API 엔드포인트**: `POST /api/v1/agents/ad/execute`
-
-**연동**: Google Ads API, Naver Ad API
+**API 엔드포인트**: `POST /api/v1/agents/logger/execute`
 
 **KPI**:
-- ROI Improvement: >20%
-- 최적화 정확도: >85%
+- Log Collection Rate: >99.9%
+- Query Response Time: <100ms
+- Storage Efficiency: >80%
 
 ---
 
