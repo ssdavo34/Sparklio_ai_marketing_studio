@@ -1,13 +1,37 @@
-import { useState, useCallback } from 'react';
+/**
+ * Spark Chat Hook - Enhanced Version
+ *
+ * Manages the integration between Spark Chat and the editor
+ * Handles AI command processing, conversation state, and real-time updates
+ *
+ * @author C팀 (Frontend Team)
+ * @version 2.0
+ * @date 2025-11-21
+ */
+
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLLMStore } from '@/store/llmStore';
 import { useEditorStore } from '@/components/canvas-studio/stores';
+import { AICommandParser, CommandExecutor, getSuggestionEngine } from '@/lib/sparklio/commands';
+import type { AICommand, CommandSuggestion, ExecutionResult } from '@/lib/sparklio/commands';
+import type { IEditorAdapter } from '@/lib/sparklio/adapters';
+import type { SparklioDocument, SparklioPage, SparklioObject } from '@/lib/sparklio/document';
+import { apiClient } from '@/lib/api/client';
+import type { GenerateRequest } from '@/lib/api/types';
+
+// ============================================================================
+// Types
+// ============================================================================
 
 export interface Message {
     id: string;
     role: 'user' | 'assistant';
     content: string;
     timestamp: Date;
+    command?: AICommand;
+    result?: ExecutionResult;
+    suggestions?: CommandSuggestion[];
 }
 
 export interface Suggestion {
@@ -24,10 +48,19 @@ export interface ChatAnalysisResult {
     suggestions: Suggestion[];
 }
 
-export const useSparkChat = () => {
+export interface UseSparkChatOptions {
+    adapter?: IEditorAdapter;
+    document?: SparklioDocument;
+    autoSuggest?: boolean;
+}
+
+export const useSparkChat = (options: UseSparkChatOptions = {}) => {
+    const { adapter, document, autoSuggest = true } = options;
+
     const router = useRouter();
     const llmSelection = useLLMStore((state) => state.selection);
     const { addObject, selectedObjectIds, objects } = useEditorStore();
+
     const [messages, setMessages] = useState<Message[]>([
         {
             id: 'welcome',
@@ -38,6 +71,41 @@ export const useSparkChat = () => {
     ]);
     const [isLoading, setIsLoading] = useState(false);
     const [analysisResult, setAnalysisResult] = useState<ChatAnalysisResult | null>(null);
+    const [suggestions, setSuggestions] = useState<CommandSuggestion[]>([]);
+
+    // Refs for command system
+    const commandExecutorRef = useRef<CommandExecutor | null>(null);
+    const suggestionEngineRef = useRef(getSuggestionEngine());
+
+    // Initialize command executor when adapter is available
+    useEffect(() => {
+        if (adapter) {
+            commandExecutorRef.current = new CommandExecutor(adapter);
+        }
+    }, [adapter]);
+
+    // Update suggestions when context changes
+    useEffect(() => {
+        if (autoSuggest && document) {
+            refreshSuggestions();
+        }
+    }, [selectedObjectIds, autoSuggest, document]);
+
+    // Helper function to refresh suggestions
+    const refreshSuggestions = useCallback(() => {
+        if (!document) return;
+
+        const selectedObjs = objects.filter(obj => selectedObjectIds.includes(obj.id)) as SparklioObject[];
+
+        suggestionEngineRef.current.updateContext({
+            currentPage: document.pages[0],
+            selectedObjects: selectedObjs,
+            documentType: document.mode,
+        });
+
+        const newSuggestions = suggestionEngineRef.current.getSuggestions(5);
+        setSuggestions(newSuggestions);
+    }, [document, objects, selectedObjectIds]);
 
     const sendMessage = useCallback(async (content: string) => {
         if (!content.trim()) return;
@@ -53,7 +121,39 @@ export const useSparkChat = () => {
         setIsLoading(true);
 
         try {
-            // API call with LLM selection
+            // Try to parse as direct command first
+            const command = AICommandParser.parse(content);
+
+            if (command.confidence > 0.7 && commandExecutorRef.current && document) {
+                // Execute directly as command
+                const selectedObjs = objects.filter(obj => selectedObjectIds.includes(obj.id)) as SparklioObject[];
+
+                const result = await commandExecutorRef.current.execute(command, {
+                    document,
+                    currentPage: document.pages[0],
+                    selectedObjects: selectedObjs,
+                });
+
+                const assistantMessage: Message = {
+                    id: (Date.now() + 1).toString(),
+                    role: 'assistant',
+                    content: result.success
+                        ? `✓ ${result.message || '명령을 실행했습니다'}`
+                        : `✗ ${result.error || '명령 실행에 실패했습니다'}`,
+                    timestamp: new Date(),
+                    command,
+                    result,
+                };
+
+                setMessages((prev) => [...prev, assistantMessage]);
+                setIsLoading(false);
+
+                // Refresh suggestions after command execution
+                refreshSuggestions();
+                return;
+            }
+
+            // Fallback to API call with LLM selection
             const response = await fetch('/api/v1/chat/analyze', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -159,11 +259,60 @@ export const useSparkChat = () => {
         // Logic to apply commands or create a new doc could go here
     }, []);
 
+    // Execute a suggestion
+    const applySuggestion = useCallback(async (suggestion: CommandSuggestion) => {
+        if (!commandExecutorRef.current || !document) return;
+
+        const selectedObjs = objects.filter(obj => selectedObjectIds.includes(obj.id)) as SparklioObject[];
+
+        const result = await commandExecutorRef.current.execute(suggestion.command, {
+            document,
+            currentPage: document.pages[0],
+            selectedObjects: selectedObjs,
+        });
+
+        // Add message about suggestion execution
+        const message: Message = {
+            id: Date.now().toString(),
+            role: 'assistant',
+            content: result.success
+                ? `✓ Applied: ${suggestion.label}`
+                : `✗ Failed to apply: ${suggestion.label}`,
+            timestamp: new Date(),
+            command: suggestion.command,
+            result,
+        };
+
+        setMessages((prev) => [...prev, message]);
+        refreshSuggestions();
+    }, [commandExecutorRef, document, objects, selectedObjectIds, refreshSuggestions]);
+
+    // Undo last command
+    const undoLastCommand = useCallback(async () => {
+        if (!commandExecutorRef.current) return;
+
+        const result = await commandExecutorRef.current.undo();
+
+        const message: Message = {
+            id: Date.now().toString(),
+            role: 'assistant',
+            content: result.success ? '✓ 되돌리기 완료' : '✗ 되돌리기 실패',
+            timestamp: new Date(),
+            result,
+        };
+
+        setMessages((prev) => [...prev, message]);
+    }, [commandExecutorRef]);
+
     return {
         messages,
         isLoading,
         analysisResult,
+        suggestions,
         sendMessage,
         createDraft,
+        applySuggestion,
+        undoLastCommand,
+        refreshSuggestions,
     };
 };

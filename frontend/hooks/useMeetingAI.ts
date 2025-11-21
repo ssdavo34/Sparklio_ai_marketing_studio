@@ -1,4 +1,15 @@
-import { useState, useCallback } from 'react';
+/**
+ * Meeting AI Hook - Enhanced Version
+ *
+ * Handles meeting file upload, processing, and analysis
+ * with progress tracking and error handling
+ *
+ * @author C팀 (Frontend Team)
+ * @version 2.0
+ * @date 2025-11-21
+ */
+
+import { useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
 export interface MeetingAnalysisResult {
@@ -10,62 +21,103 @@ export interface MeetingAnalysisResult {
     }>;
     summary: string;
     actionItems: string[];
+    keywords?: string[];
+    sentiment?: 'positive' | 'neutral' | 'negative';
 }
 
 export const useMeetingAI = () => {
     const router = useRouter();
     const [isUploading, setIsUploading] = useState(false);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
+    const [error, setError] = useState<string | null>(null);
     const [result, setResult] = useState<MeetingAnalysisResult | null>(null);
+    const abortControllerRef = useRef<AbortController | null>(null);
 
     const uploadFile = useCallback(async (file: File) => {
         setIsUploading(true);
+        setError(null);
+        setUploadProgress(0);
+
         try {
-            // Mock API call for upload
             const formData = new FormData();
             formData.append('file', file);
+
+            // Create abort controller for cancellation
+            abortControllerRef.current = new AbortController();
+
+            // Simulate progress (in production, use XMLHttpRequest for real progress)
+            const progressInterval = setInterval(() => {
+                setUploadProgress(prev => {
+                    if (prev >= 90) {
+                        clearInterval(progressInterval);
+                        return 90;
+                    }
+                    return prev + 10;
+                });
+            }, 200);
 
             const response = await fetch('/api/v1/meeting/upload', {
                 method: 'POST',
                 body: formData,
+                signal: abortControllerRef.current.signal,
             });
 
+            clearInterval(progressInterval);
+            setUploadProgress(100);
+
             if (!response.ok) {
-                throw new Error('Failed to upload file');
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.detail || 'Failed to upload file');
             }
 
             const data = await response.json();
 
             // Start analysis immediately after upload
-            analyzeMeeting(data.meetingId);
-        } catch (error) {
+            await analyzeMeeting(data.meetingId);
+        } catch (error: any) {
             console.error('Upload error:', error);
-            alert('파일 업로드 중 오류가 발생했습니다.');
+
+            if (error.name === 'AbortError') {
+                setError('업로드가 취소되었습니다.');
+            } else {
+                setError(error.message || '파일 업로드 중 오류가 발생했습니다.');
+            }
+
             setIsUploading(false);
+            setUploadProgress(0);
         }
     }, []);
 
     const analyzeMeeting = useCallback(async (meetingId: string) => {
         setIsAnalyzing(true);
         setIsUploading(false); // Upload done, now analyzing
+        setError(null);
 
         try {
-            // Mock API call for analysis
             const response = await fetch('/api/v1/meeting/analyze', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ meetingId }),
+                signal: abortControllerRef.current?.signal,
             });
 
             if (!response.ok) {
-                throw new Error('Failed to analyze meeting');
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.detail || 'Failed to analyze meeting');
             }
 
             const data: MeetingAnalysisResult = await response.json();
             setResult(data);
-        } catch (error) {
+            setError(null);
+        } catch (error: any) {
             console.error('Analysis error:', error);
-            alert('회의 분석 중 오류가 발생했습니다.');
+
+            if (error.name === 'AbortError') {
+                setError('분석이 취소되었습니다.');
+            } else {
+                setError(error.message || '회의 분석 중 오류가 발생했습니다.');
+            }
         } finally {
             setIsAnalyzing(false);
         }
@@ -100,11 +152,40 @@ export const useMeetingAI = () => {
         }
     }, [result, router]);
 
+    // Cancel upload/analysis
+    const cancelOperation = useCallback(() => {
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+            abortControllerRef.current = null;
+        }
+        setIsUploading(false);
+        setIsAnalyzing(false);
+        setUploadProgress(0);
+        setError('작업이 취소되었습니다.');
+    }, []);
+
+    // Reset all states
+    const reset = useCallback(() => {
+        setIsUploading(false);
+        setIsAnalyzing(false);
+        setUploadProgress(0);
+        setError(null);
+        setResult(null);
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+            abortControllerRef.current = null;
+        }
+    }, []);
+
     return {
         isUploading,
         isAnalyzing,
+        uploadProgress,
+        error,
         result,
         uploadFile,
         createDocument,
+        cancelOperation,
+        reset,
     };
 };
