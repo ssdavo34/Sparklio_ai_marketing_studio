@@ -41,8 +41,8 @@ export interface CanvasState {
   // Guidelines
   showGuidelines: boolean;
 
-  // Fabric.js Canvas Instance (Phase 3에서 추가)
-  fabricCanvas: any | null; // fabric.Canvas
+  // Polotno Store Instance (v3.1에서 Fabric.js → Polotno로 변경)
+  polotnoStore: any | null; // polotno Store
 
   // Actions
   setZoom: (zoom: number) => void;
@@ -59,7 +59,7 @@ export interface CanvasState {
 
   toggleGuidelines: () => void;
 
-  setFabricCanvas: (canvas: any) => void;
+  setPolotnoStore: (store: any) => void;
 }
 
 // ============================================================================
@@ -94,7 +94,7 @@ export const useCanvasStore = create<CanvasState>()(
 
       showGuidelines: true,
 
-      fabricCanvas: null,
+      polotnoStore: null,
 
       // ========================================
       // Zoom Actions
@@ -103,16 +103,18 @@ export const useCanvasStore = create<CanvasState>()(
       /**
        * 줌 레벨 설정
        * - 최소/최대 제한 적용
-       * - CSS transform scale로 전체 캔버스 확대/축소 ✅
+       * - Polotno Store의 setScale 호출
        */
       setZoom: (zoom) => {
-        const { minZoom, maxZoom } = get();
+        const { minZoom, maxZoom, polotnoStore } = get();
         const clampedZoom = Math.max(minZoom, Math.min(zoom, maxZoom));
 
         set({ zoom: clampedZoom });
 
-        // CSS transform scale로 처리하므로 Fabric.js에서는 별도 작업 불필요
-        // CanvasViewport.tsx에서 CSS transform 적용
+        // Polotno Store에 줌 레벨 적용
+        if (polotnoStore) {
+          polotnoStore.setScale(clampedZoom);
+        }
       },
 
       /**
@@ -138,85 +140,15 @@ export const useCanvasStore = create<CanvasState>()(
       /**
        * 모든 객체가 보이도록 줌 조정
        * - 단축키: Ctrl+0
-       * - 줌 조정 후 스크롤 위치를 중앙으로 이동
+       * - Polotno에서는 내장 기능 사용
        */
       zoomToFit: () => {
-        const { fabricCanvas, minZoom, maxZoom } = get();
-        if (!fabricCanvas) return;
+        const { polotnoStore } = get();
+        if (!polotnoStore) return;
 
-        // 그리드 라인을 제외한 실제 객체들만 가져오기
-        const objects = fabricCanvas.getObjects().filter((obj: any) => obj.name !== 'grid-line');
-
-        if (objects.length === 0) {
-          get().resetZoom();
-
-          // 객체가 없으면 스크롤을 (0, 0)으로
-          const canvas = fabricCanvas.getElement();
-          const section = canvas?.closest('section');
-          if (section) {
-            section.scrollLeft = 0;
-            section.scrollTop = 0;
-          }
-          return;
-        }
-
-        // 모든 객체의 Bounding Box 계산
-        let minX = Infinity;
-        let minY = Infinity;
-        let maxX = -Infinity;
-        let maxY = -Infinity;
-
-        objects.forEach((obj: any) => {
-          const bound = obj.getBoundingRect();
-          minX = Math.min(minX, bound.left);
-          minY = Math.min(minY, bound.top);
-          maxX = Math.max(maxX, bound.left + bound.width);
-          maxY = Math.max(maxY, bound.top + bound.height);
-        });
-
-        const objectsWidth = maxX - minX;
-        const objectsHeight = maxY - minY;
-
-        // 캔버스 크기
-        const canvasWidth = fabricCanvas.getWidth();
-        const canvasHeight = fabricCanvas.getHeight();
-
-        // 패딩 (10%)
-        const padding = 0.1;
-        const availableWidth = canvasWidth * (1 - padding * 2);
-        const availableHeight = canvasHeight * (1 - padding * 2);
-
-        // 줌 레벨 계산 (작은 쪽에 맞춤)
-        const zoomX = availableWidth / objectsWidth;
-        const zoomY = availableHeight / objectsHeight;
-        const newZoom = Math.min(zoomX, zoomY, maxZoom);
-        const clampedZoom = Math.max(minZoom, newZoom);
-
-        get().setZoom(clampedZoom);
-
-        // 줌 적용 후 스크롤 위치를 중앙으로 조정
-        // setTimeout을 사용하여 Zoom 적용 후 스크롤 조정
-        setTimeout(() => {
-          const canvas = fabricCanvas.getElement();
-          const section = canvas?.closest('section');
-
-          if (section) {
-            // 스케일된 캔버스의 실제 크기
-            const scaledWidth = canvasWidth * clampedZoom;
-            const scaledHeight = canvasHeight * clampedZoom;
-
-            // 뷰포트(section) 크기
-            const viewportWidth = section.clientWidth;
-            const viewportHeight = section.clientHeight;
-
-            // 중앙 정렬을 위한 스크롤 위치 계산
-            const scrollLeft = Math.max(0, (scaledWidth - viewportWidth) / 2);
-            const scrollTop = Math.max(0, (scaledHeight - viewportHeight) / 2);
-
-            section.scrollLeft = scrollLeft;
-            section.scrollTop = scrollTop;
-          }
-        }, 50); // CSS transform 적용 후 실행
+        // Polotno Store의 내장 줌 투 핏 사용
+        // TODO: Block 3에서 상세 구현
+        get().resetZoom();
       },
 
       /**
@@ -232,17 +164,12 @@ export const useCanvasStore = create<CanvasState>()(
 
       /**
        * 캔버스 이동 설정
-       * - 마우스 드래그로 캔버스 이동 시 사용
+       * - Polotno에서는 내장 Pan 기능 사용
        */
       setPan: (x, y) => {
         set({ panX: x, panY: y });
 
-        // TODO: Phase 3에서 Fabric.js 캔버스에 적용
-        // const { fabricCanvas } = get();
-        // if (fabricCanvas) {
-        //   fabricCanvas.relativePan(new fabric.Point(x, y));
-        //   fabricCanvas.renderAll();
-        // }
+        // TODO: Block 3에서 Polotno Pan 기능 연동
       },
 
       /**
@@ -284,15 +211,15 @@ export const useCanvasStore = create<CanvasState>()(
       },
 
       // ========================================
-      // Fabric.js Actions
+      // Polotno Actions
       // ========================================
 
       /**
-       * Fabric.js 캔버스 인스턴스 저장
-       * - Phase 3에서 캔버스 초기화 시 호출
+       * Polotno Store 인스턴스 저장
+       * - PolotnoWorkspace에서 초기화 시 호출
        */
-      setFabricCanvas: (canvas) => {
-        set({ fabricCanvas: canvas });
+      setPolotnoStore: (store) => {
+        set({ polotnoStore: store });
       },
     }),
     {
