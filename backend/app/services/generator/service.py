@@ -294,7 +294,7 @@ class GeneratorService:
 
         # Canvas Document 생성 (v2.0 Abstract Spec)
         logger.info(f"Creating canvas for kind={kind}, text_data={text_data}")
-        canvas_document = self._create_canvas_v2(kind, text_data)
+        canvas_document = self._create_canvas_v2(kind, text_data, image_payload)
         logger.info(
             f"Canvas created: {len(canvas_document.pages)} pages, "
             f"{sum(len(p.objects) for p in canvas_document.pages)} objects"
@@ -335,7 +335,8 @@ class GeneratorService:
     def _create_canvas_v2(
         self,
         kind: str,
-        text_data: dict
+        text_data: dict,
+        image_payload: Optional[ImagePayload] = None
     ) -> CanvasDocumentPayload:
         """
         kind에 따라 Abstract Canvas Document 생성 (v2.0)
@@ -343,14 +344,25 @@ class GeneratorService:
         Args:
             kind: 생성 타입
             text_data: 텍스트 데이터
+            image_payload: 생성된 이미지 (있을 경우)
 
         Returns:
             CanvasDocumentPayload (v2.0 Abstract Spec)
         """
+        # Base64 이미지를 Data URL로 변환
+        image_url = None
+        if image_payload:
+            if image_payload.type == "base64" and image_payload.data:
+                image_url = f"data:image/{image_payload.format};base64,{image_payload.data}"
+                logger.info(f"Converted Base64 image to Data URL (format={image_payload.format})")
+            elif image_payload.type == "url" and image_payload.url:
+                image_url = image_payload.url
+                logger.info(f"Using image URL: {image_payload.url}")
+
         if kind == "product_detail":
-            return create_product_detail_document(text_data)
+            return create_product_detail_document(text_data, image_url=image_url)
         elif kind == "sns_set":
-            return create_sns_feed_document(text_data)
+            return create_sns_feed_document(text_data, image_url=image_url)
         elif kind == "brand_identity":
             # NOTE: brand_identity v2.0 Document 구현 예정
             # 구현 예시:
@@ -370,10 +382,10 @@ class GeneratorService:
             #     ]
             # )
             # 현재는 임시로 product_detail 사용
-            return create_product_detail_document(text_data)
+            return create_product_detail_document(text_data, image_url=image_url)
         else:
             # 기본 Document (product_detail 기본값)
-            return create_product_detail_document(text_data)
+            return create_product_detail_document(text_data, image_url=image_url)
 
     def _create_canvas(self, kind: str, text_data: dict) -> dict:
         """
