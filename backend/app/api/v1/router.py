@@ -15,95 +15,88 @@ api_router = APIRouter()
 api_router.include_router(
     assets.router,
     prefix="/assets",
-    tags=["assets"]
+    tags=["Assets"]
 )
 
 api_router.include_router(
     brands.router,
     prefix="/brands",
-    tags=["brands"]
+    tags=["Brands"]
 )
 
 api_router.include_router(
     projects.router,
     prefix="/projects",
-    tags=["projects"]
+    tags=["Projects"]
 )
 
 api_router.include_router(
     users.router,
     prefix="/users",
-    tags=["users"]
+    tags=["Users"]
 )
 
 # 통합 Generator API (공식 외부 API)
 api_router.include_router(
     generate.router,
     prefix="",
-    tags=["generate"]
+    tags=["Generator"]
 )
 
 # Document API (Editor Document 저장/로드)
 api_router.include_router(
     documents.router,
     prefix="/documents",
-    tags=["documents"]
+    tags=["Documents"]
 )
 
 # Template API (Layout Template 조회/관리)
 api_router.include_router(
     templates.router,
     prefix="/templates",
-    tags=["templates"]
+    tags=["Templates"]
 )
 
 # Editor Action API (Document Action 처리)
 api_router.include_router(
     editor.router,
     prefix="/editor",
-    tags=["editor"]
+    tags=["Editor"]
 )
 
 # Sparklio Editor API (신규 Editor API - C팀 지원)
 api_router.include_router(
     sparklio_editor.router,
     prefix="/sparklio",
-    tags=["sparklio-editor"]
-)
-
-# Admin API (관리자 전용 모니터링)
-api_router.include_router(
-    admin.router,
-    prefix="/admin",
-    tags=["admin"]
+    tags=["Editor"]
 )
 
 # LLM Gateway API (신규 - Phase 1-2)
 api_router.include_router(
     llm_gateway.router,
     prefix="/llm",
-    tags=["llm-gateway"]
+    tags=["LLM Gateway"]
 )
 
 # Media Gateway API (신규 - Phase 1-4)
 api_router.include_router(
     media_gateway.router,
     prefix="/media",
-    tags=["media-gateway"]
+    tags=["Media Gateway"]
 )
 
 # Agent API v2 (신규 - Phase 2-2)
 api_router.include_router(
     agents_new.router,
     prefix="/agents",
-    tags=["agents-v2"]
+    tags=["Agents"]
 )
 
 # Workflow Orchestration API (신규 - Phase 3)
 api_router.include_router(
     workflows.router,
     prefix="/workflows",
-    tags=["workflows"]
+    tags=["Workflows"]
 )
 
 # Agent API v1 (내부 전용, Deprecated - import 에러로 비활성화)
@@ -117,14 +110,14 @@ api_router.include_router(
 api_router.include_router(
     debug.router,
     prefix="/debug",
-    tags=["debug"]
+    tags=["Admin"]
 )
 
 # Chat API (Phase 2)
-api_router.include_router(chat.router, prefix="/chat", tags=["chat"])
+api_router.include_router(chat.router, prefix="/chat", tags=["Editor"])
 
 # Meeting AI API (Phase 3)
-api_router.include_router(meeting.router, prefix="/meeting", tags=["meeting"])
+api_router.include_router(meeting.router, prefix="/meeting", tags=["Agents"])
 
 # Admin API (관리자 전용 모니터링)
-api_router.include_router(admin.router, prefix="/admin", tags=["admin"])
+api_router.include_router(admin.router, prefix="/admin", tags=["Admin"])
