@@ -369,12 +369,16 @@ class RAGAgent(AgentBase):
 
         search_time = (datetime.now() - start_time).total_seconds() * 1000
 
-        return SearchResponse(
+        response = SearchResponse(
             results=results,
             total_found=len(results),
             search_time=search_time,
             strategy_used=input_data.strategy.value
         ).dict()
+
+        # Add documents as alias for results (test compatibility)
+        response["documents"] = response["results"]
+        return response
 
     async def _generate_with_context(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """컨텍스트 증강 생성"""

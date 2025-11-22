@@ -4,10 +4,10 @@
  * Right dock with multiple tabs (Block 5)
  * - Inspector: Element properties editor
  * - Layers: Element hierarchy view
- * - Chat: AI assistant integration
+ * - Chat: AI assistant integration (Backend Agent System)
  *
  * @author C Team (Frontend Team)
- * @version 3.1
+ * @version 4.1
  * @date 2025-11-22
  */
 
@@ -17,6 +17,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useTabsStore } from '../../stores/useTabsStore';
 import { useCanvasStore } from '../../stores/useCanvasStore';
 import { useChatStore } from '../../stores/useChatStore';
+import { AGENT_INFO, TASK_INFO } from '../../stores/types/llm';
+import type { AgentRole, TaskType, CostMode } from '../../stores/types/llm';
 import { MessageSquare, Layers, Settings } from 'lucide-react';
 
 export function RightDock() {
@@ -96,15 +98,14 @@ function ChatTab() {
     isLoading,
     error,
     sendMessage,
-    generateImage,
+    generateImageFromPrompt,
     clearMessages,
-    textLLMConfig,
-    imageLLMConfig,
-    setTextLLMProvider,
-    setImageLLMProvider,
+    chatConfig,
+    setRole,
+    setTask,
+    setCostMode,
   } = useChatStore();
   const [input, setInput] = useState('');
-  const [mode, setMode] = useState<'text' | 'image'>('text');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -122,12 +123,15 @@ function ChatTab() {
     const message = input.trim();
     setInput('');
 
-    if (mode === 'image') {
-      await generateImage(message);
+    if (chatConfig.task === 'image_generate') {
+      await generateImageFromPrompt(message);
     } else {
       await sendMessage(message);
     }
   };
+
+  // Get supported tasks for current role
+  const supportedTasks = AGENT_INFO[chatConfig.role]?.supportedTasks || [];
 
   return (
     <div className="h-full flex flex-col">
@@ -137,7 +141,7 @@ function ChatTab() {
           <div>
             <h3 className="text-sm font-semibold text-gray-900">AI Assistant</h3>
             <p className="text-xs text-gray-500">
-              Multi-LLM Support
+              Backend Gateway • Smart Router
             </p>
           </div>
           <button
@@ -148,54 +152,63 @@ function ChatTab() {
           </button>
         </div>
 
-        {/* Mode Toggle */}
-        <div className="flex gap-2 mb-2">
-          <button
-            onClick={() => setMode('text')}
-            className={`flex-1 px-3 py-1.5 text-xs font-medium rounded transition-colors ${
-              mode === 'text'
-                ? 'bg-purple-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+        {/* Agent Role Selector */}
+        <div className="mb-2">
+          <label className="text-xs font-semibold text-gray-700 uppercase mb-1 block">
+            Agent Role
+          </label>
+          <select
+            value={chatConfig.role}
+            onChange={(e) => setRole(e.target.value as AgentRole)}
+            className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
           >
-            Text Chat
-          </button>
-          <button
-            onClick={() => setMode('image')}
-            className={`flex-1 px-3 py-1.5 text-xs font-medium rounded transition-colors ${
-              mode === 'image'
-                ? 'bg-purple-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            Image Gen
-          </button>
+            {Object.entries(AGENT_INFO).map(([key, info]) => (
+              <option key={key} value={key}>
+                {info.name} - {info.description}
+              </option>
+            ))}
+          </select>
         </div>
 
-        {/* LLM Provider Selector */}
-        {mode === 'text' ? (
+        {/* Task Selector */}
+        <div className="mb-2">
+          <label className="text-xs font-semibold text-gray-700 uppercase mb-1 block">
+            Task Type
+          </label>
           <select
-            value={textLLMConfig.provider}
-            onChange={(e) => setTextLLMProvider(e.target.value as any)}
+            value={chatConfig.task}
+            onChange={(e) => setTask(e.target.value as TaskType)}
             className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
           >
-            <option value="mock">Mock (Testing)</option>
-            <option value="openai">OpenAI GPT-4</option>
-            <option value="anthropic">Anthropic Claude</option>
-            <option value="gemini">Google Gemini</option>
+            {supportedTasks.map((taskId) => {
+              const taskInfo = TASK_INFO[taskId];
+              return (
+                <option key={taskId} value={taskId}>
+                  {taskInfo.name} - {taskInfo.description}
+                </option>
+              );
+            })}
           </select>
-        ) : (
-          <select
-            value={imageLLMConfig.provider}
-            onChange={(e) => setImageLLMProvider(e.target.value as any)}
-            className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
-          >
-            <option value="mock">Mock (Testing)</option>
-            <option value="dalle">DALL-E 3</option>
-            <option value="stability">Stable Diffusion</option>
-            <option value="comfyui">ComfyUI</option>
-          </select>
-        )}
+        </div>
+
+        {/* Cost Mode Selector */}
+        <div className="flex gap-2">
+          {(['fast', 'balanced', 'quality'] as CostMode[]).map((mode) => (
+            <button
+              key={mode}
+              onClick={() => setCostMode(mode)}
+              className={`flex-1 px-2 py-1.5 text-xs font-medium rounded transition-colors ${
+                chatConfig.costMode === mode
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {mode === 'fast' && '⚡ Fast'}
+              {mode === 'balanced' && '⚖️ Balanced'}
+              {mode === 'quality' && '✨ Quality'}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Messages */}
@@ -222,16 +235,29 @@ function ChatTab() {
                   />
                 </div>
               )}
-              <p
-                className={`text-xs mt-1 ${
+              <div
+                className={`text-xs mt-1 flex items-center gap-2 ${
                   message.role === 'user' ? 'text-purple-200' : 'text-gray-500'
                 }`}
               >
-                {new Date(message.timestamp).toLocaleTimeString([], {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </p>
+                <span>
+                  {new Date(message.timestamp).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </span>
+                {message.agentUsed && (
+                  <span className="text-xs opacity-75">
+                    • {message.agentUsed}
+                    {message.taskUsed && ` → ${message.taskUsed}`}
+                  </span>
+                )}
+                {message.usage?.tokens && (
+                  <span className="text-xs opacity-75">
+                    • {message.usage.tokens} tokens
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         ))}
@@ -262,7 +288,7 @@ function ChatTab() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder={
-              mode === 'image'
+              chatConfig.task === 'image_generate'
                 ? 'Describe the image you want to generate...'
                 : 'Type a message...'
             }
@@ -274,7 +300,7 @@ function ChatTab() {
             disabled={!input.trim() || isLoading}
             className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            {mode === 'image' ? 'Generate' : 'Send'}
+            {chatConfig.task === 'image_generate' ? 'Generate' : 'Send'}
           </button>
         </form>
       </div>

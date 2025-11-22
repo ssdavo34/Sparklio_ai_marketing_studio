@@ -271,6 +271,12 @@ class LoggerAgent(AgentBase):
 
     async def _query_logs(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """로그 쿼리"""
+        # time_range 문자열을 dict로 변환
+        if "time_range" in payload and isinstance(payload["time_range"], str):
+            time_str = payload["time_range"]
+            payload = payload.copy()
+            payload["time_range"] = self._parse_time_range(time_str)
+
         query = LogQuery(**payload)
 
         # 필터링
@@ -319,9 +325,16 @@ class LoggerAgent(AgentBase):
 
     async def _get_stats(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """로그 통계"""
-        time_range_minutes = payload.get("time_range", 60)  # 기본 60분
+        time_range = payload.get("time_range", 60)  # 기본 60분
 
-        cutoff_time = datetime.now() - timedelta(minutes=time_range_minutes)
+        # 문자열 형식 파싱 (예: "24h", "7d")
+        if isinstance(time_range, str):
+            parsed_range = self._parse_time_range(time_range)
+            cutoff_time = parsed_range["start"]
+        elif isinstance(time_range, int):
+            cutoff_time = datetime.now() - timedelta(minutes=time_range)
+        else:
+            cutoff_time = datetime.now() - timedelta(minutes=60)
 
         # 시간 범위 내 로그 필터링
         recent_logs = [
@@ -345,7 +358,7 @@ class LoggerAgent(AgentBase):
             if log.source:
                 by_source[log.source] += 1
 
-        return LogStats(
+        stats = LogStats(
             total_logs=len(recent_logs),
             by_level=dict(by_level),
             by_category=dict(by_category),
@@ -355,6 +368,10 @@ class LoggerAgent(AgentBase):
                 "end": datetime.now().isoformat()
             }
         ).dict()
+
+        # Add aggregation/summary key for test compatibility
+        stats["summary"] = f"{len(recent_logs)} logs in the time range"
+        return stats
 
     async def _get_performance_metrics(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """성능 메트릭 조회"""
@@ -414,6 +431,30 @@ class LoggerAgent(AgentBase):
             "alert_set": True,
             "rule": alert_rule,
             "total_rules": len(self.alert_rules)
+        }
+
+    def _parse_time_range(self, time_str: str) -> Dict[str, datetime]:
+        """시간 범위 문자열 파싱 (예: "24h", "7d", "30m")"""
+        import re
+        match = re.match(r'(\d+)([hdm])', time_str.lower())
+        if not match:
+            return {"start": datetime.utcnow() - timedelta(hours=24), "end": datetime.utcnow()}
+
+        value = int(match.group(1))
+        unit = match.group(2)
+
+        if unit == 'h':
+            delta = timedelta(hours=value)
+        elif unit == 'd':
+            delta = timedelta(days=value)
+        elif unit == 'm':
+            delta = timedelta(minutes=value)
+        else:
+            delta = timedelta(hours=24)
+
+        return {
+            "start": datetime.utcnow() - delta,
+            "end": datetime.utcnow()
         }
 
     async def _check_alerts(self, log_entry: LogEntry) -> List[Dict[str, Any]]:

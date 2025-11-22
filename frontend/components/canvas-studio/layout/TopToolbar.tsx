@@ -15,8 +15,10 @@
 
 import { useEditorStore } from '../stores/useEditorStore';
 import { useLayoutStore } from '../stores/useLayoutStore';
-import { Layout, Maximize2, MessageSquare, ChevronDown, Eye, Edit3 } from 'lucide-react';
+import { useCanvasStore } from '../stores/useCanvasStore';
+import { Layout, Maximize2, MessageSquare, ChevronDown, Eye, Edit3, Download } from 'lucide-react';
 import type { StudioMode, ViewMode } from '../stores/types';
+import { useState, useEffect, useRef } from 'react';
 
 export function TopToolbar() {
   const currentMode = useEditorStore((state) => state.currentMode);
@@ -25,12 +27,88 @@ export function TopToolbar() {
   const setViewMode = useEditorStore((state) => state.setViewMode);
   const isViewMode = useLayoutStore((state) => state.isViewMode);
   const toggleViewMode = useLayoutStore((state) => state.toggleViewMode);
+  const polotnoStore = useCanvasStore((state) => state.polotnoStore);
+  const [isExporting, setIsExporting] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close export menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+        setShowExportMenu(false);
+      }
+    };
+
+    if (showExportMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showExportMenu]);
 
   const modeLabels: Record<StudioMode, string> = {
     planning: 'Planning',
     editor: 'Editor',
     video: 'Video',
     admin: 'Admin',
+  };
+
+  // View Mode 변경 + 패널 접기/펴기 연동
+  const handleViewModeChange = (mode: ViewMode) => {
+    setViewMode(mode);
+
+    if (mode === 'studio') {
+      // Studio View: 모든 패널 표시
+      useLayoutStore.setState({
+        isLeftPanelCollapsed: false,
+        isRightDockCollapsed: false
+      });
+    } else if (mode === 'canvas-focus') {
+      // Canvas Focus: Canvas만 크게 (Chat 접기)
+      useLayoutStore.setState({
+        isLeftPanelCollapsed: false,
+        isRightDockCollapsed: true
+      });
+    } else if (mode === 'chat-focus') {
+      // Chat Focus: Chat 패널 크게 (Left Panel 접기)
+      useLayoutStore.setState({
+        isLeftPanelCollapsed: true,
+        isRightDockCollapsed: false,
+        rightDockWidth: 600  // Chat 패널 크게
+      });
+    }
+  };
+
+  // Export Canvas (PNG or JPG)
+  const handleExport = async (format: 'png' | 'jpeg') => {
+    if (!polotnoStore) {
+      alert('Canvas is not ready. Please wait for the canvas to load.');
+      return;
+    }
+
+    setIsExporting(true);
+    setShowExportMenu(false);
+
+    try {
+      // Polotno Store의 toDataURL 사용
+      const dataURL = await polotnoStore.toDataURL({
+        mimeType: format === 'png' ? 'image/png' : 'image/jpeg',
+        pixelRatio: 2, // High quality (2x resolution)
+      });
+
+      // Download the image
+      const link = document.createElement('a');
+      link.href = dataURL;
+      link.download = `sparklio-canvas-${Date.now()}.${format}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert('Failed to export canvas. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
@@ -101,38 +179,69 @@ export function TopToolbar() {
         {/* View Mode Toggle */}
         <div className="flex items-center bg-gray-100 rounded-lg p-1">
           <button
-            onClick={() => setViewMode('studio')}
+            onClick={() => handleViewModeChange('studio')}
             className={`p-1.5 rounded transition-colors ${
               viewMode === 'studio'
                 ? 'bg-white shadow-sm text-purple-600'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
-            title="Studio View"
+            title="Studio View - Show all panels"
           >
             <Layout className="w-4 h-4" />
           </button>
           <button
-            onClick={() => setViewMode('canvas-focus')}
+            onClick={() => handleViewModeChange('canvas-focus')}
             className={`p-1.5 rounded transition-colors ${
               viewMode === 'canvas-focus'
                 ? 'bg-white shadow-sm text-purple-600'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
-            title="Canvas Focus"
+            title="Canvas Focus - Hide chat panel"
           >
             <Maximize2 className="w-4 h-4" />
           </button>
           <button
-            onClick={() => setViewMode('chat-focus')}
+            onClick={() => handleViewModeChange('chat-focus')}
             className={`p-1.5 rounded transition-colors ${
               viewMode === 'chat-focus'
                 ? 'bg-white shadow-sm text-purple-600'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
-            title="Chat Focus"
+            title="Chat Focus - Hide left panel, expand chat"
           >
             <MessageSquare className="w-4 h-4" />
           </button>
+        </div>
+
+        {/* Export Button with Dropdown */}
+        <div className="relative" ref={exportMenuRef}>
+          <button
+            onClick={() => setShowExportMenu(!showExportMenu)}
+            disabled={isExporting}
+            className="flex items-center gap-2 px-4 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Download className="w-4 h-4" />
+            <span>{isExporting ? 'Exporting...' : 'Export'}</span>
+            <ChevronDown className="w-3 h-3" />
+          </button>
+
+          {/* Export Menu Dropdown */}
+          {showExportMenu && (
+            <div className="absolute right-0 mt-2 w-40 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+              <button
+                onClick={() => handleExport('png')}
+                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+              >
+                Export as PNG
+              </button>
+              <button
+                onClick={() => handleExport('jpeg')}
+                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+              >
+                Export as JPG
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Share Button */}

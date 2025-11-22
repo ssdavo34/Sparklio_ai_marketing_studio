@@ -207,7 +207,7 @@ class SelfLearningAgent(AgentBase):
             elif task == "get_metrics":
                 result = await self._get_learning_metrics(request.payload)
             else:
-                raise AgentError(f"Unknown task: {request.task}")
+                raise AgentError(f"Unknown task: {request.task}", agent=self.name)
 
             return AgentResponse(
                 agent=self.name,
@@ -507,6 +507,8 @@ class SelfLearningAgent(AgentBase):
 
         return {
             "success": True,
+            "status": "recorded",
+            "learned": True,
             "user_id": feedback.user_id,
             "feedback_type": feedback.feedback_type.value,
             "recorded_at": feedback_dict["timestamp"].isoformat()

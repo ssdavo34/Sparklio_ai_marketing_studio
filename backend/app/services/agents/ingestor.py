@@ -299,13 +299,18 @@ class IngestorAgent(AgentBase):
             self.stats["total_ingested"] += inserted_count
             duration = (datetime.now() - start_time).total_seconds()
 
-            return IngestResult(
+            result = IngestResult(
                 success=failed_count == 0,
                 inserted_count=inserted_count,
                 failed_count=failed_count,
                 duration=duration,
                 errors=errors if errors else None
             ).dict()
+
+            # Add status/ingested for test compatibility
+            result["status"] = "success" if failed_count == 0 else "partial_failure"
+            result["ingested"] = inserted_count
+            return result
 
         except Exception as e:
             duration = (datetime.now() - start_time).total_seconds()

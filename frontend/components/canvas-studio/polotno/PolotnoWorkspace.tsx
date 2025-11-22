@@ -38,9 +38,9 @@ export function PolotnoWorkspace({ apiKey }: PolotnoWorkspaceProps) {
       showCredit: true, // Free version requirement
     });
 
-    // 기본 페이지 추가
+    // Instagram 1:1 페이지 추가 (SNS 광고용)
     store.addPage({
-      width: 1920,
+      width: 1080,
       height: 1080,
     });
 

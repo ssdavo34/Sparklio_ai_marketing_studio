@@ -162,7 +162,7 @@ async def test_embedder_create_embedding():
         task="embed_text",
         payload={
             "text": "마케팅 콘텐츠 생성 플랫폼",
-            "model": "openai_small"
+            "model": "openai_text_embedding_3_small"
         }
     )
 
@@ -317,11 +317,12 @@ async def test_performance_analyzer_analyze_campaign():
     agent = PerformanceAnalyzerAgent()
 
     request = AgentRequest(
-        task="analyze",
+        task="performance",
         payload={
             "campaign_id": "camp_001",
-            "metrics": ["impressions", "clicks", "conversions"],
-            "time_range": "7d"
+            "platform": "instagram",
+            "period": {"start": "2025-11-15", "end": "2025-11-22"},
+            "metrics": ["impression", "click", "conversion"]
         }
     )
 
@@ -367,9 +368,11 @@ async def test_self_learning_learn_from_feedback():
     agent = SelfLearningAgent()
 
     request = AgentRequest(
-        task="learn",
+        task="record_feedback",
         payload={
-            "feedback_type": "user_rating",
+            "user_id": "user_001",
+            "brand_id": "brand_001",
+            "feedback_type": "rating",
             "content_id": "content_001",
             "rating": 4.5,
             "comments": "좋은 카피였습니다"

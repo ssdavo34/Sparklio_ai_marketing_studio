@@ -302,6 +302,8 @@ class ErrorHandlerAgent(AgentBase):
                         "success": True,
                         "attempts": attempts,
                         "result": "Operation succeeded",
+                        "strategy": "exponential_backoff",
+                        "retry": True,
                         "total_delay": sum(
                             config.initial_delay * (config.backoff_multiplier ** i)
                             for i in range(attempts - 1)
@@ -389,12 +391,17 @@ class ErrorHandlerAgent(AgentBase):
     async def _suggest_fix(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """수정 방법 제안"""
         error_id = payload.get("error_id")
+        error_type = payload.get("error_type")
+        error_message = payload.get("error_message")
 
-        if error_id not in self.error_history:
-            raise ValueError(f"Error not found: {error_id}")
-
-        error_report = self.error_history[error_id]
-        analysis = self.error_analyses.get(error_id)
+        # error_id가 없으면 error_type과 error_message로 제안 생성
+        if error_id and error_id in self.error_history:
+            error_report = self.error_history[error_id]
+            analysis = self.error_analyses.get(error_id)
+        else:
+            # error_id가 없거나 히스토리에 없는 경우, 직접 분석
+            error_report = None
+            analysis = None
 
         suggestions = []
 
@@ -427,9 +434,31 @@ class ErrorHandlerAgent(AgentBase):
                     "필수 필드가 누락되지 않았는지 확인하세요",
                     "데이터 타입이 올바른지 검증하세요"
                 ])
+        elif error_type:
+            # error_id가 없고 error_type만 있는 경우, 타입 기반 제안
+            if "API" in error_type or "Key" in error_type:
+                suggestions.extend([
+                    "API 키가 유효한지 확인하세요",
+                    "환경 변수 설정을 점검하세요",
+                    "API 키 권한을 확인하세요"
+                ])
+            elif "Timeout" in error_type or "Network" in error_type:
+                suggestions.extend([
+                    "네트워크 연결을 확인하세요",
+                    "타임아웃 설정을 늘려보세요",
+                    "재시도 로직을 추가하세요"
+                ])
+            elif "Validation" in error_type or "Invalid" in error_type:
+                suggestions.extend([
+                    "입력 데이터 형식을 확인하세요",
+                    "필수 필드가 모두 제공되었는지 확인하세요",
+                    "데이터 타입을 검증하세요"
+                ])
+            else:
+                suggestions.append("에러 로그를 확인하고 스택 트레이스를 분석하세요")
 
         # 과거 유사 에러의 성공적인 복구 방법
-        similar_errors = self._find_similar_errors(error_report)
+        similar_errors = self._find_similar_errors(error_report) if error_report else []
         for similar_id in similar_errors:
             successful_recoveries = [
                 attempt for attempt in self.recovery_attempts.get(similar_id, [])
@@ -444,6 +473,7 @@ class ErrorHandlerAgent(AgentBase):
         return {
             "error_id": error_id,
             "suggestions": suggestions[:5],  # 상위 5개
+            "fix": suggestions[0] if suggestions else "에러 로그를 확인하세요",
             "similar_errors_found": len(similar_errors),
             "documentation_links": self._get_documentation_links(analysis) if analysis else []
         }

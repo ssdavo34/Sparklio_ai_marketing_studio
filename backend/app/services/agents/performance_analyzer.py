@@ -228,7 +228,7 @@ class PerformanceAnalyzerAgent(AgentBase):
 
             return AgentResponse(
                 agent=self.name,
-                task=task.value if hasattr(task, 'value') else task,
+                task=analysis_type.value,
                 outputs=[AgentOutput(type="json", name="result", value=result)],
                 usage={},
                 meta={
@@ -298,7 +298,7 @@ class PerformanceAnalyzerAgent(AgentBase):
         # 개선 제안
         recommendations = self._generate_recommendations(metrics)
 
-        return PerformanceReport(
+        report = PerformanceReport(
             platform=input_data.platform.value,
             period=input_data.period,
             metrics=metrics,
@@ -307,6 +307,12 @@ class PerformanceAnalyzerAgent(AgentBase):
             insights=insights,
             recommendations=recommendations
         ).dict()
+
+        # Add "analysis" key for test compatibility
+        return {
+            "analysis": report,
+            **report  # Include all report fields at top level too
+        }
 
     async def _analyze_ab_test(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """A/B 테스트 분석"""
