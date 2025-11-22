@@ -24,16 +24,16 @@ export function RightDock() {
   const polotnoStore = useCanvasStore((state) => state.polotnoStore);
   const [, forceUpdate] = useState({});
 
-  // Force re-render when store changes
+  // Force re-render when selection changes
   useEffect(() => {
     if (!polotnoStore) return;
 
-    const handleUpdate = () => forceUpdate({});
-    polotnoStore.on('change', handleUpdate);
+    // Poll for changes every 100ms
+    const interval = setInterval(() => {
+      forceUpdate({});
+    }, 100);
 
-    return () => {
-      polotnoStore.off('change', handleUpdate);
-    };
+    return () => clearInterval(interval);
   }, [polotnoStore]);
 
   const selectedElements = polotnoStore?.selectedElements || [];
@@ -252,16 +252,16 @@ function LayersTab() {
   const polotnoStore = useCanvasStore((state) => state.polotnoStore);
   const [, forceUpdate] = useState({});
 
-  // Force re-render when store changes
+  // Force re-render when layers change
   useEffect(() => {
     if (!polotnoStore) return;
 
-    const handleUpdate = () => forceUpdate({});
-    polotnoStore.on('change', handleUpdate);
+    // Poll for changes every 100ms
+    const interval = setInterval(() => {
+      forceUpdate({});
+    }, 100);
 
-    return () => {
-      polotnoStore.off('change', handleUpdate);
-    };
+    return () => clearInterval(interval);
   }, [polotnoStore]);
 
   const activePage = polotnoStore?.activePage;
