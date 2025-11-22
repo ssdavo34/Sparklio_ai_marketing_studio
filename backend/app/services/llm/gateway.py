@@ -339,6 +339,7 @@ class LLMGateway:
 2. **구체성**: 추상적 표현보다 구체적 수치와 혜택 강조
 3. **차별점 부각**: 경쟁 제품 대비 독보적 가치 제안
 4. **행동 유도**: 명확하고 긴급감 있는 CTA
+5. **간결성**: Canvas 1080x1080 크기에 최적화된 짧고 임팩트 있는 텍스트
 
 ## 엄격한 규칙
 🔴 모든 텍스트는 한국어로만 작성 (다른 언어 사용 금지)
@@ -346,13 +347,22 @@ class LLMGateway:
 🔴 사용자가 제공한 각 특징을 bullets에 매력적으로 변환하여 포함
 🔴 고정된 예시 절대 사용 금지 (매번 새로운 콘텐츠 생성)
 
+## ⚠️ 텍스트 길이 제약 (Canvas 최적화 - 필수 준수)
+🔴 **Headline**: 최대 20자 (공백 포함)
+🔴 **Subheadline**: 최대 30자 (선택적 - 없어도 됨)
+🔴 **Body**: 최대 80자 (2-3문장으로 구성)
+🔴 **Bullets**: 최대 3개, 각 불릿당 최대 20자
+🔴 **CTA**: 최대 10자
+
+이 제약사항을 초과하면 Canvas에서 텍스트가 잘리므로 반드시 준수하세요!
+
 ## JSON 출력 형식
 {
-  "headline": "제품명 그대로 + 핵심 가치 (10자 이내)",
-  "subheadline": "구매 이유를 한 문장으로 (20자 이내)",
-  "body": "AIDA 모델 적용한 본문 (100-150자)",
-  "bullets": ["혜택 중심 특징1 (30자)", "특징2", "특징3"],
-  "cta": "행동 유도 문구 (10-15자)"
+  "headline": "제품명 + 핵심 가치 (최대 20자)",
+  "subheadline": "구매 이유 (최대 30자, 선택)",
+  "body": "본문 (최대 80자)",
+  "bullets": ["특징1 (최대 20자)", "특징2 (최대 20자)", "특징3 (최대 20자)"],
+  "cta": "행동 유도 (최대 10자)"
 }
 
 ## 우수 사례 (참고용 - 복사 금지)
@@ -479,17 +489,25 @@ class LLMGateway:
 2. **긴급성**: 지금 행동해야 하는 이유
 3. **신뢰 구축**: 사회적 증거, 수치
 4. **CTA 최적화**: 명확한 다음 행동
+5. **간결성**: Canvas 1080x1080 크기에 최적화된 짧고 임팩트 있는 텍스트
 
 ## 규칙
 🔴 모든 텍스트는 한국어로만 작성
 🔴 과장 금지, 검증 가능한 내용만
 🔴 법적 리스크 회피 (절대, 최고 등 최상급 표현 주의)
 
+## ⚠️ 텍스트 길이 제약 (Canvas 최적화 - 필수 준수)
+🔴 **Headline**: 최대 20자 (공백 포함)
+🔴 **Body**: 최대 80자 (2-3문장으로 구성)
+🔴 **CTA**: 최대 10자
+
+이 제약사항을 초과하면 Canvas에서 텍스트가 잘리므로 반드시 준수하세요!
+
 ## JSON 출력 형식
 {
-  "headline": "광고 헤드라인 (15자 이내)",
-  "body": "광고 본문 (50-100자)",
-  "cta": "행동 유도 (10자 이내)",
+  "headline": "광고 헤드라인 (최대 20자)",
+  "body": "광고 본문 (최대 80자)",
+  "cta": "행동 유도 (최대 10자)",
   "targeting_tip": "타겟팅 제안 (연령, 관심사 등)"
 }"""
             },
@@ -900,30 +918,39 @@ class LLMGateway:
 
 ## 이미지 생성 원칙
 1. **제품 중심**: 제품이 주인공
-2. **깔끔한 배경**: 주의 분산 최소화
+2. **깔끔한 배경**: 주의 분산 최소화 (텍스트 가독성 우선)
 3. **전문적 라이팅**: 그림자와 하이라이트 균형
 4. **고품질**: 선명하고 디테일한
+5. **Canvas 최적화**: 3:2 비율 (600x400px), 상단 이미지 + 하단 텍스트 레이아웃
 
-## 스타일 가이드
-- **minimal**: 흰 배경, 클린, 그림자 최소
-- **luxury**: 검은/골드 배경, 극적 조명
-- **lifestyle**: 실생활 컨텍스트, 자연광
-- **studio**: 전문 스튜디오 샷, 멀티 앵글
+## ⚠️ Canvas 통합을 위한 필수 가이드라인
+🔴 **배경**: 반드시 단색 또는 미세한 그라디언트 (흰색, 밝은 회색, 크림색 권장)
+🔴 **복잡한 배경 금지**: 패턴, 질감, 어두운 배경 사용 금지 (텍스트 가독성 저해)
+🔴 **비율**: 3:2 (가로:세로), 가로 중심 구도
+🔴 **제품 배치**: 중앙 또는 상단 배치 (하단은 텍스트 공간)
+🔴 **여백**: 충분한 여백으로 텍스트 오버레이 공간 확보
 
-## 프롬프트 구조
-product photography, [제품명], [스타일], professional lighting, high quality, 8K, studio shot, commercial photography
+## 스타일 가이드 (Canvas 최적화)
+- **minimal** (권장): 흰색/밝은 회색 배경, 클린, 그림자 최소, 텍스트 공간 확보
+- **studio** (권장): 전문 스튜디오 샷, 단색 배경, 중앙 구도
+- **lifestyle** (주의): 배경이 너무 복잡하지 않도록, 텍스트 가독성 우선
+- **luxury** (비권장): 어두운 배경은 텍스트 가독성 저하로 Canvas에 부적합
+
+## 프롬프트 구조 (Canvas 최적화)
+Professional product photography of [제품명], centered composition, studio lighting, white to light gray gradient background, clean and minimal, high quality, 8k resolution, commercial advertising style, 3:2 aspect ratio
 
 ## 규칙
 🔴 제품 특징을 시각적으로 강조
 🔴 브랜드 정체성 반영
 🔴 타겟 고객 취향 고려
+🔴 **텍스트 가독성 최우선**: 배경은 항상 밝고 단순하게
 
 ## JSON 출력 형식
 {
-  "image_prompt": "Stable Diffusion 프롬프트 (영어)",
-  "negative_prompt": "제외할 요소들",
-  "style_notes": "스타일 설명 (한국어)",
-  "composition": "구도 설명"
+  "image_prompt": "Professional product photography of [제품명], centered composition, studio lighting, white to light gray gradient background, high quality, 8k, commercial style (영어)",
+  "negative_prompt": "busy background, dark background, patterns, textures, complex elements, cluttered (복잡한 배경 제외)",
+  "style_notes": "단순하고 밝은 배경으로 텍스트 가독성 확보 (한국어)",
+  "composition": "중앙 배치, 하단 텍스트 공간 확보"
 }""",
                 "brand_logo": """당신은 로고 디자인 전문가입니다.
 
