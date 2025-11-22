@@ -19,6 +19,10 @@
 
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
+import type { CanvasTemplate, PlatformType } from '@/types/canvas-templates';
+import { getDefaultTemplate, getTemplateById } from '@/types/canvas-templates';
+import type { ColorTheme, ThemeType } from '@/types/color-themes';
+import { getDefaultTheme, getThemeById, generateGradientSVG } from '@/types/color-themes';
 
 // ============================================================================
 // 상태 인터페이스
@@ -44,6 +48,12 @@ export interface CanvasState {
   // Polotno Store Instance (v3.1에서 Fabric.js → Polotno로 변경)
   polotnoStore: any | null; // polotno Store
 
+  // Canvas Template
+  currentTemplate: CanvasTemplate;
+
+  // Color Theme
+  currentTheme: ColorTheme;
+
   // Actions
   setZoom: (zoom: number) => void;
   zoomIn: () => void;
@@ -60,6 +70,12 @@ export interface CanvasState {
   toggleGuidelines: () => void;
 
   setPolotnoStore: (store: any) => void;
+
+  setTemplate: (templateId: PlatformType) => void;
+  resizeCanvas: (width: number, height: number) => void;
+
+  setTheme: (themeId: ThemeType) => void;
+  applyThemeToCanvas: (theme: ColorTheme) => void;
 }
 
 // ============================================================================
@@ -95,6 +111,9 @@ export const useCanvasStore = create<CanvasState>()(
       showGuidelines: true,
 
       polotnoStore: null,
+
+      currentTemplate: getDefaultTemplate(),
+      currentTheme: getDefaultTheme(),
 
       // ========================================
       // Zoom Actions
@@ -220,6 +239,118 @@ export const useCanvasStore = create<CanvasState>()(
        */
       setPolotnoStore: (store) => {
         set({ polotnoStore: store });
+      },
+
+      // ========================================
+      // Template Actions
+      // ========================================
+
+      /**
+       * 템플릿 변경
+       * - 캔버스 크기 자동 조정
+       */
+      setTemplate: (templateId) => {
+        const template = getTemplateById(templateId);
+        set({ currentTemplate: template });
+
+        // Polotno Store의 페이지 크기 변경
+        const { polotnoStore } = get();
+        if (polotnoStore && polotnoStore.pages[0]) {
+          polotnoStore.pages[0].set({
+            width: template.width,
+            height: template.height,
+          });
+        }
+      },
+
+      /**
+       * 캔버스 크기 직접 조정
+       * - 커스텀 크기 설정 시 사용
+       */
+      resizeCanvas: (width, height) => {
+        const { polotnoStore } = get();
+        if (polotnoStore && polotnoStore.pages[0]) {
+          polotnoStore.pages[0].set({
+            width,
+            height,
+          });
+
+          // currentTemplate 업데이트 (커스텀으로)
+          set({
+            currentTemplate: {
+              id: 'custom',
+              name: '사용자 정의',
+              description: `${width}x${height}px`,
+              width,
+              height,
+              aspectRatio: `${width}:${height}`,
+              icon: '⚙️',
+            },
+          });
+        }
+      },
+
+      // ========================================
+      // Theme Actions
+      // ========================================
+
+      /**
+       * 테마 변경
+       * - 캔버스 배경 색상 자동 변경
+       */
+      setTheme: (themeId) => {
+        const theme = getThemeById(themeId);
+        set({ currentTheme: theme });
+        get().applyThemeToCanvas(theme);
+      },
+
+      /**
+       * 테마를 캔버스에 적용
+       * - 기존 배경 요소 제거 후 새 테마 적용
+       */
+      applyThemeToCanvas: (theme) => {
+        const { polotnoStore } = get();
+        if (!polotnoStore || !polotnoStore.activePage) return;
+
+        const activePage = polotnoStore.activePage;
+
+        try {
+          // 기존 배경 요소 찾기 (selectable: false인 SVG/Rectangle)
+          const backgroundElements = activePage.children.filter(
+            (el: any) => el.selectable === false && (el.type === 'svg' || el.type === 'rect')
+          );
+
+          // 기존 배경 요소 제거
+          backgroundElements.forEach((el: any) => el.remove());
+
+          // 새 배경 추가
+          const svgContent = generateGradientSVG(theme, activePage.width, activePage.height);
+
+          activePage.addElement({
+            type: 'svg',
+            x: 0,
+            y: 0,
+            width: activePage.width,
+            height: activePage.height,
+            src: `data:image/svg+xml;base64,${btoa(svgContent)}`,
+            selectable: false,
+            alwaysOnTop: false,
+          });
+
+          // 배경을 맨 뒤로 보내기 (Polotno API 사용)
+          const newBackground = activePage.children.find(
+            (el: any) => el.selectable === false && el.type === 'svg'
+          );
+          if (newBackground && typeof newBackground.moveDown === 'function') {
+            // moveDown을 여러 번 호출하여 맨 뒤로 보내기
+            const childrenCount = activePage.children.length;
+            for (let i = 0; i < childrenCount; i++) {
+              newBackground.moveDown();
+            }
+          }
+        } catch (error) {
+          console.error('[applyThemeToCanvas] Error applying theme:', error);
+        }
       },
     }),
     {

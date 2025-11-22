@@ -29,6 +29,7 @@ export function PolotnoWorkspace({ apiKey }: PolotnoWorkspaceProps) {
   const storeRef = useRef<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const setPolotnoStore = useCanvasStore((state) => state.setPolotnoStore);
+  const currentTemplate = useCanvasStore((state) => state.currentTemplate);
   const isViewMode = useLayoutStore((state) => state.isViewMode);
 
   useEffect(() => {
@@ -38,10 +39,10 @@ export function PolotnoWorkspace({ apiKey }: PolotnoWorkspaceProps) {
       showCredit: true, // Free version requirement
     });
 
-    // Instagram 1:1 페이지 추가 (SNS 광고용)
+    // 현재 템플릿 크기로 페이지 추가
     store.addPage({
-      width: 1080,
-      height: 1080,
+      width: currentTemplate.width,
+      height: currentTemplate.height,
     });
 
     storeRef.current = store;

@@ -114,3 +114,12 @@ export interface Project {
   created_at: string;
   updated_at: string;
 }
+
+// Re-export generator types
+export * from './generator';
+
+// Re-export canvas template types
+export * from './canvas-templates';
+
+// Re-export color theme types
+export * from './color-themes';

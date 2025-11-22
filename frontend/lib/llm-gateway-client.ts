@@ -246,9 +246,11 @@ export async function sendChatMessage(params: {
   messageHistory?: Message[];
   agent?: string;
   task?: string;
+  language?: string;
 }): Promise<{ content: string; usage?: any }> {
   const agent = params.agent || 'copywriter';
   const task = params.task || 'chat';
+  const language = params.language || 'ko'; // 기본값: 한국어
 
   const response = await defaultClient.executeAgent(
     agent,
@@ -256,6 +258,7 @@ export async function sendChatMessage(params: {
     {
       user_input: params.userInput,
       messages: params.messageHistory,
+      language: language, // 응답 언어 명시
     }
   );
 

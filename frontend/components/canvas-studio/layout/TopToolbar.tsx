@@ -19,6 +19,8 @@ import { useCanvasStore } from '../stores/useCanvasStore';
 import { Layout, Maximize2, MessageSquare, ChevronDown, Eye, Edit3, Download } from 'lucide-react';
 import type { StudioMode, ViewMode } from '../stores/types';
 import { useState, useEffect, useRef } from 'react';
+import { TemplateSelector } from './TemplateSelector';
+import { ThemeSelector } from './ThemeSelector';
 
 export function TopToolbar() {
   const currentMode = useEditorStore((state) => state.currentMode);
@@ -173,6 +175,14 @@ export function TopToolbar() {
             </>
           )}
         </button>
+
+        <div className="h-6 w-px bg-gray-300" />
+
+        {/* Template Selector */}
+        <TemplateSelector />
+
+        {/* Theme Selector */}
+        <ThemeSelector />
 
         <div className="h-6 w-px bg-gray-300" />
 

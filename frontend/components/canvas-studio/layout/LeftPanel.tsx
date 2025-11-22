@@ -19,15 +19,16 @@
 'use client';
 
 import { useEditorStore } from '../stores';
+import { PageManager } from './PageManager';
 
 export function LeftPanel() {
   const currentMode = useEditorStore((state) => state.currentMode);
 
   return (
-    <aside className="flex w-[280px] flex-col border-r border-neutral-800 bg-neutral-900">
+    <aside className="flex w-[280px] flex-col border-r border-gray-200 bg-white">
       {/* 패널 헤더 */}
-      <div className="flex h-9 items-center px-4 border-b border-neutral-800">
-        <span className="text-xs font-medium text-neutral-400 uppercase tracking-wider">
+      <div className="flex h-9 items-center px-4 border-b border-gray-200">
+        <span className="text-xs font-medium text-gray-600 uppercase tracking-wider">
           {currentMode === 'planning' && 'Concept Board'}
           {currentMode === 'editor' && 'Canvas Studio'}
           {currentMode === 'video' && 'Timeline Studio'}
@@ -35,13 +36,18 @@ export function LeftPanel() {
         </span>
       </div>
 
-      {/* 패널 컨텐츠 (스크롤 가능) */}
-      <div className="flex-1 overflow-y-auto p-4">
-        {/* TODO: 각 모드별 서브 패널 컴포넌트 구현 (Phase 2) */}
-        <div className="text-sm text-neutral-500">
-          <p className="mb-4">현재 모드: {currentMode}</p>
-          <p>여기에 Pages, Assets, Layers 패널이 들어옵니다.</p>
-        </div>
+      {/* 패널 컨텐츠 */}
+      <div className="flex-1 overflow-hidden">
+        {/* Editor 모드일 때만 PageManager 표시 */}
+        {currentMode === 'editor' && <PageManager />}
+
+        {/* 다른 모드의 경우 */}
+        {currentMode !== 'editor' && (
+          <div className="p-4 text-sm text-gray-500">
+            <p className="mb-4">현재 모드: {currentMode}</p>
+            <p>여기에 모드별 패널이 들어옵니다.</p>
+          </div>
+        )}
       </div>
     </aside>
   );

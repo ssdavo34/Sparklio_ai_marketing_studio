@@ -19,6 +19,7 @@ import type { AgentRole, TaskType, ChatConfig, CostMode } from './types/llm';
 import { DEFAULT_CHAT_CONFIG } from './types/llm';
 import { sendChatMessage, generateImage, gatewayClient } from '@/lib/llm-gateway-client';
 import { useCanvasStore } from './useCanvasStore';
+import { getAdLayout, selectBestLayout, type AdLayoutType } from '../utils/ad-layouts';
 
 // ============================================================================
 // Helper Functions - Canvas 요소 추가
@@ -62,39 +63,20 @@ function addTextToCanvas(text: string, yPosition: number = 100) {
 }
 
 /**
- * Canvas에 배경 그라디언트 추가
+ * Canvas에 배경 테마 추가
+ * - useCanvasStore의 현재 테마를 사용
  */
 function addBackgroundToCanvas() {
-  console.log('[addBackgroundToCanvas] Adding gradient background');
+  console.log('[addBackgroundToCanvas] Adding background with current theme');
 
-  const polotnoStore = useCanvasStore.getState().polotnoStore;
-  if (!polotnoStore) return;
+  // useCanvasStore의 applyThemeToCanvas 사용
+  const canvasStore = useCanvasStore.getState();
+  const currentTheme = canvasStore.currentTheme;
 
-  const activePage = polotnoStore.activePage;
-  if (!activePage) return;
-
-  // 보라색 그라디언트 배경 추가 (브랜드 컬러)
-  activePage.addElement({
-    type: 'svg',
-    x: 0,
-    y: 0,
-    width: activePage.width,
-    height: activePage.height,
-    src: `data:image/svg+xml;base64,${btoa(`
-      <svg width="${activePage.width}" height="${activePage.height}" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" style="stop-color:#8B5CF6;stop-opacity:1" />
-            <stop offset="100%" style="stop-color:#6366F1;stop-opacity:1" />
-          </linearGradient>
-        </defs>
-        <rect width="100%" height="100%" fill="url(#grad1)"/>
-      </svg>
-    `)}`,
-    selectable: false,
-  });
-
-  console.log('[addBackgroundToCanvas] Background added successfully');
+  if (canvasStore.applyThemeToCanvas) {
+    canvasStore.applyThemeToCanvas(currentTheme);
+    console.log('[addBackgroundToCanvas] Background added successfully using theme:', currentTheme.name);
+  }
 }
 
 /**
@@ -132,7 +114,75 @@ async function addImageToCanvas(imageUrl: string, productName?: string) {
 }
 
 /**
+ * 장식 도형 추가 (원, 사각형, 선)
+ */
+function addDecorativeShape(
+  page: any,
+  shape: {
+    type: 'circle' | 'square' | 'line';
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    color: string;
+    opacity: number;
+  }
+) {
+  try {
+    if (shape.type === 'circle') {
+      const svgCircle = `
+        <svg width="${shape.width}" height="${shape.height}" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="${shape.width / 2}" cy="${shape.height / 2}" r="${shape.width / 2}" fill="${shape.color}" opacity="${shape.opacity}" />
+        </svg>
+      `;
+      page.addElement({
+        type: 'svg',
+        x: shape.x,
+        y: shape.y,
+        width: shape.width,
+        height: shape.height,
+        src: `data:image/svg+xml;base64,${btoa(svgCircle)}`,
+        selectable: false,
+      });
+    } else if (shape.type === 'square') {
+      const svgSquare = `
+        <svg width="${shape.width}" height="${shape.height}" xmlns="http://www.w3.org/2000/svg">
+          <rect width="100%" height="100%" fill="${shape.color}" opacity="${shape.opacity}" />
+        </svg>
+      `;
+      page.addElement({
+        type: 'svg',
+        x: shape.x,
+        y: shape.y,
+        width: shape.width,
+        height: shape.height,
+        src: `data:image/svg+xml;base64,${btoa(svgSquare)}`,
+        selectable: false,
+      });
+    } else if (shape.type === 'line') {
+      const svgLine = `
+        <svg width="${shape.width}" height="${shape.height}" xmlns="http://www.w3.org/2000/svg">
+          <rect width="100%" height="100%" fill="${shape.color}" opacity="${shape.opacity}" />
+        </svg>
+      `;
+      page.addElement({
+        type: 'svg',
+        x: shape.x,
+        y: shape.y,
+        width: shape.width,
+        height: shape.height,
+        src: `data:image/svg+xml;base64,${btoa(svgLine)}`,
+        selectable: false,
+      });
+    }
+  } catch (error) {
+    console.error('[addDecorativeShape] Error:', error);
+  }
+}
+
+/**
  * AI 응답 파싱: headline, subheadline, body 등을 구분하여 Canvas에 추가
+ * + 프로페셔널한 레이아웃 시스템 적용
  * + 이미지 자동 생성 (제품 이름이 있을 경우)
  */
 async function parseAndAddToCanvas(responseText: string, userMessage?: string) {
@@ -159,6 +209,7 @@ async function parseAndAddToCanvas(responseText: string, userMessage?: string) {
   }
 
   console.log('[parseAndAddToCanvas] Active Page ID:', activePage.id);
+  console.log('[parseAndAddToCanvas] Canvas size:', activePage.width, 'x', activePage.height);
 
   // 배경 추가
   addBackgroundToCanvas();
@@ -173,40 +224,64 @@ async function parseAndAddToCanvas(responseText: string, userMessage?: string) {
       console.log('[parseAndAddToCanvas] ✅ Parsed JSON successfully:', parsed);
 
       // ========================================
+      // 콘텐츠 분석 및 최적 레이아웃 선택
+      // ========================================
+      const contentAnalysis = {
+        hasImage: false,
+        hasBullets: !!(parsed.bullets && Array.isArray(parsed.bullets) && parsed.bullets.length > 0),
+        textLength: (parsed.headline || '').length + (parsed.subheadline || '').length + (parsed.body || '').length,
+      };
+
+      // ========================================
       // AI 이미지 생성 (제품 이름이 있을 경우)
       // ========================================
       let productName = '';
-      let hasImage = false;
+      let generatedImageUrl = '';
 
-      // 제품 이름 추출 (userMessage 또는 headline에서)
+      // 제품 이름 추출 (userMessage에서 정확하게)
       if (userMessage) {
-        // "유아용 카시트 광고 만들어줘" 같은 패턴에서 제품 추출
-        const productMatch = userMessage.match(/(.+?)(?:\s*광고|를|을|에|의)/);
+        // "핸드크림 광고 만들어줘" → "핸드크림"
+        // "갤럭시 S25 광고" → "갤럭시 S25"
+        const productMatch = userMessage.match(/^(.+?)\s*(?:광고|을|를|의|에|만들|생성)/);
         if (productMatch) {
           productName = productMatch[1].trim();
         }
       }
 
-      // headline에서도 제품 이름 추출 시도
-      if (!productName && parsed.headline) {
-        productName = parsed.headline.split(' ')[0]; // 첫 단어를 제품으로 간주
-      }
-
-      console.log('[parseAndAddToCanvas] Extracted product name:', productName);
+      console.log('[parseAndAddToCanvas] 📝 Extracted product name:', productName);
 
       // 제품 이름이 있으면 이미지 생성
       if (productName) {
         try {
           console.log('[parseAndAddToCanvas] 🎨 Generating product image for:', productName);
+
+          // 이미지 프롬프트를 한국어 제품명으로 더 정확하게
           const imageUrl = await generateImage({
-            prompt: `Professional product photography of ${productName}, high quality, studio lighting, white background`,
+            prompt: `${productName} 제품 사진, 전문 상업 광고용, 고품질, 스튜디오 조명, 깨끗한 배경, 상품 디테일 강조`,
             brandId: undefined, // TODO: 브랜드 ID 연동
           });
 
           if (imageUrl) {
             console.log('[parseAndAddToCanvas] ✅ Image generated:', imageUrl);
-            await addImageToCanvas(imageUrl, productName);
-            hasImage = true;
+
+            // CORS 문제 해결: 이미지를 Base64로 변환
+            try {
+              const response = await fetch(imageUrl);
+              const blob = await response.blob();
+              const base64 = await new Promise<string>((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result as string);
+                reader.readAsDataURL(blob);
+              });
+              generatedImageUrl = base64;
+              contentAnalysis.hasImage = true;
+              console.log('[parseAndAddToCanvas] ✅ Image converted to Base64');
+            } catch (fetchError) {
+              console.error('[parseAndAddToCanvas] ⚠️ Failed to convert image to Base64:', fetchError);
+              // Base64 변환 실패해도 원본 URL 사용
+              generatedImageUrl = imageUrl;
+              contentAnalysis.hasImage = true;
+            }
           }
         } catch (imageError) {
           console.error('[parseAndAddToCanvas] ⚠️ Image generation failed:', imageError);
@@ -214,159 +289,188 @@ async function parseAndAddToCanvas(responseText: string, userMessage?: string) {
         }
       }
 
-      // 텍스트 시작 위치 조정 (이미지가 있으면 아래쪽부터 시작)
-      let yPos = hasImage ? 480 : 120;
-      const textWidth = 880; // Canvas 너비에 맞게 조정 (1080px - 좌우 여백 100px씩)
-      const textX = (activePage.width - textWidth) / 2; // 중앙 정렬
+      // ========================================
+      // 최적 레이아웃 선택 및 적용
+      // ========================================
+      const layoutType = selectBestLayout(contentAnalysis);
+      console.log('[parseAndAddToCanvas] 📐 Selected layout:', layoutType);
+
+      const layout = getAdLayout({
+        canvasWidth: activePage.width,
+        canvasHeight: activePage.height,
+        layoutType,
+      });
 
       // ========================================
-      // Format 1: {headline, subheadline, body, bullets, cta}
+      // 장식 도형 추가
       // ========================================
-
-      // headline
-      if (parsed.headline) {
-        console.log('[parseAndAddToCanvas] Adding headline:', parsed.headline);
-        activePage.addElement({
-          type: 'text',
-          x: textX,
-          y: yPos,
-          width: textWidth,
-          height: 80,
-          fontSize: 48,
-          fontFamily: 'Noto Sans KR',
-          fontWeight: 'bold',
-          text: parsed.headline,
-          fill: '#FFFFFF',
-          align: 'center',
+      if (layout.decorativeShapes && layout.decorativeShapes.length > 0) {
+        console.log('[parseAndAddToCanvas] 🎨 Adding decorative shapes:', layout.decorativeShapes.length);
+        layout.decorativeShapes.forEach((shape) => {
+          addDecorativeShape(activePage, shape);
         });
-        yPos += 90;
       }
 
-      // subheadline
-      if (parsed.subheadline) {
-        console.log('[parseAndAddToCanvas] Adding subheadline:', parsed.subheadline);
+      // ========================================
+      // 이미지 추가 (레이아웃 기반 위치)
+      // ========================================
+      if (generatedImageUrl && layout.image) {
+        console.log('[parseAndAddToCanvas] 🖼️ Adding image at:', layout.image);
+        activePage.addElement({
+          type: 'image',
+          src: generatedImageUrl,
+          x: layout.image.x,
+          y: layout.image.y,
+          width: layout.image.width,
+          height: layout.image.height,
+        });
+      }
+
+      // ========================================
+      // 텍스트 요소 추가 (레이아웃 기반 위치 및 스타일)
+      // ========================================
+
+      // Headline
+      if (parsed.headline || parsed.post) {
+        const headlineText = parsed.headline || parsed.post;
+        console.log('[parseAndAddToCanvas] 📝 Adding headline:', headlineText);
         activePage.addElement({
           type: 'text',
-          x: textX,
-          y: yPos,
-          width: textWidth,
-          height: 60,
-          fontSize: 24,
+          x: layout.headline.x,
+          y: layout.headline.y,
+          width: layout.headline.width,
+          height: layout.headline.height,
+          fontSize: layout.headline.fontSize,
+          fontFamily: 'Noto Sans KR',
+          fontWeight: layout.headline.fontWeight,
+          text: headlineText,
+          fill: '#FFFFFF',
+          align: layout.headline.align,
+        });
+      }
+
+      // Subheadline
+      if (parsed.subheadline) {
+        console.log('[parseAndAddToCanvas] 📝 Adding subheadline:', parsed.subheadline);
+        activePage.addElement({
+          type: 'text',
+          x: layout.subheadline.x,
+          y: layout.subheadline.y,
+          width: layout.subheadline.width,
+          height: layout.subheadline.height,
+          fontSize: layout.subheadline.fontSize,
           fontFamily: 'Noto Sans KR',
           text: parsed.subheadline,
           fill: '#F3F4F6',
-          align: 'center',
+          align: layout.subheadline.align,
         });
-        yPos += 70;
       }
 
-      // body
-      if (parsed.body) {
-        console.log('[parseAndAddToCanvas] Adding body:', parsed.body.substring(0, 50) + '...');
+      // Body
+      if (parsed.body && layout.body) {
+        console.log('[parseAndAddToCanvas] 📝 Adding body:', parsed.body.substring(0, 50) + '...');
         activePage.addElement({
           type: 'text',
-          x: textX,
-          y: yPos,
-          width: textWidth,
-          height: 150,
-          fontSize: 18,
+          x: layout.body.x,
+          y: layout.body.y,
+          width: layout.body.width,
+          height: layout.body.height,
+          fontSize: layout.body.fontSize,
           fontFamily: 'Noto Sans KR',
           text: parsed.body,
           fill: '#FFFFFF',
-          align: 'center',
+          align: layout.body.align,
         });
-        yPos += 160;
       }
 
-      // bullets
-      if (parsed.bullets && Array.isArray(parsed.bullets)) {
-        console.log('[parseAndAddToCanvas] Adding bullets:', parsed.bullets.length, 'items');
+      // Bullets
+      if (parsed.bullets && Array.isArray(parsed.bullets) && layout.bullets) {
+        console.log('[parseAndAddToCanvas] 📝 Adding bullets:', parsed.bullets.length, 'items');
         const bulletText = parsed.bullets.map((b: string) => `• ${b}`).join('\n');
         activePage.addElement({
           type: 'text',
-          x: textX,
-          y: yPos,
-          width: textWidth,
-          height: 120,
-          fontSize: 16,
+          x: layout.bullets.x,
+          y: layout.bullets.y,
+          width: layout.bullets.width,
+          height: layout.bullets.height,
+          fontSize: layout.bullets.fontSize,
           fontFamily: 'Noto Sans KR',
           text: bulletText,
           fill: '#F9FAFB',
-          align: 'center',
+          align: layout.bullets.align,
         });
-        yPos += 130;
       }
 
-      // ========================================
-      // Format 2: {post, hashtags, cta} (SNS 포맷)
-      // ========================================
-
-      // post - 메인 콘텐츠 (headline으로 처리)
-      if (parsed.post) {
-        console.log('[parseAndAddToCanvas] Adding post (SNS format):', parsed.post.substring(0, 50) + '...');
+      // Hashtags (SNS 포맷)
+      if (parsed.hashtags && layout.subheadline) {
+        console.log('[parseAndAddToCanvas] #️⃣ Adding hashtags:', parsed.hashtags);
+        const hashtagText = Array.isArray(parsed.hashtags)
+          ? parsed.hashtags.join(' ')
+          : parsed.hashtags;
         activePage.addElement({
           type: 'text',
-          x: 100,
-          y: yPos,
-          width: 800,
-          height: 150,
-          fontSize: 42,
-          fontFamily: 'Noto Sans KR',
-          fontWeight: 'bold',
-          text: parsed.post,
-          fill: '#FFFFFF',
-          align: 'center',
-        });
-        yPos += 200;
-      }
-
-      // hashtags - 해시태그
-      if (parsed.hashtags) {
-        console.log('[parseAndAddToCanvas] Adding hashtags:', parsed.hashtags);
-        activePage.addElement({
-          type: 'text',
-          x: 100,
-          y: yPos,
-          width: 800,
+          x: layout.subheadline.x,
+          y: layout.subheadline.y + layout.subheadline.height + 20,
+          width: layout.subheadline.width,
           height: 60,
-          fontSize: 22,
+          fontSize: Math.min(layout.subheadline.fontSize * 0.8, 22),
           fontFamily: 'Noto Sans KR',
-          text: parsed.hashtags,
+          text: hashtagText,
           fill: '#C7D2FE', // light purple
           fontWeight: 'normal',
-          align: 'center',
+          align: layout.subheadline.align,
         });
-        yPos += 100;
       }
 
-      // cta - Call to Action (양쪽 포맷 공통) - 둥근 모서리 버튼
+      // ========================================
+      // CTA Button (프로페셔널한 스타일)
+      // ========================================
       if (parsed.cta) {
-        console.log('[parseAndAddToCanvas] Adding CTA:', parsed.cta);
+        console.log('[parseAndAddToCanvas] 🎯 Adding CTA:', parsed.cta);
 
-        // CTA 배경 (둥근 사각형)
-        const ctaX = (activePage.width - 500) / 2;
+        const ctaStyle = layout.cta.buttonStyle;
+        let borderRadius = 0;
+        if (ctaStyle === 'pill') borderRadius = layout.cta.height / 2;
+        else if (ctaStyle === 'rounded') borderRadius = 12;
+
+        // CTA 배경 (그림자 효과 포함)
+        const ctaSvg = `
+          <svg width="${layout.cta.width}" height="${layout.cta.height}" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
+                <feOffset dx="0" dy="4" result="offsetblur"/>
+                <feComponentTransfer>
+                  <feFuncA type="linear" slope="0.3"/>
+                </feComponentTransfer>
+                <feMerge>
+                  <feMergeNode/>
+                  <feMergeNode in="SourceGraphic"/>
+                </feMerge>
+              </filter>
+            </defs>
+            <rect width="100%" height="100%" rx="${borderRadius}" ry="${borderRadius}" fill="#FFFFFF" filter="url(#shadow)" />
+          </svg>
+        `;
+
         activePage.addElement({
           type: 'svg',
-          x: ctaX,
-          y: yPos,
-          width: 500,
-          height: 70,
-          src: `data:image/svg+xml;base64,${btoa(`
-            <svg width="500" height="70" xmlns="http://www.w3.org/2000/svg">
-              <rect width="100%" height="100%" rx="35" ry="35" fill="#FFFFFF" />
-            </svg>
-          `)}`,
+          x: layout.cta.x,
+          y: layout.cta.y,
+          width: layout.cta.width,
+          height: layout.cta.height,
+          src: `data:image/svg+xml;base64,${btoa(ctaSvg)}`,
           selectable: false,
         });
 
         // CTA 텍스트
         activePage.addElement({
           type: 'text',
-          x: ctaX,
-          y: yPos + 10,
-          width: 500,
-          height: 50,
-          fontSize: 28,
+          x: layout.cta.x,
+          y: layout.cta.y + (layout.cta.height - layout.cta.fontSize) / 2,
+          width: layout.cta.width,
+          height: layout.cta.fontSize + 10,
+          fontSize: layout.cta.fontSize,
           fontFamily: 'Noto Sans KR',
           text: parsed.cta,
           fill: '#6366F1',
@@ -375,7 +479,7 @@ async function parseAndAddToCanvas(responseText: string, userMessage?: string) {
         });
       }
 
-      console.log('[parseAndAddToCanvas] ✅ JSON parsing complete');
+      console.log('[parseAndAddToCanvas] ✅ Professional layout applied successfully');
       return true;
     }
 
@@ -633,12 +737,13 @@ export const useChatStore = create<ChatState>()(
 
             const agent = agentMap[chatConfig.role] || 'copywriter';
 
-            // Call backend Agent API
+            // Call backend Agent API with Korean language
             const response = await sendChatMessage({
               userInput: content,
               messageHistory,
               agent,
               task: chatConfig.task,
+              language: 'ko', // 한국어로 응답 받기
             });
 
             // AI 응답 추가
