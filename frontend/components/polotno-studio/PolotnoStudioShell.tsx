@@ -91,9 +91,9 @@ export function PolotnoStudioShell() {
             </div>
 
             {/* Main Editor Area */}
-            <div className="flex-1 flex relative">
+            <div className="flex-1 flex relative h-screen">
                 {/* Polotno Editor */}
-                <div className="flex-1">
+                <div className="flex-1 h-full">
                     <PolotnoEditorWrapper onStoreReady={handleStoreReady} />
                 </div>
 

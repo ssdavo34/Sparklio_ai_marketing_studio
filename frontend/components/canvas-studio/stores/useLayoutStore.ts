@@ -147,10 +147,12 @@ export const useLayoutStore = create<LayoutState>()(
       }),
       {
         name: 'canvas-studio-layout', // localStorage key
-        // 일부 상태만 저장 (패널 너비만)
+        // 패널 너비와 접기 상태 저장
         partialize: (state) => ({
           leftPanelWidth: state.leftPanelWidth,
           rightDockWidth: state.rightDockWidth,
+          isLeftPanelCollapsed: state.isLeftPanelCollapsed,
+          isRightDockCollapsed: state.isRightDockCollapsed,
         }),
       }
     ),

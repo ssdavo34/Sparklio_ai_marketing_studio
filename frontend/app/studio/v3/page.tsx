@@ -10,12 +10,17 @@
 
 'use client';
 
+import dynamic from 'next/dynamic';
 import { StudioLayout } from '@/components/canvas-studio/layout/StudioLayout';
 import { TopToolbar } from '@/components/canvas-studio/layout/TopToolbar';
 import { ActivityBar } from '@/components/canvas-studio/layout/ActivityBar';
 import { LeftPanel } from '@/components/canvas-studio/panels/left/LeftPanel';
-import { PolotnoWorkspace } from '@/components/canvas-studio/polotno/PolotnoWorkspace';
 import { RightDock } from '@/components/canvas-studio/panels/right/RightDock';
+
+const PolotnoWorkspace = dynamic(
+  () => import('@/components/canvas-studio/polotno/PolotnoWorkspace').then((mod) => mod.PolotnoWorkspace),
+  { ssr: false }
+);
 
 const POLOTNO_API_KEY = 'ng2ylHnHO2NscxqyUEWy';
 

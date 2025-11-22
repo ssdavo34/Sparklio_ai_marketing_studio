@@ -48,6 +48,11 @@ export function PolotnoEditorWrapper({ onStoreReady }: PolotnoEditorWrapperProps
     // Check if API key is available from environment
     const envKey = process.env.NEXT_PUBLIC_POLOTNO_API_KEY;
 
+    // 🔴 TEMPORARY DEBUG: Log the actual raw value
+    console.log('[DEBUG] process.env.NEXT_PUBLIC_POLOTNO_API_KEY =', envKey);
+    console.log('[DEBUG] typeof =', typeof envKey);
+    console.log('[DEBUG] length =', envKey?.length);
+
     if (envKey && envKey.length > 10) {
       console.log('[PolotnoEditorWrapper] ✅ Using Polotno key from env:', envKey.substring(0, 8) + '...');
       setHasApiKey(true);
@@ -87,7 +92,8 @@ export function PolotnoEditorWrapper({ onStoreReady }: PolotnoEditorWrapperProps
   }
 
   // API key is available, load the actual editor
-  const apiKey = process.env.NEXT_PUBLIC_POLOTNO_API_KEY;
+  // 🔴 TEMPORARY: Hardcode the key to bypass env issue
+  const apiKey = 'ng2ylHnHO2NscxqyUEWy';
   return <PolotnoEditor apiKey={apiKey} onStoreReady={onStoreReady} />;
 }
 
