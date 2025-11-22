@@ -25,8 +25,15 @@ class RedisClient:
     is_connected 플래그로 상태를 확인할 수 있습니다.
     """
 
-    def __init__(self):
-        """Redis 클라이언트 초기화"""
+    def __init__(self, url: Optional[str] = None):
+        """
+        Redis 클라이언트 초기화.
+        - REDIS_URL이 설정되어 있으면 URL 우선 사용
+        - 그렇지 않으면 HOST/PORT/DB/PASSWORD 개별 설정 사용
+
+        Args:
+            url: Redis 연결 URL (옵션, 없으면 settings에서 자동 탐지)
+        """
         self.client = None
         self._connected = False
 
@@ -34,21 +41,43 @@ class RedisClient:
         redis_required = getattr(settings, "REDIS_REQUIRED", False)
 
         try:
-            self.client = redis.Redis(
-                host=settings.REDIS_HOST,
-                port=settings.REDIS_PORT,
-                db=settings.REDIS_DB,
-                decode_responses=True,
-                socket_timeout=5,
-                socket_connect_timeout=5
-            )
+            # REDIS_URL 우선 사용 (redis://:password@host:port/db 형식)
+            redis_url = url or getattr(settings, "REDIS_URL", None)
+
+            if redis_url:
+                # URL 기반 연결 (비밀번호 자동 포함)
+                self.client = redis.Redis.from_url(
+                    redis_url,
+                    decode_responses=True,
+                    socket_timeout=5,
+                    socket_connect_timeout=5
+                )
+                logger.info(f"[RedisClient] Connecting to Redis via URL: {redis_url.split('@')[0]}@***")
+            else:
+                # 개별 파라미터 기반 연결 (REDIS_URL이 없을 때 fallback)
+                redis_kwargs = {
+                    "host": getattr(settings, "REDIS_HOST", "redis"),
+                    "port": getattr(settings, "REDIS_PORT", 6379),
+                    "db": getattr(settings, "REDIS_DB", 0),
+                    "decode_responses": True,
+                    "socket_timeout": 5,
+                    "socket_connect_timeout": 5
+                }
+                # 비밀번호가 있으면 추가
+                redis_password = getattr(settings, "REDIS_PASSWORD", None)
+                if redis_password:
+                    redis_kwargs["password"] = redis_password
+
+                self.client = redis.Redis(**redis_kwargs)
+                logger.info(
+                    f"[RedisClient] Connecting to Redis at "
+                    f"{redis_kwargs['host']}:{redis_kwargs['port']}"
+                )
+
             # 연결 테스트
             self.client.ping()
             self._connected = True
-            logger.info(
-                f"[RedisClient] ✅ Connected to Redis at "
-                f"{settings.REDIS_HOST}:{settings.REDIS_PORT}"
-            )
+            logger.info("[RedisClient] ✅ Connected to Redis successfully")
         except Exception as e:
             logger.warning(f"[RedisClient] ⚠️ Failed to connect to Redis: {e}")
             logger.warning("[RedisClient] Running in NO-REDIS mode. Cache features will be disabled.")

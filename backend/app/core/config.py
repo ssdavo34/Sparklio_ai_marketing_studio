@@ -2,6 +2,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 from typing import Optional, Literal
 import os
+from urllib.parse import quote_plus
 
 class Settings(BaseSettings):
     # Application
@@ -23,6 +24,7 @@ class Settings(BaseSettings):
     REDIS_HOST: str = "100.123.51.5"
     REDIS_PORT: int = 6379
     REDIS_DB: int = 0
+    REDIS_PASSWORD: str = ""
 
     # MinIO
     MINIO_ENDPOINT: str = "100.123.51.5:9000"
@@ -96,11 +98,15 @@ class Settings(BaseSettings):
     # Database URL (computed)
     @property
     def DATABASE_URL(self) -> str:
-        return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        # URL-encode password to handle special characters like @, !, etc.
+        password = quote_plus(self.POSTGRES_PASSWORD)
+        return f"postgresql://{self.POSTGRES_USER}:{password}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
     # Redis URL (computed)
     @property
     def REDIS_URL(self) -> str:
+        if self.REDIS_PASSWORD:
+            return f"redis://:{self.REDIS_PASSWORD}@{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
 
     # 하위 호환성을 위한 대문자 속성 (deprecated)
