@@ -21,6 +21,7 @@ from pydantic import BaseModel, Field, ValidationError
 import asyncio
 import logging
 from collections import defaultdict, deque
+from uuid import uuid4
 
 from app.services.agents.base import AgentBase, AgentRequest, AgentResponse, AgentError
 from app.services.llm import LLMGateway as LLMService
@@ -70,8 +71,8 @@ class ErrorStatus(str, Enum):
 
 class ErrorReport(BaseModel):
     """에러 리포트"""
-    error_id: str = Field(..., description="에러 ID")
-    timestamp: datetime = Field(..., description="발생 시간")
+    error_id: str = Field(default_factory=lambda: str(uuid4()), description="에러 ID")
+    timestamp: datetime = Field(default_factory=datetime.utcnow, description="발생 시간")
     error_type: str = Field(..., description="에러 타입")
     error_message: str = Field(..., description="에러 메시지")
     stacktrace: Optional[str] = Field(None, description="스택 트레이스")
@@ -119,11 +120,7 @@ class ErrorHandlerAgent(AgentBase):
 
     def __init__(self, llm_service: Optional[LLMService] = None):
         super().__init__(
-            agent_id="error_handler",
-            name="Error Handler Agent",
-            description="에러를 감지하고 처리하며 자동 복구를 시도합니다",
-            category="system",
-            llm_service=llm_service
+            llm_gateway=llm_service
         )
 
         # 에러 히스토리
@@ -144,8 +141,15 @@ class ErrorHandlerAgent(AgentBase):
         # 알림 큐
         self.notification_queue: deque = deque(maxlen=100)
 
+    @property
+    def name(self) -> str:
+        """Agent 이름 반환"""
+        return "error_handler"
+
     async def execute(self, request: AgentRequest) -> AgentResponse:
         """에이전트 실행"""
+        from app.services.agents.base import AgentOutput
+
         try:
             task = request.task
 
@@ -162,12 +166,13 @@ class ErrorHandlerAgent(AgentBase):
             else:
                 raise AgentError(f"Unknown task: {request.task}")
 
+            # AgentResponse 형식에 맞게 변경
             return AgentResponse(
-                agent_id=self.agent_id,
-                status="success",
-                result=result,
-                metadata={
-                    "task": task,
+                agent=self.name,
+                task=task,
+                outputs=[AgentOutput(type="json", name="result", value=result)],
+                usage={},
+                meta={
                     "timestamp": datetime.now().isoformat(),
                     "total_errors": len(self.error_history)
                 }
@@ -176,16 +181,26 @@ class ErrorHandlerAgent(AgentBase):
         except ValidationError as e:
             logger.error(f"Validation error: {e}")
             return AgentResponse(
-                agent_id=self.agent_id,
-                status="error",
-                error=f"입력 데이터 검증 실패: {str(e)}"
+                agent=self.name,
+                task=request.task,
+                outputs=[AgentOutput(
+                    type="json", name="error",
+                    value={"error": f"입력 데이터 검증 실패: {str(e)}"}
+                )],
+                usage={},
+                meta={}
             )
         except Exception as e:
             logger.error(f"Error handler agent error: {e}")
             return AgentResponse(
-                agent_id=self.agent_id,
-                status="error",
-                error=str(e)
+                agent=self.name,
+                task=request.task,
+                outputs=[AgentOutput(
+                    type="json", name="error",
+                    value={"error": str(e)}
+                )],
+                usage={},
+                meta={}
             )
 
     async def _handle_error(self, payload: Dict[str, Any]) -> Dict[str, Any]:

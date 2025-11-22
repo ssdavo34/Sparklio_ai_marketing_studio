@@ -208,6 +208,7 @@ class RAGAgent(AgentBase):
 
     async def execute(self, request: AgentRequest) -> AgentResponse:
         """에이전트 실행"""
+        from app.services.agents.base import AgentOutput
         try:
             task = RAGTask(request.task)
 
@@ -227,10 +228,11 @@ class RAGAgent(AgentBase):
                 raise AgentError(f"Unknown task: {request.task}")
 
             return AgentResponse(
-                agent_id=self.agent_id,
-                status="success",
-                result=result,
-                metadata={
+                agent=self.name,
+                task=task.value if hasattr(task, 'value') else task,
+                outputs=[AgentOutput(type="json", name="result", value=result)],
+                usage={},
+                meta={
                     "task": task.value,
                     "timestamp": datetime.now().isoformat(),
                     "knowledge_base_size": len(self.knowledge_base),
@@ -241,16 +243,26 @@ class RAGAgent(AgentBase):
         except ValidationError as e:
             logger.error(f"Validation error: {e}")
             return AgentResponse(
-                agent_id=self.agent_id,
-                status="error",
-                error=f"입력 데이터 검증 실패: {str(e)}"
+                agent=self.name,
+                task=request.task,
+                outputs=[AgentOutput(
+                    type="json", name="error",
+                    value={"error": f"입력 데이터 검증 실패: {str(e)}"}
+                )],
+                usage={},
+                meta={}
             )
         except Exception as e:
             logger.error(f"RAG agent error: {e}")
             return AgentResponse(
-                agent_id=self.agent_id,
-                status="error",
-                error=str(e)
+                agent=self.name,
+                task=request.task,
+                outputs=[AgentOutput(
+                    type="json", name="error",
+                    value={"error": str(e)}
+                )],
+                usage={},
+                meta={}
             )
 
     async def _index_document(self, payload: Dict[str, Any]) -> Dict[str, Any]:

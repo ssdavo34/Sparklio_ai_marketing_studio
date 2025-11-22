@@ -190,6 +190,7 @@ class SelfLearningAgent(AgentBase):
 
     async def execute(self, request: AgentRequest) -> AgentResponse:
         """에이전트 실행"""
+        from app.services.agents.base import AgentOutput
         try:
             task = request.task
 
@@ -209,10 +210,11 @@ class SelfLearningAgent(AgentBase):
                 raise AgentError(f"Unknown task: {request.task}")
 
             return AgentResponse(
-                agent_id=self.agent_id,
-                status="success",
-                result=result,
-                metadata={
+                agent=self.name,
+                task=task.value if hasattr(task, 'value') else task,
+                outputs=[AgentOutput(type="json", name="result", value=result)],
+                usage={},
+                meta={
                     "task": task,
                     "timestamp": datetime.now().isoformat(),
                     "learning_stats": self.learning_stats
@@ -222,16 +224,26 @@ class SelfLearningAgent(AgentBase):
         except ValidationError as e:
             logger.error(f"Validation error: {e}")
             return AgentResponse(
-                agent_id=self.agent_id,
-                status="error",
-                error=f"입력 데이터 검증 실패: {str(e)}"
+                agent=self.name,
+                task=request.task,
+                outputs=[AgentOutput(
+                    type="json", name="error",
+                    value={"error": f"입력 데이터 검증 실패: {str(e)}"}
+                )],
+                usage={},
+                meta={}
             )
         except Exception as e:
             logger.error(f"Self learning agent error: {e}")
             return AgentResponse(
-                agent_id=self.agent_id,
-                status="error",
-                error=str(e)
+                agent=self.name,
+                task=request.task,
+                outputs=[AgentOutput(
+                    type="json", name="error",
+                    value={"error": str(e)}
+                )],
+                usage={},
+                meta={}
             )
 
     async def _update_brand_vector(self, payload: Dict[str, Any]) -> Dict[str, Any]:

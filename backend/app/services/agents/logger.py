@@ -58,9 +58,9 @@ class MetricType(str, Enum):
 
 class LogEntry(BaseModel):
     """로그 항목"""
-    timestamp: datetime = Field(..., description="타임스탬프")
+    timestamp: datetime = Field(default_factory=datetime.utcnow, description="타임스탬프")
     level: LogLevel = Field(..., description="로그 레벨")
-    category: LogCategory = Field(..., description="카테고리")
+    category: LogCategory = Field(default=LogCategory.APPLICATION, description="카테고리")
     message: str = Field(..., description="메시지")
     source: Optional[str] = Field(None, description="출처")
     user_id: Optional[str] = Field(None, description="사용자 ID")
@@ -70,7 +70,7 @@ class LogEntry(BaseModel):
 
 class MetricEntry(BaseModel):
     """메트릭 항목"""
-    timestamp: datetime = Field(..., description="타임스탬프")
+    timestamp: datetime = Field(default_factory=datetime.utcnow, description="타임스탬프")
     metric_name: str = Field(..., description="메트릭명")
     metric_type: MetricType = Field(..., description="메트릭 타입")
     value: float = Field(..., description="값")
@@ -121,11 +121,7 @@ class LoggerAgent(AgentBase):
 
     def __init__(self, llm_service: Optional[LLMService] = None):
         super().__init__(
-            agent_id="logger",
-            name="Logger Agent",
-            description="시스템 활동을 로깅하고 성능을 모니터링합니다",
-            category="system",
-            llm_service=llm_service
+            llm_gateway=llm_service
         )
 
         # 로그 저장소 (링 버퍼)
@@ -148,8 +144,15 @@ class LoggerAgent(AgentBase):
         # 시작 시간
         self.start_time = datetime.now()
 
+    @property
+    def name(self) -> str:
+        """Agent 이름 반환"""
+        return "logger"
+
     async def execute(self, request: AgentRequest) -> AgentResponse:
         """에이전트 실행"""
+        from app.services.agents.base import AgentOutput
+
         try:
             task = request.task
 
@@ -168,12 +171,13 @@ class LoggerAgent(AgentBase):
             else:
                 raise AgentError(f"Unknown task: {request.task}")
 
+            # AgentResponse 형식에 맞게 변경
             return AgentResponse(
-                agent_id=self.agent_id,
-                status="success",
-                result=result,
-                metadata={
-                    "task": task,
+                agent=self.name,
+                task=task,
+                outputs=[AgentOutput(type="json", name="result", value=result)],
+                usage={},
+                meta={
                     "timestamp": datetime.now().isoformat(),
                     "total_logs": len(self.log_buffer)
                 }
@@ -182,16 +186,26 @@ class LoggerAgent(AgentBase):
         except ValidationError as e:
             logger.error(f"Validation error: {e}")
             return AgentResponse(
-                agent_id=self.agent_id,
-                status="error",
-                error=f"입력 데이터 검증 실패: {str(e)}"
+                agent=self.name,
+                task=request.task,
+                outputs=[AgentOutput(
+                    type="json", name="error",
+                    value={"error": f"입력 데이터 검증 실패: {str(e)}"}
+                )],
+                usage={},
+                meta={}
             )
         except Exception as e:
             logger.error(f"Logger agent error: {e}")
             return AgentResponse(
-                agent_id=self.agent_id,
-                status="error",
-                error=str(e)
+                agent=self.name,
+                task=request.task,
+                outputs=[AgentOutput(
+                    type="json", name="error",
+                    value={"error": str(e)}
+                )],
+                usage={},
+                meta={}
             )
 
     async def _log_entry(self, payload: Dict[str, Any]) -> Dict[str, Any]:

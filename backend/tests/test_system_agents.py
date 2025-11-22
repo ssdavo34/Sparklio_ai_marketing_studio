@@ -30,7 +30,7 @@ async def test_error_handler_handle_error():
     agent = ErrorHandlerAgent()
 
     request = AgentRequest(
-        task="handle",
+        task="handle_error",
         payload={
             "error_type": "ValidationError",
             "error_message": "Invalid input data",
@@ -59,7 +59,7 @@ async def test_error_handler_categorize_error():
     agent = ErrorHandlerAgent()
 
     request = AgentRequest(
-        task="categorize",
+        task="analyze_error",
         payload={
             "error_message": "Connection timeout",
             "error_type": "TimeoutError"
@@ -108,7 +108,7 @@ async def test_error_handler_retry_strategy():
     agent = ErrorHandlerAgent()
 
     request = AgentRequest(
-        task="retry_strategy",
+        task="retry_operation",
         payload={
             "error_type": "RateLimitError",
             "retry_count": 2,
@@ -240,7 +240,7 @@ async def test_logger_query_logs():
     agent = LoggerAgent()
 
     request = AgentRequest(
-        task="query",
+        task="query_logs",
         payload={
             "level": "error",
             "time_range": "24h",
@@ -265,7 +265,7 @@ async def test_logger_aggregate_logs():
     agent = LoggerAgent()
 
     request = AgentRequest(
-        task="aggregate",
+        task="get_stats",
         payload={
             "group_by": "agent",
             "time_range": "7d",
@@ -290,7 +290,7 @@ async def test_logger_performance_metrics():
     agent = LoggerAgent()
 
     request = AgentRequest(
-        task="log_metrics",
+        task="record_metric",
         payload={
             "agent": "CopywriterAgent",
             "metrics": {
@@ -320,7 +320,7 @@ async def test_error_handler_with_logger():
     # 1. ErrorHandlerAgent: 에러 처리
     error_handler = ErrorHandlerAgent()
     error_request = AgentRequest(
-        task="handle",
+        task="handle_error",
         payload={
             "error_type": "ValidationError",
             "error_message": "Invalid brand_id",
@@ -357,7 +357,7 @@ async def test_system_monitoring_workflow():
 
     # 1. 성능 메트릭 로깅
     metrics_request = AgentRequest(
-        task="log_metrics",
+        task="record_metric",
         payload={
             "agent": "DesignerAgent",
             "metrics": {
@@ -370,7 +370,7 @@ async def test_system_monitoring_workflow():
 
     # 2. 로그 집계
     aggregate_request = AgentRequest(
-        task="aggregate",
+        task="get_stats",
         payload={
             "group_by": "agent",
             "time_range": "1h"
@@ -392,7 +392,7 @@ async def test_error_handler_nested_errors():
     agent = ErrorHandlerAgent()
 
     request = AgentRequest(
-        task="handle",
+        task="handle_error",
         payload={
             "error_type": "ChainedError",
             "error_message": "Primary error",
@@ -466,7 +466,7 @@ async def test_error_handler_missing_context():
     agent = ErrorHandlerAgent()
 
     request = AgentRequest(
-        task="handle",
+        task="handle_error",
         payload={
             "error_type": "GenericError",
             "error_message": "Something went wrong"
@@ -524,7 +524,7 @@ async def test_error_handler_rapid_errors():
     responses = []
     for i in range(50):
         request = AgentRequest(
-            task="handle",
+            task="handle_error",
             payload={
                 "error_type": f"Error_{i % 5}",  # 5가지 에러 타입 순환
                 "error_message": f"Error message {i}"
