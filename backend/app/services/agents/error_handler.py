@@ -320,10 +320,12 @@ class ErrorHandlerAgent(AgentBase):
                     delay = min(delay * config.backoff_multiplier, config.max_delay)
 
         return {
+            "strategy": "exponential_backoff",
             "success": False,
             "attempts": attempts,
             "last_error": last_error,
-            "exhausted": True
+            "exhausted": True,
+            "retry": False
         }
 
     async def _get_error_summary(self, payload: Dict[str, Any]) -> Dict[str, Any]:

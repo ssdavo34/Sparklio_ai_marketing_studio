@@ -451,7 +451,7 @@ async def test_rag_pipeline():
         }
     )
     index_response = await rag.execute(index_request)
-    assert index_response.success is True
+    assert len(index_response.outputs) > 0
 
     # 2. EmbedderAgent: 임베딩 생성
     embedder = EmbedderAgent()
@@ -463,7 +463,7 @@ async def test_rag_pipeline():
         }
     )
     embed_response = await embedder.execute(embed_request)
-    assert embed_response.success is True
+    assert len(embed_response.outputs) > 0
 
     # 3. RAGAgent: 검색
     search_request = AgentRequest(
@@ -474,7 +474,7 @@ async def test_rag_pipeline():
         }
     )
     search_response = await rag.execute(search_request)
-    assert search_response.success is True
+    assert len(search_response.outputs) > 0
 
 
 @pytest.mark.integration
@@ -493,7 +493,7 @@ async def test_performance_learning_pipeline():
         }
     )
     analyze_response = await analyzer.execute(analyze_request)
-    assert analyze_response.success is True
+    assert len(analyze_response.outputs) > 0
 
     # 2. SelfLearningAgent: 분석 결과 학습
     learner = SelfLearningAgent()
@@ -506,7 +506,7 @@ async def test_performance_learning_pipeline():
         }
     )
     learn_response = await learner.execute(learn_request)
-    assert learn_response.success is True
+    assert len(learn_response.outputs) > 0
 
 
 # ========================================

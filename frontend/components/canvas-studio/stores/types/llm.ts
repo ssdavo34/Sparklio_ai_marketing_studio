@@ -1,68 +1,144 @@
 /**
- * LLM Provider Types
+ * LLM Gateway Types
  *
- * Type definitions for multi-LLM support in Canvas Studio AI Assistant
+ * Type definitions for Sparklio Backend LLM Gateway integration
+ * Uses role/task pattern with Smart Router for provider selection
  *
  * @author C Team (Frontend Team)
- * @version 3.2
+ * @version 4.0
  * @date 2025-11-22
  */
 
 // ============================================================================
-// LLM Provider Types
+// Agent Roles
 // ============================================================================
 
 /**
- * Text generation LLM providers
+ * AI Agent roles supported by backend Gateway
  */
-export type TextLLMProvider = 'openai' | 'anthropic' | 'gemini' | 'mock';
-
-/**
- * Image generation LLM providers
- */
-export type ImageLLMProvider = 'dalle' | 'stability' | 'comfyui' | 'mock';
-
-/**
- * All LLM providers
- */
-export type LLMProvider = TextLLMProvider | ImageLLMProvider;
+export type AgentRole =
+  | 'brief'         // Marketing brief generator
+  | 'strategist'    // Strategy and planning
+  | 'copywriter'    // Content creation
+  | 'reviewer'      // Content review and feedback
+  | 'optimizer'     // Content optimization
+  | 'editor'        // Proofreading and editing
+  | 'vision'        // Image analysis and generation
+  | 'custom';       // Custom agent
 
 // ============================================================================
-// LLM Configuration
+// Task Types
 // ============================================================================
 
 /**
- * Text LLM configuration
+ * Task types that agents can perform
  */
-export interface TextLLMConfig {
-  provider: TextLLMProvider;
-  model?: string; // Optional model specification (e.g., 'gpt-4', 'claude-3-opus')
+export type TaskType =
+  | 'marketing_brief'     // Generate marketing brief
+  | 'product_detail'      // Product description
+  | 'sns'                 // Social media content
+  | 'brand_message'       // Brand messaging
+  | 'content_plan'        // Content planning
+  | 'headline'            // Headline generation
+  | 'ad_copy'             // Advertisement copy
+  | 'review'              // Content review
+  | 'optimize'            // Content optimization
+  | 'proofread'           // Proofreading
+  | 'image_generate'      // Image generation
+  | 'image_analyze'       // Image analysis
+  | 'custom';             // Custom task
+
+// ============================================================================
+// Cost/Quality Modes
+// ============================================================================
+
+/**
+ * Cost/quality mode for LLM selection
+ */
+export type CostMode = 'fast' | 'balanced' | 'quality';
+
+// ============================================================================
+// Gateway Request/Response
+// ============================================================================
+
+/**
+ * Request to backend LLM Gateway
+ */
+export interface LLMGatewayRequest {
+  role: AgentRole;
+  task: TaskType;
+  payload: {
+    user_input?: string;
+    messages?: Array<{
+      role: 'user' | 'assistant' | 'system';
+      content: string;
+    }>;
+    image_url?: string;
+    [key: string]: any;
+  };
+  channel?: string;
+  language?: string;
+  length?: string;
+  cost_mode?: CostMode;
+  latency?: string;
+  requires_online?: boolean;
+  requires_vision?: boolean;
+  mode?: 'chat' | 'json';
+  options?: {
+    temperature?: number;
+    max_tokens?: number;
+    model?: string;  // Optional model override
+  };
+}
+
+/**
+ * Response from backend LLM Gateway
+ */
+export interface LLMGatewayResponse {
+  result: string | any;
+  provider_used?: string;
+  model_used?: string;
+  error?: string;
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+  };
+}
+
+// ============================================================================
+// UI Configuration
+// ============================================================================
+
+/**
+ * Chat configuration for UI
+ */
+export interface ChatConfig {
+  role: AgentRole;
+  task: TaskType;
+  costMode: CostMode;
+  language: string;
   temperature?: number;
   maxTokens?: number;
 }
 
-/**
- * Image LLM configuration
- */
-export interface ImageLLMConfig {
-  provider: ImageLLMProvider;
-  model?: string;
-  size?: string; // e.g., '1024x1024'
-  quality?: 'standard' | 'hd';
-  style?: string;
-}
-
 // ============================================================================
-// LLM Provider Metadata
+// Agent/Task Metadata
 // ============================================================================
 
-export interface LLMProviderInfo {
-  id: TextLLMProvider | ImageLLMProvider;
+export interface AgentInfo {
+  id: AgentRole;
   name: string;
   description: string;
-  type: 'text' | 'image';
-  available: boolean; // Whether API key is configured
-  models?: string[];
+  icon?: string;
+  supportedTasks: TaskType[];
+}
+
+export interface TaskInfo {
+  id: TaskType;
+  name: string;
+  description: string;
+  icon?: string;
 }
 
 // ============================================================================
@@ -70,82 +146,138 @@ export interface LLMProviderInfo {
 // ============================================================================
 
 /**
- * Text LLM provider information
+ * Agent information
  */
-export const TEXT_LLM_PROVIDERS: Record<TextLLMProvider, Omit<LLMProviderInfo, 'available'>> = {
-  openai: {
-    id: 'openai',
-    name: 'OpenAI GPT',
-    description: 'GPT-4 and GPT-3.5 models',
-    type: 'text',
-    models: ['gpt-4', 'gpt-4-turbo', 'gpt-3.5-turbo'],
+export const AGENT_INFO: Record<AgentRole, AgentInfo> = {
+  brief: {
+    id: 'brief',
+    name: 'Brief Generator',
+    description: 'Create comprehensive marketing briefs',
+    supportedTasks: ['marketing_brief', 'content_plan'],
   },
-  anthropic: {
-    id: 'anthropic',
-    name: 'Anthropic Claude',
-    description: 'Claude 3 models',
-    type: 'text',
-    models: ['claude-3-opus', 'claude-3-sonnet', 'claude-3-haiku'],
+  strategist: {
+    id: 'strategist',
+    name: 'Strategist',
+    description: '20-year marketing consultant',
+    supportedTasks: ['marketing_brief', 'content_plan', 'brand_message'],
   },
-  gemini: {
-    id: 'gemini',
-    name: 'Google Gemini',
-    description: 'Gemini Pro and Ultra models',
-    type: 'text',
-    models: ['gemini-pro', 'gemini-ultra'],
+  copywriter: {
+    id: 'copywriter',
+    name: 'Copywriter',
+    description: '10-year copywriting expert',
+    supportedTasks: ['product_detail', 'sns', 'brand_message', 'headline', 'ad_copy'],
   },
-  mock: {
-    id: 'mock',
-    name: 'Mock (Testing)',
-    description: 'Mock responses for testing',
-    type: 'text',
+  reviewer: {
+    id: 'reviewer',
+    name: 'Reviewer',
+    description: 'Content review and quality assessment',
+    supportedTasks: ['review'],
+  },
+  optimizer: {
+    id: 'optimizer',
+    name: 'Optimizer',
+    description: 'CRO specialist for conversion optimization',
+    supportedTasks: ['optimize'],
+  },
+  editor: {
+    id: 'editor',
+    name: 'Editor',
+    description: 'Professional proofreading and editing',
+    supportedTasks: ['proofread'],
+  },
+  vision: {
+    id: 'vision',
+    name: 'Vision',
+    description: 'Image analysis and generation',
+    supportedTasks: ['image_generate', 'image_analyze'],
+  },
+  custom: {
+    id: 'custom',
+    name: 'Custom Agent',
+    description: 'Custom AI agent configuration',
+    supportedTasks: ['custom'],
   },
 };
 
 /**
- * Image LLM provider information
+ * Task information
  */
-export const IMAGE_LLM_PROVIDERS: Record<ImageLLMProvider, Omit<LLMProviderInfo, 'available'>> = {
-  dalle: {
-    id: 'dalle',
-    name: 'DALL-E',
-    description: 'OpenAI image generation',
-    type: 'image',
-    models: ['dall-e-3', 'dall-e-2'],
+export const TASK_INFO: Record<TaskType, TaskInfo> = {
+  marketing_brief: {
+    id: 'marketing_brief',
+    name: 'Marketing Brief',
+    description: 'Generate comprehensive marketing brief',
   },
-  stability: {
-    id: 'stability',
-    name: 'Stable Diffusion',
-    description: 'Stability AI image generation',
-    type: 'image',
-    models: ['stable-diffusion-xl', 'stable-diffusion-v1-6'],
+  product_detail: {
+    id: 'product_detail',
+    name: 'Product Description',
+    description: 'Create detailed product descriptions',
   },
-  comfyui: {
-    id: 'comfyui',
-    name: 'ComfyUI',
-    description: 'Custom workflow-based image generation',
-    type: 'image',
+  sns: {
+    id: 'sns',
+    name: 'Social Media',
+    description: 'Generate social media content',
   },
-  mock: {
-    id: 'mock',
-    name: 'Mock (Testing)',
-    description: 'Mock image generation for testing',
-    type: 'image',
+  brand_message: {
+    id: 'brand_message',
+    name: 'Brand Messaging',
+    description: 'Create brand messaging and positioning',
+  },
+  content_plan: {
+    id: 'content_plan',
+    name: 'Content Plan',
+    description: 'Plan content strategy',
+  },
+  headline: {
+    id: 'headline',
+    name: 'Headline',
+    description: 'Generate compelling headlines',
+  },
+  ad_copy: {
+    id: 'ad_copy',
+    name: 'Ad Copy',
+    description: 'Create advertisement copy',
+  },
+  review: {
+    id: 'review',
+    name: 'Content Review',
+    description: 'Review and assess content quality',
+  },
+  optimize: {
+    id: 'optimize',
+    name: 'Optimize',
+    description: 'Optimize content for conversion',
+  },
+  proofread: {
+    id: 'proofread',
+    name: 'Proofread',
+    description: 'Proofread and edit content',
+  },
+  image_generate: {
+    id: 'image_generate',
+    name: 'Generate Image',
+    description: 'Generate images from text prompts',
+  },
+  image_analyze: {
+    id: 'image_analyze',
+    name: 'Analyze Image',
+    description: 'Analyze and describe images',
+  },
+  custom: {
+    id: 'custom',
+    name: 'Custom Task',
+    description: 'Custom task configuration',
   },
 };
 
-// ============================================================================
-// Default Configurations
-// ============================================================================
-
-export const DEFAULT_TEXT_LLM_CONFIG: TextLLMConfig = {
-  provider: 'mock',
+/**
+ * Default chat configuration
+ */
+export const DEFAULT_CHAT_CONFIG: ChatConfig = {
+  role: 'copywriter',
+  task: 'product_detail',
+  costMode: 'balanced',
+  language: 'ko',
   temperature: 0.7,
-  maxTokens: 500,
-};
-
-export const DEFAULT_IMAGE_LLM_CONFIG: ImageLLMConfig = {
-  provider: 'mock',
-  size: '1024x1024',
-  quality: 'standard',
+  maxTokens: 1000,
 };

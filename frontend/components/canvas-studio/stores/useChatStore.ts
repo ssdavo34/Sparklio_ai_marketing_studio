@@ -5,17 +5,18 @@
  * - 메시지 히스토리
  * - 로딩 상태
  * - 에러 처리
- * - 멀티 LLM 제공자 지원
+ * - Backend Gateway 통합 (role/task 패턴)
  *
  * @author C팀 (Frontend Team)
- * @version 3.2
+ * @version 4.0
  * @date 2025-11-22
  */
 
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
-import type { TextLLMProvider, ImageLLMProvider, TextLLMConfig, ImageLLMConfig } from './types/llm';
-import { DEFAULT_TEXT_LLM_CONFIG, DEFAULT_IMAGE_LLM_CONFIG } from './types/llm';
+import type { AgentRole, TaskType, ChatConfig, CostMode } from './types/llm';
+import { DEFAULT_CHAT_CONFIG } from './types/llm';
+import { sendChatMessage, generateImage } from '@/lib/llm-gateway-client';
 
 // ============================================================================
 // Types
@@ -26,7 +27,9 @@ export interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: Date;
-  imageUrl?: string; // For image generation responses
+  imageUrl?: string;
+  providerUsed?: string;  // Which provider was used by backend
+  modelUsed?: string;      // Which model was used
 }
 
 export interface ChatState {
@@ -34,26 +37,32 @@ export interface ChatState {
   messages: Message[];
   isLoading: boolean;
   error: string | null;
-  textLLMConfig: TextLLMConfig;
-  imageLLMConfig: ImageLLMConfig;
+  chatConfig: ChatConfig;
 
   // Actions
-  addMessage: (role: 'user' | 'assistant', content: string, imageUrl?: string) => void;
+  addMessage: (role: 'user' | 'assistant', content: string, imageUrl?: string, providerUsed?: string, modelUsed?: string) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   clearMessages: () => void;
-  setTextLLMProvider: (provider: TextLLMProvider) => void;
-  setImageLLMProvider: (provider: ImageLLMProvider) => void;
+
+  // Configuration
+  setRole: (role: AgentRole) => void;
+  setTask: (task: TaskType) => void;
+  setCostMode: (mode: CostMode) => void;
+  setLanguage: (language: string) => void;
+  setTemperature: (temperature: number) => void;
+  setMaxTokens: (maxTokens: number) => void;
+
+  // Gateway Actions
   sendMessage: (content: string) => Promise<void>;
-  generateImage: (prompt: string) => Promise<void>;
+  generateImageFromPrompt: (prompt: string) => Promise<void>;
 }
 
 // ============================================================================
 // Store
 // ============================================================================
 
-export const useChatStore = create<ChatState>()(
-  devtools(
+export const useChatStore = create<ChatState>()( devtools(
     persist(
       (set, get) => ({
         // ========================================
@@ -64,14 +73,13 @@ export const useChatStore = create<ChatState>()(
           {
             id: 'welcome',
             role: 'assistant',
-            content: 'Hello! I\'m your AI assistant for Canvas Studio. How can I help you today?',
+            content: 'Hello! I\'m your AI assistant for Canvas Studio. I can help you with:\n\n• Product descriptions\n• Social media content\n• Marketing briefs\n• Content review & optimization\n• Image generation\n\nSelect a role and task to get started!',
             timestamp: new Date(),
           },
         ],
         isLoading: false,
         error: null,
-        textLLMConfig: DEFAULT_TEXT_LLM_CONFIG,
-        imageLLMConfig: DEFAULT_IMAGE_LLM_CONFIG,
+        chatConfig: DEFAULT_CHAT_CONFIG,
 
         // ========================================
         // Actions
@@ -80,13 +88,15 @@ export const useChatStore = create<ChatState>()(
         /**
          * 메시지 추가
          */
-        addMessage: (role, content, imageUrl) => {
+        addMessage: (role, content, imageUrl, providerUsed, modelUsed) => {
           const message: Message = {
             id: `${Date.now()}-${Math.random()}`,
             role,
             content,
             timestamp: new Date(),
             imageUrl,
+            providerUsed,
+            modelUsed,
           };
           set((state) => ({
             messages: [...state.messages, message],
@@ -115,34 +125,82 @@ export const useChatStore = create<ChatState>()(
         },
 
         /**
-         * 텍스트 LLM 제공자 설정
+         * Agent Role 설정
          */
-        setTextLLMProvider: (provider) => {
+        setRole: (role) => {
           set((state) => ({
-            textLLMConfig: {
-              ...state.textLLMConfig,
-              provider,
+            chatConfig: {
+              ...state.chatConfig,
+              role,
             },
           }));
         },
 
         /**
-         * 이미지 LLM 제공자 설정
+         * Task 설정
          */
-        setImageLLMProvider: (provider) => {
+        setTask: (task) => {
           set((state) => ({
-            imageLLMConfig: {
-              ...state.imageLLMConfig,
-              provider,
+            chatConfig: {
+              ...state.chatConfig,
+              task,
             },
           }));
         },
 
         /**
-         * 메시지 전송 (선택된 LLM 제공자로 API 호출)
+         * Cost Mode 설정
+         */
+        setCostMode: (mode) => {
+          set((state) => ({
+            chatConfig: {
+              ...state.chatConfig,
+              costMode: mode,
+            },
+          }));
+        },
+
+        /**
+         * Language 설정
+         */
+        setLanguage: (language) => {
+          set((state) => ({
+            chatConfig: {
+              ...state.chatConfig,
+              language,
+            },
+          }));
+        },
+
+        /**
+         * Temperature 설정
+         */
+        setTemperature: (temperature) => {
+          set((state) => ({
+            chatConfig: {
+              ...state.chatConfig,
+              temperature,
+            },
+          }));
+        },
+
+        /**
+         * Max Tokens 설정
+         */
+        setMaxTokens: (maxTokens) => {
+          set((state) => ({
+            chatConfig: {
+              ...state.chatConfig,
+              maxTokens,
+            },
+          }));
+        },
+
+        /**
+         * 메시지 전송 (Backend Gateway 사용)
          */
         sendMessage: async (content: string) => {
-          const { addMessage, setLoading, setError, textLLMConfig } = get();
+          const { addMessage, setLoading, setError, chatConfig, messages } = get();
 
           // 사용자 메시지 추가
           addMessage('user', content);
@@ -150,30 +208,39 @@ export const useChatStore = create<ChatState>()(
           setError(null);
 
           try {
-            const response = await fetch('/api/chat', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                messages: get().messages.map((m) => ({
-                  role: m.role,
-                  content: m.content,
-                })),
-                provider: textLLMConfig.provider,
-                config: textLLMConfig,
-              }),
+            // Prepare message history (last 10 messages for context)
+            const messageHistory = messages
+              .slice(-10)
+              .map((m) => ({
+                role: m.role as 'user' | 'assistant' | 'system',
+                content: m.content,
+              }));
+
+            // Call backend Gateway
+            const response = await sendChatMessage({
+              role: chatConfig.role,
+              task: chatConfig.task,
+              userInput: content,
+              messageHistory,
+              costMode: chatConfig.costMode,
+              language: chatConfig.language,
+              temperature: chatConfig.temperature,
+              maxTokens: chatConfig.maxTokens,
             });
 
-            if (!response.ok) {
-              throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const data = await response.json();
-
             // AI 응답 추가
-            if (data.message) {
-              addMessage('assistant', data.message);
+            if (response.result) {
+              const resultText = typeof response.result === 'string'
+                ? response.result
+                : JSON.stringify(response.result, null, 2);
+
+              addMessage(
+                'assistant',
+                resultText,
+                undefined,
+                response.provider_used,
+                response.model_used
+              );
             } else {
               throw new Error('No response from AI');
             }
@@ -187,10 +254,10 @@ export const useChatStore = create<ChatState>()(
         },
 
         /**
-         * 이미지 생성 (선택된 이미지 LLM 제공자로 API 호출)
+         * 이미지 생성 (Backend Gateway 사용)
          */
-        generateImage: async (prompt: string) => {
-          const { addMessage, setLoading, setError, imageLLMConfig } = get();
+        generateImageFromPrompt: async (prompt: string) => {
+          const { addMessage, setLoading, setError, chatConfig } = get();
 
           // 사용자 메시지 추가
           addMessage('user', `Generate image: ${prompt}`);
@@ -198,27 +265,30 @@ export const useChatStore = create<ChatState>()(
           setError(null);
 
           try {
-            const response = await fetch('/api/chat/image', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                prompt,
-                provider: imageLLMConfig.provider,
-                config: imageLLMConfig,
-              }),
+            // Call backend Gateway for image generation
+            const response = await generateImage({
+              prompt,
+              costMode: chatConfig.costMode,
             });
 
-            if (!response.ok) {
-              throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const data = await response.json();
-
             // 이미지 응답 추가
-            if (data.imageUrl) {
-              addMessage('assistant', data.message || 'Here\'s your generated image:', data.imageUrl);
+            if (response.result) {
+              // Backend returns image URL or base64
+              const imageUrl = typeof response.result === 'string'
+                ? response.result
+                : response.result.url || response.result.image_url;
+
+              if (imageUrl) {
+                addMessage(
+                  'assistant',
+                  'Here\'s your generated image:',
+                  imageUrl,
+                  response.provider_used,
+                  response.model_used
+                );
+              } else {
+                throw new Error('No image URL in response');
+              }
             } else {
               throw new Error('No image generated');
             }
@@ -234,8 +304,7 @@ export const useChatStore = create<ChatState>()(
       {
         name: 'canvas-studio-chat',
         partialize: (state) => ({
-          textLLMConfig: state.textLLMConfig,
-          imageLLMConfig: state.imageLLMConfig,
+          chatConfig: state.chatConfig,
         }),
       }
     ),
