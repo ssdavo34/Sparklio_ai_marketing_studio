@@ -10,27 +10,23 @@
 
 'use client';
 
+import { StudioLayout } from '@/components/canvas-studio/layout/StudioLayout';
+import { TopToolbar } from '@/components/canvas-studio/layout/TopToolbar';
+import { ActivityBar } from '@/components/canvas-studio/layout/ActivityBar';
+import { LeftPanel } from '@/components/canvas-studio/panels/left/LeftPanel';
 import { PolotnoWorkspace } from '@/components/canvas-studio/polotno/PolotnoWorkspace';
+import { RightDock } from '@/components/canvas-studio/panels/right/RightDock';
 
 const POLOTNO_API_KEY = 'ng2ylHnHO2NscxqyUEWy';
 
 export default function CanvasStudioV3Page() {
   return (
-    <div className="flex h-screen w-screen flex-col bg-gray-50">
-      {/* Header */}
-      <header className="h-14 bg-white border-b border-gray-200 flex items-center px-4">
-        <h1 className="text-lg font-semibold text-gray-900">
-          Canvas Studio v3.1
-        </h1>
-        <div className="ml-4 px-3 py-1 bg-indigo-100 text-indigo-700 text-xs font-medium rounded-full">
-          Block 2: Polotno Workspace
-        </div>
-      </header>
-
-      {/* Canvas Area */}
-      <main className="flex-1 overflow-hidden">
-        <PolotnoWorkspace apiKey={POLOTNO_API_KEY} />
-      </main>
-    </div>
+    <StudioLayout
+      topToolbar={<TopToolbar />}
+      activityBar={<ActivityBar />}
+      leftPanel={<LeftPanel />}
+      canvas={<PolotnoWorkspace apiKey={POLOTNO_API_KEY} />}
+      rightDock={<RightDock />}
+    />
   );
 }
