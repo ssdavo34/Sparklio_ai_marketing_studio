@@ -91,8 +91,20 @@ export function RightDock() {
 
 // Chat Tab Component
 function ChatTab() {
-  const { messages, isLoading, error, sendMessage, clearMessages } = useChatStore();
+  const {
+    messages,
+    isLoading,
+    error,
+    sendMessage,
+    generateImage,
+    clearMessages,
+    textLLMConfig,
+    imageLLMConfig,
+    setTextLLMProvider,
+    setImageLLMProvider,
+  } = useChatStore();
   const [input, setInput] = useState('');
+  const [mode, setMode] = useState<'text' | 'image'>('text');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -109,23 +121,81 @@ function ChatTab() {
 
     const message = input.trim();
     setInput('');
-    await sendMessage(message);
+
+    if (mode === 'image') {
+      await generateImage(message);
+    } else {
+      await sendMessage(message);
+    }
   };
 
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="p-3 border-b border-gray-200 flex items-center justify-between">
-        <div>
-          <h3 className="text-sm font-semibold text-gray-900">AI Assistant</h3>
-          <p className="text-xs text-gray-500">Powered by OpenAI</p>
+      <div className="p-3 border-b border-gray-200">
+        <div className="flex items-center justify-between mb-2">
+          <div>
+            <h3 className="text-sm font-semibold text-gray-900">AI Assistant</h3>
+            <p className="text-xs text-gray-500">
+              Multi-LLM Support
+            </p>
+          </div>
+          <button
+            onClick={clearMessages}
+            className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 rounded hover:bg-gray-100"
+          >
+            Clear
+          </button>
         </div>
-        <button
-          onClick={clearMessages}
-          className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 rounded hover:bg-gray-100"
-        >
-          Clear
-        </button>
+
+        {/* Mode Toggle */}
+        <div className="flex gap-2 mb-2">
+          <button
+            onClick={() => setMode('text')}
+            className={`flex-1 px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+              mode === 'text'
+                ? 'bg-purple-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Text Chat
+          </button>
+          <button
+            onClick={() => setMode('image')}
+            className={`flex-1 px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+              mode === 'image'
+                ? 'bg-purple-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Image Gen
+          </button>
+        </div>
+
+        {/* LLM Provider Selector */}
+        {mode === 'text' ? (
+          <select
+            value={textLLMConfig.provider}
+            onChange={(e) => setTextLLMProvider(e.target.value as any)}
+            className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
+          >
+            <option value="mock">Mock (Testing)</option>
+            <option value="openai">OpenAI GPT-4</option>
+            <option value="anthropic">Anthropic Claude</option>
+            <option value="gemini">Google Gemini</option>
+          </select>
+        ) : (
+          <select
+            value={imageLLMConfig.provider}
+            onChange={(e) => setImageLLMProvider(e.target.value as any)}
+            className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
+          >
+            <option value="mock">Mock (Testing)</option>
+            <option value="dalle">DALL-E 3</option>
+            <option value="stability">Stable Diffusion</option>
+            <option value="comfyui">ComfyUI</option>
+          </select>
+        )}
       </div>
 
       {/* Messages */}
@@ -143,6 +213,15 @@ function ChatTab() {
               }`}
             >
               <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+              {message.imageUrl && (
+                <div className="mt-2">
+                  <img
+                    src={message.imageUrl}
+                    alt="Generated"
+                    className="rounded max-w-full h-auto"
+                  />
+                </div>
+              )}
               <p
                 className={`text-xs mt-1 ${
                   message.role === 'user' ? 'text-purple-200' : 'text-gray-500'
@@ -182,7 +261,11 @@ function ChatTab() {
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Type a message..."
+            placeholder={
+              mode === 'image'
+                ? 'Describe the image you want to generate...'
+                : 'Type a message...'
+            }
             className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
             disabled={isLoading}
           />
@@ -191,7 +274,7 @@ function ChatTab() {
             disabled={!input.trim() || isLoading}
             className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            Send
+            {mode === 'image' ? 'Generate' : 'Send'}
           </button>
         </form>
       </div>
