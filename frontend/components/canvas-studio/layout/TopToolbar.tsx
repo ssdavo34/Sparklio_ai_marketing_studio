@@ -15,7 +15,7 @@
 
 import { useEditorStore } from '../stores/useEditorStore';
 import { useLayoutStore } from '../stores/useLayoutStore';
-import { Layout, Maximize2, MessageSquare, ChevronDown } from 'lucide-react';
+import { Layout, Maximize2, MessageSquare, ChevronDown, Eye, Edit3 } from 'lucide-react';
 import type { StudioMode, ViewMode } from '../stores/types';
 
 export function TopToolbar() {
@@ -23,6 +23,8 @@ export function TopToolbar() {
   const setCurrentMode = useEditorStore((state) => state.setCurrentMode);
   const viewMode = useEditorStore((state) => state.viewMode);
   const setViewMode = useEditorStore((state) => state.setViewMode);
+  const isViewMode = useLayoutStore((state) => state.isViewMode);
+  const toggleViewMode = useLayoutStore((state) => state.toggleViewMode);
 
   const modeLabels: Record<StudioMode, string> = {
     planning: 'Planning',
@@ -71,6 +73,31 @@ export function TopToolbar() {
 
       {/* Right */}
       <div className="flex items-center gap-3">
+        {/* Edit/View Mode Toggle */}
+        <button
+          onClick={toggleViewMode}
+          className={`flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+            isViewMode
+              ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+          title={isViewMode ? 'Switch to Edit Mode' : 'Switch to View Mode'}
+        >
+          {isViewMode ? (
+            <>
+              <Eye className="w-4 h-4" />
+              <span>View</span>
+            </>
+          ) : (
+            <>
+              <Edit3 className="w-4 h-4" />
+              <span>Edit</span>
+            </>
+          )}
+        </button>
+
+        <div className="h-6 w-px bg-gray-300" />
+
         {/* View Mode Toggle */}
         <div className="flex items-center bg-gray-100 rounded-lg p-1">
           <button

@@ -39,11 +39,15 @@ export interface LayoutState {
   // Activity Bar (고정)
   activityBarWidth: number;
 
+  // View Mode
+  isViewMode: boolean;
+
   // Actions
   setLeftPanelWidth: (width: number) => void;
   toggleLeftPanel: () => void;
   setRightDockWidth: (width: number) => void;
   toggleRightDock: () => void;
+  toggleViewMode: () => void;
   resetLayout: () => void;
 }
 
@@ -81,6 +85,8 @@ export const useLayoutStore = create<LayoutState>()(
         rightDockMaxWidth: RIGHT_DOCK_MAX_WIDTH,
 
         activityBarWidth: ACTIVITY_BAR_WIDTH,
+
+        isViewMode: false,
 
         // ========================================
         // Actions
@@ -133,6 +139,16 @@ export const useLayoutStore = create<LayoutState>()(
         },
 
         /**
+         * View Mode 토글
+         * - View Mode: 편집 도구 숨김, 읽기 전용
+         */
+        toggleViewMode: () => {
+          set((state) => ({
+            isViewMode: !state.isViewMode,
+          }));
+        },
+
+        /**
          * 레이아웃 초기화
          * - 모든 패널을 기본 크기로 복원
          */
@@ -142,6 +158,7 @@ export const useLayoutStore = create<LayoutState>()(
             isLeftPanelCollapsed: false,
             rightDockWidth: DEFAULT_RIGHT_DOCK_WIDTH,
             isRightDockCollapsed: false,
+            isViewMode: false,
           });
         },
       }),
@@ -153,6 +170,7 @@ export const useLayoutStore = create<LayoutState>()(
           rightDockWidth: state.rightDockWidth,
           isLeftPanelCollapsed: state.isLeftPanelCollapsed,
           isRightDockCollapsed: state.isRightDockCollapsed,
+          isViewMode: state.isViewMode,
         }),
       }
     ),

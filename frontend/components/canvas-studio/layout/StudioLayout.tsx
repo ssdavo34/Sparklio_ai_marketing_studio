@@ -40,6 +40,7 @@ export function StudioLayout({
     rightDockWidth,
     isRightDockCollapsed,
     activityBarWidth,
+    isViewMode,
   } = useLayoutStore();
 
   return (
@@ -51,16 +52,18 @@ export function StudioLayout({
 
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Activity Bar */}
-        <div
-          className="border-r border-gray-200 bg-gray-900 flex-shrink-0"
-          style={{ width: `${activityBarWidth}px` }}
-        >
-          {activityBar}
-        </div>
+        {/* Activity Bar - Hidden in View Mode */}
+        {!isViewMode && (
+          <div
+            className="border-r border-gray-200 bg-gray-900 flex-shrink-0"
+            style={{ width: `${activityBarWidth}px` }}
+          >
+            {activityBar}
+          </div>
+        )}
 
-        {/* Left Panel */}
-        {!isLeftPanelCollapsed && (
+        {/* Left Panel - Hidden in View Mode */}
+        {!isViewMode && !isLeftPanelCollapsed && (
           <div
             className="border-r border-gray-200 bg-white flex-shrink-0 overflow-hidden"
             style={{ width: `${leftPanelWidth}px` }}
@@ -74,8 +77,8 @@ export function StudioLayout({
           {canvas}
         </div>
 
-        {/* Right Dock */}
-        {!isRightDockCollapsed && (
+        {/* Right Dock - Hidden in View Mode */}
+        {!isViewMode && !isRightDockCollapsed && (
           <div
             className="border-l border-gray-200 bg-white flex-shrink-0 overflow-hidden"
             style={{ width: `${rightDockWidth}px` }}

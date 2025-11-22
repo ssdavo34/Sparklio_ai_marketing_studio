@@ -19,6 +19,7 @@ import { PolotnoContainer, SidePanelWrap, WorkspaceWrap } from 'polotno';
 import { ZoomButtons } from 'polotno/toolbar/zoom-buttons';
 import { Workspace } from 'polotno/canvas/workspace';
 import { useCanvasStore } from '../stores/useCanvasStore';
+import { useLayoutStore } from '../stores/useLayoutStore';
 
 interface PolotnoWorkspaceProps {
   apiKey: string;
@@ -28,6 +29,7 @@ export function PolotnoWorkspace({ apiKey }: PolotnoWorkspaceProps) {
   const storeRef = useRef<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const setPolotnoStore = useCanvasStore((state) => state.setPolotnoStore);
+  const isViewMode = useLayoutStore((state) => state.isViewMode);
 
   useEffect(() => {
     // Polotno Store 초기화
@@ -53,6 +55,14 @@ export function PolotnoWorkspace({ apiKey }: PolotnoWorkspaceProps) {
       }
     };
   }, [apiKey, setPolotnoStore]);
+
+  // View Mode 변경 시 선택 해제
+  useEffect(() => {
+    if (storeRef.current && isViewMode) {
+      // View Mode로 전환 시 모든 선택 해제
+      storeRef.current.selectElements([]);
+    }
+  }, [isViewMode]);
 
   if (isLoading) {
     return (
