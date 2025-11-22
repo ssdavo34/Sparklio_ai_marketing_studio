@@ -12,9 +12,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
 // OpenAI 클라이언트 초기화
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const openai = process.env.OPENAI_API_KEY
+  ? new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    })
+  : null;
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,6 +28,13 @@ export async function POST(request: NextRequest) {
         { error: 'Messages array is required' },
         { status: 400 }
       );
+    }
+
+    // OpenAI API 키가 없으면 목업 응답 반환 (개발/테스트용)
+    if (!openai) {
+      return NextResponse.json({
+        message: 'This is a mock response. Please add your OPENAI_API_KEY to .env.local to use the real AI assistant.\n\nFor testing purposes, I can help you with:\n- Design suggestions\n- Layout advice\n- Color recommendations\n- Typography tips',
+      });
     }
 
     // OpenAI API 호출
