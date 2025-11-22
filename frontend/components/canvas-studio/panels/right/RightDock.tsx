@@ -90,22 +90,109 @@ export function RightDock() {
 
 // Chat Tab Component
 function ChatTab() {
+  const { messages, isLoading, error, sendMessage, clearMessages } = useChatStore();
+  const [input, setInput] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim() || isLoading) return;
+
+    const message = input.trim();
+    setInput('');
+    await sendMessage(message);
+  };
+
   return (
-    <div className="p-4 h-full flex flex-col">
-      <div className="flex-1 flex items-center justify-center text-gray-400">
-        <div className="text-center">
-          <MessageSquare className="w-12 h-12 mx-auto mb-3 opacity-50" />
-          <p className="text-sm">AI Chat Assistant</p>
-          <p className="text-xs mt-1">Coming in Block 7</p>
+    <div className="h-full flex flex-col">
+      {/* Header */}
+      <div className="p-3 border-b border-gray-200 flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-semibold text-gray-900">AI Assistant</h3>
+          <p className="text-xs text-gray-500">Powered by OpenAI</p>
         </div>
+        <button
+          onClick={clearMessages}
+          className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 rounded hover:bg-gray-100"
+        >
+          Clear
+        </button>
       </div>
-      <div className="mt-4">
-        <input
-          type="text"
-          placeholder="Type a message..."
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-          disabled
-        />
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {messages.map((message) => (
+          <div
+            key={message.id}
+            className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+          >
+            <div
+              className={`max-w-[80%] rounded-lg px-3 py-2 ${
+                message.role === 'user'
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-gray-100 text-gray-900'
+              }`}
+            >
+              <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+              <p
+                className={`text-xs mt-1 ${
+                  message.role === 'user' ? 'text-purple-200' : 'text-gray-500'
+                }`}
+              >
+                {new Date(message.timestamp).toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </p>
+            </div>
+          </div>
+        ))}
+        {isLoading && (
+          <div className="flex justify-start">
+            <div className="bg-gray-100 rounded-lg px-3 py-2">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100" />
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200" />
+              </div>
+            </div>
+          </div>
+        )}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+            <p className="text-xs text-red-600">{error}</p>
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Input */}
+      <div className="p-3 border-t border-gray-200">
+        <form onSubmit={handleSubmit} className="flex gap-2">
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Type a message..."
+            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+            disabled={isLoading}
+          />
+          <button
+            type="submit"
+            disabled={!input.trim() || isLoading}
+            className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            Send
+          </button>
+        </form>
       </div>
     </div>
   );
