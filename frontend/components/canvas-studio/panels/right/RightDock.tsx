@@ -33,7 +33,7 @@ export function RightDock() {
           onClick={() => setActiveTab('chat')}
           className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors ${
             activeTab === 'chat'
-              ? 'border-b-2 border-indigo-600 text-indigo-600 bg-white'
+              ? 'border-b-2 border-purple-600 text-purple-600 bg-white'
               : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
           }`}
         >
@@ -44,7 +44,7 @@ export function RightDock() {
           onClick={() => setActiveTab('inspector')}
           className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors ${
             activeTab === 'inspector'
-              ? 'border-b-2 border-indigo-600 text-indigo-600 bg-white'
+              ? 'border-b-2 border-purple-600 text-purple-600 bg-white'
               : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
           }`}
         >
@@ -55,7 +55,7 @@ export function RightDock() {
           onClick={() => setActiveTab('layers')}
           className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors ${
             activeTab === 'layers'
-              ? 'border-b-2 border-indigo-600 text-indigo-600 bg-white'
+              ? 'border-b-2 border-purple-600 text-purple-600 bg-white'
               : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
           }`}
         >

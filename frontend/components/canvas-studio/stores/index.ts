@@ -12,3 +12,4 @@ export * from './useEditorStore';
 export * from './useLayoutStore';
 export * from './useCanvasStore';
 export * from './useTabsStore';
+export * from './useLeftPanelStore';
