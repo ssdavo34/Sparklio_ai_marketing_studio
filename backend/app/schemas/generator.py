@@ -64,6 +64,23 @@ class DocumentPayload(BaseModel):
     )
 
 
+class ImagePayload(BaseModel):
+    """생성된 이미지 데이터"""
+    type: str = Field(..., description="이미지 타입: 'base64' 또는 'url'")
+    format: str = Field(default="png", description="이미지 포맷 (png, jpg 등)")
+    data: Optional[str] = Field(None, description="Base64 인코딩된 이미지 데이터 (type='base64'일 때)")
+    url: Optional[str] = Field(None, description="이미지 URL (type='url'일 때)")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "type": "base64",
+                "format": "png",
+                "data": "iVBORw0KGgoAAAANSUhEUgAA..."
+            }
+        }
+
+
 class TextPayload(BaseModel):
     """생성된 텍스트 블록"""
     headline: Optional[str] = Field(None, description="헤드라인")
@@ -71,6 +88,7 @@ class TextPayload(BaseModel):
     body: Optional[str] = Field(None, description="본문")
     bullets: Optional[List[str]] = Field(None, description="불릿 포인트")
     cta: Optional[str] = Field(None, description="Call to Action")
+    image: Optional[ImagePayload] = Field(None, description="생성된 이미지 (선택적)")
 
 
 class GenerateResponse(BaseModel):
@@ -102,7 +120,12 @@ class GenerateResponse(BaseModel):
                 "text": {
                     "headline": "완벽한 소음 차단의 시작",
                     "body": "프리미엄 노이즈캔슬링 기술...",
-                    "bullets": ["24시간 배터리", "IPX7 방수"]
+                    "bullets": ["24시간 배터리", "IPX7 방수"],
+                    "image": {
+                        "type": "base64",
+                        "format": "png",
+                        "data": "iVBORw0KGgoAAAANSUhEUgAA..."
+                    }
                 },
                 "meta": {
                     "workflow": "product_content_pipeline",

@@ -15,7 +15,8 @@ from app.schemas.generator import (
     GenerateRequest,
     GenerateResponse,
     DocumentPayload,
-    TextPayload
+    TextPayload,
+    ImagePayload
 )
 from app.services.orchestrator.base import WorkflowExecutor
 from app.services.orchestrator.workflows import (
@@ -32,6 +33,7 @@ from app.services.canvas import (
     create_sns_feed_document
 )
 from app.schemas.canvas import DocumentPayload as CanvasDocumentPayload
+from app.services.media import get_media_gateway
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +48,7 @@ class GeneratorService:
 
     def __init__(self):
         self.executor = WorkflowExecutor()
+        self.media_gateway = get_media_gateway()
 
         # kind → Workflow 매핑
         self.workflow_map = {
@@ -106,7 +109,7 @@ class GeneratorService:
             )
 
         # 3. 응답 변환 (AgentResponse → GenerateResponse)
-        return self._build_response(req.kind, result)
+        return await self._build_response(req.kind, req.input, result)
 
     def _prepare_workflow_payload(
         self,
@@ -159,9 +162,47 @@ class GeneratorService:
 
         return payload
 
-    def _build_response(
+    def _build_image_prompt(
+        self,
+        input_data: Dict[str, Any],
+        text_data: Dict[str, Any]
+    ) -> str:
+        """
+        제품 이미지 생성을 위한 프롬프트 구성
+
+        Args:
+            input_data: 사용자 입력 데이터
+            text_data: Copywriter가 생성한 텍스트
+
+        Returns:
+            ComfyUI용 이미지 프롬프트 (영문)
+        """
+        product_name = input_data.get("product_name", "product")
+        features = input_data.get("features", [])
+        category = input_data.get("category", "product")
+
+        # Designer Agent 프롬프트 가이드라인 적용
+        # - 배경: 흰색/밝은 회색 그라디언트
+        # - 3:2 비율 권장 (1024x680)
+        # - 제품 중심 배치
+        prompt = (
+            f"Professional product photography of {product_name}, "
+            f"centered composition, studio lighting, "
+            f"white to light gray gradient background, "
+            f"clean and minimal, high quality, 8k resolution, "
+            f"commercial advertising style"
+        )
+
+        if features:
+            features_str = ", ".join(features[:3])  # 최대 3개 특징
+            prompt += f", highlighting {features_str}"
+
+        return prompt
+
+    async def _build_response(
         self,
         kind: str,
+        input_data: Dict[str, Any],
         workflow_result
     ) -> GenerateResponse:
         """
@@ -169,6 +210,7 @@ class GeneratorService:
 
         Args:
             kind: 생성 타입
+            input_data: 원본 입력 데이터 (include_image 확인용)
             workflow_result: WorkflowResult
 
         Returns:
@@ -205,13 +247,49 @@ class GeneratorService:
         else:
             logger.warning("No copywriter outputs found!")
 
+        # 이미지 생성 (include_image: true일 때만)
+        image_payload = None
+        if input_data.get("include_image", False):
+            try:
+                logger.info("Image generation requested, building prompt...")
+                image_prompt = self._build_image_prompt(input_data, text_data)
+
+                logger.info(f"Generating image with prompt: {image_prompt[:100]}...")
+                media_response = await self.media_gateway.generate(
+                    prompt=image_prompt,
+                    task="product_image",
+                    media_type="image",
+                    options={
+                        "width": 1024,
+                        "height": 1024,
+                        "checkpoint": "juggernautXL_ragnarokBy.safetensors"
+                    }
+                )
+
+                # ComfyUI는 Base64로 반환
+                if media_response.outputs and len(media_response.outputs) > 0:
+                    first_output = media_response.outputs[0]
+                    image_payload = ImagePayload(
+                        type="base64",
+                        format=first_output.format,
+                        data=first_output.data
+                    )
+                    logger.info("Image generated successfully (Base64)")
+                else:
+                    logger.warning("No media outputs returned from ComfyUI")
+
+            except Exception as e:
+                logger.exception(f"Failed to generate product image: {e}")
+                # 이미지 실패해도 텍스트는 반환
+
         # TextPayload 생성
         text = TextPayload(
             headline=text_data.get("headline"),
             subheadline=text_data.get("subheadline"),
             body=text_data.get("body"),
             bullets=text_data.get("bullets") or text_data.get("features"),
-            cta=text_data.get("cta")
+            cta=text_data.get("cta"),
+            image=image_payload
         )
 
         # Canvas Document 생성 (v2.0 Abstract Spec)
