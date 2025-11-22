@@ -13,6 +13,7 @@
 
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useTabsStore } from '../../stores/useTabsStore';
 import { useCanvasStore } from '../../stores/useCanvasStore';
 import { MessageSquare, Layers, Settings } from 'lucide-react';
@@ -21,6 +22,19 @@ export function RightDock() {
   const activeTab = useTabsStore((state) => state.activeRightDockTab);
   const setActiveTab = useTabsStore((state) => state.setActiveRightDockTab);
   const polotnoStore = useCanvasStore((state) => state.polotnoStore);
+  const [, forceUpdate] = useState({});
+
+  // Force re-render when store changes
+  useEffect(() => {
+    if (!polotnoStore) return;
+
+    const handleUpdate = () => forceUpdate({});
+    polotnoStore.on('change', handleUpdate);
+
+    return () => {
+      polotnoStore.off('change', handleUpdate);
+    };
+  }, [polotnoStore]);
 
   const selectedElements = polotnoStore?.selectedElements || [];
   const selectedElement = selectedElements[0];
@@ -111,11 +125,11 @@ function InspectorTab({ element }: { element: any }) {
 
   return (
     <div className="p-4 space-y-4">
-      {/* Element Type */}
+      {/* Element Name */}
       <div>
-        <label className="text-xs font-semibold text-gray-700 uppercase">Type</label>
-        <div className="mt-1 px-3 py-2 bg-gray-100 rounded text-sm capitalize">
-          {element.type}
+        <label className="text-xs font-semibold text-gray-700 uppercase">Name</label>
+        <div className="mt-1 px-3 py-2 bg-gray-100 rounded text-sm">
+          {element.name || element.type}
         </div>
       </div>
 
@@ -236,6 +250,20 @@ function InspectorTab({ element }: { element: any }) {
 // Layers Tab Component
 function LayersTab() {
   const polotnoStore = useCanvasStore((state) => state.polotnoStore);
+  const [, forceUpdate] = useState({});
+
+  // Force re-render when store changes
+  useEffect(() => {
+    if (!polotnoStore) return;
+
+    const handleUpdate = () => forceUpdate({});
+    polotnoStore.on('change', handleUpdate);
+
+    return () => {
+      polotnoStore.off('change', handleUpdate);
+    };
+  }, [polotnoStore]);
+
   const activePage = polotnoStore?.activePage;
   const elements = activePage?.children || [];
 
@@ -254,16 +282,44 @@ function LayersTab() {
         </div>
       ) : (
         <div className="space-y-1">
-          {elements.map((element: any, index: number) => (
-            <div
-              key={element.id}
-              onClick={() => polotnoStore?.selectElements([element.id])}
-              className="px-3 py-2 hover:bg-gray-100 rounded cursor-pointer text-sm flex items-center justify-between"
-            >
-              <span className="capitalize">{element.type}</span>
-              <span className="text-xs text-gray-400">#{index + 1}</span>
-            </div>
-          ))}
+          {elements.map((element: any, index: number) => {
+            const isSelected = polotnoStore?.selectedElements.includes(element);
+
+            return (
+              <div
+                key={element.id}
+                onClick={() => polotnoStore?.selectElements([element.id])}
+                className={`px-3 py-2 hover:bg-gray-100 rounded cursor-pointer text-sm flex items-center justify-between ${
+                  isSelected ? 'bg-purple-50 border border-purple-300' : ''
+                }`}
+              >
+                <span className="font-medium">{element.name || element.type}</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      element.moveUp();
+                    }}
+                    className="p-1 hover:bg-gray-200 rounded"
+                    title="Move up"
+                  >
+                    ▲
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      element.moveDown();
+                    }}
+                    className="p-1 hover:bg-gray-200 rounded"
+                    title="Move down"
+                  >
+                    ▼
+                  </button>
+                  <span className="text-xs text-gray-400">#{index + 1}</span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

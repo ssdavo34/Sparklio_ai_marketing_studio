@@ -16,7 +16,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createStore } from 'polotno/model/store';
 import { PolotnoContainer, SidePanelWrap, WorkspaceWrap } from 'polotno';
-import { Toolbar } from 'polotno/toolbar/toolbar';
 import { ZoomButtons } from 'polotno/toolbar/zoom-buttons';
 import { Workspace } from 'polotno/canvas/workspace';
 import { useCanvasStore } from '../stores/useCanvasStore';
@@ -70,8 +69,13 @@ export function PolotnoWorkspace({ apiKey }: PolotnoWorkspaceProps) {
     <div className="h-full w-full">
       <PolotnoContainer className="h-full">
         <WorkspaceWrap>
-          <Toolbar store={storeRef.current} />
-          <Workspace store={storeRef.current} />
+          <Workspace
+            store={storeRef.current}
+            components={{
+              // Disable context menu
+              ContextMenu: () => null,
+            }}
+          />
           <ZoomButtons store={storeRef.current} />
         </WorkspaceWrap>
       </PolotnoContainer>

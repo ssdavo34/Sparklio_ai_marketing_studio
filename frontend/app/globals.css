@@ -25,3 +25,18 @@ body {
     text-wrap: balance;
   }
 }
+
+/* Hide Polotno UI elements */
+.polotno-workspace-container .konvajs-content + div {
+  display: none !important;
+}
+
+/* Hide ALL Polotno text labels (Position, etc) */
+.polotno-workspace-container text {
+  display: none !important;
+}
+
+/* But show actual user text elements */
+.polotno-workspace-container text[data-text-node="true"] {
+  display: block !important;
+}

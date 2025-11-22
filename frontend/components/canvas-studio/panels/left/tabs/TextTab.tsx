@@ -10,9 +10,10 @@ export function TextTab() {
     if (!polotnoStore) return;
     polotnoStore.activePage?.addElement({
       type: 'text',
+      name: 'Text',
       x: 100,
       y: 100,
-      text: 'Double click to edit',
+      text: 'Text',
       fontSize: 32,
       fill: '#000000',
     });
