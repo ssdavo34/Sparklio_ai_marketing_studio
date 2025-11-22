@@ -164,11 +164,7 @@ class IngestorAgent(AgentBase):
 
     def __init__(self, llm_service: Optional[LLMService] = None):
         super().__init__(
-            agent_id="ingestor",
-            name="Ingestor Agent",
-            description="다양한 스토리지 시스템에 데이터를 저장하고 관리합니다",
-            category="intelligence",
-            llm_service=llm_service
+            llm_gateway=llm_service
         )
 
         # Mock 스토리지 (실제로는 DB 연결)
@@ -184,6 +180,11 @@ class IngestorAgent(AgentBase):
             "total_uploaded": 0,
             "total_errors": 0
         }
+
+    @property
+    def name(self) -> str:
+        """Agent 이름 반환"""
+        return "ingestor"
 
     async def execute(self, request: AgentRequest) -> AgentResponse:
         """에이전트 실행"""

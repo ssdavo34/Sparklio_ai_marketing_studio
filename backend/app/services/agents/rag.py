@@ -193,17 +193,18 @@ class RAGAgent(AgentBase):
 
     def __init__(self, llm_service: Optional[LLMService] = None):
         super().__init__(
-            agent_id="rag",
-            name="RAG Agent",
-            description="지식 베이스를 활용한 검색 증강 생성을 수행합니다",
-            category="intelligence",
-            llm_service=llm_service
+            llm_gateway=llm_service
         )
 
         # 지식 베이스 (인메모리 Mock)
         self.knowledge_base: Dict[str, Document] = {}
         self.chunks: List[Chunk] = []
         self.inverted_index: Dict[str, List[str]] = defaultdict(list)  # 키워드 -> 문서ID
+
+    @property
+    def name(self) -> str:
+        """Agent 이름 반환"""
+        return "rag"
 
     async def execute(self, request: AgentRequest) -> AgentResponse:
         """에이전트 실행"""

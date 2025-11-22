@@ -177,11 +177,7 @@ class PerformanceAnalyzerAgent(AgentBase):
 
     def __init__(self, llm_service: Optional[LLMService] = None):
         super().__init__(
-            agent_id="performance_analyzer",
-            name="Performance Analyzer Agent",
-            description="SNS와 광고 캠페인의 성과를 분석하고 최적화 제안을 제공합니다",
-            category="intelligence",
-            llm_service=llm_service
+            llm_gateway=llm_service
         )
 
         # 업계 벤치마크 데이터 (Mock)
@@ -205,6 +201,11 @@ class PerformanceAnalyzerAgent(AgentBase):
                 "roi": 3.8
             }
         }
+
+    @property
+    def name(self) -> str:
+        """Agent 이름 반환"""
+        return "performance_analyzer"
 
     async def execute(self, request: AgentRequest) -> AgentResponse:
         """에이전트 실행"""

@@ -187,11 +187,7 @@ class EmbedderAgent(AgentBase):
 
     def __init__(self, llm_service: Optional[LLMService] = None):
         super().__init__(
-            agent_id="embedder",
-            name="Embedder Agent",
-            description="텍스트와 이미지를 벡터로 변환하고 유사도 검색을 수행합니다",
-            category="intelligence",
-            llm_service=llm_service
+            llm_gateway=llm_service
         )
 
         # 임베딩 캐시 (메모리 절약)
@@ -211,6 +207,11 @@ class EmbedderAgent(AgentBase):
             EmbeddingModel.CLIP_MULTIMODAL: 512,
             EmbeddingModel.ALIGN_MODEL: 640,
         }
+
+    @property
+    def name(self) -> str:
+        """Agent 이름 반환"""
+        return "embedder"
 
     async def execute(self, request: AgentRequest) -> AgentResponse:
         """에이전트 실행"""

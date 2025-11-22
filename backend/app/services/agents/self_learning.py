@@ -164,11 +164,7 @@ class SelfLearningAgent(AgentBase):
 
     def __init__(self, llm_service: Optional[LLMService] = None):
         super().__init__(
-            agent_id="self_learning",
-            name="Self Learning Agent",
-            description="사용자 피드백을 학습하여 시스템을 지속적으로 개선합니다",
-            category="intelligence",
-            llm_service=llm_service
+            llm_gateway=llm_service
         )
 
         # 브랜드 벡터 저장소
@@ -186,6 +182,11 @@ class SelfLearningAgent(AgentBase):
             "successful_improvements": 0,
             "total_feedback_processed": 0
         }
+
+    @property
+    def name(self) -> str:
+        """Agent 이름 반환"""
+        return "self_learning"
 
     async def execute(self, request: AgentRequest) -> AgentResponse:
         """에이전트 실행"""
