@@ -266,6 +266,30 @@ function LayersTab() {
 
   const activePage = polotnoStore?.activePage;
   const elements = activePage?.children || [];
+  // Reverse the array to show top layers first
+  const reversedElements = [...elements].reverse();
+
+  const moveLayerUp = (element: any) => {
+    element.moveUp();
+  };
+
+  const moveLayerDown = (element: any) => {
+    element.moveDown();
+  };
+
+  const moveToTop = (element: any) => {
+    // Move to top by repeatedly calling moveUp
+    while (element.zIndex < elements.length - 1) {
+      element.moveUp();
+    }
+  };
+
+  const moveToBottom = (element: any) => {
+    // Move to bottom by repeatedly calling moveDown
+    while (element.zIndex > 0) {
+      element.moveDown();
+    }
+  };
 
   return (
     <div className="p-4">
@@ -282,8 +306,9 @@ function LayersTab() {
         </div>
       ) : (
         <div className="space-y-1">
-          {elements.map((element: any, index: number) => {
+          {reversedElements.map((element: any, index: number) => {
             const isSelected = polotnoStore?.selectedElements.includes(element);
+            const actualIndex = elements.length - index;
 
             return (
               <div
@@ -294,28 +319,48 @@ function LayersTab() {
                 }`}
               >
                 <span className="font-medium">{element.name || element.type}</span>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      element.moveUp();
+                      moveToTop(element);
+                    }}
+                    className="p-1 hover:bg-gray-200 rounded text-xs"
+                    title="Move to top"
+                  >
+                    ⬆️
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      moveLayerUp(element);
                     }}
                     className="p-1 hover:bg-gray-200 rounded"
-                    title="Move up"
+                    title="Move up one layer"
                   >
                     ▲
                   </button>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      element.moveDown();
+                      moveLayerDown(element);
                     }}
                     className="p-1 hover:bg-gray-200 rounded"
-                    title="Move down"
+                    title="Move down one layer"
                   >
                     ▼
                   </button>
-                  <span className="text-xs text-gray-400">#{index + 1}</span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      moveToBottom(element);
+                    }}
+                    className="p-1 hover:bg-gray-200 rounded text-xs"
+                    title="Move to bottom"
+                  >
+                    ⬇️
+                  </button>
+                  <span className="text-xs text-gray-400 ml-1">#{actualIndex}</span>
                 </div>
               </div>
             );
