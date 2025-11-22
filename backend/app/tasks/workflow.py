@@ -33,13 +33,24 @@ def execute_workflow_node(
     logger.info(f"Executing workflow node: {node_id} ({agent_name})")
 
     try:
-        # TODO: Import and execute the actual agent
-        # For now, this is a placeholder
-        # from app.agents import get_agent
+        # NOTE: 실제 Agent 실행 구현 예정
+        # 구현 예시:
+        # from app.services.agents import get_agent
         # agent = get_agent(agent_name)
-        # result = await agent.process(input_data)
+        # from app.schemas.agent import AgentRequest
+        # agent_request = AgentRequest(
+        #     task=input_data.get("task", "process"),
+        #     payload=input_data
+        # )
+        # agent_response = await agent.execute(agent_request)
+        # result = {
+        #     "node_id": node_id,
+        #     "agent_name": agent_name,
+        #     "status": "success" if agent_response.success else "error",
+        #     "result": agent_response.outputs
+        # }
 
-        # Placeholder response
+        # 현재는 Placeholder response
         result = {
             "node_id": node_id,
             "agent_name": agent_name,
@@ -80,12 +91,30 @@ def execute_workflow(workflow_id: str, workflow_spec: dict) -> dict:
     logger.info(f"Executing workflow: {workflow_id}")
 
     try:
-        # TODO: Implement DAG execution logic
-        # 1. Topological sort of nodes
-        # 2. Execute nodes in order (respecting dependencies)
-        # 3. Handle parallel execution using Celery groups/chains
+        # NOTE: DAG 실행 로직 구현 예정
+        # 구현 예시:
+        # 1. Topological sort of nodes:
+        #    from graphlib import TopologicalSorter
+        #    ts = TopologicalSorter(workflow_spec["dependencies"])
+        #    sorted_nodes = list(ts.static_order())
+        #
+        # 2. Execute nodes in order (respecting dependencies):
+        #    for node_id in sorted_nodes:
+        #        node = workflow_spec["nodes"][node_id]
+        #        task = execute_workflow_node.delay(
+        #            node_id, node["agent"], node["input"]
+        #        )
+        #        results[node_id] = task.get()
+        #
+        # 3. Handle parallel execution using Celery groups:
+        #    from celery import group
+        #    parallel_tasks = group([
+        #        execute_workflow_node.s(n["id"], n["agent"], n["input"])
+        #        for n in parallel_nodes
+        #    ])
+        #    parallel_results = parallel_tasks.apply_async().get()
 
-        # Placeholder
+        # 현재는 Placeholder
         result = {
             "workflow_id": workflow_id,
             "status": "completed",

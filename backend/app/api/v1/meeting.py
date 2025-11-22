@@ -56,8 +56,14 @@ async def analyze_meeting(request: MeetingAnalyzeRequest):
         # MeetingAIAgent를 사용하여 회의록 분석
         agent = get_meeting_ai_agent()
         
-        # TODO: 실제로는 meeting_id로 DB에서 회의록을 조회해야 함
-        # 여기서는 Mock Transcript 사용
+        # NOTE: 실제 구현 시 meeting_id로 DB에서 회의록을 조회
+        # 구현 예시:
+        # meeting = db.query(Meeting).filter_by(id=request.meetingId).first()
+        # if not meeting or not meeting.transcript_text:
+        #     raise HTTPException(status_code=404, detail="회의록을 찾을 수 없습니다")
+        # mock_transcript = meeting.transcript_text
+        #
+        # 현재는 Mock Transcript 사용
         mock_transcript = (
             "A: 이번 신제품 런칭 캠페인은 2030 여성을 타겟으로 합시다.\n"
             "B: 좋아요. 인스타그램과 틱톡을 메인 채널로 가져가는 게 좋겠어요.\n"

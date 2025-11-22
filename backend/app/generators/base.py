@@ -122,7 +122,18 @@ class BaseGenerator(ABC):
         if "strategist" in pipeline_steps and self.strategist:
             logger.info("[Pipeline] Executing StrategistAgent")
             try:
-                # TODO: StrategistAgent A2A 프로토콜 호출 구현
+                # NOTE: StrategistAgent A2A 프로토콜 호출 구현 예정
+                # 구현 예시:
+                # from app.schemas.agent import A2ARequest, SystemContext
+                # a2a_req = A2ARequest(
+                #     request_id=f"{uuid.uuid4()}",
+                #     source_agent="BaseGenerator",
+                #     target_agent="StrategistAgent",
+                #     system_context=SystemContext(...),
+                #     payload={"brief": {...}}
+                # )
+                # response = await self.strategist.process(a2a_req)
+                # context["structure"] = response.result
                 context["structure"] = {
                     "sections": [],  # 섹션 구조
                     "required_data": []  # 필요한 데이터 필드
@@ -145,7 +156,15 @@ class BaseGenerator(ABC):
         if "data_fetcher" in pipeline_steps and self.data_fetcher:
             logger.info("[Pipeline] Executing DataFetcher")
             try:
-                # TODO: DataFetcher RAG 조회 구현
+                # NOTE: DataFetcher RAG 조회 구현 예정
+                # 구현 예시:
+                # from app.services.agents.rag import RAGAgent
+                # rag_agent = RAGAgent(db)
+                # results = await rag_agent.execute(AgentRequest(
+                #     task="retrieve",
+                #     payload={"query": request.input, "top_k": 5}
+                # ))
+                # context["rag_data"] = results.outputs[0].value
                 context["rag_data"] = {
                     "brand_guidelines": {},
                     "industry_examples": [],
@@ -169,7 +188,19 @@ class BaseGenerator(ABC):
         if "template_selector" in pipeline_steps and self.template_selector:
             logger.info("[Pipeline] Executing TemplateSelector")
             try:
-                # TODO: Admin approved templates 조회 구현
+                # NOTE: Admin approved templates 조회 구현 예정
+                # 구현 예시:
+                # from app.models.template import Template
+                # templates = db.query(Template).filter_by(
+                #     kind=request.kind,
+                #     status="approved"
+                # ).all()
+                # selected = templates[0] if templates else None
+                # context["selected_template"] = {
+                #     "template_id": selected.id,
+                #     "type": selected.type,
+                #     "origin": "admin_approved"
+                # }
                 context["selected_template"] = {
                     "template_id": "tpl_default",
                     "type": "content_template",
@@ -193,7 +224,10 @@ class BaseGenerator(ABC):
         if "copywriter" in pipeline_steps and self.copywriter:
             logger.info("[Pipeline] Executing CopywriterAgent")
             try:
-                # TODO: CopywriterAgent A2A 프로토콜 호출 구현
+                # NOTE: CopywriterAgent A2A 프로토콜 호출 구현 예정
+                # 구현 예시는 StrategistAgent와 동일한 패턴 사용
+                # response = await self.copywriter.process(a2a_request)
+                # context["text_blocks"] = response.result
                 context["text_blocks"] = {
                     "headline": "샘플 헤드라인",
                     "description": "샘플 설명",
@@ -217,8 +251,11 @@ class BaseGenerator(ABC):
         if "layout_designer" in pipeline_steps and self.layout_designer:
             logger.info("[Pipeline] Executing LayoutDesignerAgent")
             try:
-                # TODO: LayoutDesignerAgent 구현
+                # NOTE: LayoutDesignerAgent 구현 예정
                 # ONE_PAGE_EDITOR_SPEC.md 섹션 5.2 기반 JSON 생성
+                # 구현 예시:
+                # response = await self.layout_designer.process(a2a_request)
+                # context["editor_document"] = response.result
                 context["editor_document"] = self._generate_default_editor_document(
                     request,
                     context.get("text_blocks", {})
@@ -241,7 +278,10 @@ class BaseGenerator(ABC):
         if "reviewer" in pipeline_steps and self.reviewer:
             logger.info("[Pipeline] Executing ReviewerAgent")
             try:
-                # TODO: ReviewerAgent A2A 프로토콜 호출 구현
+                # NOTE: ReviewerAgent A2A 프로토콜 호출 구현 예정
+                # 구현 예시는 다른 Agent와 동일한 패턴 사용
+                # response = await self.reviewer.process(a2a_request)
+                # context["review"] = response.result
                 context["review"] = {
                     "overall_score": 0.85,
                     "approved": True,

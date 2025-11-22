@@ -133,7 +133,13 @@ async def test_document_crud_with_auth():
     print("⚠️  이 테스트는 JWT 토큰이 필요합니다")
 
     # 테스트용 JWT 토큰 (실제로는 로그인 API에서 받아야 함)
-    # TODO: 실제 토큰으로 교체 필요
+    # NOTE: 실제 토큰으로 교체 필요
+    # 구현 예시:
+    # login_response = await client.post(f"{BASE_URL}/api/v1/users/login", json={
+    #     "email": "test@example.com",
+    #     "password": "testpassword"
+    # })
+    # test_token = login_response.json()["access_token"]
     test_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 
     headers = {

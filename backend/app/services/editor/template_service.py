@@ -466,7 +466,25 @@ class TemplateService:
         user_id: UUID
     ) -> DocumentTemplate:
         """사용자 정의 템플릿 생성"""
-        # TODO: 사용자가 만든 문서를 템플릿으로 저장
+        # NOTE: 사용자가 만든 문서를 템플릿으로 저장하는 기능 구현 예정
+        # 구현 예시:
+        # document = self.db.query(SparklioDocument).filter_by(id=document_id).first()
+        # if not document or document.created_by_id != user_id:
+        #     raise ValueError("문서를 찾을 수 없거나 권한이 없습니다")
+        #
+        # template_data = {
+        #     "id": str(uuid4()),
+        #     "name": name,
+        #     "description": description,
+        #     "kind": document.kind,
+        #     "thumbnail": None,  # 썸네일 생성 로직 필요
+        #     "category": "custom",
+        #     "tags": ["사용자 정의"],
+        #     "isPremium": False,
+        #     "pages": document.pages,
+        #     "created_by_id": user_id
+        # }
+        # # DB에 저장하고 DocumentTemplate 반환
         pass
 
     async def delete_template(
@@ -475,5 +493,17 @@ class TemplateService:
         user_id: UUID
     ) -> bool:
         """템플릿 삭제"""
-        # TODO: 사용자 정의 템플릿 삭제
+        # NOTE: 사용자 정의 템플릿 삭제 기능 구현 예정
+        # 구현 예시:
+        # template = self.db.query(UserTemplate).filter_by(
+        #     id=template_id,
+        #     created_by_id=user_id
+        # ).first()
+        # if not template:
+        #     return False
+        # self.db.delete(template)
+        # self.db.commit()
+        # return True
+        #
+        # 주의: 기본 시스템 템플릿은 삭제 불가능하도록 검증 필요
         pass

@@ -274,10 +274,24 @@ class GeneratorService:
         elif kind == "sns_set":
             return create_sns_feed_document(text_data)
         elif kind == "brand_identity":
-            # 아직 v2.0 미구현, v1.0 fallback
-            canvas_json = create_brand_identity_canvas(text_data)
-            # TODO: create_brand_identity_document 구현
-            # 임시로 product_detail 사용
+            # NOTE: brand_identity v2.0 Document 구현 예정
+            # 구현 예시:
+            # return CanvasDocumentPayload(
+            #     documentId=f"doc_{uuid.uuid4().hex[:12]}",
+            #     version="2.0",
+            #     pages=[
+            #         PagePayload(
+            #             id="page_1",
+            #             name="Brand Identity",
+            #             width=1080,
+            #             height=1350,
+            #             objects=[
+            #                 # 브랜드 로고, 컬러 팔레트, 타이포그래피 등
+            #             ]
+            #         )
+            #     ]
+            # )
+            # 현재는 임시로 product_detail 사용
             return create_product_detail_document(text_data)
         else:
             # 기본 Document (product_detail 기본값)

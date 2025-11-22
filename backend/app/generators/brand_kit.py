@@ -90,7 +90,16 @@ class BrandKitGenerator(BaseGenerator):
             brand_data = {}
             if request.brandId:
                 logger.info(f"[BrandKitGenerator] Retrieving existing brand: {request.brandId}")
-                # TODO: DB에서 Brand 조회 (현재는 입력 데이터 사용)
+                # NOTE: DB에서 Brand 조회 구현 예정
+                # 구현 예시:
+                # from app.models.brand import Brand
+                # brand = db.query(Brand).filter_by(id=request.brandId).first()
+                # if brand:
+                #     brand_data = {
+                #         "brand_id": request.brandId,
+                #         "brand_kit": brand.brand_kit or {}
+                #     }
+                # 현재는 입력 데이터 사용
                 brand_data = {
                     "brand_id": request.brandId,
                     "brand_kit": {}

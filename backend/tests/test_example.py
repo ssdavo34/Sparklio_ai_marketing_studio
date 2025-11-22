@@ -123,5 +123,15 @@ def test_brand_crud(authenticated_client: TestClient, test_brand_data: dict):
 @pytest.mark.skip(reason="Agent not implemented yet")
 def test_brief_agent():
     """Test BriefAgent - Template for future implementation"""
-    # TODO: Implement when BriefAgent is ready
+    # NOTE: BriefAgent 테스트 구현 예정
+    # 구현 예시:
+    # from app.services.agents import get_brief_agent, AgentRequest
+    # agent = get_brief_agent()
+    # request = AgentRequest(
+    #     task="analyze",
+    #     payload={"text": "test brief"}
+    # )
+    # response = await agent.execute(request)
+    # assert response.success
+    # assert len(response.outputs) > 0
     pass
