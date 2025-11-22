@@ -13,9 +13,10 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTabsStore } from '../../stores/useTabsStore';
 import { useCanvasStore } from '../../stores/useCanvasStore';
+import { useChatStore } from '../../stores/useChatStore';
 import { MessageSquare, Layers, Settings } from 'lucide-react';
 
 export function RightDock() {
