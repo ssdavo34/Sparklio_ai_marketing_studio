@@ -187,8 +187,11 @@ class ExportService:
         scale: float
     ) -> Dict[str, Any]:
         """PDF 형식으로 내보내기"""
-        # TODO: 실제 PDF 렌더링 구현
-        # 현재는 Mock 데이터 반환
+        # NOTE: PDF 렌더링 실제 구현 필요
+        # 권장 라이브러리: playwright 또는 weasyprint
+        # 1. Canvas JSON을 HTML/CSS로 변환
+        # 2. Playwright로 브라우저 렌더링
+        # 3. PDF로 저장
 
         # 임시 PDF 생성 (실제로는 puppeteer 또는 wkhtmltopdf 사용)
         pdf_content = await self._render_to_pdf(document, pages, scale)
@@ -216,8 +219,11 @@ class ExportService:
         scale: float
     ) -> Dict[str, Any]:
         """이미지 형식으로 내보내기"""
-        # TODO: 실제 이미지 렌더링 구현
-        # 현재는 Mock 데이터 반환
+        # NOTE: 이미지 렌더링 실제 구현 필요
+        # 권장 방법: playwright의 screenshot 기능
+        # 1. Canvas를 HTML로 렌더링
+        # 2. Playwright로 페이지 로드
+        # 3. 스크린샷 캡처 (PNG/JPG/WEBP)
 
         results = []
         page_list = document.pages
@@ -254,8 +260,11 @@ class ExportService:
         scale: float
     ) -> Dict[str, Any]:
         """SVG 형식으로 내보내기"""
-        # TODO: 실제 SVG 생성 구현
-        # 현재는 Mock 데이터 반환
+        # NOTE: SVG 생성 실제 구현 필요
+        # Canvas 요소를 SVG 태그로 변환
+        # 1. 텍스트 → <text> 태그
+        # 2. 이미지 → <image> 태그
+        # 3. 도형 → <rect>, <circle>, <path> 태그
 
         results = []
         page_list = document.pages
@@ -301,9 +310,15 @@ class ExportService:
         scale: float
     ) -> bytes:
         """PDF로 렌더링 (Mock)"""
-        # TODO: 실제 구현 필요
-        # - puppeteer 또는 playwright 사용
-        # - HTML/CSS로 변환 후 PDF 생성
+        # NOTE: Playwright 연동 예시 코드:
+        # from playwright.async_api import async_playwright
+        # async with async_playwright() as p:
+        #     browser = await p.chromium.launch()
+        #     page = await browser.new_page()
+        #     await page.set_content(html_content)
+        #     pdf_bytes = await page.pdf(scale=scale)
+        #     await browser.close()
+        #     return pdf_bytes
         mock_pdf = b"%PDF-1.4\n% Mock PDF content"
         await asyncio.sleep(1)  # 처리 시간 시뮬레이션
         return mock_pdf
@@ -316,9 +331,15 @@ class ExportService:
         scale: float
     ) -> bytes:
         """이미지로 렌더링 (Mock)"""
-        # TODO: 실제 구현 필요
-        # - canvas API 또는 playwright 사용
-        # - 각 요소를 이미지로 렌더링
+        # NOTE: Playwright 스크린샷 연동 예시:
+        # from playwright.async_api import async_playwright
+        # async with async_playwright() as p:
+        #     browser = await p.chromium.launch()
+        #     page_obj = await browser.new_page()
+        #     await page_obj.set_content(html_content)
+        #     image = await page_obj.screenshot(type=format, quality=quality)
+        #     await browser.close()
+        #     return image
         if format == "png":
             mock_image = b"\x89PNG\r\n\x1a\n"  # PNG 헤더
         else:

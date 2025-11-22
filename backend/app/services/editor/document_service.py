@@ -292,7 +292,10 @@ class DocumentService:
         limit: int = 10
     ) -> List[Dict[str, Any]]:
         """문서 변경 이력 조회"""
-        # TODO: 버전 관리 시스템 구현 후 완성
+        # NOTE: 향후 버전 관리 시스템 구현 예정
+        # - 각 저장 시점의 스냅샷 저장
+        # - diff 계산 및 표시
+        # - 버전 간 비교 및 롤백 기능
         # 현재는 간단한 메타데이터만 반환
         try:
             document = self.db.query(SparklioDocument).filter(

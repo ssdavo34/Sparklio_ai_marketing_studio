@@ -269,9 +269,14 @@ class EmbedderAgent(AgentBase):
             return self.embedding_cache[cache_key]
 
         # Mock 임베딩 생성 (실제로는 API 호출)
-        if self.llm_service:
-            # TODO: LLM 서비스를 통한 실제 임베딩 생성
-            pass
+        # NOTE: 임베딩 API 연동 시 아래 코드를 활성화하세요
+        # if self.llm_service:
+        #     embedding = await self.llm_service.create_embedding(
+        #         text=input_data.text,
+        #         model=input_data.model.value
+        #     )
+        #     self.embedding_cache[cache_key] = embedding
+        #     return embedding
 
         # Mock 데이터
         dimensions = self.model_dimensions[input_data.model]

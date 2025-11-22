@@ -391,9 +391,14 @@ class RAGAgent(AgentBase):
             combined_context = combined_context[:input_data.max_context_length]
 
         # Mock 생성 (실제로는 LLM 호출)
-        if self.llm_service:
-            # TODO: LLM을 통한 실제 생성
-            pass
+        # NOTE: LLM 서비스 연동 시 아래 코드를 활성화하세요
+        # if self.llm_service:
+        #     generated_text = await self.llm_service.generate(
+        #         prompt=input_data.prompt,
+        #         context=combined_context,
+        #         max_tokens=input_data.max_tokens
+        #     )
+        #     return generated_text
 
         # Mock 응답
         generated_text = self._generate_mock_response(input_data.prompt, combined_context)
