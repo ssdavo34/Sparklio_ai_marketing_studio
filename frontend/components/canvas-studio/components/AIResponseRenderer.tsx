@@ -15,15 +15,17 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import { AlertCircle, FileText, Layout, Target } from 'lucide-react';
+import { AlertCircle, FileText, Layout, Target, CheckCircle2 } from 'lucide-react';
 import { detectResponseType, type DetectionResult } from '@/lib/utils/response-type-detector';
 import { ContentPlanViewer } from './pages/ContentPlanViewer';
 import { AdCopyOutput } from './AdCopyOutput';
 import { StrategistStrategyView } from './StrategistStrategyView';
+import { ReviewerReviewView } from './ReviewerReviewView';
 import { ErrorMessage } from './ErrorMessage';
 import type { ContentPlanPagesSchema } from '../types/content-plan';
 import type { AdCopySimpleOutputV2 } from './AdCopyOutput';
 import type { CampaignStrategyOutputV1 } from '../types/strategist';
+import type { AdCopyReviewOutputV1 } from '../types/reviewer';
 
 // ============================================================================
 // Types
@@ -98,7 +100,35 @@ export function AIResponseRenderer({
   return renderContent();
 
   function renderContent() {
-    // 1. CampaignStrategy 렌더링
+    // 1. AdCopyReview 렌더링
+    if (detection.type === 'ad_copy_review' && detection.data) {
+      return (
+        <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
+          <div className="border-b border-gray-200 bg-gradient-to-r from-green-50 to-emerald-50 px-4 py-3">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-green-600" />
+              <h3 className="text-sm font-semibold text-gray-900">AI 카피 리뷰</h3>
+              <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+                품질 평가
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-gray-600">
+              AI 리뷰어가 분석한 광고 카피 품질 평가 및 개선 제안입니다
+            </p>
+          </div>
+
+          <div className="p-6">
+            <ReviewerReviewView
+              review={detection.data as AdCopyReviewOutputV1}
+              editable={editable}
+              onAction={onStrategyAction}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    // 2. CampaignStrategy 렌더링
     if (detection.type === 'campaign_strategy' && detection.data) {
       return (
         <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
@@ -125,7 +155,7 @@ export function AIResponseRenderer({
       );
     }
 
-    // 2. ContentPlanPages 렌더링
+    // 3. ContentPlanPages 렌더링
     if (detection.type === 'content_plan_pages' && detection.data) {
       return (
         <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
@@ -154,7 +184,7 @@ export function AIResponseRenderer({
       );
     }
 
-    // 3. AdCopy 렌더링
+    // 4. AdCopy 렌더링
     if (detection.type === 'ad_copy' && detection.data) {
       return (
         <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
@@ -179,7 +209,7 @@ export function AIResponseRenderer({
       );
     }
 
-    // 4. Error 렌더링
+    // 5. Error 렌더링
     if (detection.type === 'error') {
       const errorMessage =
         detection.data?.error ||
@@ -195,7 +225,7 @@ export function AIResponseRenderer({
       );
     }
 
-    // 5. Unknown - 원본 데이터 JSON 표시
+    // 6. Unknown - 원본 데이터 JSON 표시
     return (
       <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
         <div className="flex items-start gap-3">

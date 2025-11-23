@@ -15,6 +15,7 @@
 import type { ContentPlanPagesSchema } from '@/components/canvas-studio/types/content-plan';
 import type { AdCopySimpleOutputV2 } from '@/components/canvas-studio/components/AdCopyOutput';
 import type { CampaignStrategyOutputV1 } from '@/components/canvas-studio/types/strategist';
+import type { AdCopyReviewOutputV1 } from '@/components/canvas-studio/types/reviewer';
 
 // ============================================================================
 // Types
@@ -24,6 +25,7 @@ export type ResponseType =
   | 'content_plan_pages'
   | 'ad_copy'
   | 'campaign_strategy'
+  | 'ad_copy_review'
   | 'error'
   | 'unknown';
 
@@ -60,19 +62,25 @@ export function detectResponseType(response: any): DetectionResult {
     };
   }
 
-  // 2. CampaignStrategy 감지
+  // 2. AdCopyReview 감지
+  const adCopyReviewResult = detectAdCopyReview(response);
+  if (adCopyReviewResult.confidence >= 0.8) {
+    return adCopyReviewResult;
+  }
+
+  // 3. CampaignStrategy 감지
   const campaignStrategyResult = detectCampaignStrategy(response);
   if (campaignStrategyResult.confidence >= 0.8) {
     return campaignStrategyResult;
   }
 
-  // 3. ContentPlanPages 감지
+  // 4. ContentPlanPages 감지
   const contentPlanResult = detectContentPlanPages(response);
   if (contentPlanResult.confidence >= 0.8) {
     return contentPlanResult;
   }
 
-  // 4. AdCopy 감지
+  // 5. AdCopy 감지
   const adCopyResult = detectAdCopy(response);
   if (adCopyResult.confidence >= 0.8) {
     return adCopyResult;
@@ -192,6 +200,63 @@ export function detectContentPlanPages(response: any): DetectionResult {
 }
 
 /**
+ * AdCopyReview 타입 감지
+ */
+export function detectAdCopyReview(response: any): DetectionResult {
+  let confidence = 0;
+  const reasons: string[] = [];
+
+  // 필수 필드 체크
+  if (response.schema_version === '1.0') {
+    confidence += 0.1;
+    reasons.push('schema_version 1.0');
+  }
+
+  // 점수 필드 체크
+  if (typeof response.overall_score === 'number' &&
+      response.overall_score >= 0 &&
+      response.overall_score <= 10) {
+    confidence += 0.2;
+    reasons.push('valid overall_score');
+  }
+
+  if (typeof response.tone_match_score === 'number' &&
+      typeof response.clarity_score === 'number' &&
+      typeof response.persuasiveness_score === 'number') {
+    confidence += 0.2;
+    reasons.push('all scores present');
+  }
+
+  // 배열 필드 체크
+  if (Array.isArray(response.strengths) && response.strengths.length > 0) {
+    confidence += 0.15;
+    reasons.push('strengths array');
+  }
+
+  if (Array.isArray(response.weaknesses) && response.weaknesses.length > 0) {
+    confidence += 0.15;
+    reasons.push('weaknesses array');
+  }
+
+  if (Array.isArray(response.improvement_suggestions) && response.improvement_suggestions.length > 0) {
+    confidence += 0.15;
+    reasons.push('improvement_suggestions array');
+  }
+
+  if (Array.isArray(response.risk_flags)) {
+    confidence += 0.05;
+    reasons.push('risk_flags array');
+  }
+
+  return {
+    type: 'ad_copy_review',
+    confidence: Math.min(confidence, 1.0),
+    data: confidence >= 0.8 ? (response as AdCopyReviewOutputV1) : undefined,
+    reason: reasons.join(', '),
+  };
+}
+
+/**
  * AdCopy 타입 감지
  */
 export function detectAdCopy(response: any): DetectionResult {
@@ -259,6 +324,14 @@ export function isAdCopy(response: any): response is AdCopySimpleOutputV2 {
  */
 export function isCampaignStrategy(response: any): response is CampaignStrategyOutputV1 {
   const result = detectCampaignStrategy(response);
+  return result.confidence >= 0.8;
+}
+
+/**
+ * 응답이 AdCopyReview 타입인지 확인 (타입 가드)
+ */
+export function isAdCopyReview(response: any): response is AdCopyReviewOutputV1 {
+  const result = detectAdCopyReview(response);
   return result.confidence >= 0.8;
 }
 
