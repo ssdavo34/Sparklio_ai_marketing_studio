@@ -19,6 +19,8 @@ import { ChevronLeft, ChevronRight, Edit, Eye, Download, Share2 } from 'lucide-r
 import type { ContentPlanPagesSchema, Page } from '../../types/content-plan';
 import { PageRenderer } from './PageRenderer';
 import { LAYOUT_CONFIGS } from '../../types/content-plan';
+import { useCanvasStore } from '../../stores/useCanvasStore';
+import { applyContentPlanToPolotno } from '../../adapters/content-plan-to-polotno';
 
 // ============================================================================
 // Props
@@ -59,6 +61,9 @@ export function ContentPlanViewer({
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [isEditing, setIsEditing] = useState(false);
   const [editedContentPlan, setEditedContentPlan] = useState(contentPlan);
+  const [isApplying, setIsApplying] = useState(false);
+
+  const polotnoStore = useCanvasStore((state) => state.polotnoStore);
 
   const currentPage = editedContentPlan.pages[currentPageIndex];
   const totalPages = editedContentPlan.pages.length;
@@ -98,6 +103,38 @@ export function ContentPlanViewer({
   const handleCancelEdit = () => {
     setEditedContentPlan(contentPlan);
     setIsEditing(false);
+  };
+
+  // Apply to Polotno
+  const handleApplyToPolotno = async () => {
+    if (onApplyToPolotno) {
+      // 커스텀 콜백이 제공된 경우 사용
+      onApplyToPolotno(editedContentPlan);
+      return;
+    }
+
+    // 기본 동작: Polotno Store에 직접 적용
+    if (!polotnoStore) {
+      console.error('[ContentPlanViewer] Polotno Store가 초기화되지 않았습니다.');
+      alert('캔버스가 준비되지 않았습니다. 잠시 후 다시 시도해주세요.');
+      return;
+    }
+
+    setIsApplying(true);
+    try {
+      await applyContentPlanToPolotno(polotnoStore, editedContentPlan, {
+        pageWidth: 1200,
+        pageHeight: 1600,
+        fontFamily: 'Noto Sans KR',
+      });
+      console.log('[ContentPlanViewer] ✅ Polotno 적용 완료');
+      alert('캔버스에 적용되었습니다! 좌측 Canvas Studio 탭을 확인해주세요.');
+    } catch (error) {
+      console.error('[ContentPlanViewer] Polotno 적용 실패:', error);
+      alert('캔버스 적용에 실패했습니다. 다시 시도해주세요.');
+    } finally {
+      setIsApplying(false);
+    }
   };
 
   // Keyboard Navigation
@@ -147,14 +184,13 @@ export function ContentPlanViewer({
             )}
 
             {/* Apply to Polotno */}
-            {onApplyToPolotno && (
-              <button
-                onClick={() => onApplyToPolotno(editedContentPlan)}
-                className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 transition-colors"
-              >
-                Canvas 적용
-              </button>
-            )}
+            <button
+              onClick={handleApplyToPolotno}
+              disabled={isApplying}
+              className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isApplying ? '적용 중...' : 'Canvas 적용'}
+            </button>
 
             {/* Download */}
             {onDownload && (
