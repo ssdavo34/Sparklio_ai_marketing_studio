@@ -15,14 +15,16 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, Edit, Eye, Download, Share2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Edit, Eye, Download, Share2, Target, FileText } from 'lucide-react';
 import type { ContentPlanPagesSchema, Page } from '../../types/content-plan';
+import type { CampaignStrategyOutputV1 } from '../../types/strategist';
 import { PageRenderer } from './PageRenderer';
 import { LAYOUT_CONFIGS } from '../../types/content-plan';
 import { useCanvasStore } from '../../stores/useCanvasStore';
 import { applyContentPlanToPolotno } from '../../adapters/content-plan-to-polotno';
 import { FeedbackCollector, type FeedbackData } from '../FeedbackCollector';
 import { submitFeedback } from '@/lib/api/feedback-api';
+import { StrategistStrategyView } from '../StrategistStrategyView';
 
 // ============================================================================
 // Props
@@ -31,6 +33,9 @@ import { submitFeedback } from '@/lib/api/feedback-api';
 export interface ContentPlanViewerProps {
   /** Content Plan Pages 데이터 */
   contentPlan: ContentPlanPagesSchema;
+
+  /** Campaign Strategy (선택적) */
+  campaignStrategy?: CampaignStrategyOutputV1;
 
   /** 편집 가능 여부 */
   editable?: boolean;
@@ -52,6 +57,9 @@ export interface ContentPlanViewerProps {
 
   /** Content Plan ID (피드백 대상 식별용) */
   planId?: string;
+
+  /** 전략 기반 액션 핸들러 (선택적) */
+  onStrategyAction?: (action: string, data?: any) => void;
 }
 
 // ============================================================================
@@ -60,6 +68,7 @@ export interface ContentPlanViewerProps {
 
 export function ContentPlanViewer({
   contentPlan,
+  campaignStrategy,
   editable = false,
   onChange,
   onApplyToPolotno,
@@ -67,7 +76,9 @@ export function ContentPlanViewer({
   onShare,
   showFeedback = true,
   planId,
+  onStrategyAction,
 }: ContentPlanViewerProps) {
+  const [currentTab, setCurrentTab] = useState<'pages' | 'strategy'>('pages');
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [isEditing, setIsEditing] = useState(false);
   const [editedContentPlan, setEditedContentPlan] = useState(contentPlan);
@@ -238,8 +249,41 @@ export function ContentPlanViewer({
           </div>
         </div>
 
-        {/* Page Indicator */}
-        <div className="mt-4 flex items-center justify-between">
+        {/* Tabs (전략 요약 탭 추가) */}
+        {campaignStrategy && (
+          <div className="mt-4 flex items-center gap-4 border-b border-gray-200 -mb-px">
+            <button
+              onClick={() => setCurrentTab('pages')}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                currentTab === 'pages'
+                  ? 'border-indigo-600 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                <span>콘텐츠 플랜</span>
+              </div>
+            </button>
+            <button
+              onClick={() => setCurrentTab('strategy')}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                currentTab === 'strategy'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Target className="w-4 h-4" />
+                <span>전략 요약</span>
+              </div>
+            </button>
+          </div>
+        )}
+
+        {/* Page Indicator (페이지 탭에서만 표시) */}
+        {currentTab === 'pages' && (
+          <div className="mt-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-600">
               {LAYOUT_CONFIGS[currentPage.layout].icon}{' '}
@@ -266,19 +310,34 @@ export function ContentPlanViewer({
             ))}
           </div>
         </div>
+        )}
       </div>
 
       {/* Page Content */}
       <div className="flex-1 overflow-y-auto p-6">
-        <PageRenderer
-          page={currentPage}
-          editable={isEditing}
-          onChange={handlePageChange}
-        />
+        {currentTab === 'pages' ? (
+          <PageRenderer
+            page={currentPage}
+            editable={isEditing}
+            onChange={handlePageChange}
+          />
+        ) : (
+          /* 전략 요약 탭 */
+          campaignStrategy && (
+            <div className="max-w-6xl mx-auto">
+              <StrategistStrategyView
+                strategy={campaignStrategy}
+                editable={false}
+                onAction={onStrategyAction}
+              />
+            </div>
+          )
+        )}
       </div>
 
-      {/* Footer Navigation */}
-      <div className="bg-white border-t border-gray-200 px-6 py-4">
+      {/* Footer Navigation (페이지 탭에서만 표시) */}
+      {currentTab === 'pages' && (
+        <div className="bg-white border-t border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
           {/* Previous Button */}
           <button
@@ -335,7 +394,8 @@ export function ContentPlanViewer({
             </button>
           </div>
         )}
-      </div>
+        </div>
+      )}
 
       {/* Feedback Form */}
       {showFeedback && showFeedbackForm && !isEditing && (

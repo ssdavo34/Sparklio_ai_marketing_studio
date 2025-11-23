@@ -47,6 +47,12 @@ export interface AIResponseRendererProps {
 
   /** 디버그 모드 (감지 정보 표시) */
   debug?: boolean;
+
+  /** Campaign Strategy (ContentPlan과 함께 제공 시) */
+  campaignStrategy?: CampaignStrategyOutputV1;
+
+  /** 전략 기반 액션 핸들러 */
+  onStrategyAction?: (action: string, data?: any) => void;
 }
 
 // ============================================================================
@@ -60,6 +66,8 @@ export function AIResponseRenderer({
   showFeedback = true,
   showQualityScore = false,
   debug = false,
+  campaignStrategy,
+  onStrategyAction,
 }: AIResponseRendererProps) {
   // 응답 타입 자동 감지
   const detection: DetectionResult = useMemo(() => {
@@ -136,9 +144,11 @@ export function AIResponseRenderer({
 
           <ContentPlanViewer
             contentPlan={detection.data as ContentPlanPagesSchema}
+            campaignStrategy={campaignStrategy}
             editable={editable}
             showFeedback={showFeedback}
             planId={responseId}
+            onStrategyAction={onStrategyAction}
           />
         </div>
       );

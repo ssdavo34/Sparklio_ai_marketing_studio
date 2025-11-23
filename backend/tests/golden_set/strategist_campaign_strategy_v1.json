@@ -4,7 +4,7 @@
   "task": "campaign_strategy",
   "created_at": "2025-11-23",
   "created_by": "A팀 (QA & Architecture)",
-  "description": "StrategistAgent campaign_strategy Task를 위한 Golden Set 5개 케이스",
+  "description": "StrategistAgent campaign_strategy Task를 위한 Golden Set 10개 케이스 (다양한 산업/톤/난이도 커버)",
   "pass_criteria": {
     "min_score": 7.0,
     "target_pass_rate": 0.7,
