@@ -8,9 +8,11 @@
  * - 프롬프트 입력
  * - Generate API 호출
  * - Canvas에 결과 반영
+ * - AI 응답 자동 감지 및 렌더링 (ContentPlan, AdCopy 등)
  *
  * @author C팀 (Frontend Team)
- * @version 1.0
+ * @version 2.0
+ * @date 2025-11-23
  */
 
 'use client';
@@ -20,6 +22,7 @@ import type { GenerateKind } from '@/lib/api/types';
 import { useGenerate } from '../hooks/useGenerate';
 import { applyGenerateResponseToCanvas } from '../adapters/response-to-fabric';
 import { useCanvas } from '../context';
+import { AIResponseRenderer } from './AIResponseRenderer';
 
 export function ChatPanel() {
   const { fabricCanvas } = useCanvas();
@@ -28,6 +31,7 @@ export function ChatPanel() {
   // Form State
   const [kind, setKind] = useState<GenerateKind>('product_detail');
   const [prompt, setPrompt] = useState('');
+  const [lastResponse, setLastResponse] = useState<any>(null);
 
   // Submit Handler
   const handleSubmit = async (e: React.FormEvent) => {
@@ -52,7 +56,10 @@ export function ChatPanel() {
 
       console.log('[ChatPanel] Generate response:', response);
 
-      // Canvas에 결과 반영
+      // 응답 저장 (AIResponseRenderer에서 자동 감지)
+      setLastResponse(response);
+
+      // Canvas에 결과 반영 (기존 로직 유지)
       await applyGenerateResponseToCanvas(fabricCanvas, response);
 
       console.log('[ChatPanel] Canvas updated successfully');
@@ -142,10 +149,23 @@ export function ChatPanel() {
         </form>
 
         {/* 안내 메시지 */}
-        {!isLoading && !error && (
+        {!isLoading && !error && !lastResponse && (
           <div className="mt-6 rounded bg-blue-50 p-3 text-xs text-blue-700">
             <strong>💡 Tip:</strong> 구체적으로 설명할수록 더 좋은 결과를
             얻을 수 있습니다.
+          </div>
+        )}
+
+        {/* AI 응답 자동 렌더링 */}
+        {lastResponse && !isLoading && (
+          <div className="mt-6">
+            <AIResponseRenderer
+              response={lastResponse}
+              responseId={`chat-${Date.now()}`}
+              editable={true}
+              showFeedback={true}
+              showQualityScore={true}
+            />
           </div>
         )}
       </div>
