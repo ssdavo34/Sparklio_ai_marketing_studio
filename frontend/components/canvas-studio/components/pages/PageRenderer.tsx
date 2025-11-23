@@ -12,7 +12,8 @@
 'use client';
 
 import React from 'react';
-import type { Page, PageLayoutType, LAYOUT_CONFIGS } from '../../types/content-plan';
+import type { Page, PageLayoutType } from '../../types/content-plan';
+import { LAYOUT_CONFIGS } from '../../types/content-plan';
 import { BlockRenderer } from './BlockRenderer';
 
 // ============================================================================

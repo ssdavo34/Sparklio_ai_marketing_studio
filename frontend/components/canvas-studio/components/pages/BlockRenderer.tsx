@@ -17,9 +17,6 @@ import type {
   Block,
   BlockType,
   BlockContent,
-  isTextContent,
-  isListContent,
-  isMediaContent,
 } from '../../types/content-plan';
 
 // ============================================================================
