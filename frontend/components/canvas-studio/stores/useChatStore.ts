@@ -262,25 +262,38 @@ async function parseAndAddToCanvas(responseText: string, userMessage?: string) {
           });
 
           if (imageUrl) {
-            console.log('[parseAndAddToCanvas] ✅ Image generated:', imageUrl);
+            console.log('[parseAndAddToCanvas] ✅ Image generated:', imageUrl.substring(0, 100) + '...');
 
-            // CORS 문제 해결: 이미지를 Base64로 변환
-            try {
-              const response = await fetch(imageUrl);
-              const blob = await response.blob();
-              const base64 = await new Promise<string>((resolve) => {
-                const reader = new FileReader();
-                reader.onloadend = () => resolve(reader.result as string);
-                reader.readAsDataURL(blob);
-              });
-              generatedImageUrl = base64;
+            // Check if imageUrl is already Base64 data
+            if (imageUrl.startsWith('data:image/') || (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://'))) {
+              // Already Base64 data - convert raw Base64 to data URL if needed
+              if (imageUrl.startsWith('data:image/')) {
+                generatedImageUrl = imageUrl;
+              } else {
+                // Raw Base64 string - add data URL prefix
+                generatedImageUrl = `data:image/png;base64,${imageUrl}`;
+              }
               contentAnalysis.hasImage = true;
-              console.log('[parseAndAddToCanvas] ✅ Image converted to Base64');
-            } catch (fetchError) {
-              console.error('[parseAndAddToCanvas] ⚠️ Failed to convert image to Base64:', fetchError);
-              // Base64 변환 실패해도 원본 URL 사용
-              generatedImageUrl = imageUrl;
-              contentAnalysis.hasImage = true;
+              console.log('[parseAndAddToCanvas] ✅ Using Base64 image data');
+            } else {
+              // HTTP/HTTPS URL - fetch and convert to Base64 to avoid CORS
+              try {
+                const response = await fetch(imageUrl);
+                const blob = await response.blob();
+                const base64 = await new Promise<string>((resolve) => {
+                  const reader = new FileReader();
+                  reader.onloadend = () => resolve(reader.result as string);
+                  reader.readAsDataURL(blob);
+                });
+                generatedImageUrl = base64;
+                contentAnalysis.hasImage = true;
+                console.log('[parseAndAddToCanvas] ✅ Image converted to Base64');
+              } catch (fetchError) {
+                console.error('[parseAndAddToCanvas] ⚠️ Failed to convert image to Base64:', fetchError);
+                // Base64 변환 실패해도 원본 URL 사용
+                generatedImageUrl = imageUrl;
+                contentAnalysis.hasImage = true;
+              }
             }
           }
         } catch (imageError) {
