@@ -18,6 +18,7 @@
 import React, { useState } from 'react';
 import { Check, AlertTriangle, Eye, Edit2, Copy, Download } from 'lucide-react';
 import { FeedbackCollector, FeedbackButton, type FeedbackData } from './FeedbackCollector';
+import { QualityScore, type QualityValidationResult } from './QualityScore';
 
 // ============================================================================
 // Types
@@ -105,6 +106,12 @@ export interface AdCopyOutputProps {
 
   /** 카피 ID (피드백 대상 식별용) */
   copyId?: string;
+
+  /** 품질 검증 결과 (Golden Set Validator) */
+  qualityScore?: QualityValidationResult;
+
+  /** 품질 점수 표시 여부 */
+  showQualityScore?: boolean;
 }
 
 // ============================================================================
@@ -121,6 +128,8 @@ export function AdCopyOutput({
   onFeedback,
   showFeedback = true,
   copyId,
+  qualityScore,
+  showQualityScore = false,
 }: AdCopyOutputProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isPreview, setIsPreview] = useState(false);
@@ -195,6 +204,13 @@ export function AdCopyOutput({
           )}
         </div>
       </div>
+
+      {/* Quality Score */}
+      {showQualityScore && qualityScore && !isEditing && (
+        <div className="px-4 pt-4">
+          <QualityScore validationResult={qualityScore} compact={false} showSuggestions={true} />
+        </div>
+      )}
 
       {/* Content */}
       <div className="p-4 space-y-4">
