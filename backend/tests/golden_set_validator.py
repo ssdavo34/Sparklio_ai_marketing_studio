@@ -29,6 +29,15 @@ from typing import Dict, Any, List, Tuple
 from datetime import datetime
 from difflib import SequenceMatcher
 
+# Semantic Similarity (A팀 Roadmap 2025-11-23)
+try:
+    from sentence_transformers import SentenceTransformer
+    from sklearn.metrics.pairwise import cosine_similarity
+    import numpy as np
+    SEMANTIC_SIMILARITY_AVAILABLE = True
+except ImportError:
+    SEMANTIC_SIMILARITY_AVAILABLE = False
+
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -48,6 +57,15 @@ class GoldenSetValidator:
         self.agent_name = agent_name
         self.golden_data = self._load_golden_set()
         self.results: List[Dict[str, Any]] = []
+
+        # Semantic Similarity 모델 로드 (A팀 Roadmap 2025-11-23)
+        if SEMANTIC_SIMILARITY_AVAILABLE:
+            print("🔄 Loading semantic similarity model (paraphrase-multilingual-mpnet-base-v2)...")
+            self.semantic_model = SentenceTransformer('paraphrase-multilingual-mpnet-base-v2')
+            print("✅ Semantic model loaded\n")
+        else:
+            self.semantic_model = None
+            print("⚠️ Semantic similarity not available (using SequenceMatcher)\n")
 
     def _load_golden_set(self) -> dict:
         """골든 세트 로드"""
@@ -318,6 +336,10 @@ class GoldenSetValidator:
     def _score_text_similarity(self, actual: str, expected: str) -> float:
         """텍스트 유사도 점수 계산 (0-10)
 
+        A팀 Roadmap 2025-11-23: Semantic Similarity 도입
+        - SequenceMatcher: 문자열 유사도 (표면적)
+        - Sentence-Transformers: 의미 유사도 (semantic)
+
         Args:
             actual: 실제 텍스트
             expected: 기대 텍스트
@@ -325,7 +347,32 @@ class GoldenSetValidator:
         Returns:
             유사도 점수 (0-10)
         """
-        # SequenceMatcher로 유사도 계산 (0-1)
+        # Semantic Similarity 사용 (모델 로드된 경우)
+        if self.semantic_model is not None:
+            try:
+                # 임베딩 생성
+                embeddings = self.semantic_model.encode([actual, expected])
+
+                # Cosine Similarity 계산 (0-1)
+                similarity = cosine_similarity(
+                    embeddings[0].reshape(1, -1),
+                    embeddings[1].reshape(1, -1)
+                )[0][0]
+
+                # 0-10 스케일로 변환
+                score = float(similarity) * 10.0
+
+                # 정확히 일치하면 10점
+                if actual == expected:
+                    score = 10.0
+
+                return round(score, 1)
+
+            except Exception as e:
+                print(f"⚠️ Semantic similarity error: {e}, falling back to SequenceMatcher")
+                # 에러 발생 시 fallback to SequenceMatcher
+
+        # Fallback: SequenceMatcher (기존 방식)
         ratio = SequenceMatcher(None, actual, expected).ratio()
 
         # 0-10 스케일로 변환

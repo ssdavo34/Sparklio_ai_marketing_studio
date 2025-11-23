@@ -112,6 +112,9 @@ export interface AdCopyOutputProps {
 
   /** 품질 점수 표시 여부 */
   showQualityScore?: boolean;
+
+  /** 필드별 개선 콜백 */
+  onImproveField?: (fieldName: string, currentValue: string | string[]) => Promise<string | string[]>;
 }
 
 // ============================================================================
@@ -130,12 +133,15 @@ export function AdCopyOutput({
   copyId,
   qualityScore,
   showQualityScore = false,
+  onImproveField,
 }: AdCopyOutputProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isPreview, setIsPreview] = useState(false);
   const [editedCopy, setEditedCopy] = useState(adCopy);
   const [showFeedbackForm, setShowFeedbackForm] = useState(false);
   const [hasFeedbackSubmitted, setHasFeedbackSubmitted] = useState(false);
+  const [improvingField, setImprovingField] = useState<string | undefined>(undefined);
+  const [improvedValue, setImprovedValue] = useState<{ field: string; value: string | string[] } | null>(null);
 
   const handleSaveEdit = () => {
     onEdit?.(editedCopy);
@@ -151,6 +157,35 @@ export function AdCopyOutput({
     await onFeedback?.(feedback);
     setHasFeedbackSubmitted(true);
     setShowFeedbackForm(false);
+  };
+
+  const handleImproveField = async (fieldName: string, currentValue: string | string[]) => {
+    if (!onImproveField) return;
+
+    setImprovingField(fieldName);
+    setImprovedValue(null);
+
+    try {
+      const newValue = await onImproveField(fieldName, currentValue);
+      setImprovedValue({ field: fieldName, value: newValue });
+    } catch (error) {
+      console.error('[AdCopyOutput] 필드 개선 실패:', error);
+      alert('필드 개선에 실패했습니다. 다시 시도해주세요.');
+    } finally {
+      setImprovingField(undefined);
+    }
+  };
+
+  const handleAcceptImprovement = () => {
+    if (!improvedValue) return;
+
+    const { field, value } = improvedValue;
+    setEditedCopy({ ...editedCopy, [field]: value });
+    setImprovedValue(null);
+  };
+
+  const handleRejectImprovement = () => {
+    setImprovedValue(null);
   };
 
   return (
@@ -208,7 +243,58 @@ export function AdCopyOutput({
       {/* Quality Score */}
       {showQualityScore && qualityScore && !isEditing && (
         <div className="px-4 pt-4">
-          <QualityScore validationResult={qualityScore} compact={false} showSuggestions={true} />
+          <QualityScore
+            validationResult={qualityScore}
+            compact={false}
+            showSuggestions={true}
+            onImproveField={onImproveField ? handleImproveField : undefined}
+            improvingField={improvingField}
+          />
+        </div>
+      )}
+
+      {/* Improved Value Diff View */}
+      {improvedValue && (
+        <div className="mx-4 mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <h4 className="text-sm font-semibold text-blue-900 mb-3">개선된 결과 (비교)</h4>
+
+          <div className="space-y-3">
+            {/* Original */}
+            <div>
+              <p className="text-xs font-medium text-gray-600 mb-1">현재 ({FIELD_CONSTRAINTS[improvedValue.field as keyof typeof FIELD_CONSTRAINTS]?.label})</p>
+              <div className="p-2 bg-red-50 border border-red-200 rounded text-sm text-gray-800 line-through">
+                {Array.isArray(improvedValue.value)
+                  ? (adCopy[improvedValue.field as keyof AdCopySimpleOutputV2] as string[]).join(', ')
+                  : adCopy[improvedValue.field as keyof AdCopySimpleOutputV2]}
+              </div>
+            </div>
+
+            {/* Improved */}
+            <div>
+              <p className="text-xs font-medium text-gray-600 mb-1">개선안</p>
+              <div className="p-2 bg-green-50 border border-green-200 rounded text-sm text-gray-800 font-medium">
+                {Array.isArray(improvedValue.value)
+                  ? improvedValue.value.join(', ')
+                  : improvedValue.value}
+              </div>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center gap-2 mt-4">
+            <button
+              onClick={handleAcceptImprovement}
+              className="flex-1 px-3 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 transition-colors"
+            >
+              적용하기
+            </button>
+            <button
+              onClick={handleRejectImprovement}
+              className="flex-1 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+            >
+              취소
+            </button>
+          </div>
         </div>
       )}
 

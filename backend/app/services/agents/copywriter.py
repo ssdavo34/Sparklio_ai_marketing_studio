@@ -73,49 +73,96 @@ class CopywriterAgent(AgentBase):
             # 2. LLM 프롬프트 구성
             enhanced_payload = self._enhance_payload(request)
 
-            # 3. LLM 호출 (JSON 모드)
-            llm_response = await self.llm_gateway.generate(
-                role=self.name,
-                task=request.task,
-                payload=enhanced_payload,
-                mode="json",
-                options=request.options
-            )
-
-            # 4. 응답 파싱
-            # 🐛 디버그: LLM Raw 출력 확인 (A팀 임시 로깅)
-            logger.info(f"🐛 LLM Raw Output: {llm_response.output.value}")
-            outputs = self._parse_llm_response(llm_response.output, request.task)
-            logger.info(f"🐛 Parsed Output: {outputs[0].value}")
-
-            # ✅ 4.5. Validation Pipeline (B팀 추가 2025-11-23)
+            # 3. Retry Logic (A팀 Roadmap 2025-11-23)
+            # 최대 3회 시도 (초기 시도 + 2회 재시도)
+            max_retries = 3
+            base_temperature = 0.4
+            last_error = None
             validator = OutputValidator()
-            validation_result = validator.validate(
-                output=outputs[0].value,
-                task=request.task,
-                input_data=request.payload
-            )
 
-            if not validation_result.passed:
-                logger.warning(
-                    f"Validation failed: {validation_result.errors} | "
-                    f"Score: {validation_result.overall_score:.1f}/10"
-                )
+            for attempt in range(max_retries):
+                try:
+                    # Temperature 조정: 재시도마다 약간 증가 (다양성 확보)
+                    current_temp = base_temperature + (attempt * 0.1)  # 0.4, 0.5, 0.6
 
-                # Validation 실패 시 에러 발생 (재생성 유도)
-                raise AgentError(
-                    message=f"Output validation failed",
-                    agent=self.name,
-                    details={
-                        "validation_errors": validation_result.errors,
-                        "validation_score": validation_result.overall_score,
-                        "output": outputs[0].value
+                    if attempt > 0:
+                        logger.info(f"🔄 Retry attempt {attempt}/{max_retries - 1} (temperature={current_temp})")
+
+                    llm_options = {
+                        **(request.options or {}),
+                        "temperature": current_temp
                     }
-                )
 
-            logger.info(
-                f"Validation passed: Score {validation_result.overall_score:.1f}/10"
-            )
+                    # LLM 호출 (JSON 모드)
+                    llm_response = await self.llm_gateway.generate(
+                        role=self.name,
+                        task=request.task,
+                        payload=enhanced_payload,
+                        mode="json",
+                        options=llm_options
+                    )
+
+                    # 응답 파싱
+                    logger.info(f"🐛 LLM Raw Output: {llm_response.output.value}")
+                    outputs = self._parse_llm_response(llm_response.output, request.task)
+                    logger.info(f"🐛 Parsed Output: {outputs[0].value}")
+
+                    # Validation Pipeline
+                    validation_result = validator.validate(
+                        output=outputs[0].value,
+                        task=request.task,
+                        input_data=request.payload
+                    )
+
+                    if not validation_result.passed:
+                        logger.warning(
+                            f"Validation failed (attempt {attempt + 1}/{max_retries}): "
+                            f"{validation_result.errors} | Score: {validation_result.overall_score:.1f}/10"
+                        )
+
+                        # 마지막 시도가 아니면 재시도
+                        if attempt < max_retries - 1:
+                            last_error = AgentError(
+                                message=f"Output validation failed",
+                                agent=self.name,
+                                details={
+                                    "validation_errors": validation_result.errors,
+                                    "validation_score": validation_result.overall_score,
+                                    "output": outputs[0].value,
+                                    "attempt": attempt + 1
+                                }
+                            )
+                            continue  # 재시도
+                        else:
+                            # 마지막 시도도 실패
+                            raise AgentError(
+                                message=f"Output validation failed after {max_retries} attempts",
+                                agent=self.name,
+                                details={
+                                    "validation_errors": validation_result.errors,
+                                    "validation_score": validation_result.overall_score,
+                                    "output": outputs[0].value,
+                                    "attempts": max_retries
+                                }
+                            )
+
+                    # Validation 성공!
+                    logger.info(
+                        f"✅ Validation passed (attempt {attempt + 1}/{max_retries}): "
+                        f"Score {validation_result.overall_score:.1f}/10"
+                    )
+                    break  # 성공 시 루프 탈출
+
+                except AgentError:
+                    # Validation 에러는 재시도
+                    if attempt == max_retries - 1:
+                        raise  # 마지막 시도는 에러 전파
+                    continue
+
+                except Exception as e:
+                    # 다른 예외는 즉시 실패
+                    logger.error(f"Unexpected error during generation: {e}")
+                    raise
 
             # 5. 사용량 계산
             elapsed = (datetime.utcnow() - start_time).total_seconds()

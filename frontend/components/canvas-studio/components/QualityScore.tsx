@@ -16,7 +16,7 @@
 'use client';
 
 import React from 'react';
-import { CheckCircle, XCircle, AlertTriangle, Info, TrendingUp } from 'lucide-react';
+import { CheckCircle, XCircle, AlertTriangle, Info, TrendingUp, RefreshCw } from 'lucide-react';
 
 // ============================================================================
 // Types
@@ -99,6 +99,12 @@ export interface QualityScoreProps {
 
   /** 개선 제안 표시 여부 */
   showSuggestions?: boolean;
+
+  /** 필드 개선 콜백 */
+  onImproveField?: (fieldName: string, currentValue: string | string[]) => void;
+
+  /** 개선 중인 필드 */
+  improvingField?: string;
 }
 
 // ============================================================================
@@ -109,6 +115,8 @@ export function QualityScore({
   validationResult,
   compact = false,
   showSuggestions = true,
+  onImproveField,
+  improvingField,
 }: QualityScoreProps) {
   const { overall_score, field_scores, details, min_score = 7.0, passed } = validationResult;
 
@@ -152,11 +160,11 @@ export function QualityScore({
         </h4>
 
         <div className="space-y-2">
-          <ScoreBar label="헤드라인" score={field_scores.headline} weight={0.25} detail={details.headline} />
-          <ScoreBar label="서브헤드라인" score={field_scores.subheadline} weight={0.15} detail={details.subheadline} />
-          <ScoreBar label="본문" score={field_scores.body} weight={0.25} detail={details.body} />
-          <ScoreBar label="주요 특징" score={field_scores.bullets} weight={0.20} detail={details.bullets} />
-          <ScoreBar label="행동 유도" score={field_scores.cta} weight={0.15} detail={details.cta} />
+          <ScoreBar label="헤드라인" fieldName="headline" score={field_scores.headline} weight={0.25} detail={details.headline} onImprove={onImproveField} isImproving={improvingField === 'headline'} />
+          <ScoreBar label="서브헤드라인" fieldName="subheadline" score={field_scores.subheadline} weight={0.15} detail={details.subheadline} onImprove={onImproveField} isImproving={improvingField === 'subheadline'} />
+          <ScoreBar label="본문" fieldName="body" score={field_scores.body} weight={0.25} detail={details.body} onImprove={onImproveField} isImproving={improvingField === 'body'} />
+          <ScoreBar label="주요 특징" fieldName="bullets" score={field_scores.bullets} weight={0.20} detail={details.bullets} onImprove={onImproveField} isImproving={improvingField === 'bullets'} />
+          <ScoreBar label="행동 유도" fieldName="cta" score={field_scores.cta} weight={0.15} detail={details.cta} onImprove={onImproveField} isImproving={improvingField === 'cta'} />
         </div>
       </div>
 
@@ -224,16 +232,30 @@ function CompactScoreView({
  */
 function ScoreBar({
   label,
+  fieldName,
   score,
   weight,
   detail,
+  onImprove,
+  isImproving,
 }: {
   label: string;
+  fieldName: string;
   score: number;
   weight: number;
   detail?: FieldScore;
+  onImprove?: (fieldName: string, currentValue: string | string[]) => void;
+  isImproving?: boolean;
 }) {
   const percentage = (score / 10) * 100;
+  const needsImprovement = score < 7.0;
+  const currentValue = detail?.actual || '';
+
+  const handleImproveClick = () => {
+    if (onImprove && currentValue) {
+      onImprove(fieldName, currentValue);
+    }
+  };
 
   return (
     <div className="space-y-1">
@@ -248,6 +270,28 @@ function ScoreBar({
               <AlertTriangle className="w-3 h-3" />
               <span className="text-xs">길이 초과</span>
             </span>
+          )}
+
+          {/* Auto Improve Button */}
+          {needsImprovement && onImprove && currentValue && (
+            <button
+              onClick={handleImproveClick}
+              disabled={isImproving}
+              className="flex items-center gap-1 px-2 py-0.5 text-xs font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded hover:bg-purple-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title="AI로 이 필드를 자동 개선합니다"
+            >
+              {isImproving ? (
+                <>
+                  <div className="w-3 h-3 border-2 border-purple-700 border-t-transparent rounded-full animate-spin" />
+                  <span>개선 중...</span>
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="w-3 h-3" />
+                  <span>자동 개선</span>
+                </>
+              )}
+            </button>
           )}
         </div>
 
