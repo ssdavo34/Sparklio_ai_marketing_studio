@@ -75,6 +75,45 @@ class GoldenSetValidator:
         with open(self.golden_set_path, "r", encoding="utf-8") as f:
             data = json.load(f)
 
+        # 포맷 정규화: test_cases → golden_cases
+        if "test_cases" in data and "golden_cases" not in data:
+            data["golden_cases"] = data["test_cases"]
+
+        # meta 정규화 (strategist 포맷은 meta 없음)
+        if "meta" not in data:
+            data["meta"] = {
+                "agent": data.get("agent", self.agent_name),
+                "task": data.get("task", "unknown"),
+                "version": data.get("version", "v1.0")
+            }
+
+        # quality_metrics 정규화 (test_cases 포맷)
+        for case in data["golden_cases"]:
+            if "quality_metrics" not in case and "evaluation_weights" in case:
+                case["quality_metrics"] = {
+                    "weights": case["evaluation_weights"],
+                    "min_score": case.get("min_score", 7.0)
+                }
+
+            # input 정규화 (strategist 포맷)
+            if "input" not in case or not isinstance(case["input"], dict) or "task" not in case["input"]:
+                original_input = case.get("input", {})
+                case["input"] = {
+                    "task": data.get("task", "campaign_strategy"),
+                    "payload": original_input,
+                    "options": {}
+                }
+
+            # ID 정규화: case_id → id
+            if "case_id" in case and "id" not in case:
+                case["id"] = case["case_id"]
+            elif "id" not in case and "case_id" not in case:
+                case["id"] = f"case_{data['golden_cases'].index(case)}"
+
+            # scenario 정규화
+            if "scenario" not in case:
+                case["scenario"] = case.get("name", "Unknown scenario")
+
         print(f"✅ Loaded golden set: {self.golden_set_path}")
         print(f"   Agent: {data['meta']['agent']}")
         print(f"   Cases: {len(data['golden_cases'])}")
@@ -137,8 +176,8 @@ class GoldenSetValidator:
         print(f"📝 [{case_id}] {scenario}")
 
         try:
-            # Agent 실행
-            agent = get_copywriter_agent()
+            # Agent 실행 (Factory Pattern)
+            agent = self._get_agent()
             request = AgentRequest(
                 task=case["input"]["task"],
                 payload=case["input"]["payload"],
@@ -600,17 +639,28 @@ async def main():
     base_path = Path(__file__).parent / "golden_sets"
 
     # Agent 리스트
-    agents = ["copywriter"] if not args.all else ["copywriter"]
+    agents = ["copywriter", "strategist"] if args.all else ([args.agent] if args.agent else ["copywriter"])
 
     # CI 모드 검증 결과 추적
     all_passed = True
     ci_failures = []
 
     for agent_name in agents:
-        golden_set_path = base_path / f"{agent_name}_golden_set.json"
+        # Try multiple golden set path formats
+        possible_paths = [
+            base_path / f"{agent_name}_golden_set.json",
+            Path(__file__).parent / "golden_set" / f"{agent_name}_campaign_strategy_v1.json"  # strategist format
+        ]
 
-        if not golden_set_path.exists():
-            print(f"⚠️  Golden set not found for {agent_name}: {golden_set_path}")
+        golden_set_path = None
+        for path in possible_paths:
+            if path.exists():
+                golden_set_path = path
+                break
+
+        if not golden_set_path:
+            print(f"⚠️  Golden set not found for {agent_name}")
+            print(f"   Tried: {[str(p) for p in possible_paths]}")
             continue
 
         # 검증 실행
