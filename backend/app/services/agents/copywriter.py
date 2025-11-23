@@ -14,6 +14,7 @@ from datetime import datetime
 
 from .base import AgentBase, AgentRequest, AgentResponse, AgentError
 from app.services.llm import LLMProviderOutput
+from app.services.validation import OutputValidator
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +84,35 @@ class CopywriterAgent(AgentBase):
 
             # 4. 응답 파싱
             outputs = self._parse_llm_response(llm_response.output, request.task)
+
+            # ✅ 4.5. Validation Pipeline (B팀 추가 2025-11-23)
+            validator = OutputValidator()
+            validation_result = validator.validate(
+                output=outputs[0].value,
+                task=request.task,
+                input_data=request.payload
+            )
+
+            if not validation_result.passed:
+                logger.warning(
+                    f"Validation failed: {validation_result.errors} | "
+                    f"Score: {validation_result.overall_score:.1f}/10"
+                )
+
+                # Validation 실패 시 에러 발생 (재생성 유도)
+                raise AgentError(
+                    message=f"Output validation failed",
+                    agent=self.name,
+                    details={
+                        "validation_errors": validation_result.errors,
+                        "validation_score": validation_result.overall_score,
+                        "output": outputs[0].value
+                    }
+                )
+
+            logger.info(
+                f"Validation passed: Score {validation_result.overall_score:.1f}/10"
+            )
 
             # 5. 사용량 계산
             elapsed = (datetime.utcnow() - start_time).total_seconds()
@@ -231,12 +261,13 @@ class CopywriterAgent(AgentBase):
         )
 
         # subheadline (subtitle, tagline 등으로 올 수 있음)
+        # ✅ B팀 수정 (2025-11-23): "제품 설명" Fallback 제거
         normalized["subheadline"] = (
             content.get("subheadline") or
             content.get("subtitle") or
             content.get("tagline") or
             content.get("description", "")[:100] or  # body에서 첫 부분
-            "제품 설명"
+            ""  # 빈 문자열로 변경 (Validation에서 잡힘)
         )
 
         # body (description, content 등으로 올 수 있음)
