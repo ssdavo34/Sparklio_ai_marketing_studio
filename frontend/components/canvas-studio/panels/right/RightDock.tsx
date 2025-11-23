@@ -20,6 +20,7 @@ import { useChatStore } from '../../stores/useChatStore';
 import { AGENT_INFO, TASK_INFO } from '../../stores/types/llm';
 import type { AgentRole, TaskType, CostMode } from '../../stores/types/llm';
 import { MessageSquare, Layers, Settings } from 'lucide-react';
+import { ErrorMessage } from '../../components/ErrorMessage';
 
 export function RightDock() {
   const activeTab = useTabsStore((state) => state.activeRightDockTab);
@@ -97,8 +98,12 @@ function ChatTab() {
     messages,
     isLoading,
     error,
+    errorType,
+    errorDetails,
     sendMessage,
     generateImageFromPrompt,
+    retryLastMessage,
+    clearError,
     clearMessages,
     chatConfig,
     setRole,
@@ -272,10 +277,16 @@ function ChatTab() {
             </div>
           </div>
         )}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-            <p className="text-xs text-red-600">{error}</p>
-          </div>
+        {error && errorType && (
+          <ErrorMessage
+            type={errorType}
+            originalMessage={error}
+            details={errorDetails || undefined}
+            onRetry={retryLastMessage}
+            onDismiss={clearError}
+            showRetry={true}
+            isRetrying={isLoading}
+          />
         )}
         <div ref={messagesEndRef} />
       </div>

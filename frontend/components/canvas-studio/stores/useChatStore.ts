@@ -20,6 +20,7 @@ import { DEFAULT_CHAT_CONFIG } from './types/llm';
 import { sendChatMessage, generateImage, gatewayClient } from '@/lib/llm-gateway-client';
 import { useCanvasStore } from './useCanvasStore';
 import { getAdLayout, selectBestLayout, type AdLayoutType } from '../utils/ad-layouts';
+import { detectErrorType, createUserFriendlyError, type ErrorType } from '../components/ErrorMessage';
 
 // ============================================================================
 // Helper Functions - Canvas 요소 추가
@@ -540,6 +541,8 @@ export interface ChatState {
   messages: Message[];
   isLoading: boolean;
   error: string | null;
+  errorType: ErrorType | null;
+  errorDetails: Record<string, any> | null;
   chatConfig: ChatConfig;
 
   // Actions
@@ -552,7 +555,9 @@ export interface ChatState {
     usage?: any
   ) => void;
   setLoading: (loading: boolean) => void;
-  setError: (error: string | null) => void;
+  setError: (error: string | null, type?: ErrorType, details?: Record<string, any>) => void;
+  clearError: () => void;
+  retryLastMessage: () => Promise<void>;
   clearMessages: () => void;
 
   // Configuration
@@ -598,6 +603,8 @@ export const useChatStore = create<ChatState>()(
         ],
         isLoading: false,
         error: null,
+        errorType: null,
+        errorDetails: null,
         chatConfig: DEFAULT_CHAT_CONFIG,
 
         // ========================================
@@ -633,8 +640,44 @@ export const useChatStore = create<ChatState>()(
         /**
          * 에러 설정
          */
-        setError: (error) => {
-          set({ error });
+        setError: (error: string | null, type?: ErrorType, details?: Record<string, any>) => {
+          // 에러 타입 자동 감지 (타입이 제공되지 않은 경우)
+          const errorType = type || (error ? detectErrorType(error) : null);
+          set({
+            error,
+            errorType,
+            errorDetails: details || null
+          });
+        },
+
+        clearError: () => {
+          set({
+            error: null,
+            errorType: null,
+            errorDetails: null
+          });
+        },
+
+        retryLastMessage: async () => {
+          const { messages, sendMessage, generateImageFromPrompt } = get();
+
+          // 마지막 사용자 메시지 찾기
+          const lastUserMessage = [...messages]
+            .reverse()
+            .find(m => m.role === 'user');
+
+          if (!lastUserMessage) {
+            console.warn('[retryLastMessage] No user message to retry');
+            return;
+          }
+
+          // 이미지 생성 요청인지 확인
+          if (lastUserMessage.content.toLowerCase().startsWith('generate image:')) {
+            const prompt = lastUserMessage.content.replace(/^generate image:\s*/i, '');
+            await generateImageFromPrompt(prompt);
+          } else {
+            await sendMessage(lastUserMessage.content);
+          }
         },
 
         /**
@@ -781,9 +824,15 @@ export const useChatStore = create<ChatState>()(
               throw new Error('No response from AI');
             }
           } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-            setError(errorMessage);
-            addMessage('assistant', `Sorry, I encountered an error: ${errorMessage}`);
+            console.error('[sendMessage] Error:', error);
+
+            // 사용자 친화적 에러 메시지 생성
+            const errorObj = error instanceof Error ? error : new Error(String(error));
+            const friendlyError = createUserFriendlyError(errorObj);
+
+            setError(friendlyError.message, friendlyError.type, friendlyError.details);
+
+            // 에러 메시지를 채팅에 표시하지 않음 (ErrorMessage 컴포넌트가 처리)
           } finally {
             setLoading(false);
           }
@@ -818,9 +867,13 @@ export const useChatStore = create<ChatState>()(
               throw new Error('No image URL in response');
             }
           } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-            setError(errorMessage);
-            addMessage('assistant', `Sorry, I encountered an error generating the image: ${errorMessage}`);
+            console.error('[generateImageFromPrompt] Error:', error);
+
+            // 사용자 친화적 에러 메시지 생성
+            const errorObj = error instanceof Error ? error : new Error(String(error));
+            const friendlyError = createUserFriendlyError(errorObj);
+
+            setError(friendlyError.message, friendlyError.type, friendlyError.details);
           } finally {
             setLoading(false);
           }
