@@ -41,7 +41,7 @@ except ImportError:
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from app.services.agents import get_copywriter_agent, AgentRequest
+from app.services.agents import get_copywriter_agent, get_strategist_agent, AgentRequest
 
 
 class GoldenSetValidator:
@@ -81,6 +81,18 @@ class GoldenSetValidator:
         print()
 
         return data
+
+    def _get_agent(self):
+        """Agent 인스턴스 생성 (Factory Pattern)"""
+        agent_map = {
+            "copywriter": get_copywriter_agent,
+            "strategist": get_strategist_agent
+        }
+
+        if self.agent_name not in agent_map:
+            raise ValueError(f"Unknown agent: {self.agent_name}. Available: {list(agent_map.keys())}")
+
+        return agent_map[self.agent_name]()
 
     async def validate_all(self) -> Dict[str, Any]:
         """모든 골든 케이스 검증
@@ -564,6 +576,23 @@ async def main():
         action="store_true",
         help="Show only failed cases"
     )
+    parser.add_argument(
+        "--ci",
+        action="store_true",
+        help="CI mode: exit with non-zero code on failure"
+    )
+    parser.add_argument(
+        "--min-pass-rate",
+        type=float,
+        default=70.0,
+        help="Minimum pass rate (default: 70%%)"
+    )
+    parser.add_argument(
+        "--min-score",
+        type=float,
+        default=7.0,
+        help="Minimum average score (default: 7.0)"
+    )
 
     args = parser.parse_args()
 
@@ -572,6 +601,10 @@ async def main():
 
     # Agent 리스트
     agents = ["copywriter"] if not args.all else ["copywriter"]
+
+    # CI 모드 검증 결과 추적
+    all_passed = True
+    ci_failures = []
 
     for agent_name in agents:
         golden_set_path = base_path / f"{agent_name}_golden_set.json"
@@ -603,6 +636,56 @@ async def main():
         if args.report:
             output_path = args.output or f"golden_set_report_{agent_name}.{args.report}"
             validator.save_report(output_path, args.report)
+
+        # CI 모드 검증
+        if args.ci:
+            summary = validator._generate_summary()
+            pass_rate = summary["pass_rate"]
+            avg_score = summary["average_score"]
+
+            # 기준 미달 체크
+            failed_checks = []
+            if pass_rate < args.min_pass_rate:
+                failed_checks.append(f"Pass Rate {pass_rate}% < {args.min_pass_rate}%")
+            if avg_score < args.min_score:
+                failed_checks.append(f"Avg Score {avg_score} < {args.min_score}")
+
+            # Critical Failure 체크 (score 0인 케이스)
+            critical_failures = [r for r in validator.results if r.get("score", 0) == 0]
+            if critical_failures:
+                failed_checks.append(f"Critical Failures: {len(critical_failures)}")
+
+            if failed_checks:
+                all_passed = False
+                ci_failures.append({
+                    "agent": agent_name,
+                    "pass_rate": pass_rate,
+                    "avg_score": avg_score,
+                    "critical_failures": len(critical_failures),
+                    "issues": failed_checks
+                })
+
+    # CI 모드 결과 출력 및 exit code
+    if args.ci:
+        print()
+        print("=" * 60)
+        print("🔍 CI VALIDATION RESULT")
+        print("=" * 60)
+        if all_passed:
+            print("✅ ALL CHECKS PASSED")
+            print(f"   Pass Rate >= {args.min_pass_rate}%")
+            print(f"   Avg Score >= {args.min_score}")
+            print(f"   Critical Failures = 0")
+            sys.exit(0)
+        else:
+            print("❌ VALIDATION FAILED")
+            for failure in ci_failures:
+                print(f"\n{failure['agent']}:")
+                for issue in failure['issues']:
+                    print(f"  ❌ {issue}")
+            print()
+            print("Fix the issues above and re-run the validation.")
+            sys.exit(1)
 
 
 if __name__ == "__main__":

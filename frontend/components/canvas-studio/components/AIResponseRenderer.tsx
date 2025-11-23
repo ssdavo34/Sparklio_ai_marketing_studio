@@ -15,13 +15,15 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import { AlertCircle, FileText, Layout } from 'lucide-react';
+import { AlertCircle, FileText, Layout, Target } from 'lucide-react';
 import { detectResponseType, type DetectionResult } from '@/lib/utils/response-type-detector';
 import { ContentPlanViewer } from './pages/ContentPlanViewer';
 import { AdCopyOutput } from './AdCopyOutput';
+import { StrategistStrategyView } from './StrategistStrategyView';
 import { ErrorMessage } from './ErrorMessage';
 import type { ContentPlanPagesSchema } from '../types/content-plan';
 import type { AdCopySimpleOutputV2 } from './AdCopyOutput';
+import type { CampaignStrategyOutputV1 } from '../types/strategist';
 
 // ============================================================================
 // Types
@@ -88,7 +90,34 @@ export function AIResponseRenderer({
   return renderContent();
 
   function renderContent() {
-    // 1. ContentPlanPages 렌더링
+    // 1. CampaignStrategy 렌더링
+    if (detection.type === 'campaign_strategy' && detection.data) {
+      return (
+        <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
+          <div className="border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-3">
+            <div className="flex items-center gap-2">
+              <Target className="h-5 w-5 text-blue-600" />
+              <h3 className="text-sm font-semibold text-gray-900">캠페인 전략</h3>
+              <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+                전략 보고서
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-gray-600">
+              AI가 생성한 캠페인 전략을 확인하고 콘텐츠 제작에 활용할 수 있습니다
+            </p>
+          </div>
+
+          <div className="p-6">
+            <StrategistStrategyView
+              strategy={detection.data as CampaignStrategyOutputV1}
+              editable={editable}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    // 2. ContentPlanPages 렌더링
     if (detection.type === 'content_plan_pages' && detection.data) {
       return (
         <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
@@ -115,7 +144,7 @@ export function AIResponseRenderer({
       );
     }
 
-    // 2. AdCopy 렌더링
+    // 3. AdCopy 렌더링
     if (detection.type === 'ad_copy' && detection.data) {
       return (
         <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
@@ -140,7 +169,7 @@ export function AIResponseRenderer({
       );
     }
 
-    // 3. Error 렌더링
+    // 4. Error 렌더링
     if (detection.type === 'error') {
       const errorMessage =
         detection.data?.error ||
@@ -156,7 +185,7 @@ export function AIResponseRenderer({
       );
     }
 
-    // 4. Unknown - 원본 데이터 JSON 표시
+    // 5. Unknown - 원본 데이터 JSON 표시
     return (
       <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
         <div className="flex items-start gap-3">
@@ -246,4 +275,16 @@ export function AdCopyRenderer({
   adCopy: AdCopySimpleOutputV2;
 }) {
   return <AIResponseRenderer response={adCopy} {...props} />;
+}
+
+/**
+ * CampaignStrategy 전용 렌더러
+ */
+export function CampaignStrategyRenderer({
+  strategy,
+  ...props
+}: Omit<AIResponseRendererProps, 'response'> & {
+  strategy: CampaignStrategyOutputV1;
+}) {
+  return <AIResponseRenderer response={strategy} {...props} />;
 }

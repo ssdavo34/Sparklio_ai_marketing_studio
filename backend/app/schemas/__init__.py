@@ -36,6 +36,13 @@ from app.schemas.canvas import (
     FontWeight,
     DocumentKind,
 )
+from app.schemas.strategist import (
+    CampaignStrategyInputV1,
+    CampaignStrategyOutputV1,
+    StrategicPillar,
+    ChannelStrategy,
+    FunnelStructure,
+)
 
 __all__ = [
     "AssetCreate",
@@ -76,4 +83,10 @@ __all__ = [
     "ShapeType",
     "FontWeight",
     "DocumentKind",
+    # Strategist schemas
+    "CampaignStrategyInputV1",
+    "CampaignStrategyOutputV1",
+    "StrategicPillar",
+    "ChannelStrategy",
+    "FunnelStructure",
 ]

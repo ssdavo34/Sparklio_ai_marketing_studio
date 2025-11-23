@@ -151,6 +151,27 @@ class CopywriterAgent(AgentBase):
                         f"✅ Validation passed (attempt {attempt + 1}/{max_retries}): "
                         f"Score {validation_result.overall_score:.1f}/10"
                     )
+
+                    # 구조화된 품질 로그 (모니터링용)
+                    logger.info(
+                        "quality_metrics",
+                        extra={
+                            "agent": self.name,
+                            "task": request.task,
+                            "overall_score": round(validation_result.overall_score, 2),
+                            "field_scores": {
+                                stage.stage: round(stage.score, 2)
+                                for stage in validation_result.stage_results
+                            },
+                            "validation_passed": validation_result.passed,
+                            "validation_errors": validation_result.errors,
+                            "validation_warnings": validation_result.warnings,
+                            "attempt": attempt + 1,
+                            "max_retries": max_retries,
+                            "temperature": current_temp
+                        }
+                    )
+
                     break  # 성공 시 루프 탈출
 
                 except AgentError:

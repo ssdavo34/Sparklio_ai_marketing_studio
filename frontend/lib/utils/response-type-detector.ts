@@ -14,6 +14,7 @@
 
 import type { ContentPlanPagesSchema } from '@/components/canvas-studio/types/content-plan';
 import type { AdCopySimpleOutputV2 } from '@/components/canvas-studio/components/AdCopyOutput';
+import type { CampaignStrategyOutputV1 } from '@/components/canvas-studio/types/strategist';
 
 // ============================================================================
 // Types
@@ -22,6 +23,7 @@ import type { AdCopySimpleOutputV2 } from '@/components/canvas-studio/components
 export type ResponseType =
   | 'content_plan_pages'
   | 'ad_copy'
+  | 'campaign_strategy'
   | 'error'
   | 'unknown';
 
@@ -58,24 +60,91 @@ export function detectResponseType(response: any): DetectionResult {
     };
   }
 
-  // 2. ContentPlanPages 감지
+  // 2. CampaignStrategy 감지
+  const campaignStrategyResult = detectCampaignStrategy(response);
+  if (campaignStrategyResult.confidence >= 0.8) {
+    return campaignStrategyResult;
+  }
+
+  // 3. ContentPlanPages 감지
   const contentPlanResult = detectContentPlanPages(response);
   if (contentPlanResult.confidence >= 0.8) {
     return contentPlanResult;
   }
 
-  // 3. AdCopy 감지
+  // 4. AdCopy 감지
   const adCopyResult = detectAdCopy(response);
   if (adCopyResult.confidence >= 0.8) {
     return adCopyResult;
   }
 
-  // 4. Unknown
+  // 5. Unknown
   return {
     type: 'unknown',
     confidence: 0,
     data: response,
     reason: 'No matching pattern found',
+  };
+}
+
+/**
+ * CampaignStrategy 타입 감지
+ */
+export function detectCampaignStrategy(response: any): DetectionResult {
+  let confidence = 0;
+  const reasons: string[] = [];
+
+  // 필수 필드 체크
+  if (response.schema_version === '1.0') {
+    confidence += 0.15;
+    reasons.push('schema_version 1.0');
+  }
+
+  if (typeof response.core_message === 'string' && response.core_message.length > 0) {
+    confidence += 0.15;
+    reasons.push('core_message exists');
+  }
+
+  if (typeof response.positioning === 'string' && response.positioning.length > 0) {
+    confidence += 0.1;
+    reasons.push('positioning exists');
+  }
+
+  if (typeof response.big_idea === 'string' && response.big_idea.length > 0) {
+    confidence += 0.15;
+    reasons.push('big_idea exists');
+  }
+
+  if (Array.isArray(response.target_insights)) {
+    confidence += 0.1;
+    reasons.push('target_insights array exists');
+  }
+
+  if (Array.isArray(response.strategic_pillars)) {
+    confidence += 0.1;
+    reasons.push('strategic_pillars array exists');
+  }
+
+  if (Array.isArray(response.channel_strategy)) {
+    confidence += 0.1;
+    reasons.push('channel_strategy array exists');
+  }
+
+  if (response.funnel_structure && typeof response.funnel_structure === 'object') {
+    confidence += 0.1;
+    reasons.push('funnel_structure exists');
+  }
+
+  if (Array.isArray(response.risk_factors) && Array.isArray(response.success_metrics)) {
+    confidence += 0.05;
+    reasons.push('risk_factors and success_metrics exist');
+  }
+
+  return {
+    type: 'campaign_strategy',
+    confidence,
+    data: confidence >= 0.8 ? (response as CampaignStrategyOutputV1) : undefined,
+    reason: reasons.join(', '),
   };
 }
 
@@ -182,6 +251,14 @@ export function isContentPlanPages(response: any): response is ContentPlanPagesS
  */
 export function isAdCopy(response: any): response is AdCopySimpleOutputV2 {
   const result = detectAdCopy(response);
+  return result.confidence >= 0.8;
+}
+
+/**
+ * 응답이 CampaignStrategy 타입인지 확인 (타입 가드)
+ */
+export function isCampaignStrategy(response: any): response is CampaignStrategyOutputV1 {
+  const result = detectCampaignStrategy(response);
   return result.confidence >= 0.8;
 }
 

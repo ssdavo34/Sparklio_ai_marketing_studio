@@ -1,0 +1,98 @@
+name: Golden Set Validation
+
+on:
+  push:
+    branches: [ main, dev, feature/* ]
+  pull_request:
+    branches: [ main, dev ]
+
+jobs:
+  validate-copywriter:
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          cd backend
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install sentence-transformers scikit-learn
+
+      - name: Run CopywriterAgent Golden Set Validation
+        env:
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          GENERATOR_MODE: live
+          OLLAMA_BASE_URL: http://localhost:11434
+        run: |
+          cd backend
+          python tests/golden_set_validator.py \
+            --agent copywriter \
+            --ci \
+            --min-pass-rate 70 \
+            --min-score 7.0 \
+            --report json \
+            --output golden_set_report_copywriter.json
+
+      - name: Upload Validation Report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: golden-set-reports
+          path: backend/golden_set_report_*.json
+          retention-days: 30
+
+      - name: Comment PR with Results
+        if: github.event_name == 'pull_request' && failure()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const report = JSON.parse(fs.readFileSync('backend/golden_set_report_copywriter.json', 'utf8'));
+
+            const comment = `## 🔍 Golden Set Validation Failed
+
+            **Agent**: ${report.agent}
+            **Pass Rate**: ${report.summary.pass_rate}% (minimum: 70%)
+            **Average Score**: ${report.summary.average_score}/10 (minimum: 7.0)
+
+            ### Failed Cases
+            ${report.results.filter(r => !r.passed).map(r =>
+              `- **${r.case_id}**: ${r.scenario} (Score: ${r.score}/10)`
+            ).join('\n')}
+
+            Please fix the issues and re-run the validation.
+            `;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });

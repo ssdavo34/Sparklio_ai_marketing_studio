@@ -19,6 +19,8 @@ from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
 from pydantic import BaseModel, Field, ValidationError, validator
 
+from app.schemas.strategist import CampaignStrategyOutputV1
+
 logger = logging.getLogger(__name__)
 
 
@@ -190,7 +192,8 @@ class OutputValidator:
     SCHEMA_MAP = {
         "product_detail": ProductDetailOutput,
         "sns": SNSOutput,
-        "brand_message": BrandMessageOutput
+        "brand_message": BrandMessageOutput,
+        "campaign_strategy": CampaignStrategyOutputV1  # StrategistAgent (2025-11-23)
     }
 
     def validate(
@@ -517,6 +520,19 @@ class OutputValidator:
                 "values": {"count": 3, "max_item_length": 15},
                 "promise": {"max_length": 50}
             }
+        elif task == "campaign_strategy":
+            # StrategistAgent (2025-11-23)
+            # Pydantic 스키마가 대부분 검증하므로 핵심 필드만 추가 검증
+            return {
+                "core_message": {"max_length": 100, "min_length": 20},
+                "positioning": {"max_length": 150, "min_length": 20},
+                "big_idea": {"max_length": 100, "min_length": 15},
+                "target_insights": {"min_items": 3, "max_items": 5},
+                "strategic_pillars": {"min_items": 2, "max_items": 3},
+                "channel_strategy": {"min_items": 2, "max_items": 5},
+                "risk_factors": {"min_items": 1, "max_items": 5},
+                "success_metrics": {"min_items": 3, "max_items": 8}
+            }
         else:
             return {}
 
@@ -531,6 +547,10 @@ class OutputValidator:
         # sns는 50% 이상 (hashtags 제외)
         elif task == "sns":
             return 0.5
+
+        # campaign_strategy는 40% 이상 (마케팅 전문 용어 허용)
+        elif task == "campaign_strategy":
+            return 0.4
 
         else:
             return 0.5  # 기본 50%
