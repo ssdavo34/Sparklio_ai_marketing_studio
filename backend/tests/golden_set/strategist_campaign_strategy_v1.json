@@ -488,6 +488,487 @@
       },
       "min_score": 7.0,
       "tags": ["professional", "saas", "b2b"]
+    },
+    {
+      "case_id": "strategist_006",
+      "name": "펫 케어 제품 브랜드 런칭",
+      "category": "friendly",
+      "difficulty": "easy",
+      "input": {
+        "brand_name": "펫프렌즈 케어",
+        "product_category": "반려동물 영양제 (관절/피부 케어)",
+        "target_audience": "반려동물 보호자 (30-50세), 강아지/고양이 양육",
+        "campaign_objective": "신제품 런칭, 3개월 내 매출 1억원",
+        "budget_range": "5000만원",
+        "tone": "friendly",
+        "brand_values": ["사랑", "건강", "신뢰"],
+        "key_messages": ["수의사 추천", "천연 성분", "맛있는 영양제"],
+        "channel_preferences": ["인스타그램", "네이버 블로그", "카카오 스토리"]
+      },
+      "expected_output": {
+        "core_message": "우리 아이의 건강한 내일을 위한 맛있는 선택",
+        "positioning": "수의사가 추천하는 천연 성분 반려동물 영양제",
+        "target_insights": [
+          "반려동물을 가족처럼 생각하며 건강에 민감함",
+          "영양제를 먹이고 싶지만 거부감 때문에 어려움",
+          "수의사나 다른 보호자의 추천을 신뢰"
+        ],
+        "big_idea": "맛있어서 스스로 찾는 영양제: 우리 아이의 행복한 습관",
+        "strategic_pillars": [
+          {
+            "title": "수의사 신뢰 구축",
+            "description": "전문가 추천과 임상 데이터로 제품 효능 입증",
+            "key_actions": [
+              "수의사 인터뷰 영상",
+              "관절/피부 개선 사례 공유",
+              "성분 안전성 인증서 공개"
+            ]
+          },
+          {
+            "title": "맛 경험 강조",
+            "description": "반려동물이 스스로 찾아 먹는 맛있는 영양제",
+            "key_actions": [
+              "인스타그램 맛 챌린지 (#우리아이영양제챌린지)",
+              "반려동물 반응 영상 공유",
+              "체험단 리뷰 콘텐츠"
+            ]
+          }
+        ],
+        "channel_strategy": [
+          {
+            "channel": "인스타그램",
+            "objective": "반려동물 커뮤니티 형성 및 브랜드 인지도",
+            "content_types": ["릴스 (반려동물 영양제 먹는 영상)", "피드 (제품 정보)", "스토리 (사용자 리뷰)"],
+            "kpi": "팔로워 2만명, 릴스 평균 조회수 10만+, 참여율 12%"
+          },
+          {
+            "channel": "네이버 블로그",
+            "objective": "SEO 및 상세 정보 제공",
+            "content_types": ["반려동물 건강 정보", "제품 성분 분석", "수의사 Q&A"],
+            "kpi": "검색 유입 월 8000명, 평균 체류 시간 4분+"
+          },
+          {
+            "channel": "카카오 스토리",
+            "objective": "기존 반려동물 커뮤니티 활용",
+            "content_types": ["일상 케어 팁", "이벤트 공지", "사용자 스토리 공유"],
+            "kpi": "공유 수 월 1000건+, 구매 전환율 8%"
+          }
+        ],
+        "funnel_structure": {
+          "awareness": ["인스타그램 릴스 광고", "네이버 검색 광고 (반려동물 영양제)", "카카오 스토리 커뮤니티"],
+          "consideration": ["블로그 제품 상세 정보", "인스타그램 수의사 추천", "체험단 리뷰 영상"],
+          "conversion": ["첫 구매 30% 할인", "정기 구독 추가 할인", "무료 배송 이벤트"],
+          "retention": ["정기 구독 리마인드", "반려동물 건강 뉴스레터", "재구매 적립금"]
+        },
+        "risk_factors": [
+          "경쟁 제품 대비 가격 경쟁력 (정기 구독 할인으로 대응)",
+          "온라인 전용 판매로 시식 기회 부족 (무료 샘플 제공)"
+        ],
+        "success_metrics": [
+          "3개월 매출 1억원 달성",
+          "인스타그램 팔로워 2만명",
+          "정기 구독 고객 500명",
+          "재구매율 35%"
+        ]
+      },
+      "evaluation_weights": {
+        "core_message_clarity": 0.20,
+        "big_idea_creativity": 0.20,
+        "strategic_pillars_structure": 0.25,
+        "channel_fit": 0.20,
+        "clarity_actionability": 0.15
+      },
+      "min_score": 7.0,
+      "tags": ["friendly", "pet", "health"]
+    },
+    {
+      "case_id": "strategist_007",
+      "name": "온라인 교육 플랫폼 론칭",
+      "category": "professional",
+      "difficulty": "medium",
+      "input": {
+        "brand_name": "스킬업 아카데미",
+        "product_category": "IT/디자인 온라인 강의 플랫폼",
+        "target_audience": "직장인 및 취준생 (25-35세), 커리어 전환/업스킬링 희망",
+        "campaign_objective": "플랫폼 런칭, 3개월 내 유료 수강생 1000명 확보",
+        "budget_range": "1.5억원",
+        "tone": "professional",
+        "brand_values": ["실용성", "전문성", "성장"],
+        "key_messages": ["현직자 강사진", "프로젝트 기반 학습", "취업 지원"],
+        "channel_preferences": ["유튜브", "네이버 블로그", "페이스북", "인스타그램"]
+      },
+      "expected_output": {
+        "core_message": "실무로 연결되는 배움, 당신의 커리어를 업그레이드하세요",
+        "positioning": "현직 전문가가 가르치는 실무 중심 온라인 교육 플랫폼",
+        "target_insights": [
+          "이론보다 실무에 바로 적용 가능한 스킬을 원함",
+          "독학의 한계를 느끼고 체계적 학습 커리큘럼 필요",
+          "커리어 전환 시 포트폴리오와 취업 지원이 중요"
+        ],
+        "big_idea": "3개월 프로젝트: 배우고, 만들고, 취업한다",
+        "strategic_pillars": [
+          {
+            "title": "현직자 강사진 강조",
+            "description": "실무 경험이 풍부한 강사진의 실전 노하우 전달",
+            "key_actions": [
+              "강사 프로필 및 경력 공개",
+              "현직자 인터뷰 시리즈 (유튜브)",
+              "수강생 vs 강사 Q&A 라이브"
+            ]
+          },
+          {
+            "title": "프로젝트 중심 학습",
+            "description": "실제 프로젝트를 만들며 배우는 실무 중심 커리큘럼",
+            "key_actions": [
+              "수강생 포트폴리오 공개",
+              "프로젝트 결과물 전시회",
+              "기업 협업 프로젝트 기회"
+            ]
+          },
+          {
+            "title": "취업 지원 시스템",
+            "description": "이력서 첨삭, 면접 코칭, 기업 연결까지 원스톱 지원",
+            "key_actions": [
+              "취업 성공 사례 공유",
+              "1:1 커리어 코칭 프로그램",
+              "채용 파트너사 연결"
+            ]
+          }
+        ],
+        "channel_strategy": [
+          {
+            "channel": "유튜브",
+            "objective": "무료 콘텐츠로 브랜드 인지도 및 신뢰 구축",
+            "content_types": ["무료 강의 맛보기", "IT 트렌드 분석", "커리어 성장 팁"],
+            "kpi": "구독자 5만명, 영상 평균 조회수 10만+, 수강 전환율 5%"
+          },
+          {
+            "channel": "네이버 블로그",
+            "objective": "SEO 및 강의 상세 정보 제공",
+            "content_types": ["강의 커리큘럼 소개", "IT 직무 가이드", "수강생 후기"],
+            "kpi": "검색 유입 월 1만명, 무료 체험 전환율 10%"
+          },
+          {
+            "channel": "인스타그램",
+            "objective": "브랜드 친근감 형성 및 수강생 커뮤니티",
+            "content_types": ["수강생 성공 스토리", "강사 일상", "학습 팁 카드뉴스"],
+            "kpi": "팔로워 3만명, 참여율 8%"
+          }
+        ],
+        "funnel_structure": {
+          "awareness": ["유튜브 광고 (무료 강의)", "페이스북 리타게팅", "네이버 검색 광고"],
+          "consideration": ["유튜브 강의 맛보기", "블로그 상세 커리큘럼", "무료 웨비나 참여"],
+          "conversion": ["7일 무료 체험", "얼리버드 할인 50%", "친구 추천 쿠폰"],
+          "retention": ["학습 진도 관리 알림", "커뮤니티 스터디 그룹", "수료 후 취업 지원"]
+        },
+        "risk_factors": [
+          "경쟁 플랫폼 대비 콘텐츠 부족 (강의 수 빠르게 확대)",
+          "브랜드 인지도 부족 (유튜브 무료 콘텐츠로 신뢰 구축)"
+        ],
+        "success_metrics": [
+          "3개월 유료 수강생 1000명 확보",
+          "유튜브 구독자 5만명",
+          "수강 완료율 70%",
+          "취업 성공률 60%"
+        ]
+      },
+      "evaluation_weights": {
+        "core_message_clarity": 0.20,
+        "big_idea_creativity": 0.20,
+        "strategic_pillars_structure": 0.25,
+        "channel_fit": 0.20,
+        "clarity_actionability": 0.15
+      },
+      "min_score": 7.0,
+      "tags": ["professional", "edtech", "platform"]
+    },
+    {
+      "case_id": "strategist_008",
+      "name": "친환경 생활용품 브랜드 확산",
+      "category": "casual",
+      "difficulty": "easy",
+      "input": {
+        "brand_name": "그린홈",
+        "product_category": "친환경 주방/욕실 세제",
+        "target_audience": "30-40대 주부, 환경 의식적 소비자",
+        "campaign_objective": "온라인 매출 50% 증가, 신규 고객 3000명 확보",
+        "budget_range": "8000만원",
+        "tone": "casual",
+        "brand_values": ["자연", "안전", "편리"],
+        "key_messages": ["100% 생분해 성분", "피부 저자극", "효과적 세정력"],
+        "channel_preferences": ["인스타그램", "네이버 쇼핑", "틱톡"]
+      },
+      "expected_output": {
+        "core_message": "자연이 주는 깨끗함, 우리 가족을 위한 안심 선택",
+        "positioning": "효과는 강력하고 성분은 순한 친환경 세제",
+        "target_insights": [
+          "가족 건강을 위해 안전한 제품을 선호",
+          "친환경이지만 세정력이 떨어지면 안 됨",
+          "편리한 온라인 정기 구독 선호"
+        ],
+        "big_idea": "자연을 닮은 청소: 지구도 우리 집도 깨끗하게",
+        "strategic_pillars": [
+          {
+            "title": "성분 안전성 강조",
+            "description": "100% 생분해 성분, 피부 테스트 완료, 유해 물질 제로",
+            "key_actions": [
+              "성분 투명 공개 인포그래픽",
+              "피부과 테스트 인증서 공유",
+              "어린이 안전 테스트 결과"
+            ]
+          },
+          {
+            "title": "효과 증명",
+            "description": "친환경이지만 강력한 세정력 입증",
+            "key_actions": [
+              "Before/After 세정력 비교 영상",
+              "일반 세제 vs 그린홈 비교 실험",
+              "사용자 리얼 후기 영상"
+            ]
+          }
+        ],
+        "channel_strategy": [
+          {
+            "channel": "인스타그램",
+            "objective": "브랜드 인지도 및 정기 구독 유도",
+            "content_types": ["릴스 (세정력 비교)", "피드 (제품 정보)", "스토리 (사용자 후기)"],
+            "kpi": "팔로워 1.5만명, 릴스 조회수 평균 5만+, 정기 구독 전환율 10%"
+          },
+          {
+            "channel": "네이버 쇼핑",
+            "objective": "검색 유입 및 직접 판매",
+            "content_types": ["상품 상세 페이지", "사용 가이드", "리뷰 이벤트"],
+            "kpi": "월 매출 5000만원, 리뷰 평점 4.8+, 재구매율 40%"
+          },
+          {
+            "channel": "틱톡",
+            "objective": "젊은 층 타겟 바이럴",
+            "content_types": ["청소 꿀팁 영상", "세정력 챌린지", "친환경 라이프 스타일"],
+            "kpi": "월 조회수 200만+, 해시태그 참여 300건+"
+          }
+        ],
+        "funnel_structure": {
+          "awareness": ["인스타그램 릴스 광고", "틱톡 바이럴 콘텐츠", "네이버 검색 광고"],
+          "consideration": ["제품 상세 페이지", "인스타그램 사용자 후기", "블로그 리뷰"],
+          "conversion": ["첫 구매 30% 할인", "정기 구독 추가 할인", "무료 배송"],
+          "retention": ["정기 구독 자동 배송", "재구매 쿠폰", "친환경 라이프 뉴스레터"]
+        },
+        "risk_factors": [
+          "일반 세제 대비 가격 경쟁력 (가치 중심 커뮤니케이션)",
+          "세정력 의심 (비교 실험 영상으로 대응)"
+        ],
+        "success_metrics": [
+          "온라인 매출 50% 증가",
+          "신규 고객 3000명 확보",
+          "정기 구독 고객 1000명",
+          "재구매율 40%"
+        ]
+      },
+      "evaluation_weights": {
+        "core_message_clarity": 0.20,
+        "big_idea_creativity": 0.20,
+        "strategic_pillars_structure": 0.25,
+        "channel_fit": 0.20,
+        "clarity_actionability": 0.15
+      },
+      "min_score": 7.0,
+      "tags": ["casual", "eco", "household"]
+    },
+    {
+      "case_id": "strategist_009",
+      "name": "프리미엄 차량용품 브랜드 포지셔닝",
+      "category": "luxury",
+      "difficulty": "hard",
+      "input": {
+        "brand_name": "오토 엘리트",
+        "product_category": "프리미엄 차량 디테일링 케어 키트",
+        "target_audience": "40-60세 고급 차량 소유주 (수입차/고급 국산차)",
+        "campaign_objective": "브랜드 런칭, 분기 매출 3억원",
+        "budget_range": "2억원",
+        "tone": "luxury",
+        "brand_values": ["품격", "완벽함", "장인정신"],
+        "competitor_info": "메구아이어스, 그리엇츠 등 경쟁",
+        "key_messages": ["프로페셔널 등급 성분", "수작업 장인 제작", "완벽한 광택"],
+        "channel_preferences": ["네이버 블로그", "유튜브", "카페 (자동차 커뮤니티)"]
+      },
+      "expected_output": {
+        "core_message": "당신의 차가 가진 진짜 빛을 찾아드립니다",
+        "positioning": "프로페셔널 장인이 만든 차량 케어의 정점",
+        "target_insights": [
+          "차량을 단순한 이동 수단이 아닌 자부심의 대상으로 생각",
+          "전문가 수준의 관리를 원하지만 시간/비용 부담",
+          "제품 품질과 브랜드 스토리를 중시"
+        ],
+        "big_idea": "장인의 손길: 당신의 차에 품격을 입히다",
+        "strategic_pillars": [
+          {
+            "title": "장인정신 스토리텔링",
+            "description": "20년 경력 프로 디테일러의 노하우가 담긴 제품",
+            "key_actions": [
+              "장인 인터뷰 영상 (제작 과정)",
+              "수작업 제조 과정 공개",
+              "프로페셔널 등급 성분 설명"
+            ]
+          },
+          {
+            "title": "변화 증명",
+            "description": "Before/After 극적 변화로 제품 효과 입증",
+            "key_actions": [
+              "유튜브 디테일링 실연 영상",
+              "고급 차량 케어 사례 (벤츠, BMW 등)",
+              "전문가 추천 및 리뷰"
+            ]
+          },
+          {
+            "title": "커뮤니티 형성",
+            "description": "고급 차량 오너들의 전용 커뮤니티 구축",
+            "key_actions": [
+              "VIP 고객 전용 카페",
+              "오프라인 디테일링 워크샵",
+              "시즌별 케어 가이드 제공"
+            ]
+          }
+        ],
+        "channel_strategy": [
+          {
+            "channel": "유튜브",
+            "objective": "제품 효과 입증 및 브랜드 권위 구축",
+            "content_types": ["프로 디테일링 튜토리얼", "Before/After 영상", "장인 인터뷰"],
+            "kpi": "구독자 3만명, 영상 평균 조회수 5만+, 구매 전환율 8%"
+          },
+          {
+            "channel": "네이버 블로그",
+            "objective": "SEO 및 상세 제품 정보 제공",
+            "content_types": ["차량 케어 가이드", "제품 성분 분석", "사용 후기"],
+            "kpi": "검색 유입 월 5000명, 체류 시간 5분+"
+          },
+          {
+            "channel": "자동차 카페",
+            "objective": "타겟 직접 도달 및 입소문 확산",
+            "content_types": ["제품 리뷰", "사용 팁 공유", "커뮤니티 이벤트"],
+            "kpi": "카페 회원 구매 전환율 15%, 추천 공유 월 100건+"
+          }
+        ],
+        "funnel_structure": {
+          "awareness": ["유튜브 광고 (프리롤)", "자동차 카페 배너", "네이버 검색 광고"],
+          "consideration": ["유튜브 디테일링 영상", "블로그 제품 상세 정보", "전문가 리뷰"],
+          "conversion": ["VIP 런칭 특가 (한정 수량)", "무료 배송 + 사은품", "100일 만족 보장"],
+          "retention": ["VIP 고객 전용 카페", "시즌별 케어 가이드", "재구매 프리미엄 사은품"]
+        },
+        "risk_factors": [
+          "고가 제품으로 인한 진입 장벽 (체험 키트 제공)",
+          "해외 경쟁 브랜드 대비 인지도 부족 (장인정신 스토리 강조)",
+          "온라인 전용 판매로 체험 기회 부족 (오프라인 워크샵 운영)"
+        ],
+        "success_metrics": [
+          "분기 매출 3억원 달성",
+          "유튜브 구독자 3만명",
+          "VIP 카페 회원 5000명",
+          "재구매율 50%",
+          "고객 만족도 (NPS) 80+"
+        ]
+      },
+      "evaluation_weights": {
+        "core_message_clarity": 0.20,
+        "big_idea_creativity": 0.20,
+        "strategic_pillars_structure": 0.25,
+        "channel_fit": 0.20,
+        "clarity_actionability": 0.15
+      },
+      "min_score": 7.5,
+      "tags": ["luxury", "automotive", "premium"]
+    },
+    {
+      "case_id": "strategist_010",
+      "name": "피트니스 앱 사용자 확대",
+      "category": "casual",
+      "difficulty": "medium",
+      "input": {
+        "brand_name": "핏메이트",
+        "product_category": "AI 기반 홈 피트니스 앱",
+        "target_audience": "20-40대 운동 초보자, 홈트 관심층",
+        "campaign_objective": "앱 다운로드 10만건, 유료 구독자 5000명",
+        "budget_range": "1억원",
+        "tone": "casual",
+        "brand_values": ["접근성", "재미", "효과"],
+        "key_messages": ["AI 맞춤 운동", "5분 홈트", "게임처럼 재미있는 운동"],
+        "channel_preferences": ["인스타그램", "유튜브", "틱톡", "구글 플레이"]
+      },
+      "expected_output": {
+        "core_message": "운동이 재미있어지는 순간, 핏메이트와 함께하세요",
+        "positioning": "AI가 만들어주는 나만의 5분 홈트 트레이너",
+        "target_insights": [
+          "헬스장 가기 부담스럽고 집에서 간편하게 운동하고 싶음",
+          "작심삼일이 반복되어 동기 부여와 재미 요소 필요",
+          "개인 맞춤형 운동 프로그램을 원함"
+        ],
+        "big_idea": "5분의 기적: AI가 만드는 나만의 운동 습관",
+        "strategic_pillars": [
+          {
+            "title": "AI 맞춤 경험",
+            "description": "체형, 목표, 생활 패턴에 맞춘 개인화 운동 프로그램",
+            "key_actions": [
+              "AI 맞춤 운동 시연 영상",
+              "사용자 목표별 성공 사례",
+              "실시간 자세 교정 기능 소개"
+            ]
+          },
+          {
+            "title": "재미 요소",
+            "description": "게임처럼 즐기는 운동, 챌린지와 리워드 시스템",
+            "key_actions": [
+              "5분 챌린지 이벤트",
+              "친구와 경쟁 기능 소개",
+              "레벨업 및 배지 시스템"
+            ]
+          }
+        ],
+        "channel_strategy": [
+          {
+            "channel": "틱톡",
+            "objective": "바이럴 확산 및 젊은 층 타겟",
+            "content_types": ["5분 홈트 챌린지", "AI 자세 교정 데모", "변화 Before/After"],
+            "kpi": "월 조회수 1000만+, 해시태그 참여 5000건+, 앱 다운로드 전환율 3%"
+          },
+          {
+            "channel": "인스타그램",
+            "objective": "브랜드 커뮤니티 형성",
+            "content_types": ["릴스 (5분 운동 루틴)", "피드 (성공 사례)", "스토리 (챌린지 진행)"],
+            "kpi": "팔로워 10만명, 참여율 15%, 앱 다운로드 월 2만건"
+          },
+          {
+            "channel": "유튜브",
+            "objective": "무료 콘텐츠로 앱 기능 소개",
+            "content_types": ["5분 홈트 루틴", "AI 기능 튜토리얼", "사용자 성공 스토리"],
+            "kpi": "구독자 10만명, 영상 조회수 평균 20만+, 앱 설치 전환율 10%"
+          }
+        ],
+        "funnel_structure": {
+          "awareness": ["틱톡 바이럴 광고", "인스타그램 릴스 광고", "유튜브 프리롤"],
+          "consideration": ["유튜브 앱 기능 소개", "인스타그램 사용자 후기", "앱 스토어 리뷰"],
+          "conversion": ["7일 무료 체험", "얼리버드 할인 50%", "친구 초대 이벤트"],
+          "retention": ["매일 5분 챌린지 알림", "레벨업 리워드", "커뮤니티 챌린지"]
+        },
+        "risk_factors": [
+          "무료 유튜브 운동 영상과의 경쟁 (AI 맞춤 차별화)",
+          "구독 모델 저항감 (무료 체험 및 가치 강조)"
+        ],
+        "success_metrics": [
+          "앱 다운로드 10만건",
+          "유료 구독자 5000명",
+          "일일 활성 사용자 (DAU) 3만명",
+          "구독 유지율 70% (3개월)"
+        ]
+      },
+      "evaluation_weights": {
+        "core_message_clarity": 0.20,
+        "big_idea_creativity": 0.20,
+        "strategic_pillars_structure": 0.25,
+        "channel_fit": 0.20,
+        "clarity_actionability": 0.15
+      },
+      "min_score": 7.0,
+      "tags": ["casual", "fitness", "app"]
     }
   ]
 }

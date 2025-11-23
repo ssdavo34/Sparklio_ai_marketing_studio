@@ -649,6 +649,225 @@ interface CampaignStrategyOutputV1 {
 
 ---
 
+## 3. ReviewerAgent Tasks
+
+### 3.1 Task 목록
+
+| Task 이름 | Kind | Priority | 상태 | 설명 |
+|-----------|------|----------|------|------|
+| `reviewer.ad_copy_quality_check` | `quality_review` | P1 | 🟡 설계 완료 | 광고 카피 품질 검토 및 개선 제안 |
+| `reviewer.campaign_strategy_review` | `quality_review` | P1 | 📋 미구현 | 캠페인 전략 품질 검토 |
+| `reviewer.content_plan_review` | `quality_review` | P2 | 📋 미구현 | 콘텐츠 플랜 품질 검토 |
+
+---
+
+### 3.2 `reviewer.ad_copy_quality_check`
+
+#### 개요
+- **목적**: CopywriterAgent가 생성한 광고 카피의 품질을 평가하고 개선 방향 제안
+- **Kind**: `quality_review`
+- **Priority**: P1 (높음)
+- **현재 상태**: 🟡 **설계 완료, 구현 대기**
+- **목표**: Pass Rate ≥ 70%, Avg Score ≥ 7.0/10
+
+#### 역할 정의
+
+ReviewerAgent는 **품질 Filter/Advisor** 역할을 수행합니다:
+- Copywriter/Strategist가 생성한 결과를 **평가·진단·코멘트**
+- 텍스트를 "생성"하는 것이 아닌 **품질 검증 및 개선 제안**
+- 마케터가 카피를 보고 줄 법한 리뷰를 구조화하여 제공
+
+#### Input Schema: `AdCopyReviewInputV1`
+
+```typescript
+interface AdCopyReviewInputV1 {
+  // 필수: 검토 대상 카피
+  original_copy: AdCopySimpleOutputV2;  // Copywriter 결과물
+
+  // 필수: 원본 요청 컨텍스트 (카피 생성 시 사용된 정보)
+  original_request: {
+    product_name: string;
+    category: string;
+    target_audience: string;
+    brand_tone: "professional" | "friendly" | "energetic" | "luxury";
+    usps: string[];                      // 주요 USP
+  };
+
+  // 선택: 추가 컨텍스트
+  campaign_context?: string;             // 캠페인 배경 정보
+  review_focus?: string[];               // 리뷰 중점 영역 (예: ["tone", "cta", "clarity"])
+}
+```
+
+#### Output Schema: `AdCopyReviewOutputV1`
+
+```typescript
+interface ReviewComment {
+  field: "headline" | "subheadline" | "body" | "bullets" | "cta";  // 대상 필드
+  comment: string;                       // 코멘트 (30-100자)
+  severity: "info" | "warning" | "critical";  // 심각도
+}
+
+interface ImprovementSuggestion {
+  field: "headline" | "subheadline" | "body" | "bullets" | "cta";
+  current_issue: string;                 // 현재 문제점 (20-60자)
+  suggestion: string;                    // 개선 제안 (30-100자)
+  example?: string;                      // 개선 예시 (선택)
+}
+
+interface AdCopyReviewOutputV1 {
+  // 전체 평가 (0-10점)
+  overall_score: number;                 // 종합 점수 (소수점 1자리)
+
+  // 세부 점수 (각 0-10점)
+  tone_match_score: number;              // 톤 일치도
+  clarity_score: number;                 // 명확성
+  persuasiveness_score: number;          // 설득력
+  creativity_score: number;              // 창의성
+  compliance_score: number;              // 규정 준수 (과장/과대 표현 방지)
+
+  // 강점 (2-5개)
+  strengths: string[];                   // 각 20-80자
+
+  // 약점 (1-5개)
+  weaknesses: string[];                  // 각 20-80자
+
+  // 개선 제안 (2-5개)
+  improvement_suggestions: ImprovementSuggestion[];
+
+  // 리스크 플래그 (0-3개, 있을 경우만)
+  risk_flags: ReviewComment[];           // 과장·과대, 규제 위반, 톤 오류 등
+
+  // 종합 코멘트
+  summary: string;                       // 종합 평가 (50-150자)
+}
+```
+
+#### 검증 기준
+
+**4단계 Validation Pipeline**:
+
+1. **Schema Validation** (Pass/Fail)
+   - Pydantic 모델 통과 여부
+   - 필수 필드 존재 여부
+   - 점수 범위 (0-10) 검증
+
+2. **Length & Structure Validation** (Pass/Fail)
+   - `strengths`: 2-5개, 각 20-80자
+   - `weaknesses`: 1-5개, 각 20-80자
+   - `improvement_suggestions`: 2-5개
+   - `summary`: 50-150자
+   - `risk_flags`: 0-3개 (없어도 가능)
+
+3. **Language Validation** (Pass/Fail)
+   - 한국어 비율 ≥ 90% (전문 용어 제외)
+   - 명확한 표현 사용
+
+4. **Quality Validation** (0-10점)
+   - **점수 일관성** (30%): 세부 점수와 종합 점수의 논리적 일치성
+   - **코멘트 구체성** (25%): 강점/약점이 구체적이고 실행 가능한지
+   - **개선 제안 실용성** (25%): 제안이 실제 적용 가능하고 명확한지
+   - **리스크 탐지 정확성** (20%): 실제 문제를 정확히 파악했는지
+
+**Golden Set 기준**:
+- 일반 케이스: 7.0/10 이상
+- 복잡한 케이스 (다중 리스크): 7.5/10 이상
+
+#### 예시
+
+**Input**:
+```json
+{
+  "original_copy": {
+    "headline": "완벽한 소음 차단의 시작",
+    "subheadline": "프리미엄 ANC 기술로 집중력 극대화",
+    "body": "울트라 무선 이어폰 Pro는 업계 최고 수준의 노이즈 캔슬링으로 당신의 일상을 보호합니다.",
+    "bullets": [
+      "40dB 노이즈 캔슬링",
+      "30시간 배터리 지속",
+      "IPX7 방수 등급"
+    ],
+    "cta": "지금 구매하기"
+  },
+  "original_request": {
+    "product_name": "울트라 무선 이어폰 Pro",
+    "category": "테크 제품",
+    "target_audience": "20-30대 직장인",
+    "brand_tone": "professional",
+    "usps": ["ANC 기술", "긴 배터리", "방수"]
+  }
+}
+```
+
+**Output**:
+```json
+{
+  "overall_score": 7.5,
+  "tone_match_score": 8.0,
+  "clarity_score": 7.5,
+  "persuasiveness_score": 7.0,
+  "creativity_score": 7.5,
+  "compliance_score": 8.5,
+  "strengths": [
+    "헤드라인이 베네핏 중심으로 잘 작성되어 타겟의 니즈를 정확히 포착",
+    "서브헤드라인에서 기술(ANC)과 효과(집중력)를 명확히 연결",
+    "불릿 포인트가 간결하고 측정 가능한 스펙 중심으로 구성"
+  ],
+  "weaknesses": [
+    "CTA가 너무 일반적이고 제품의 차별점을 반영하지 못함",
+    "바디 카피에 '업계 최고 수준'이라는 과장 표현이 포함되어 규제 리스크 존재"
+  ],
+  "improvement_suggestions": [
+    {
+      "field": "cta",
+      "current_issue": "일반적인 '지금 구매하기' 표현으로 차별성 부족",
+      "suggestion": "제품의 핵심 베네핏을 반영한 행동 유도 문구 사용",
+      "example": "완벽한 집중, 지금 경험하세요"
+    },
+    {
+      "field": "body",
+      "current_issue": "'업계 최고 수준'이라는 표현이 과장 광고로 해석될 가능성",
+      "suggestion": "구체적인 수치나 인증으로 대체",
+      "example": "40dB 노이즈 캔슬링 기술로 당신의 일상을 보호합니다"
+    }
+  ],
+  "risk_flags": [
+    {
+      "field": "body",
+      "comment": "'업계 최고 수준' - 공정거래위원회 과대광고 가이드라인 위반 가능성",
+      "severity": "warning"
+    }
+  ],
+  "summary": "전반적으로 잘 작성된 카피이나, CTA의 차별성 부족과 바디의 과장 표현을 개선하면 규제 리스크를 줄이고 설득력을 높일 수 있습니다."
+}
+```
+
+#### Prompt Spec 요구사항
+
+**시스템 프롬프트 필수 요소**:
+1. 역할 정의: "당신은 전문 마케팅 카피 리뷰어입니다"
+2. 출력 형식: JSON 구조 명시
+3. 평가 기준:
+   - 톤 일치도: 요청한 `brand_tone`과 실제 카피의 톤 비교
+   - 명확성: 메시지가 명확하고 이해하기 쉬운지
+   - 설득력: USP와 베네핏이 효과적으로 전달되는지
+   - 창의성: 차별화되고 기억에 남는 표현 사용
+   - 규정 준수: 과장·과대 표현, 규제 위반 여부
+4. 리스크 탐지:
+   - 과장 표현: "최고", "세계 최초", "업계 1위" 등
+   - 과대 광고: 증명되지 않은 효과 주장
+   - 톤 불일치: Professional 톤인데 캐주얼한 표현 사용
+5. 구체성 강조:
+   - 모호한 코멘트 금지 (예: "좋습니다", "괜찮습니다")
+   - 구체적인 예시와 개선 방향 제시
+
+**Few-shot 예시 필요**:
+- 우수한 카피 리뷰 예시 2개
+- 리스크가 있는 카피 리뷰 예시 1개
+- 톤 불일치 카피 리뷰 예시 1개
+
+---
+
 ## 7. 다음 단계
 
 ### 7.1 즉시 작업 (P0)
