@@ -21,6 +21,8 @@ import { PageRenderer } from './PageRenderer';
 import { LAYOUT_CONFIGS } from '../../types/content-plan';
 import { useCanvasStore } from '../../stores/useCanvasStore';
 import { applyContentPlanToPolotno } from '../../adapters/content-plan-to-polotno';
+import { FeedbackCollector, type FeedbackData } from '../FeedbackCollector';
+import { submitFeedback } from '@/lib/api/feedback-api';
 
 // ============================================================================
 // Props
@@ -44,6 +46,12 @@ export interface ContentPlanViewerProps {
 
   /** 공유 콜백 */
   onShare?: (contentPlan: ContentPlanPagesSchema) => void;
+
+  /** 피드백 표시 여부 */
+  showFeedback?: boolean;
+
+  /** Content Plan ID (피드백 대상 식별용) */
+  planId?: string;
 }
 
 // ============================================================================
@@ -57,11 +65,14 @@ export function ContentPlanViewer({
   onApplyToPolotno,
   onDownload,
   onShare,
+  showFeedback = true,
+  planId,
 }: ContentPlanViewerProps) {
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [isEditing, setIsEditing] = useState(false);
   const [editedContentPlan, setEditedContentPlan] = useState(contentPlan);
   const [isApplying, setIsApplying] = useState(false);
+  const [showFeedbackForm, setShowFeedbackForm] = useState(false);
 
   const polotnoStore = useCanvasStore((state) => state.polotnoStore);
 
@@ -134,6 +145,17 @@ export function ContentPlanViewer({
       alert('캔버스 적용에 실패했습니다. 다시 시도해주세요.');
     } finally {
       setIsApplying(false);
+    }
+  };
+
+  // Feedback
+  const handleFeedbackSubmit = async (feedback: FeedbackData) => {
+    try {
+      await submitFeedback(feedback);
+      setShowFeedbackForm(false);
+    } catch (error) {
+      console.error('[ContentPlanViewer] 피드백 제출 실패:', error);
+      throw error;
     }
   };
 
@@ -301,7 +323,33 @@ export function ContentPlanViewer({
             </button>
           </div>
         )}
+
+        {/* Feedback Button */}
+        {showFeedback && !isEditing && (
+          <div className="mt-4 flex items-center justify-center">
+            <button
+              onClick={() => setShowFeedbackForm(!showFeedbackForm)}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+            >
+              {showFeedbackForm ? '피드백 닫기' : '피드백 제공'}
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* Feedback Form */}
+      {showFeedback && showFeedbackForm && !isEditing && (
+        <div className="bg-gray-50 border-t border-gray-200 px-6 py-4">
+          <FeedbackCollector
+            targetType="content_plan"
+            targetId={planId}
+            targetData={editedContentPlan}
+            onSubmit={handleFeedbackSubmit}
+            onCancel={() => setShowFeedbackForm(false)}
+            autoFocus={true}
+          />
+        </div>
+      )}
     </div>
   );
 }

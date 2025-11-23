@@ -17,6 +17,7 @@
 
 import React, { useState } from 'react';
 import { Check, AlertTriangle, Eye, Edit2, Copy, Download } from 'lucide-react';
+import { FeedbackCollector, FeedbackButton, type FeedbackData } from './FeedbackCollector';
 
 // ============================================================================
 // Types
@@ -95,6 +96,15 @@ export interface AdCopyOutputProps {
 
   /** 다운로드 콜백 */
   onDownload?: (adCopy: AdCopySimpleOutputV2) => void;
+
+  /** 피드백 제출 콜백 */
+  onFeedback?: (feedback: FeedbackData) => Promise<void>;
+
+  /** 피드백 표시 여부 */
+  showFeedback?: boolean;
+
+  /** 카피 ID (피드백 대상 식별용) */
+  copyId?: string;
 }
 
 // ============================================================================
@@ -108,10 +118,15 @@ export function AdCopyOutput({
   onApplyToCanvas,
   onCopy,
   onDownload,
+  onFeedback,
+  showFeedback = true,
+  copyId,
 }: AdCopyOutputProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isPreview, setIsPreview] = useState(false);
   const [editedCopy, setEditedCopy] = useState(adCopy);
+  const [showFeedbackForm, setShowFeedbackForm] = useState(false);
+  const [hasFeedbackSubmitted, setHasFeedbackSubmitted] = useState(false);
 
   const handleSaveEdit = () => {
     onEdit?.(editedCopy);
@@ -121,6 +136,12 @@ export function AdCopyOutput({
   const handleCancelEdit = () => {
     setEditedCopy(adCopy);
     setIsEditing(false);
+  };
+
+  const handleFeedbackSubmit = async (feedback: FeedbackData) => {
+    await onFeedback?.(feedback);
+    setHasFeedbackSubmitted(true);
+    setShowFeedbackForm(false);
   };
 
   return (
@@ -225,7 +246,7 @@ export function AdCopyOutput({
       </div>
 
       {/* Actions */}
-      <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between bg-gray-50">
+      <div className="px-4 py-3 border-t border-gray-200 bg-gray-50 space-y-3">
         {isEditing ? (
           <div className="flex items-center gap-2 w-full">
             <button
@@ -242,27 +263,53 @@ export function AdCopyOutput({
             </button>
           </div>
         ) : (
-          <div className="flex items-center gap-2 w-full">
-            {editable && (
-              <button
-                onClick={() => setIsEditing(true)}
-                className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
-              >
-                <Edit2 className="w-4 h-4" />
-                수정
-              </button>
+          <>
+            <div className="flex items-center gap-2 w-full">
+              {editable && (
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+                >
+                  <Edit2 className="w-4 h-4" />
+                  수정
+                </button>
+              )}
+              {onApplyToCanvas && (
+                <button
+                  onClick={() => onApplyToCanvas(adCopy)}
+                  className="flex-1 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors"
+                >
+                  Canvas에 적용
+                </button>
+              )}
+            </div>
+
+            {/* Feedback Section */}
+            {showFeedback && onFeedback && (
+              <div className="flex items-center justify-center">
+                <FeedbackButton
+                  onClick={() => setShowFeedbackForm(!showFeedbackForm)}
+                  hasSubmitted={hasFeedbackSubmitted}
+                />
+              </div>
             )}
-            {onApplyToCanvas && (
-              <button
-                onClick={() => onApplyToCanvas(adCopy)}
-                className="flex-1 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors"
-              >
-                Canvas에 적용
-              </button>
-            )}
-          </div>
+          </>
         )}
       </div>
+
+      {/* Feedback Form (Collapsible) */}
+      {showFeedback && showFeedbackForm && !isEditing && (
+        <div className="px-4 py-3 border-t border-gray-200">
+          <FeedbackCollector
+            targetType="ad_copy"
+            targetId={copyId}
+            targetData={adCopy}
+            onSubmit={handleFeedbackSubmit}
+            onCancel={() => setShowFeedbackForm(false)}
+            autoFocus={true}
+          />
+        </div>
+      )}
     </div>
   );
 }
