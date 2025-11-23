@@ -1,0 +1,393 @@
+{
+  "meta": {
+    "agent": "copywriter",
+    "version": "1.0",
+    "created_at": "2025-11-23",
+    "created_by": "B팀 (Backend)",
+    "description": "CopywriterAgent 골든 세트 - 10개 시나리오",
+    "purpose": "회귀 테스트 및 품질 검증용 기대 출력 샘플"
+  },
+  "golden_cases": [
+    {
+      "id": "golden_001",
+      "scenario": "무선 이어폰 - 테크 제품",
+      "input": {
+        "task": "product_detail",
+        "payload": {
+          "product_name": "울트라 무선 이어폰 Pro",
+          "features": ["ANC 노이즈캔슬링", "30시간 배터리", "IPX7 방수"],
+          "target_audience": "2030 직장인",
+          "category": "전자제품"
+        },
+        "options": {
+          "tone": "professional",
+          "length": "medium"
+        }
+      },
+      "expected_output": {
+        "headline": "완벽한 소음 차단의 시작",
+        "subheadline": "프리미엄 ANC 기술로 집중력 극대화",
+        "body": "울트라 무선 이어폰 Pro는 30시간 배터리와 IPX7 방수로 언제 어디서나 최고의 사운드를 제공합니다.",
+        "bullets": [
+          "ANC 노이즈캔슬링",
+          "30시간 배터리",
+          "IPX7 방수"
+        ],
+        "cta": "지금 바로 체험하기"
+      },
+      "quality_metrics": {
+        "headline_length": 11,
+        "subheadline_length": 20,
+        "body_length": 52,
+        "bullets_count": 3,
+        "cta_length": 10,
+        "tone": "professional",
+        "min_score": 7.0
+      }
+    },
+    {
+      "id": "golden_002",
+      "scenario": "스킨케어 제품 - 뷰티",
+      "input": {
+        "task": "product_detail",
+        "payload": {
+          "product_name": "히알루론산 세럼",
+          "features": ["72시간 보습", "피부 장벽 강화", "순한 성분"],
+          "target_audience": "20-30대 여성",
+          "category": "뷰티"
+        },
+        "options": {
+          "tone": "friendly",
+          "length": "medium"
+        }
+      },
+      "expected_output": {
+        "headline": "72시간 촉촉함의 비밀",
+        "subheadline": "히알루론산의 강력한 보습력",
+        "body": "순한 성분으로 피부 장벽을 강화하고, 72시간 동안 깊은 보습을 선사합니다.",
+        "bullets": [
+          "72시간 보습",
+          "피부 장벽 강화",
+          "순한 성분"
+        ],
+        "cta": "지금 만나보세요"
+      },
+      "quality_metrics": {
+        "headline_length": 12,
+        "body_length": 42,
+        "bullets_count": 3,
+        "tone": "friendly",
+        "min_score": 7.0
+      }
+    },
+    {
+      "id": "golden_003",
+      "scenario": "러닝화 - 패션/스포츠",
+      "input": {
+        "task": "product_detail",
+        "payload": {
+          "product_name": "에어로 러닝화 X1",
+          "features": ["경량 디자인", "쿠션 기술", "통기성 메시"],
+          "target_audience": "러닝 애호가",
+          "category": "스포츠"
+        },
+        "options": {
+          "tone": "energetic",
+          "length": "medium"
+        }
+      },
+      "expected_output": {
+        "headline": "더 빠르게, 더 가볍게",
+        "subheadline": "에어로 러닝화로 달리기의 즐거움을",
+        "body": "경량 디자인과 쿠션 기술, 통기성 메시로 최고의 러닝 경험을 선사합니다.",
+        "bullets": [
+          "경량 디자인",
+          "쿠션 기술",
+          "통기성 메시"
+        ],
+        "cta": "달리기 시작하기"
+      },
+      "quality_metrics": {
+        "headline_length": 11,
+        "body_length": 42,
+        "bullets_count": 3,
+        "tone": "energetic",
+        "min_score": 7.0
+      }
+    },
+    {
+      "id": "golden_004",
+      "scenario": "건강기능식품 - 헬스케어",
+      "input": {
+        "task": "product_detail",
+        "payload": {
+          "product_name": "프리미엄 오메가3",
+          "features": ["rTG 오메가3", "고함량 EPA/DHA", "식약처 인증"],
+          "target_audience": "건강 관리자",
+          "category": "건강식품"
+        },
+        "options": {
+          "tone": "professional",
+          "length": "medium"
+        }
+      },
+      "expected_output": {
+        "headline": "건강한 혈행의 시작",
+        "subheadline": "식약처 인증 rTG 오메가3",
+        "body": "고함량 EPA/DHA로 혈행 개선과 눈 건강을 동시에 관리하는 프리미엄 오메가3입니다.",
+        "bullets": [
+          "rTG 오메가3",
+          "고함량 EPA/DHA",
+          "식약처 인증"
+        ],
+        "cta": "건강 지키기"
+      },
+      "quality_metrics": {
+        "headline_length": 10,
+        "body_length": 45,
+        "bullets_count": 3,
+        "tone": "professional",
+        "min_score": 7.5
+      }
+    },
+    {
+      "id": "golden_005",
+      "scenario": "스마트워치 - 웨어러블",
+      "input": {
+        "task": "product_detail",
+        "payload": {
+          "product_name": "스마트워치 울트라",
+          "features": ["GPS 내장", "심박수 측정", "5일 배터리"],
+          "target_audience": "액티브 라이프스타일",
+          "category": "전자제품"
+        },
+        "options": {
+          "tone": "energetic",
+          "length": "medium"
+        }
+      },
+      "expected_output": {
+        "headline": "당신의 액티브한 하루",
+        "subheadline": "스마트워치 울트라와 함께",
+        "body": "GPS 내장과 심박수 측정으로 운동을 기록하고, 5일 배터리로 충전 걱정 없이 사용하세요.",
+        "bullets": [
+          "GPS 내장",
+          "심박수 측정",
+          "5일 배터리"
+        ],
+        "cta": "지금 시작하기"
+      },
+      "quality_metrics": {
+        "headline_length": 11,
+        "body_length": 48,
+        "bullets_count": 3,
+        "tone": "energetic",
+        "min_score": 7.0
+      }
+    },
+    {
+      "id": "golden_006",
+      "scenario": "노트북 - 전자제품",
+      "input": {
+        "task": "product_detail",
+        "payload": {
+          "product_name": "프로북 15인치",
+          "features": ["Intel i7 프로세서", "16GB RAM", "512GB SSD"],
+          "target_audience": "전문가",
+          "category": "전자제품"
+        },
+        "options": {
+          "tone": "professional",
+          "length": "medium"
+        }
+      },
+      "expected_output": {
+        "headline": "전문가를 위한 성능",
+        "subheadline": "프로북 15인치로 업무 효율 극대화",
+        "body": "Intel i7 프로세서와 16GB RAM, 512GB SSD로 모든 작업을 빠르게 처리합니다.",
+        "bullets": [
+          "Intel i7 프로세서",
+          "16GB RAM",
+          "512GB SSD"
+        ],
+        "cta": "성능 경험하기"
+      },
+      "quality_metrics": {
+        "headline_length": 10,
+        "body_length": 45,
+        "bullets_count": 3,
+        "tone": "professional",
+        "min_score": 7.0
+      }
+    },
+    {
+      "id": "golden_007",
+      "scenario": "커피 원두 - 식품",
+      "input": {
+        "task": "product_detail",
+        "payload": {
+          "product_name": "싱글 오리진 에티오피아",
+          "features": ["직접 로스팅", "과일향 노트", "스페셜티 등급"],
+          "target_audience": "커피 애호가",
+          "category": "식품"
+        },
+        "options": {
+          "tone": "luxury",
+          "length": "medium"
+        }
+      },
+      "expected_output": {
+        "headline": "에티오피아의 향기",
+        "subheadline": "싱글 오리진 스페셜티 커피",
+        "body": "직접 로스팅한 스페셜티 등급 원두로, 풍부한 과일향 노트를 경험하세요.",
+        "bullets": [
+          "직접 로스팅",
+          "과일향 노트",
+          "스페셜티 등급"
+        ],
+        "cta": "향 경험하기"
+      },
+      "quality_metrics": {
+        "headline_length": 9,
+        "body_length": 38,
+        "bullets_count": 3,
+        "tone": "luxury",
+        "min_score": 7.5
+      }
+    },
+    {
+      "id": "golden_008",
+      "scenario": "요가 매트 - 피트니스",
+      "input": {
+        "task": "product_detail",
+        "payload": {
+          "product_name": "프리미엄 요가 매트",
+          "features": ["친환경 소재", "6mm 두께", "미끄럼 방지"],
+          "target_audience": "요가 수련자",
+          "category": "피트니스"
+        },
+        "options": {
+          "tone": "friendly",
+          "length": "medium"
+        }
+      },
+      "expected_output": {
+        "headline": "편안한 요가의 시작",
+        "subheadline": "프리미엄 요가 매트와 함께",
+        "body": "친환경 소재의 6mm 두께 매트로, 미끄럼 방지 기능까지 갖춘 요가 필수템입니다.",
+        "bullets": [
+          "친환경 소재",
+          "6mm 두께",
+          "미끄럼 방지"
+        ],
+        "cta": "요가 시작하기"
+      },
+      "quality_metrics": {
+        "headline_length": 10,
+        "body_length": 42,
+        "bullets_count": 3,
+        "tone": "friendly",
+        "min_score": 7.0
+      }
+    },
+    {
+      "id": "golden_009",
+      "scenario": "향수 - 럭셔리",
+      "input": {
+        "task": "product_detail",
+        "payload": {
+          "product_name": "오드 퍼퓸 노블",
+          "features": ["우디 플로럴", "12시간 지속", "프랑스 조향"],
+          "target_audience": "럭셔리 소비자",
+          "category": "뷰티"
+        },
+        "options": {
+          "tone": "luxury",
+          "length": "medium"
+        }
+      },
+      "expected_output": {
+        "headline": "우아함의 향기",
+        "subheadline": "프랑스 조향사의 작품, 오드 퍼퓸 노블",
+        "body": "우디 플로럴 향으로 12시간 동안 지속되는 프리미엄 향수입니다.",
+        "bullets": [
+          "우디 플로럴",
+          "12시간 지속",
+          "프랑스 조향"
+        ],
+        "cta": "향 느껴보기"
+      },
+      "quality_metrics": {
+        "headline_length": 7,
+        "body_length": 34,
+        "bullets_count": 3,
+        "tone": "luxury",
+        "min_score": 8.0
+      }
+    },
+    {
+      "id": "golden_010",
+      "scenario": "보조배터리 - 액세서리",
+      "input": {
+        "task": "product_detail",
+        "payload": {
+          "product_name": "파워뱅크 20000mAh",
+          "features": ["20000mAh 대용량", "PD 고속충전", "3포트 동시충전"],
+          "target_audience": "모바일 사용자",
+          "category": "전자제품"
+        },
+        "options": {
+          "tone": "casual",
+          "length": "medium"
+        }
+      },
+      "expected_output": {
+        "headline": "충전 걱정 끝",
+        "subheadline": "20000mAh 대용량 파워뱅크",
+        "body": "PD 고속충전과 3포트 동시충전으로 언제 어디서나 빠르게 충전하세요.",
+        "bullets": [
+          "20000mAh 대용량",
+          "PD 고속충전",
+          "3포트 동시충전"
+        ],
+        "cta": "충전하기"
+      },
+      "quality_metrics": {
+        "headline_length": 6,
+        "body_length": 38,
+        "bullets_count": 3,
+        "tone": "casual",
+        "min_score": 7.0
+      }
+    }
+  ],
+  "validation_criteria": {
+    "headline": {
+      "max_length": 20,
+      "min_length": 5,
+      "required": true
+    },
+    "subheadline": {
+      "max_length": 30,
+      "min_length": 10,
+      "required": true
+    },
+    "body": {
+      "max_length": 80,
+      "min_length": 20,
+      "required": true
+    },
+    "bullets": {
+      "count": 3,
+      "max_item_length": 20,
+      "required": true
+    },
+    "cta": {
+      "max_length": 15,
+      "min_length": 4,
+      "required": true
+    },
+    "similarity_threshold": 0.7,
+    "quality_score_threshold": 7.0
+  }
+}
