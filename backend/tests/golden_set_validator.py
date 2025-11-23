@@ -266,6 +266,11 @@ class GoldenSetValidator:
         Returns:
             검증 결과 (점수, 세부사항)
         """
+        # ReviewerAgent 전용 검증
+        if self.agent_name == "reviewer":
+            return self._validate_reviewer_output(actual, expected, metrics)
+
+        # CopywriterAgent 검증 (기존 로직)
         scores = {}
         details = {}
 
@@ -372,6 +377,155 @@ class GoldenSetValidator:
             "body": 0.25,
             "bullets": 0.20,
             "cta": 0.15
+        }
+
+        overall_score = sum(
+            scores.get(field, 0.0) * weight
+            for field, weight in weights.items()
+        )
+
+        return {
+            "overall_score": round(overall_score, 1),
+            "field_scores": scores,
+            "details": details
+        }
+
+    def _validate_reviewer_output(
+        self,
+        actual: Dict[str, Any],
+        expected: Dict[str, Any],
+        metrics: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """ReviewerAgent 출력 검증
+
+        Args:
+            actual: 실제 출력
+            expected: 기대 출력
+            metrics: 품질 메트릭
+
+        Returns:
+            검증 결과 (점수, 세부사항)
+        """
+        scores = {}
+        details = {}
+
+        # 1. overall_score 검증 (±1.0 오차 허용)
+        if "overall_score" in actual and "overall_score" in expected:
+            diff = abs(actual["overall_score"] - expected["overall_score"])
+            scores["overall_score"] = 10.0 if diff <= 1.0 else max(0.0, 10.0 - diff * 2)
+            details["overall_score"] = {
+                "actual": actual["overall_score"],
+                "expected": expected["overall_score"],
+                "diff": diff,
+                "passed": diff <= 1.0
+            }
+        else:
+            scores["overall_score"] = 0.0
+            details["overall_score"] = {"error": "Missing overall_score"}
+
+        # 2. 다차원 점수 검증 (각 ±1.5 오차 허용)
+        score_fields = ["tone_match_score", "clarity_score", "persuasiveness_score", "brand_alignment_score"]
+        for field in score_fields:
+            if field in actual and field in expected:
+                diff = abs(actual[field] - expected[field])
+                scores[field] = 10.0 if diff <= 1.5 else max(0.0, 10.0 - diff * 2)
+                details[field] = {
+                    "actual": actual[field],
+                    "expected": expected[field],
+                    "diff": diff,
+                    "passed": diff <= 1.5
+                }
+            else:
+                scores[field] = 0.0
+                details[field] = {"error": f"Missing {field}"}
+
+        # 3. approval_status 검증 (정확히 일치해야 함)
+        if "approval_status" in actual and "approval_status" in expected:
+            matches = actual["approval_status"] == expected["approval_status"]
+            scores["approval_status"] = 10.0 if matches else 0.0
+            details["approval_status"] = {
+                "actual": actual["approval_status"],
+                "expected": expected["approval_status"],
+                "passed": matches
+            }
+        else:
+            scores["approval_status"] = 0.0
+            details["approval_status"] = {"error": "Missing approval_status"}
+
+        # 4. revision_priority 검증
+        if "revision_priority" in actual and "revision_priority" in expected:
+            matches = actual["revision_priority"] == expected["revision_priority"]
+            scores["revision_priority"] = 10.0 if matches else 5.0  # 부분 점수 허용
+            details["revision_priority"] = {
+                "actual": actual["revision_priority"],
+                "expected": expected["revision_priority"],
+                "passed": matches
+            }
+        else:
+            scores["revision_priority"] = 5.0  # 선택 필드이므로 부분 점수
+            details["revision_priority"] = {"note": "Optional field"}
+
+        # 5. 정성 평가 (strengths, weaknesses, improvement_suggestions) - 의미 유사도
+        text_list_fields = ["strengths", "weaknesses", "improvement_suggestions"]
+        for field in text_list_fields:
+            if field in actual and field in expected:
+                # 각 항목이 있는지 확인
+                if isinstance(actual[field], list) and isinstance(expected[field], list):
+                    # 리스트 길이가 적절한지 확인
+                    actual_count = len(actual[field])
+                    expected_count = len(expected[field])
+                    count_ok = 1 <= actual_count <= 5  # Pydantic 제약: 1-5개
+
+                    # 의미 유사도는 정확히 계산하기 어려우므로 count와 길이만 체크
+                    length_ok = all(10 <= len(item) <= 150 for item in actual[field])
+
+                    scores[field] = 10.0 if (count_ok and length_ok) else 7.0
+                    details[field] = {
+                        "actual_count": actual_count,
+                        "expected_count": expected_count,
+                        "count_ok": count_ok,
+                        "length_ok": length_ok,
+                        "passed": count_ok and length_ok
+                    }
+                else:
+                    scores[field] = 0.0
+                    details[field] = {"error": f"{field} is not a list"}
+            else:
+                scores[field] = 0.0
+                details[field] = {"error": f"Missing {field}"}
+
+        # 6. risk_flags 검증 (0-10개, 각 10-100자)
+        if "risk_flags" in actual:
+            if isinstance(actual["risk_flags"], list):
+                count_ok = len(actual["risk_flags"]) <= 10
+                length_ok = all(10 <= len(item) <= 100 for item in actual["risk_flags"])
+                scores["risk_flags"] = 10.0 if (count_ok and length_ok) else 7.0
+                details["risk_flags"] = {
+                    "count": len(actual["risk_flags"]),
+                    "count_ok": count_ok,
+                    "length_ok": length_ok,
+                    "passed": count_ok and length_ok
+                }
+            else:
+                scores["risk_flags"] = 0.0
+                details["risk_flags"] = {"error": "risk_flags is not a list"}
+        else:
+            scores["risk_flags"] = 7.0  # 선택 필드이므로 부분 점수
+            details["risk_flags"] = {"note": "Optional field"}
+
+        # 전체 점수 (가중 평균)
+        weights = {
+            "overall_score": 0.30,
+            "tone_match_score": 0.10,
+            "clarity_score": 0.10,
+            "persuasiveness_score": 0.10,
+            "brand_alignment_score": 0.10,
+            "approval_status": 0.15,
+            "revision_priority": 0.05,
+            "strengths": 0.03,
+            "weaknesses": 0.03,
+            "improvement_suggestions": 0.03,
+            "risk_flags": 0.01
         }
 
         overall_score = sum(
@@ -640,7 +794,7 @@ async def main():
     base_path = Path(__file__).parent / "golden_sets"
 
     # Agent 리스트
-    agents = ["copywriter", "strategist"] if args.all else ([args.agent] if args.agent else ["copywriter"])
+    agents = ["copywriter", "strategist", "reviewer"] if args.all else ([args.agent] if args.agent else ["copywriter"])
 
     # CI 모드 검증 결과 추적
     all_passed = True
@@ -650,7 +804,8 @@ async def main():
         # Try multiple golden set path formats
         possible_paths = [
             base_path / f"{agent_name}_golden_set.json",
-            Path(__file__).parent / "golden_set" / f"{agent_name}_campaign_strategy_v1.json"  # strategist format
+            Path(__file__).parent / "golden_set" / f"{agent_name}_campaign_strategy_v1.json",  # strategist format
+            Path(__file__).parent / "golden_set" / f"{agent_name}_ad_copy_quality_check_v1.json"  # reviewer format
         ]
 
         golden_set_path = None

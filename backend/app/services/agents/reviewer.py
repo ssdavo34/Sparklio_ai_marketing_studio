@@ -11,16 +11,15 @@ ReviewerAgent Implementation
 import logging
 from typing import Any, Dict, Optional
 
-from app.services.agents.base import BaseAgent, AgentError
+from app.services.agents.base import AgentBase, AgentError, AgentRequest, AgentResponse, AgentOutput
 from app.services.llm.gateway import LLMGateway
 from app.services.validation.output_validator import OutputValidator
 from app.schemas.reviewer import AdCopyReviewInputV1, AdCopyReviewOutputV1
-from app.schemas.base import AgentRequest, AgentResponse, AgentOutput
 
 logger = logging.getLogger(__name__)
 
 
-class ReviewerAgent(BaseAgent):
+class ReviewerAgent(AgentBase):
     """
     ReviewerAgent: 광고 카피 품질 검토 전문 Agent
 
@@ -37,9 +36,13 @@ class ReviewerAgent(BaseAgent):
     - 엄격 모드 지원 (strict_mode: 90% 이상 필요)
     """
 
-    def __init__(self, llm_gateway: LLMGateway):
-        super().__init__(name="reviewer", llm_gateway=llm_gateway)
+    def __init__(self, llm_gateway=None):
+        super().__init__(llm_gateway=llm_gateway)
         self.task_instructions = self._build_task_instructions()
+
+    @property
+    def name(self) -> str:
+        return "reviewer"
 
     def _build_task_instructions(self) -> Dict[str, Any]:
         """
@@ -142,14 +145,14 @@ class ReviewerAgent(BaseAgent):
             try:
                 validated_input = AdCopyReviewInputV1(**request.payload)
             except Exception as e:
-                raise AgentError(f"Input validation failed: {str(e)}")
+                raise AgentError(f"Input validation failed: {str(e)}", agent=self.name)
         else:
-            raise AgentError(f"Unknown task: {request.task}")
+            raise AgentError(f"Unknown task: {request.task}", agent=self.name)
 
         # Task instruction 가져오기
         task_config = self.task_instructions.get(request.task)
         if not task_config:
-            raise AgentError(f"No instruction found for task: {request.task}")
+            raise AgentError(f"No instruction found for task: {request.task}", agent=self.name)
 
         # Payload 강화 (instruction + structure)
         enhanced_payload = {
@@ -189,7 +192,7 @@ class ReviewerAgent(BaseAgent):
                 )
 
                 # Parse output
-                output_data = llm_response.get("output", {})
+                output_data = llm_response.output.value
                 if isinstance(output_data, str):
                     import json
                     output_data = json.loads(output_data)
@@ -199,7 +202,7 @@ class ReviewerAgent(BaseAgent):
                     validated_output = AdCopyReviewOutputV1(**output_data)
                     output_dict = validated_output.model_dump()
                 else:
-                    raise AgentError(f"Unknown task for validation: {request.task}")
+                    raise AgentError(f"Unknown task for validation: {request.task}", agent=self.name)
 
                 # AgentOutput 생성
                 outputs = [
@@ -233,7 +236,8 @@ class ReviewerAgent(BaseAgent):
                         # 최종 실패
                         raise AgentError(
                             f"Validation failed after {max_retries} attempts: "
-                            f"{', '.join(validation_result.errors)}"
+                            f"{', '.join(validation_result.errors)}",
+                            agent=self.name
                         )
 
                 # Structured quality logging
@@ -264,13 +268,13 @@ class ReviewerAgent(BaseAgent):
                     task=request.task,
                     outputs=outputs,
                     usage={
-                        "llm_tokens": llm_response.get("usage", {}).get("total_tokens", 0),
-                        "total_tokens": llm_response.get("usage", {}).get("total_tokens", 0),
-                        "elapsed_seconds": llm_response.get("usage", {}).get("elapsed_seconds", 0.0)
+                        "llm_tokens": llm_response.usage.get("total_tokens", 0) if llm_response.usage else 0,
+                        "total_tokens": llm_response.usage.get("total_tokens", 0) if llm_response.usage else 0,
+                        "elapsed_seconds": llm_response.meta.get("elapsed_seconds", 0.0) if llm_response.meta else 0.0
                     },
                     meta={
-                        "llm_provider": llm_response.get("provider", "unknown"),
-                        "llm_model": llm_response.get("model", "unknown"),
+                        "llm_provider": llm_response.provider,
+                        "llm_model": llm_response.model,
                         "task": request.task,
                         "validation_score": round(validation_result.overall_score, 2),
                         "attempt": attempt + 1
@@ -287,21 +291,21 @@ class ReviewerAgent(BaseAgent):
                     )
                     continue
                 else:
-                    raise AgentError(f"ReviewerAgent failed after {max_retries} attempts: {str(e)}")
+                    raise AgentError(f"ReviewerAgent failed after {max_retries} attempts: {str(e)}", agent=self.name)
 
         # 여기까지 도달하면 안 됨 (모든 retry 실패)
-        raise AgentError(f"ReviewerAgent failed after {max_retries} attempts")
+        raise AgentError(f"ReviewerAgent failed after {max_retries} attempts", agent=self.name)
 
 
 # Factory function
-def get_reviewer_agent() -> ReviewerAgent:
+def get_reviewer_agent(llm_gateway=None) -> ReviewerAgent:
     """
     ReviewerAgent 인스턴스 생성
+
+    Args:
+        llm_gateway: LLM Gateway (None이면 전역 인스턴스 사용)
 
     Returns:
         ReviewerAgent: LLMGateway와 함께 초기화된 ReviewerAgent
     """
-    from app.services.llm.gateway import get_llm_gateway
-
-    llm_gateway = get_llm_gateway()
     return ReviewerAgent(llm_gateway=llm_gateway)
