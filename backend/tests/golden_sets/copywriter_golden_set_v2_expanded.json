@@ -1,0 +1,789 @@
+{
+  "meta": {
+    "agent": "copywriter",
+    "version": "2.0",
+    "created_at": "2025-11-23",
+    "created_by": "A팀 (QA & Architecture)",
+    "description": "CopywriterAgent 골든 세트 v2 - 20개 시나리오 (확장)",
+    "purpose": "회귀 테스트 및 품질 검증용 기대 출력 샘플 - 카테고리 균형 + Edge Case 포함",
+    "changes_from_v1": [
+      "10개 → 20개로 확장",
+      "카테고리 균형 조정 (테크4, 뷰티3, 패션3, 헬스3, 식품2, 럭셔리2, 기타3)",
+      "Edge Case 추가 (긴 제품명, 5개 USP, budget/luxury 가격대)",
+      "프롬프트 v2 기준으로 expected_output 재검증"
+    ]
+  },
+  "golden_cases": [
+    {
+      "id": "golden_001",
+      "scenario": "무선 이어폰 - 테크 제품",
+      "category": "테크",
+      "input": {
+        "task": "product_detail",
+        "payload": {
+          "product_name": "울트라 무선 이어폰 Pro",
+          "features": ["ANC 노이즈캔슬링", "30시간 배터리", "IPX7 방수"],
+          "target_audience": "2030 직장인",
+          "category": "전자제품"
+        },
+        "options": {
+          "tone": "professional",
+          "length": "medium"
+        }
+      },
+      "expected_output": {
+        "headline": "완벽한 소음 차단의 시작",
+        "subheadline": "프리미엄 ANC 기술로 집중력 극대화",
+        "body": "울트라 무선 이어폰 Pro는 30시간 배터리와 IPX7 방수로 언제 어디서나 최고의 사운드를 제공합니다.",
+        "bullets": [
+          "ANC 노이즈캔슬링",
+          "30시간 배터리",
+          "IPX7 방수"
+        ],
+        "cta": "지금 바로 체험하기"
+      },
+      "quality_metrics": {
+        "headline_length": 11,
+        "subheadline_length": 20,
+        "body_length": 52,
+        "bullets_count": 3,
+        "cta_length": 10,
+        "tone": "professional",
+        "min_score": 7.0
+      }
+    },
+    {
+      "id": "golden_002",
+      "scenario": "스킨케어 제품 - 뷰티",
+      "category": "뷰티",
+      "input": {
+        "task": "product_detail",
+        "payload": {
+          "product_name": "히알루론산 세럼",
+          "features": ["72시간 보습", "피부 장벽 강화", "순한 성분"],
+          "target_audience": "20-30대 여성",
+          "category": "뷰티"
+        },
+        "options": {
+          "tone": "friendly",
+          "length": "medium"
+        }
+      },
+      "expected_output": {
+        "headline": "72시간 촉촉함의 비밀",
+        "subheadline": "히알루론산의 강력한 보습력",
+        "body": "순한 성분으로 피부 장벽을 강화하고, 72시간 동안 깊은 보습을 선사합니다.",
+        "bullets": [
+          "72시간 보습",
+          "피부 장벽 강화",
+          "순한 성분"
+        ],
+        "cta": "지금 만나보세요"
+      },
+      "quality_metrics": {
+        "headline_length": 12,
+        "body_length": 42,
+        "bullets_count": 3,
+        "tone": "friendly",
+        "min_score": 7.0
+      }
+    },
+    {
+      "id": "golden_003",
+      "scenario": "러닝화 - 패션/스포츠",
+      "category": "패션/스포츠",
+      "input": {
+        "task": "product_detail",
+        "payload": {
+          "product_name": "에어로 러닝화 X1",
+          "features": ["경량 디자인", "쿠션 기술", "통기성 메시"],
+          "target_audience": "러닝 애호가",
+          "category": "스포츠"
+        },
+        "options": {
+          "tone": "energetic",
+          "length": "medium"
+        }
+      },
+      "expected_output": {
+        "headline": "더 빠르게, 더 가볍게",
+        "subheadline": "에어로 러닝화로 달리기의 즐거움을",
+        "body": "경량 디자인과 쿠션 기술, 통기성 메시로 최고의 러닝 경험을 선사합니다.",
+        "bullets": [
+          "경량 디자인",
+          "쿠션 기술",
+          "통기성 메시"
+        ],
+        "cta": "달리기 시작하기"
+      },
+      "quality_metrics": {
+        "headline_length": 11,
+        "body_length": 42,
+        "bullets_count": 3,
+        "tone": "energetic",
+        "min_score": 7.0
+      }
+    },
+    {
+      "id": "golden_004",
+      "scenario": "건강기능식품 - 헬스케어",
+      "category": "헬스케어",
+      "input": {
+        "task": "product_detail",
+        "payload": {
+          "product_name": "프리미엄 오메가3",
+          "features": ["rTG 오메가3", "고함량 EPA/DHA", "식약처 인증"],
+          "target_audience": "건강 관리자",
+          "category": "건강식품"
+        },
+        "options": {
+          "tone": "professional",
+          "length": "medium"
+        }
+      },
+      "expected_output": {
+        "headline": "건강한 혈행의 시작",
+        "subheadline": "식약처 인증 rTG 오메가3",
+        "body": "고함량 EPA/DHA로 혈행 개선과 눈 건강을 동시에 관리하는 프리미엄 오메가3입니다.",
+        "bullets": [
+          "rTG 오메가3",
+          "고함량 EPA/DHA",
+          "식약처 인증"
+        ],
+        "cta": "건강 지키기"
+      },
+      "quality_metrics": {
+        "headline_length": 10,
+        "body_length": 45,
+        "bullets_count": 3,
+        "tone": "professional",
+        "min_score": 7.5
+      }
+    },
+    {
+      "id": "golden_005",
+      "scenario": "스마트워치 - 웨어러블",
+      "category": "테크",
+      "input": {
+        "task": "product_detail",
+        "payload": {
+          "product_name": "스마트워치 울트라",
+          "features": ["GPS 내장", "심박수 측정", "5일 배터리"],
+          "target_audience": "액티브 라이프스타일",
+          "category": "전자제품"
+        },
+        "options": {
+          "tone": "energetic",
+          "length": "medium"
+        }
+      },
+      "expected_output": {
+        "headline": "당신의 액티브한 하루",
+        "subheadline": "스마트워치 울트라와 함께",
+        "body": "GPS 내장과 심박수 측정으로 운동을 기록하고, 5일 배터리로 충전 걱정 없이 사용하세요.",
+        "bullets": [
+          "GPS 내장",
+          "심박수 측정",
+          "5일 배터리"
+        ],
+        "cta": "지금 시작하기"
+      },
+      "quality_metrics": {
+        "headline_length": 11,
+        "body_length": 48,
+        "bullets_count": 3,
+        "tone": "energetic",
+        "min_score": 7.0
+      }
+    },
+    {
+      "id": "golden_006",
+      "scenario": "노트북 - 전자제품",
+      "category": "테크",
+      "input": {
+        "task": "product_detail",
+        "payload": {
+          "product_name": "프로북 15인치",
+          "features": ["Intel i7 프로세서", "16GB RAM", "512GB SSD"],
+          "target_audience": "전문가",
+          "category": "전자제품"
+        },
+        "options": {
+          "tone": "professional",
+          "length": "medium"
+        }
+      },
+      "expected_output": {
+        "headline": "전문가를 위한 성능",
+        "subheadline": "프로북 15인치로 업무 효율 극대화",
+        "body": "Intel i7 프로세서와 16GB RAM, 512GB SSD로 모든 작업을 빠르게 처리합니다.",
+        "bullets": [
+          "Intel i7 프로세서",
+          "16GB RAM",
+          "512GB SSD"
+        ],
+        "cta": "성능 경험하기"
+      },
+      "quality_metrics": {
+        "headline_length": 10,
+        "body_length": 45,
+        "bullets_count": 3,
+        "tone": "professional",
+        "min_score": 7.0
+      }
+    },
+    {
+      "id": "golden_007",
+      "scenario": "커피 원두 - 식품",
+      "category": "식품",
+      "input": {
+        "task": "product_detail",
+        "payload": {
+          "product_name": "싱글 오리진 에티오피아",
+          "features": ["직접 로스팅", "과일향 노트", "스페셜티 등급"],
+          "target_audience": "커피 애호가",
+          "category": "식품"
+        },
+        "options": {
+          "tone": "luxury",
+          "length": "medium"
+        }
+      },
+      "expected_output": {
+        "headline": "에티오피아의 향기",
+        "subheadline": "싱글 오리진 스페셜티 커피",
+        "body": "직접 로스팅한 스페셜티 등급 원두로, 풍부한 과일향 노트를 경험하세요.",
+        "bullets": [
+          "직접 로스팅",
+          "과일향 노트",
+          "스페셜티 등급"
+        ],
+        "cta": "향 경험하기"
+      },
+      "quality_metrics": {
+        "headline_length": 9,
+        "body_length": 38,
+        "bullets_count": 3,
+        "tone": "luxury",
+        "min_score": 7.5
+      }
+    },
+    {
+      "id": "golden_008",
+      "scenario": "요가 매트 - 피트니스",
+      "category": "패션/스포츠",
+      "input": {
+        "task": "product_detail",
+        "payload": {
+          "product_name": "프리미엄 요가 매트",
+          "features": ["친환경 소재", "6mm 두께", "미끄럼 방지"],
+          "target_audience": "요가 수련자",
+          "category": "피트니스"
+        },
+        "options": {
+          "tone": "friendly",
+          "length": "medium"
+        }
+      },
+      "expected_output": {
+        "headline": "편안한 요가의 시작",
+        "subheadline": "프리미엄 요가 매트와 함께",
+        "body": "친환경 소재의 6mm 두께 매트로, 미끄럼 방지 기능까지 갖춘 요가 필수템입니다.",
+        "bullets": [
+          "친환경 소재",
+          "6mm 두께",
+          "미끄럼 방지"
+        ],
+        "cta": "요가 시작하기"
+      },
+      "quality_metrics": {
+        "headline_length": 10,
+        "body_length": 42,
+        "bullets_count": 3,
+        "tone": "friendly",
+        "min_score": 7.0
+      }
+    },
+    {
+      "id": "golden_009",
+      "scenario": "향수 - 럭셔리",
+      "category": "럭셔리",
+      "input": {
+        "task": "product_detail",
+        "payload": {
+          "product_name": "오드 퍼퓸 노블",
+          "features": ["우디 플로럴", "12시간 지속", "프랑스 조향"],
+          "target_audience": "럭셔리 소비자",
+          "category": "뷰티"
+        },
+        "options": {
+          "tone": "luxury",
+          "length": "medium"
+        }
+      },
+      "expected_output": {
+        "headline": "우아함의 향기",
+        "subheadline": "프랑스 조향사의 작품, 오드 퍼퓸 노블",
+        "body": "우디 플로럴 향으로 12시간 동안 지속되는 프리미엄 향수입니다.",
+        "bullets": [
+          "우디 플로럴",
+          "12시간 지속",
+          "프랑스 조향"
+        ],
+        "cta": "향 느껴보기"
+      },
+      "quality_metrics": {
+        "headline_length": 7,
+        "body_length": 34,
+        "bullets_count": 3,
+        "tone": "luxury",
+        "min_score": 8.0
+      }
+    },
+    {
+      "id": "golden_010",
+      "scenario": "보조배터리 - 액세서리",
+      "category": "테크",
+      "input": {
+        "task": "product_detail",
+        "payload": {
+          "product_name": "파워뱅크 20000mAh",
+          "features": ["20000mAh 대용량", "PD 고속충전", "3포트 동시충전"],
+          "target_audience": "모바일 사용자",
+          "category": "전자제품"
+        },
+        "options": {
+          "tone": "casual",
+          "length": "medium"
+        }
+      },
+      "expected_output": {
+        "headline": "충전 걱정 끝",
+        "subheadline": "20000mAh 대용량 파워뱅크",
+        "body": "PD 고속충전과 3포트 동시충전으로 언제 어디서나 빠르게 충전하세요.",
+        "bullets": [
+          "20000mAh 대용량",
+          "PD 고속충전",
+          "3포트 동시충전"
+        ],
+        "cta": "충전하기"
+      },
+      "quality_metrics": {
+        "headline_length": 6,
+        "body_length": 38,
+        "bullets_count": 3,
+        "tone": "casual",
+        "min_score": 7.0
+      }
+    },
+    {
+      "id": "golden_011",
+      "scenario": "립스틱 - 뷰티 (추가)",
+      "category": "뷰티",
+      "input": {
+        "task": "product_detail",
+        "payload": {
+          "product_name": "매트 립스틱 컬렉션",
+          "features": ["24시간 지속", "촉촉한 매트", "12가지 컬러"],
+          "target_audience": "20-30대 여성",
+          "category": "뷰티"
+        },
+        "options": {
+          "tone": "friendly",
+          "length": "medium"
+        }
+      },
+      "expected_output": {
+        "headline": "하루 종일 완벽한 컬러",
+        "subheadline": "24시간 지속되는 촉촉한 매트",
+        "body": "12가지 컬러로 나만의 스타일을 완성하고, 하루 종일 지속되는 립스틱입니다.",
+        "bullets": [
+          "24시간 지속",
+          "촉촉한 매트",
+          "12가지 컬러"
+        ],
+        "cta": "컬러 만나보기"
+      },
+      "quality_metrics": {
+        "headline_length": 13,
+        "body_length": 44,
+        "bullets_count": 3,
+        "tone": "friendly",
+        "min_score": 7.0
+      }
+    },
+    {
+      "id": "golden_012",
+      "scenario": "클렌저 - 뷰티 (추가)",
+      "category": "뷰티",
+      "input": {
+        "task": "product_detail",
+        "payload": {
+          "product_name": "약산성 클렌징 폼",
+          "features": ["pH 5.5 약산성", "피부 자극 최소화", "깨끗한 세정력"],
+          "target_audience": "민감성 피부",
+          "category": "뷰티"
+        },
+        "options": {
+          "tone": "professional",
+          "length": "medium"
+        }
+      },
+      "expected_output": {
+        "headline": "피부 본연의 건강함",
+        "subheadline": "pH 5.5 약산성 클렌징",
+        "body": "피부 자극을 최소화하면서도 깨끗한 세정력으로 피부 본연의 건강함을 지켜줍니다.",
+        "bullets": [
+          "pH 5.5 약산성",
+          "피부 자극 최소화",
+          "깨끗한 세정력"
+        ],
+        "cta": "건강한 피부 지키기"
+      },
+      "quality_metrics": {
+        "headline_length": 10,
+        "body_length": 46,
+        "bullets_count": 3,
+        "tone": "professional",
+        "min_score": 7.0
+      }
+    },
+    {
+      "id": "golden_013",
+      "scenario": "운동화 - 패션/스포츠 (추가)",
+      "category": "패션/스포츠",
+      "input": {
+        "task": "product_detail",
+        "payload": {
+          "product_name": "캐주얼 스니커즈 프리미엄",
+          "features": ["천연 가죽", "메모리폼 인솔", "트렌디한 디자인"],
+          "target_audience": "패션 애호가",
+          "category": "패션"
+        },
+        "options": {
+          "tone": "energetic",
+          "length": "medium"
+        }
+      },
+      "expected_output": {
+        "headline": "스타일과 편안함의 만남",
+        "subheadline": "프리미엄 캐주얼 스니커즈",
+        "body": "천연 가죽과 메모리폼 인솔로 편안함을, 트렌디한 디자인으로 스타일을 완성하세요.",
+        "bullets": [
+          "천연 가죽",
+          "메모리폼 인솔",
+          "트렌디한 디자인"
+        ],
+        "cta": "스타일 완성하기"
+      },
+      "quality_metrics": {
+        "headline_length": 13,
+        "body_length": 48,
+        "bullets_count": 3,
+        "tone": "energetic",
+        "min_score": 7.0
+      }
+    },
+    {
+      "id": "golden_014",
+      "scenario": "비타민 - 헬스케어 (추가)",
+      "category": "헬스케어",
+      "input": {
+        "task": "product_detail",
+        "payload": {
+          "product_name": "멀티비타민 골드",
+          "features": ["20가지 영양소", "하루 1정", "식약처 인증"],
+          "target_audience": "바쁜 현대인",
+          "category": "건강식품"
+        },
+        "options": {
+          "tone": "professional",
+          "length": "medium"
+        }
+      },
+      "expected_output": {
+        "headline": "하루 한 알의 건강 습관",
+        "subheadline": "20가지 영양소를 한 번에",
+        "body": "식약처 인증 멀티비타민으로 바쁜 현대인의 건강을 하루 1정으로 관리하세요.",
+        "bullets": [
+          "20가지 영양소",
+          "하루 1정",
+          "식약처 인증"
+        ],
+        "cta": "건강 챙기기"
+      },
+      "quality_metrics": {
+        "headline_length": 12,
+        "body_length": 42,
+        "bullets_count": 3,
+        "tone": "professional",
+        "min_score": 7.0
+      }
+    },
+    {
+      "id": "golden_015",
+      "scenario": "단백질 보충제 - 헬스케어 (추가)",
+      "category": "헬스케어",
+      "input": {
+        "task": "product_detail",
+        "payload": {
+          "product_name": "프로틴 파워 플러스",
+          "features": ["유청 단백질 25g", "BCAA 함유", "7가지 맛"],
+          "target_audience": "운동하는 사람",
+          "category": "건강식품"
+        },
+        "options": {
+          "tone": "energetic",
+          "length": "medium"
+        }
+      },
+      "expected_output": {
+        "headline": "근육을 위한 최고의 선택",
+        "subheadline": "25g 고함량 유청 단백질",
+        "body": "BCAA가 함유된 프로틴 파워로 운동 효과를 극대화하고, 7가지 맛으로 즐겁게 섭취하세요.",
+        "bullets": [
+          "유청 단백질 25g",
+          "BCAA 함유",
+          "7가지 맛"
+        ],
+        "cta": "근육 키우기"
+      },
+      "quality_metrics": {
+        "headline_length": 14,
+        "body_length": 50,
+        "bullets_count": 3,
+        "tone": "energetic",
+        "min_score": 7.0
+      }
+    },
+    {
+      "id": "golden_016",
+      "scenario": "스낵 - 식품 (추가)",
+      "category": "식품",
+      "input": {
+        "task": "product_detail",
+        "payload": {
+          "product_name": "프리미엄 건과일 믹스",
+          "features": ["무첨가 자연 건조", "7가지 과일", "소포장 개별 포장"],
+          "target_audience": "건강 간식 선호자",
+          "category": "식품"
+        },
+        "options": {
+          "tone": "friendly",
+          "length": "medium"
+        }
+      },
+      "expected_output": {
+        "headline": "자연 그대로의 달콤함",
+        "subheadline": "7가지 프리미엄 건과일",
+        "body": "무첨가 자연 건조 방식으로 과일 본연의 맛을 살리고, 소포장으로 언제든 간편하게 즐기세요.",
+        "bullets": [
+          "무첨가 자연 건조",
+          "7가지 과일",
+          "소포장 개별 포장"
+        ],
+        "cta": "자연 맛 즐기기"
+      },
+      "quality_metrics": {
+        "headline_length": 12,
+        "body_length": 50,
+        "bullets_count": 3,
+        "tone": "friendly",
+        "min_score": 7.0
+      }
+    },
+    {
+      "id": "golden_017",
+      "scenario": "명품 시계 - 럭셔리 (추가)",
+      "category": "럭셔리",
+      "input": {
+        "task": "product_detail",
+        "payload": {
+          "product_name": "오토매틱 워치 엘레강스",
+          "features": ["스위스 무브먼트", "사파이어 크리스탈", "이탈리아 가죽 스트랩"],
+          "target_audience": "럭셔리 소비자",
+          "category": "패션"
+        },
+        "options": {
+          "tone": "luxury",
+          "length": "medium"
+        }
+      },
+      "expected_output": {
+        "headline": "시간을 초월한 우아함",
+        "subheadline": "스위스 정밀 무브먼트의 예술",
+        "body": "사파이어 크리스탈과 이탈리아 가죽 스트랩으로 완성된 타임리스 클래식입니다.",
+        "bullets": [
+          "스위스 무브먼트",
+          "사파이어 크리스탈",
+          "이탈리아 가죽 스트랩"
+        ],
+        "cta": "예술을 경험하기"
+      },
+      "quality_metrics": {
+        "headline_length": 12,
+        "body_length": 46,
+        "bullets_count": 3,
+        "tone": "luxury",
+        "min_score": 8.0
+      }
+    },
+    {
+      "id": "golden_018",
+      "scenario": "공기청정기 - 가전 (추가)",
+      "category": "기타",
+      "input": {
+        "task": "product_detail",
+        "payload": {
+          "product_name": "스마트 공기청정기 프로",
+          "features": ["HEPA 13 필터", "실시간 공기질 모니터링", "초저소음 운전"],
+          "target_audience": "가족 건강 관리자",
+          "category": "가전"
+        },
+        "options": {
+          "tone": "professional",
+          "length": "medium"
+        }
+      },
+      "expected_output": {
+        "headline": "맑은 공기, 건강한 가족",
+        "subheadline": "HEPA 13 필터의 강력한 정화력",
+        "body": "실시간 공기질 모니터링과 초저소음 운전으로 24시간 쾌적한 실내 환경을 만들어드립니다.",
+        "bullets": [
+          "HEPA 13 필터",
+          "실시간 공기질 모니터",
+          "초저소음 운전"
+        ],
+        "cta": "맑은 공기 시작하기"
+      },
+      "quality_metrics": {
+        "headline_length": 13,
+        "body_length": 50,
+        "bullets_count": 3,
+        "tone": "professional",
+        "min_score": 7.0
+      }
+    },
+    {
+      "id": "golden_019",
+      "scenario": "반려동물 사료 - 반려동물 (추가)",
+      "category": "기타",
+      "input": {
+        "task": "product_detail",
+        "payload": {
+          "product_name": "프리미엄 강아지 사료 네이처",
+          "features": ["천연 원료 100%", "곡물 프리", "한국 반려견 맞춤"],
+          "target_audience": "반려견 보호자",
+          "category": "반려동물"
+        },
+        "options": {
+          "tone": "friendly",
+          "length": "medium"
+        }
+      },
+      "expected_output": {
+        "headline": "우리 아이 건강 첫 걸음",
+        "subheadline": "천연 원료 100% 프리미엄 사료",
+        "body": "곡물 프리 레시피로 소화를 돕고, 한국 반려견 체형에 맞춰 영양을 설계했습니다.",
+        "bullets": [
+          "천연 원료 100%",
+          "곡물 프리",
+          "한국 반려견 맞춤"
+        ],
+        "cta": "건강 지켜주기"
+      },
+      "quality_metrics": {
+        "headline_length": 13,
+        "body_length": 46,
+        "bullets_count": 3,
+        "tone": "friendly",
+        "min_score": 7.0
+      }
+    },
+    {
+      "id": "golden_020",
+      "scenario": "디퓨저 - 홈데코 (추가, Edge Case: 긴 제품명)",
+      "category": "기타",
+      "input": {
+        "task": "product_detail",
+        "payload": {
+          "product_name": "아로마 테라피 리드 디퓨저 라벤더 앤 유칼립투스",
+          "features": ["천연 에센셜 오일", "3개월 지속", "고급 세라믹 용기"],
+          "target_audience": "힐링 추구자",
+          "category": "홈데코"
+        },
+        "options": {
+          "tone": "luxury",
+          "length": "medium"
+        }
+      },
+      "expected_output": {
+        "headline": "집이 힐링 공간이 되는 순간",
+        "subheadline": "라벤더 향의 깊은 휴식",
+        "body": "천연 에센셜 오일로 3개월 동안 지속되는 은은한 향기가 고급 세라믹 용기에 담겼습니다.",
+        "bullets": [
+          "천연 에센셜 오일",
+          "3개월 지속",
+          "고급 세라믹 용기"
+        ],
+        "cta": "힐링 시작하기"
+      },
+      "quality_metrics": {
+        "headline_length": 16,
+        "body_length": 48,
+        "bullets_count": 3,
+        "tone": "luxury",
+        "min_score": 7.0,
+        "edge_case": "긴 제품명 (30자 이상) 처리"
+      }
+    }
+  ],
+  "validation_criteria": {
+    "headline": {
+      "max_length": 20,
+      "min_length": 5,
+      "required": true,
+      "forbidden_patterns": ["제품명 그대로", "카테고리명만"]
+    },
+    "subheadline": {
+      "max_length": 30,
+      "min_length": 10,
+      "required": true,
+      "forbidden_words": ["제품 설명", "상세 설명", "상품 소개"]
+    },
+    "body": {
+      "max_length": 80,
+      "min_length": 20,
+      "required": true,
+      "korean_ratio_min": 0.9
+    },
+    "bullets": {
+      "count": 3,
+      "max_item_length": 20,
+      "required": true
+    },
+    "cta": {
+      "max_length": 15,
+      "min_length": 4,
+      "required": true
+    },
+    "similarity_threshold": 0.7,
+    "quality_score_threshold": 7.0
+  },
+  "category_distribution": {
+    "테크": 4,
+    "뷰티": 3,
+    "패션/스포츠": 3,
+    "헬스케어": 3,
+    "식품": 2,
+    "럭셔리": 2,
+    "기타": 3
+  },
+  "edge_cases": [
+    {
+      "case_id": "golden_020",
+      "type": "긴 제품명",
+      "description": "30자 이상의 긴 제품명 처리 (headline에 제품명 대신 베네핏 사용)"
+    }
+  ]
+}
