@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from pydantic import BaseModel, Field, ValidationError, validator
 
 from app.schemas.strategist import CampaignStrategyOutputV1
+from app.schemas.reviewer import AdCopyReviewOutputV1
 
 logger = logging.getLogger(__name__)
 
@@ -193,7 +194,8 @@ class OutputValidator:
         "product_detail": ProductDetailOutput,
         "sns": SNSOutput,
         "brand_message": BrandMessageOutput,
-        "campaign_strategy": CampaignStrategyOutputV1  # StrategistAgent (2025-11-23)
+        "campaign_strategy": CampaignStrategyOutputV1,  # StrategistAgent (2025-11-23)
+        "ad_copy_quality_check": AdCopyReviewOutputV1   # ReviewerAgent (2025-11-23)
     }
 
     def validate(
@@ -533,6 +535,16 @@ class OutputValidator:
                 "risk_factors": {"min_items": 1, "max_items": 5},
                 "success_metrics": {"min_items": 3, "max_items": 8}
             }
+        elif task == "ad_copy_quality_check":
+            # ReviewerAgent (2025-11-23)
+            # Pydantic 스키마가 대부분 검증하므로 핵심 필드만 추가 검증
+            return {
+                "strengths": {"min_items": 1, "max_items": 5, "min_item_length": 10, "max_item_length": 150},
+                "weaknesses": {"min_items": 1, "max_items": 5, "min_item_length": 10, "max_item_length": 150},
+                "improvement_suggestions": {"min_items": 1, "max_items": 5, "min_item_length": 10, "max_item_length": 200},
+                "risk_flags": {"max_items": 10, "max_item_length": 100},
+                "approval_reason": {"max_length": 200}
+            }
         else:
             return {}
 
@@ -551,6 +563,10 @@ class OutputValidator:
         # campaign_strategy는 40% 이상 (마케팅 전문 용어 허용)
         elif task == "campaign_strategy":
             return 0.4
+
+        # ad_copy_quality_check는 90% 이상 (리뷰는 한국어로 작성)
+        elif task == "ad_copy_quality_check":
+            return 0.9
 
         else:
             return 0.5  # 기본 50%

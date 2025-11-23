@@ -43,6 +43,14 @@ from app.schemas.strategist import (
     ChannelStrategy,
     FunnelStructure,
 )
+from app.schemas.reviewer import (
+    AdCopyReviewInputV1,
+    AdCopyReviewOutputV1,
+    ContentReviewInputV1,
+    ContentReviewOutputV1,
+    BrandComplianceInputV1,
+    BrandComplianceOutputV1,
+)
 
 __all__ = [
     "AssetCreate",
@@ -89,4 +97,11 @@ __all__ = [
     "StrategicPillar",
     "ChannelStrategy",
     "FunnelStructure",
+    # Reviewer schemas
+    "AdCopyReviewInputV1",
+    "AdCopyReviewOutputV1",
+    "ContentReviewInputV1",
+    "ContentReviewOutputV1",
+    "BrandComplianceInputV1",
+    "BrandComplianceOutputV1",
 ]

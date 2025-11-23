@@ -41,7 +41,7 @@ except ImportError:
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from app.services.agents import get_copywriter_agent, get_strategist_agent, AgentRequest
+from app.services.agents import get_copywriter_agent, get_strategist_agent, get_reviewer_agent, AgentRequest
 
 
 class GoldenSetValidator:
@@ -125,7 +125,8 @@ class GoldenSetValidator:
         """Agent 인스턴스 생성 (Factory Pattern)"""
         agent_map = {
             "copywriter": get_copywriter_agent,
-            "strategist": get_strategist_agent
+            "strategist": get_strategist_agent,
+            "reviewer": get_reviewer_agent
         }
 
         if self.agent_name not in agent_map:

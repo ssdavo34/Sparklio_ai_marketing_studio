@@ -1,0 +1,312 @@
+{
+  "version": "v1.0",
+  "agent": "reviewer",
+  "task": "ad_copy_quality_check",
+  "description": "ReviewerAgent 품질 검증 Golden Set (5 cases)",
+  "created_at": "2025-11-23",
+  "author": "B팀 (Backend)",
+  "golden_cases": [
+    {
+      "id": "reviewer_001",
+      "name": "고품질 무선 이어폰 카피 (approved)",
+      "scenario": "모든 요소가 우수한 카피 - 즉시 승인",
+      "difficulty": "easy",
+      "input": {
+        "original_copy": {
+          "headline": "소음은 지우고, 음악만 남기다",
+          "subheadline": "하루 종일 끊김 없는 몰입, 프리미엄 ANC 기술",
+          "body": "출퇴근길이 나만의 콘서트홀로 변합니다. 24시간 배터리와 IPX7 방수로 언제 어디서나 완벽한 사운드를 경험하세요.",
+          "bullets": [
+            "ANC 노이즈캔슬링",
+            "24시간 배터리",
+            "IPX7 방수",
+            "프리미엄 사운드 튜닝"
+          ],
+          "cta": "지금 체험하기"
+        },
+        "campaign_context": {
+          "brand_name": "SoundPro",
+          "target_audience": "2030 직장인",
+          "tone": "professional",
+          "campaign_objective": "신제품 런칭"
+        }
+      },
+      "expected_output": {
+        "overall_score": 8.5,
+        "tone_match_score": 9.0,
+        "clarity_score": 8.5,
+        "persuasiveness_score": 8.5,
+        "brand_alignment_score": 9.0,
+        "strengths": [
+          "Headline이 임팩트 있고 제품 핵심 가치를 명확히 전달함",
+          "Subheadline이 감성적이면서도 기술적 우위를 잘 표현함",
+          "Body가 사용자 경험 스토리를 효과적으로 전달함"
+        ],
+        "weaknesses": [
+          "Bullets가 기능 나열에 치우쳐 차별점 강조 부족"
+        ],
+        "improvement_suggestions": [
+          "Bullets 중 하나를 차별화 요소로 교체 (예: '음향 전문가 추천' 또는 '독자적 음향 알고리즘')"
+        ],
+        "risk_flags": [],
+        "approval_status": "approved",
+        "revision_priority": "low",
+        "approval_reason": "전반적인 품질이 우수하며 즉시 사용 가능, 소폭 개선 시 더욱 효과적일 것으로 예상"
+      },
+      "quality_metrics": {
+        "weights": {
+          "overall_score": 0.3,
+          "tone_match_score": 0.2,
+          "clarity_score": 0.2,
+          "persuasiveness_score": 0.2,
+          "brand_alignment_score": 0.1
+        },
+        "min_score": 8.0
+      }
+    },
+    {
+      "id": "reviewer_002",
+      "name": "과장 광고 우려 카피 (rejected)",
+      "scenario": "효과 과장 및 규제 리스크 존재",
+      "difficulty": "high",
+      "input": {
+        "original_copy": {
+          "headline": "단 7일 만에 10년 젊어지는 피부",
+          "subheadline": "100% 주름 제거 보장",
+          "body": "피부과 의사들도 놀란 기적의 안티에이징 세럼. 모든 피부 고민이 사라집니다.",
+          "bullets": [
+            "7일 만에 효과",
+            "의학적으로 증명됨",
+            "부작용 전무"
+          ],
+          "cta": "지금 구매"
+        },
+        "campaign_context": {
+          "brand_name": "BeautyLab",
+          "target_audience": "40-50대 여성",
+          "tone": "luxury"
+        }
+      },
+      "expected_output": {
+        "overall_score": 3.0,
+        "tone_match_score": 4.0,
+        "clarity_score": 5.0,
+        "persuasiveness_score": 2.0,
+        "brand_alignment_score": 3.0,
+        "strengths": [
+          "Headline이 임팩트는 있음"
+        ],
+        "weaknesses": [
+          "Headline과 Subheadline이 과도한 효과 주장으로 신뢰도 하락",
+          "Body가 구체적 근거 없이 비현실적 표현 사용",
+          "Bullets의 절대적 표현들이 검증 불가능"
+        ],
+        "improvement_suggestions": [
+          "Headline을 과학이 만든 시간의 기적, 피부 본연의 빛을 되찾다처럼 감성적이면서도 과장 없이 변경",
+          "Subheadline을 임상 테스트 결과 주름 개선 효과 확인처럼 검증 가능한 표현으로 수정",
+          "Bullets에 구체적 수치와 조건 명시"
+        ],
+        "risk_flags": [
+          "Headline 10년 젊어지는은 과대광고 소지로 방송통신심의위원회 제재 가능",
+          "Subheadline 100% 주름 제거 보장은 허위 과장 광고",
+          "Bullets 부작용 전무는 절대적 표현으로 공정거래위원회 시정명령 가능"
+        ],
+        "approval_status": "rejected",
+        "revision_priority": "critical",
+        "approval_reason": "과대광고 및 허위 표현으로 법적 리스크 심각, 전면 재작성 필요"
+      },
+      "quality_metrics": {
+        "weights": {
+          "overall_score": 0.2,
+          "risk_flags": 0.5,
+          "persuasiveness_score": 0.2,
+          "brand_alignment_score": 0.1
+        },
+        "min_score": 7.0
+      }
+    },
+    {
+      "id": "reviewer_003",
+      "name": "톤앤매너 불일치 카피 (rejected)",
+      "scenario": "럭셔리 브랜드인데 캐주얼한 톤 사용",
+      "difficulty": "medium",
+      "input": {
+        "original_copy": {
+          "headline": "와! 진짜 대박 세럼이네요",
+          "subheadline": "완전 강추! 저렴하게 피부 관리하세요",
+          "body": "요즘 대세 안티에이징 세럼! 친구들한테 자랑하고 싶을 거예요.",
+          "bullets": [
+            "가성비 최고",
+            "인싸템",
+            "후회 안 함"
+          ],
+          "cta": "지금 바로 클릭"
+        },
+        "campaign_context": {
+          "brand_name": "La Prestige",
+          "target_audience": "40-50대 고소득 여성",
+          "tone": "luxury"
+        }
+      },
+      "expected_output": {
+        "overall_score": 4.5,
+        "tone_match_score": 2.0,
+        "clarity_score": 6.0,
+        "persuasiveness_score": 5.0,
+        "brand_alignment_score": 2.0,
+        "strengths": [
+          "친근한 표현으로 진입 장벽을 낮춤"
+        ],
+        "weaknesses": [
+          "Headline 와!, 대박 등 캐주얼한 표현이 럭셔리 브랜드 이미지와 완전히 불일치",
+          "Subheadline 완전 강추, 저렴하게는 프리미엄 포지셔닝에 역행",
+          "Bullets 가성비, 인싸템 등 젊은층 속어가 타겟과 브랜드 톤에 모두 부적합"
+        ],
+        "improvement_suggestions": [
+          "Headline을 시간을 거스르는 우아함, 피부 본연의 빛을 되찾다처럼 품격 있게 변경",
+          "Subheadline을 피부과 전문의가 추천하는 프리미엄 안티에이징 솔루션으로 수정",
+          "Bullets를 의학 연구 기반 포뮬라, 피부과 임상 테스트 완료 등 브랜드 가치에 부합하게 변경"
+        ],
+        "risk_flags": [
+          "브랜드 이미지 훼손 심각 (럭셔리에서 저가 이미지로 하향 평준화)",
+          "타겟 오디언스 이탈 가능성 (40-50대가 인싸템 등 표현에 거부감)"
+        ],
+        "approval_status": "rejected",
+        "revision_priority": "critical",
+        "approval_reason": "브랜드 톤앤매너와 완전히 불일치하여 브랜드 가치 훼손, 전면 재작성 필요"
+      },
+      "quality_metrics": {
+        "weights": {
+          "tone_match_score": 0.4,
+          "brand_alignment_score": 0.3,
+          "overall_score": 0.2,
+          "persuasiveness_score": 0.1
+        },
+        "min_score": 7.0
+      }
+    },
+    {
+      "id": "reviewer_004",
+      "name": "스펙 나열형 카피 (needs_revision)",
+      "scenario": "기술 스펙만 강조하고 감성적 요소 부족",
+      "difficulty": "medium",
+      "input": {
+        "original_copy": {
+          "headline": "프리미엄 무선 이어폰",
+          "subheadline": "ANC 노이즈캔슬링, 24시간 배터리",
+          "body": "고성능 무선 이어폰입니다.",
+          "bullets": [
+            "Bluetooth 5.0",
+            "충전 케이스 포함",
+            "무게 50g"
+          ],
+          "cta": "구매하기"
+        },
+        "campaign_context": {
+          "brand_name": "TechAudio",
+          "target_audience": "2030 직장인",
+          "tone": "professional"
+        }
+      },
+      "expected_output": {
+        "overall_score": 5.5,
+        "tone_match_score": 6.0,
+        "clarity_score": 7.0,
+        "persuasiveness_score": 4.0,
+        "brand_alignment_score": 5.0,
+        "strengths": [
+          "Subheadline에서 주요 기능을 명확히 전달함"
+        ],
+        "weaknesses": [
+          "Headline이 너무 일반적이어서 차별화 부족",
+          "Body가 너무 짧고 제품 스토리나 사용자 가치 전달 미흡",
+          "Bullets가 스펙 중심으로 감성적 소구 전혀 없음"
+        ],
+        "improvement_suggestions": [
+          "Headline을 소음은 지우고, 음악만 남기다처럼 임팩트 있게 변경",
+          "Body에 사용자 경험 스토리 추가 (예: 출퇴근길이 나만의 콘서트홀로)",
+          "Bullets에 혜택 중심 메시지 포함 (예: 하루 종일 끊김 없는 음악, 비 오는 날도 안심)"
+        ],
+        "risk_flags": [
+          "Body가 너무 짧아 심의 기준 미달 가능성 (일부 채널)"
+        ],
+        "approval_status": "needs_revision",
+        "revision_priority": "high",
+        "approval_reason": "기술 스펙만 나열하여 설득력 부족, 감성적 요소와 사용자 혜택 추가 필요"
+      },
+      "quality_metrics": {
+        "weights": {
+          "overall_score": 0.3,
+          "persuasiveness_score": 0.3,
+          "clarity_score": 0.2,
+          "tone_match_score": 0.1,
+          "brand_alignment_score": 0.1
+        },
+        "min_score": 7.0
+      }
+    },
+    {
+      "id": "reviewer_005",
+      "name": "브랜드 가치 잘 반영 (approved)",
+      "scenario": "친환경 브랜드 가치를 효과적으로 전달",
+      "difficulty": "easy",
+      "input": {
+        "original_copy": {
+          "headline": "지구를 위한 선택, 나를 위한 아름다움",
+          "subheadline": "100% 비건, 재활용 패키징, 탄소중립 배송",
+          "body": "피부와 지구 모두를 생각하는 클린 뷰티. 당신의 선택이 더 나은 내일을 만듭니다.",
+          "bullets": [
+            "비건 인증",
+            "재활용 가능 패키징",
+            "탄소중립 배송",
+            "동물 실험 반대"
+          ],
+          "cta": "지속가능한 뷰티 시작하기"
+        },
+        "campaign_context": {
+          "brand_name": "EcoGlow",
+          "target_audience": "2030 친환경 소비자",
+          "tone": "friendly",
+          "brand_values": [
+            "지속가능성",
+            "동물권",
+            "투명성"
+          ]
+        }
+      },
+      "expected_output": {
+        "overall_score": 9.0,
+        "tone_match_score": 9.5,
+        "clarity_score": 9.0,
+        "persuasiveness_score": 8.5,
+        "brand_alignment_score": 10.0,
+        "strengths": [
+          "Headline이 브랜드 가치(친환경)와 사용자 혜택(아름다움)을 동시에 전달함",
+          "Subheadline이 구체적 친환경 요소를 명확히 제시함",
+          "Body가 브랜드 철학과 사용자 임팩트를 감성적으로 연결함",
+          "CTA가 브랜드 미션을 반영하면서도 행동 유도가 명확함"
+        ],
+        "weaknesses": [
+          "Bullets가 인증 중심으로 제품 효능 언급 부족 (일부 사용자는 친환경보다 효과 궁금)"
+        ],
+        "improvement_suggestions": [
+          "Bullets 중 하나를 제품 효능으로 교체 (예: 피부 진정 효과 (임상 테스트 완료))"
+        ],
+        "risk_flags": [],
+        "approval_status": "approved",
+        "revision_priority": "low",
+        "approval_reason": "브랜드 가치와 완벽히 정렬되어 있으며 타겟에게 강력한 메시지 전달, 즉시 사용 가능"
+      },
+      "quality_metrics": {
+        "weights": {
+          "brand_alignment_score": 0.4,
+          "overall_score": 0.2,
+          "persuasiveness_score": 0.2,
+          "tone_match_score": 0.1,
+          "clarity_score": 0.1
+        },
+        "min_score": 8.5
+      }
+    }
+  ]
+}

@@ -1,265 +1,307 @@
 """
-Reviewer Agent
+ReviewerAgent Implementation
 
-콘텐츠 품질 검토 전문 Agent
+광고 카피 품질 검토 및 피드백 제공 Agent
 
-작성일: 2025-11-16
+작성일: 2025-11-23
 작성자: B팀 (Backend)
-문서: ARCH-003, SPEC-002
+참조: B_TEAM_NEXT_STEPS_2025-11-23.md
 """
 
 import logging
-from typing import Dict, Any
-from datetime import datetime
+from typing import Any, Dict, Optional
 
-from .base import AgentBase, AgentRequest, AgentResponse, AgentError
-from app.services.llm import LLMProviderOutput
+from app.services.agents.base import BaseAgent, AgentError
+from app.services.llm.gateway import LLMGateway
+from app.services.validation.output_validator import OutputValidator
+from app.schemas.reviewer import AdCopyReviewInputV1, AdCopyReviewOutputV1
+from app.schemas.base import AgentRequest, AgentResponse, AgentOutput
 
 logger = logging.getLogger(__name__)
 
 
-class ReviewerAgent(AgentBase):
+class ReviewerAgent(BaseAgent):
     """
-    Reviewer Agent
+    ReviewerAgent: 광고 카피 품질 검토 전문 Agent
 
-    생성된 콘텐츠의 품질, 적합성, 개선 사항 검토
+    Role:
+    - Copywriter/Strategist 출력을 입력받아 품질 검토
+    - 다차원 점수 평가 (overall, tone_match, clarity, persuasiveness, brand_alignment)
+    - 정성 평가 (strengths, weaknesses, improvement_suggestions)
+    - 리스크 플래그 및 승인 판정
 
-    주요 작업:
-    1. content_review: 콘텐츠 전반적 검토
-    2. copy_review: 카피 품질 검토
-    3. brand_consistency: 브랜드 일관성 검토
-    4. grammar_check: 문법 및 맞춤법 검토
-    5. effectiveness_analysis: 효과성 분석
-
-    사용 예시:
-        agent = ReviewerAgent()
-        response = await agent.execute(AgentRequest(
-            task="content_review",
-            payload={
-                "content": {...},  # 검토할 콘텐츠
-                "criteria": ["quality", "brand_fit", "effectiveness"],
-                "brand_guidelines": {...}  # 브랜드 가이드라인 (선택)
-            }
-        ))
+    Features:
+    - Retry Logic (최대 3회, temperature 0.2 → 0.3 → 0.4)
+    - 4-Stage Validation Pipeline 통합
+    - Structured Quality Logging
+    - 엄격 모드 지원 (strict_mode: 90% 이상 필요)
     """
 
-    @property
-    def name(self) -> str:
-        return "reviewer"
+    def __init__(self, llm_gateway: LLMGateway):
+        super().__init__(name="reviewer", llm_gateway=llm_gateway)
+        self.task_instructions = self._build_task_instructions()
 
-    async def execute(self, request: AgentRequest) -> AgentResponse:
+    def _build_task_instructions(self) -> Dict[str, Any]:
         """
-        Reviewer Agent 실행
+        Task별 Instruction 정의
 
-        Args:
-            request: Agent 요청
-
-        Returns:
-            AgentResponse: 검토 결과 (JSON 형식)
-
-        Raises:
-            AgentError: 실행 실패 시
+        현재 지원: ad_copy_quality_check
         """
-        start_time = datetime.utcnow()
-
-        try:
-            # 1. 요청 검증
-            self._validate_request(request)
-
-            logger.info(f"Reviewer Agent executing: task={request.task}")
-
-            # 2. LLM 프롬프트 구성
-            enhanced_payload = self._enhance_payload(request)
-
-            # 3. LLM 호출 (JSON 모드)
-            llm_response = await self.llm_gateway.generate(
-                role=self.name,
-                task=request.task,
-                payload=enhanced_payload,
-                mode="json",
-                options=request.options
-            )
-
-            # 4. 응답 파싱
-            outputs = self._parse_llm_response(llm_response.output, request.task)
-
-            # 5. 사용량 계산
-            elapsed = (datetime.utcnow() - start_time).total_seconds()
-            usage = {
-                "llm_tokens": llm_response.usage.get("total_tokens", 0),
-                "total_tokens": llm_response.usage.get("total_tokens", 0),  # GeneratorService가 사용
-                "elapsed_seconds": round(elapsed, 2)
-            }
-
-            # 6. 메타데이터
-            meta = {
-                "llm_provider": llm_response.provider,
-                "llm_model": llm_response.model,
-                "task": request.task
-            }
-
-            logger.info(
-                f"Reviewer Agent success: task={request.task}, "
-                f"elapsed={elapsed:.2f}s"
-            )
-
-            return AgentResponse(
-                agent=self.name,
-                task=request.task,
-                outputs=outputs,
-                usage=usage,
-                meta=meta
-            )
-
-        except Exception as e:
-            logger.error(f"Reviewer Agent failed: {str(e)}", exc_info=True)
-            raise AgentError(
-                message=f"Reviewer execution failed: {str(e)}",
-                agent=self.name,
-                details={"task": request.task}
-            )
-
-    def _enhance_payload(self, request: AgentRequest) -> Dict[str, Any]:
-        """
-        Payload에 작업별 추가 지시사항 추가
-
-        Args:
-            request: Agent 요청
-
-        Returns:
-            향상된 Payload
-        """
-        enhanced = request.payload.copy()
-
-        # 언어 설정 추가 (기본값: 한국어)
-        if "language" not in enhanced:
-            enhanced["language"] = "ko"
-
-        # 작업별 기본 지시사항 추가
-        task_instructions = {
-            "content_review": {
+        return {
+            "ad_copy_quality_check": {
                 "instruction": (
-                    "콘텐츠를 객관적으로 검토하고 평가하세요. "
-                    "강점, 약점, 개선 사항을 구체적으로 제시하세요."
+                    "광고 카피의 품질을 전문 마케터 관점에서 체계적으로 검토하세요. "
+                    "톤앤매너 일치도, 명확성, 설득력, 브랜드 정렬도를 0-10점으로 평가하고, "
+                    "강점, 약점, 구체적인 개선 제안을 제시하세요. "
+                    "규제 리스크, 과장 광고 우려, 톤 오류 등을 리스크 플래그로 표시하고, "
+                    "최종 승인 상태(approved/needs_revision/rejected)를 판정하세요."
                 ),
                 "structure": {
-                    "overall_score": "전체 점수 (1-10)",
-                    "strengths": "강점 리스트",
-                    "weaknesses": "약점 리스트",
-                    "improvements": "개선 제안 리스트",
-                    "detailed_feedback": "상세 피드백"
-                }
-            },
-            "copy_review": {
-                "instruction": (
-                    "카피의 품질을 다각도로 검토하세요. "
-                    "명확성, 설득력, 임팩트를 평가하세요."
-                ),
-                "structure": {
-                    "clarity_score": "명확성 점수 (1-10)",
-                    "persuasiveness_score": "설득력 점수 (1-10)",
-                    "impact_score": "임팩트 점수 (1-10)",
-                    "feedback": "상세 피드백",
-                    "suggestions": "수정 제안"
-                }
-            },
-            "brand_consistency": {
-                "instruction": (
-                    "브랜드 가이드라인과의 일관성을 검토하세요. "
-                    "톤앤매너, 메시지, 비주얼 일관성을 평가하세요."
-                ),
-                "structure": {
-                    "consistency_score": "일관성 점수 (1-10)",
-                    "tone_match": "톤앤매너 적합도",
-                    "message_alignment": "메시지 정렬도",
-                    "deviations": "가이드라인 이탈 사항",
-                    "recommendations": "개선 권장사항"
-                }
-            },
-            "grammar_check": {
-                "instruction": (
-                    "문법, 맞춤법, 표현의 정확성을 검토하세요."
-                ),
-                "structure": {
-                    "errors": "오류 목록 (위치, 유형, 수정안)",
-                    "style_issues": "스타일 이슈",
-                    "readability_score": "가독성 점수 (1-10)",
-                    "corrected_version": "수정된 버전"
-                }
-            },
-            "effectiveness_analysis": {
-                "instruction": (
-                    "마케팅 효과성을 분석하세요. "
-                    "타겟 적합성, 행동 유도력, 차별성을 평가하세요."
-                ),
-                "structure": {
-                    "target_fit_score": "타겟 적합성 (1-10)",
-                    "cta_effectiveness": "행동 유도 효과",
-                    "differentiation": "차별성 분석",
-                    "predicted_performance": "예상 성과",
-                    "optimization_tips": "최적화 팁"
-                }
+                    "overall_score": "전체 품질 점수 (0-10, 소수점 1자리)",
+                    "tone_match_score": "요청 톤과의 일치도 (0-10, 소수점 1자리)",
+                    "clarity_score": "명확성 점수 (0-10, 소수점 1자리)",
+                    "persuasiveness_score": "설득력 점수 (0-10, 소수점 1자리)",
+                    "brand_alignment_score": "브랜드 정렬도 (0-10, 소수점 1자리)",
+                    "strengths": "강점 리스트 (1-5개, 각 10-150자, 구체적으로)",
+                    "weaknesses": "약점 리스트 (1-5개, 각 10-150자, 구체적으로)",
+                    "improvement_suggestions": "개선 제안 (1-5개, 각 10-200자, 실행 가능하게)",
+                    "risk_flags": "리스크 플래그 (0-10개, 각 10-100자, 규제/과장/톤 오류 등)",
+                    "approval_status": "승인 상태 (approved/needs_revision/rejected)",
+                    "revision_priority": "수정 우선순위 (low/medium/high/critical)",
+                    "approval_reason": "승인/거부 사유 (10-200자, optional)"
+                },
+                "example_scenario": {
+                    "original_copy": {
+                        "headline": "소음은 지우고, 음악만 남기다",
+                        "subheadline": "24시간 배터리, ANC 노이즈캔슬링",
+                        "body": "프리미엄 무선 이어폰의 새로운 기준",
+                        "bullets": ["ANC 노이즈캔슬링", "24시간 배터리", "IPX7 방수"],
+                        "cta": "지금 체험하기"
+                    },
+                    "campaign_context": {
+                        "brand_name": "SoundPro",
+                        "target_audience": "2030 직장인",
+                        "tone": "professional"
+                    },
+                    "output": {
+                        "overall_score": 8.5,
+                        "tone_match_score": 9.0,
+                        "clarity_score": 8.0,
+                        "persuasiveness_score": 8.5,
+                        "brand_alignment_score": 9.0,
+                        "strengths": [
+                            "Headline이 임팩트 있고 제품 핵심 가치를 잘 전달함",
+                            "CTA가 명확하고 행동 유도가 강함",
+                            "Bullets가 주요 특징을 간결하게 정리함"
+                        ],
+                        "weaknesses": [
+                            "Subheadline이 스펙 나열형으로 차별화 부족",
+                            "Body가 너무 짧아 제품 스토리 전달 미흡"
+                        ],
+                        "improvement_suggestions": [
+                            "Subheadline을 '하루 종일 끊김 없는 몰입, 당신의 음악 세계'처럼 감성적으로 변경",
+                            "Body에 사용자 경험 스토리 추가 (예: '출퇴근길이 나만의 콘서트홀로')",
+                            "Bullets 중 하나를 차별점으로 교체 (예: '프리미엄 사운드 튜닝')"
+                        ],
+                        "risk_flags": [
+                            "Subheadline '24시간 배터리'는 실제 사용 시간과 다를 수 있어 과대광고 우려",
+                            "IPX7 방수 등급 표기 시 사용 조건 명시 필요 (방송통신심의위원회)"
+                        ],
+                        "approval_status": "needs_revision",
+                        "revision_priority": "medium",
+                        "approval_reason": "전반적인 품질이 우수하나 Subheadline 개선 및 리스크 완화 후 승인 권장"
+                    }
+                },
+                "guidelines": [
+                    "점수는 객관적 근거를 바탕으로 평가하세요",
+                    "강점/약점은 구체적인 요소를 지적하세요 (예: 'Headline이 좋다' → 'Headline이 임팩트 있고 핵심 가치를 잘 전달')",
+                    "개선 제안은 실행 가능한 대안을 제시하세요 (예: '더 좋게' → '~처럼 변경')",
+                    "리스크 플래그는 규제, 과장 광고, 톤 오류, 브랜드 이미지 훼손 등을 포함하세요",
+                    "overall_score가 7.0 이상이면 approved 또는 needs_revision, 7.0 미만이면 needs_revision 또는 rejected",
+                    "strict_mode가 true면 9.0 이상만 approved 가능",
+                    "각 항목의 길이 제약을 엄수하세요 (strengths/weaknesses: 10-150자, improvement_suggestions: 10-200자)"
+                ]
             }
         }
 
-        # 작업별 지시사항 추가
-        if request.task in task_instructions:
-            enhanced["_instructions"] = task_instructions[request.task]["instruction"]
-            enhanced["_output_structure"] = task_instructions[request.task]["structure"]
-
-        return enhanced
-
-    def _parse_llm_response(
-        self,
-        llm_output: LLMProviderOutput,
-        task: str
-    ) -> list:
+    async def execute(self, request: AgentRequest) -> AgentResponse:
         """
-        LLM 응답을 AgentOutput 리스트로 변환
+        ReviewerAgent 실행 로직 (Retry + Validation 통합)
 
-        Args:
-            llm_output: LLM 출력
-            task: 작업 유형
-
-        Returns:
-            AgentOutput 리스트
+        Flow:
+        1. Input validation (Pydantic)
+        2. LLM 호출 (JSON Mode, 최대 3회 재시도)
+        3. Output validation (4-stage pipeline)
+        4. Quality logging
+        5. AgentResponse 반환
         """
-        outputs = []
+        logger.info(f"ReviewerAgent executing task: {request.task}")
 
-        # JSON 응답 처리
-        if llm_output.type == "json":
-            content = llm_output.value
+        # Input validation
+        if request.task == "ad_copy_quality_check":
+            try:
+                validated_input = AdCopyReviewInputV1(**request.payload)
+            except Exception as e:
+                raise AgentError(f"Input validation failed: {str(e)}")
+        else:
+            raise AgentError(f"Unknown task: {request.task}")
 
-            outputs.append(self._create_output(
-                output_type="json",
-                name="review_result",
-                value=content,
-                meta={"task": task, "format": "review_analysis"}
-            ))
+        # Task instruction 가져오기
+        task_config = self.task_instructions.get(request.task)
+        if not task_config:
+            raise AgentError(f"No instruction found for task: {request.task}")
 
-        # 텍스트 응답 처리 (폴백)
-        elif llm_output.type == "text":
-            outputs.append(self._create_output(
-                output_type="text",
-                name="review_feedback",
-                value=llm_output.value
-            ))
+        # Payload 강화 (instruction + structure)
+        enhanced_payload = {
+            **request.payload,
+            "_instruction": task_config["instruction"],
+            "_structure": task_config["structure"],
+            "_example": task_config.get("example_scenario"),
+            "_guidelines": task_config.get("guidelines")
+        }
 
-        return outputs
+        # Retry Logic with progressive temperature
+        max_retries = 3
+        base_temperature = 0.2  # Reviewer는 일관성이 더 중요 (0.2 → 0.3 → 0.4)
+        validator = OutputValidator()
+
+        for attempt in range(max_retries):
+            try:
+                current_temp = base_temperature + (attempt * 0.1)
+
+                logger.info(
+                    f"ReviewerAgent attempt {attempt + 1}/{max_retries} "
+                    f"(temperature={current_temp})"
+                )
+
+                # LLM 호출
+                llm_options = {
+                    **(request.options or {}),
+                    "temperature": current_temp
+                }
+
+                llm_response = await self.llm_gateway.generate(
+                    role=self.name,
+                    task=request.task,
+                    payload=enhanced_payload,
+                    mode="json",
+                    options=llm_options
+                )
+
+                # Parse output
+                output_data = llm_response.get("output", {})
+                if isinstance(output_data, str):
+                    import json
+                    output_data = json.loads(output_data)
+
+                # Pydantic validation
+                if request.task == "ad_copy_quality_check":
+                    validated_output = AdCopyReviewOutputV1(**output_data)
+                    output_dict = validated_output.model_dump()
+                else:
+                    raise AgentError(f"Unknown task for validation: {request.task}")
+
+                # AgentOutput 생성
+                outputs = [
+                    AgentOutput(
+                        type="json",
+                        name=request.task,
+                        value=output_dict,
+                        meta={
+                            "format": "review_analysis",
+                            "task": request.task
+                        }
+                    )
+                ]
+
+                # 4-Stage Validation Pipeline
+                validation_result = validator.validate(
+                    output=outputs[0].value,
+                    task=request.task,
+                    input_data=request.payload
+                )
+
+                # Validation 실패 시 재시도
+                if not validation_result.passed:
+                    if attempt < max_retries - 1:
+                        logger.warning(
+                            f"Validation failed (attempt {attempt + 1}), retrying... "
+                            f"Errors: {validation_result.errors}"
+                        )
+                        continue
+                    else:
+                        # 최종 실패
+                        raise AgentError(
+                            f"Validation failed after {max_retries} attempts: "
+                            f"{', '.join(validation_result.errors)}"
+                        )
+
+                # Structured quality logging
+                logger.info(
+                    "quality_metrics",
+                    extra={
+                        "agent": self.name,
+                        "task": request.task,
+                        "overall_score": round(validation_result.overall_score, 2),
+                        "field_scores": {
+                            stage.stage: round(stage.score, 2)
+                            for stage in validation_result.stage_results
+                        },
+                        "validation_passed": validation_result.passed,
+                        "validation_errors": validation_result.errors,
+                        "validation_warnings": validation_result.warnings,
+                        "attempt": attempt + 1,
+                        "max_retries": max_retries,
+                        "temperature": current_temp,
+                        "review_overall_score": output_dict.get("overall_score", 0.0),
+                        "approval_status": output_dict.get("approval_status", "unknown")
+                    }
+                )
+
+                # 성공 응답 생성
+                return AgentResponse(
+                    agent=self.name,
+                    task=request.task,
+                    outputs=outputs,
+                    usage={
+                        "llm_tokens": llm_response.get("usage", {}).get("total_tokens", 0),
+                        "total_tokens": llm_response.get("usage", {}).get("total_tokens", 0),
+                        "elapsed_seconds": llm_response.get("usage", {}).get("elapsed_seconds", 0.0)
+                    },
+                    meta={
+                        "llm_provider": llm_response.get("provider", "unknown"),
+                        "llm_model": llm_response.get("model", "unknown"),
+                        "task": request.task,
+                        "validation_score": round(validation_result.overall_score, 2),
+                        "attempt": attempt + 1
+                    }
+                )
+
+            except AgentError:
+                raise
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    logger.warning(
+                        f"ReviewerAgent execution failed (attempt {attempt + 1}), "
+                        f"retrying... Error: {str(e)}"
+                    )
+                    continue
+                else:
+                    raise AgentError(f"ReviewerAgent failed after {max_retries} attempts: {str(e)}")
+
+        # 여기까지 도달하면 안 됨 (모든 retry 실패)
+        raise AgentError(f"ReviewerAgent failed after {max_retries} attempts")
 
 
-# ============================================================================
-# Factory Function
-# ============================================================================
-
-def get_reviewer_agent(llm_gateway=None) -> ReviewerAgent:
+# Factory function
+def get_reviewer_agent() -> ReviewerAgent:
     """
-    Reviewer Agent 인스턴스 반환
-
-    Args:
-        llm_gateway: LLM Gateway (None이면 전역 인스턴스 사용)
+    ReviewerAgent 인스턴스 생성
 
     Returns:
-        ReviewerAgent 인스턴스
+        ReviewerAgent: LLMGateway와 함께 초기화된 ReviewerAgent
     """
+    from app.services.llm.gateway import get_llm_gateway
+
+    llm_gateway = get_llm_gateway()
     return ReviewerAgent(llm_gateway=llm_gateway)
