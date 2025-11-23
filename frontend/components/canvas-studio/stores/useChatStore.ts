@@ -738,7 +738,7 @@ export const useChatStore = create<ChatState>()(
 
             // Map role to agent name (connect to actual backend agents)
             const agentMap: Record<AgentRole, string> = {
-              brief: 'template',        // Brief Generator → template agent (마케팅 템플릿 생성)
+              brief: 'strategist',       // Brief Generator → strategist agent (마케팅 전략 및 브리프 수립)
               strategist: 'strategist',  // Strategist → strategist agent (마케팅 전략 수립)
               copywriter: 'copywriter',  // Copywriter → copywriter agent (텍스트 콘텐츠 생성)
               reviewer: 'reviewer',      // Reviewer → reviewer agent (콘텐츠 품질 검토)

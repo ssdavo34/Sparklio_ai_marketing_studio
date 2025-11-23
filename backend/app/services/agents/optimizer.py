@@ -131,6 +131,10 @@ class OptimizerAgent(AgentBase):
         """
         enhanced = request.payload.copy()
 
+        # 언어 설정 추가 (기본값: 한국어)
+        if "language" not in enhanced:
+            enhanced["language"] = "ko"
+
         # 작업별 기본 지시사항 추가
         task_instructions = {
             "seo_optimize": {
