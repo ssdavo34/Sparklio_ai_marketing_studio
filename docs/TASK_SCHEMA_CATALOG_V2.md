@@ -481,6 +481,174 @@ interface ContentPlanOutputV1 {
 
 ---
 
+## 2. StrategistAgent Tasks
+
+### 2.1 Task 목록
+
+| Task 이름 | Kind | Priority | 상태 | 설명 |
+|-----------|------|----------|------|------|
+| `strategist.campaign_strategy` | `campaign_planning` | P0 | 🟡 **설계 완료, 구현 대기** | 캠페인 전략 수립 |
+| `strategist.channel_mix_plan` | `channel_planning` | P1 | 📋 미구현 | 채널 믹스 전략 |
+| `strategist.brand_dna_extractor` | `brand_analysis` | P2 | 📋 미구현 | 브랜드 DNA 추출 |
+
+---
+
+### 2.2 `strategist.campaign_strategy`
+
+#### 개요
+- **목적**: 브랜드/제품에 대한 포괄적인 캠페인 전략 수립
+- **Kind**: `campaign_planning`
+- **Priority**: P0 (최우선)
+- **현재 상태**: 🟡 **설계 완료, 구현 대기**
+- **목표**: Pass Rate ≥ 70%, Avg Score ≥ 7.0/10
+
+#### Input Schema: `CampaignStrategyInputV1`
+
+```typescript
+interface CampaignStrategyInputV1 {
+  // 필수 필드
+  brand_name: string;               // 브랜드 이름
+  product_category: string;         // 제품 카테고리 (예: "스킨케어", "전자제품", "식음료")
+  target_audience: string;          // 타겟 오디언스 (예: "20-30대 직장인 여성", "IT 전문가")
+  campaign_objective: string;       // 캠페인 목표 (예: "신제품 런칭", "브랜드 인지도 향상")
+  budget_range: string;             // 예산 범위 (예: "5000만원~1억원", "1억원 이상")
+  tone: "professional" | "casual" | "luxury" | "friendly";  // 톤 앤 매너
+
+  // 선택 필드
+  brand_values?: string[];          // 브랜드 핵심 가치 (최대 5개)
+  competitor_info?: string;         // 경쟁사 정보
+  key_messages?: string[];          // 핵심 메시지 (최대 3개)
+  channel_preferences?: string[];   // 선호 채널 (예: ["인스타그램", "유튜브", "네이버 블로그"])
+}
+```
+
+#### Output Schema: `CampaignStrategyOutputV1`
+
+```typescript
+interface StrategicPillar {
+  title: string;                    // 전략 축 제목 (10-30자)
+  description: string;              // 설명 (30-100자)
+  key_actions: string[];            // 핵심 액션 (2-5개)
+}
+
+interface ChannelStrategy {
+  channel: string;                  // 채널명 (예: "인스타그램", "네이버 블로그")
+  objective: string;                // 채널별 목표 (20-50자)
+  content_types: string[];          // 콘텐츠 유형 (2-5개, 예: ["릴스", "피드 이미지"])
+  kpi: string;                      // 핵심 지표 (예: "팔로워 증가율 20%")
+}
+
+interface FunnelStructure {
+  awareness: string[];              // 인지 단계 콘텐츠 (2-4개)
+  consideration: string[];          // 고려 단계 콘텐츠 (2-4개)
+  conversion: string[];             // 전환 단계 콘텐츠 (2-4개)
+  retention: string[];              // 유지 단계 콘텐츠 (2-4개)
+}
+
+interface CampaignStrategyOutputV1 {
+  // 핵심 전략 (평가 가중치 20%)
+  core_message: string;             // 핵심 메시지 (20-150자, 브랜드 정체성 반영)
+  positioning: string;              // 포지셔닝 전략 (20-150자, 차별화 요소 명확)
+
+  // 타겟 인사이트
+  target_insights: string[];        // 타겟 인사이트 (2-5개, 각 20-80자)
+
+  // 빅 아이디어 (평가 가중치 20%)
+  big_idea: string;                 // 캠페인 빅 아이디어 (10-100자, 창의적이고 기억하기 쉬운 컨셉)
+
+  // 전략 구조 (평가 가중치 25%)
+  strategic_pillars: StrategicPillar[];  // 전략 축 (2-4개)
+
+  // 채널 전략 (평가 가중치 20%)
+  channel_strategy: ChannelStrategy[];   // 채널별 전략 (2-5개)
+
+  // 퍼널 구조
+  funnel_structure: FunnelStructure;     // 전환 퍼널 구조
+
+  // 리스크 및 성공 지표 (평가 가중치 15%)
+  risk_factors: string[];                // 리스크 요인 (1-5개, 각 20-60자)
+  success_metrics: string[];             // 성공 지표 (2-5개, 각 20-60자, 측정 가능해야 함)
+}
+```
+
+#### 검증 기준
+
+**4단계 Validation Pipeline**:
+1. **Schema Validation** (Pass/Fail)
+   - Pydantic 모델 통과 여부
+   - 필수 필드 존재 여부
+   - 타입 일치 여부
+
+2. **Length Validation** (Pass/Fail)
+   - `core_message`: 20-150자
+   - `positioning`: 20-150자
+   - `big_idea`: 10-100자
+   - `strategic_pillars`: 2-4개
+   - `channel_strategy`: 2-5개
+   - `target_insights`: 2-5개
+   - `risk_factors`: 1-5개
+   - `success_metrics`: 2-5개
+
+3. **Language Validation** (Pass/Fail)
+   - 한국어 비율 ≥ 30% (전문 용어 허용)
+   - 영어/한글 혼용 허용 (마케팅 용어)
+
+4. **Quality Validation** (0-10점)
+   - **Core Message 명확성** (20%): 브랜드 정체성 반영, 차별화 메시지
+   - **Big Idea 창의성** (20%): 기억하기 쉬운 컨셉, 캠페인 일관성
+   - **Strategic Pillars 구조** (25%): 실행 가능성, 논리적 연결성
+   - **Channel Fit** (20%): 타겟과 채널 적합성, KPI 측정 가능성
+   - **Clarity & Actionability** (15%): 명확성, 실행 가능성
+
+**Golden Set 기준**:
+- 일반 제품: 7.0/10 이상
+- 럭셔리 제품: 7.5/10 이상
+- 복잡한 B2B: 7.0/10 이상
+
+#### 예시 (요약)
+
+**Input**:
+```json
+{
+  "brand_name": "루나 스킨케어",
+  "product_category": "프리미엄 스킨케어",
+  "target_audience": "25-35세 직장인 여성",
+  "campaign_objective": "신제품 런칭 (안티에이징 세럼)",
+  "budget_range": "1억원",
+  "tone": "luxury",
+  "brand_values": ["과학적 접근", "지속가능성", "우아함"],
+  "channel_preferences": ["인스타그램", "네이버 블로그"]
+}
+```
+
+**Output (일부)**:
+```json
+{
+  "core_message": "과학이 만든 시간의 기적, 피부 본연의 빛을 되찾다",
+  "positioning": "의학 연구 기반의 안티에이징 솔루션, 지속가능한 프리미엄 뷰티",
+  "big_idea": "타임 리버스: 피부 시계를 되돌리는 7일의 기적",
+  "strategic_pillars": [
+    {
+      "title": "과학적 신뢰 구축",
+      "description": "임상 데이터와 피부과 전문의 추천으로 신뢰성 확보",
+      "key_actions": ["임상 결과 인포그래픽", "전문의 인터뷰 콘텐츠"]
+    }
+  ],
+  "channel_strategy": [
+    {
+      "channel": "인스타그램",
+      "objective": "브랜드 인지도 확산 및 제품 체험 유도",
+      "content_types": ["릴스 (Before/After)", "피드 (임상 데이터)"],
+      "kpi": "팔로워 증가율 30%, 릴스 조회수 10만+"
+    }
+  ],
+  "risk_factors": ["고가 제품으로 인한 진입 장벽", "경쟁사 프로모션 대응"],
+  "success_metrics": ["런칭 첫 달 매출 5000만원", "인스타그램 도달률 50만+"]
+}
+```
+
+---
+
 ## 7. 다음 단계
 
 ### 7.1 즉시 작업 (P0)
