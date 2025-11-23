@@ -29,9 +29,15 @@
 ## 1. 검증 방법
 
 ### 1.1 Golden Set 구성
-- **파일**: `backend/tests/golden_sets/copywriter_golden_set.json`
+- **파일 경로 (현재)**: `backend/tests/golden_sets/copywriter_golden_set.json`
+- **파일 경로 (최종)**: `backend/tests/golden_sets/copywriter/ad_copy_simple_golden_set.json`
 - **케이스 수**: 10개
 - **카테고리**: 테크(3), 뷰티(1), 패션/스포츠(2), 헬스케어(1), 식품(1), 액세서리(1), 럭셔리(1)
+
+> **경로 규칙**: `backend/tests/golden_sets/{agent_name}/{task_name}_golden_set.json`
+>
+> - 현재는 임시로 단일 파일 사용 중
+> - v2 확정 후 task별로 분리 예정
 
 ### 1.2 평가 기준
 각 필드별 유사도 점수 (0~10점):
@@ -93,7 +99,7 @@ python tests/golden_set_validator.py --agent copywriter
 
 ### 2.3 중국어 혼입 (1/10 케이스)
 
-**문제**: golden_008 (요가 매트) Body에 중국어가 섞임
+**문제**: [golden_008](backend/tests/golden_sets/copywriter/ad_copy_simple_golden_set.json#golden_008) (요가 매트) Body에 중국어가 섞임
 
 ```json
 {
@@ -112,7 +118,7 @@ python tests/golden_set_validator.py --agent copywriter
 
 ### 2.4 JSON 파싱 실패 (1/10 케이스)
 
-**문제**: golden_010 (보조배터리) 완전 실패
+**문제**: [golden_010](backend/tests/golden_sets/copywriter/ad_copy_simple_golden_set.json#golden_010) (보조배터리) 완전 실패
 
 ```json
 {

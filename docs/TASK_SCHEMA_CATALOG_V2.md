@@ -239,6 +239,8 @@ def sanitize_output(output: AdCopySimpleOutputV2) -> AdCopySimpleOutputV2:
 
 #### Golden Set Requirements
 
+**파일 경로**: `backend/tests/golden_sets/copywriter/ad_copy_simple_golden_set.json`
+
 **최소 요구사항**:
 - **케이스 수**: 20개 (현재 10개 → 확장 필요)
 - **카테고리 분포**:
@@ -364,9 +366,11 @@ interface ContentPlanOutputV1 {
 
 #### Frontend 변환
 - B팀이 `ContentPlanOutputV1` → `ContentPlanPagesSchema`로 변환
-- 변환 규칙: `docs/CONTENT_PLAN_TO_PAGES_SPEC.md` 참조
+- 변환 규칙: [CONTENT_PLAN_TO_PAGES_SPEC_V2.md](docs/CONTENT_PLAN_TO_PAGES_SPEC_V2.md) 참조
 
 #### 품질 규칙 (설계 필요)
+
+**파일 경로**: `backend/tests/golden_sets/copywriter/content_plan_golden_set.json`
 
 **Golden Set 요구사항**:
 - 최소 케이스 수: 10개
@@ -451,9 +455,29 @@ interface ContentPlanOutputV1 {
 4. B/C팀 영향 범위 명시
 
 ### 6.3 Golden Set 관리
-- 경로: `backend/tests/golden_sets/{agent_name}/{task_name}_golden_set.json`
-- 형식: JSON 배열
-- 검증: CI에서 자동 실행
+
+**경로 규칙**: `backend/tests/golden_sets/{agent_name}/{task_name}_golden_set.json`
+
+**예시**:
+- `backend/tests/golden_sets/copywriter/ad_copy_simple_golden_set.json`
+- `backend/tests/golden_sets/copywriter/content_plan_golden_set.json`
+- `backend/tests/golden_sets/strategist/campaign_strategy_golden_set.json`
+
+**파일 형식**: JSON 배열
+```json
+[
+  {
+    "case_id": "golden_001",
+    "scenario": "무선 이어폰 - 테크 제품",
+    "input": { /* TaskInput */ },
+    "expected_output": { /* TaskOutput */ },
+    "scoring_criteria": { /* 채점 기준 */ }
+  },
+  ...
+]
+```
+
+**검증**: CI에서 자동 실행 (pytest 통합)
 
 ---
 

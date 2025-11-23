@@ -266,9 +266,13 @@ def determine_pages(content_plan: ContentPlanOutputV1) -> List[str]:
 **자연어 생성 함수**:
 ```python
 def generate_audience_description(audience: Audience) -> str:
-    return f"이 강의는 {audience.age_range} {audience.audience.target_group}을 위한 과정입니다. " + \
-           f"{', '.join(audience.interests[:3])}에 관심이 있는 분들께 특히 적합합니다."
+    return (
+        f"이 강의는 {audience.age_range} {audience.target_group}을 위한 과정입니다. "
+        f"{', '.join(audience.interests[:3])}에 관심이 있는 분들께 특히 적합합니다."
+    )
 ```
+
+> **버그 수정**: `audience.audience.target_group` → `audience.target_group`
 
 **예시**:
 ```json
@@ -465,7 +469,14 @@ def merge_text_elements(content_elements: List[ContentElement]) -> str:
     }
   },
   {
-    "block_id": "block_3",  // 옵션
+    "block_id": "block_3",  // 옵션 - measurement_metrics 표시
+    "type": "list",
+    "content": {
+      "items": content_plan.measurement_metrics  // 성과 지표 표시
+    }
+  },
+  {
+    "block_id": "block_4",  // 옵션
     "type": "cta_button",
     "content": {
       "text": extract_button_text(call_to_action)
@@ -476,7 +487,7 @@ def merge_text_elements(content_elements: List[ContentElement]) -> str:
 
 **CTA 제목 생성**:
 ```python
-def generate_cta_title(call_to_action: str) -> str:
+def generate_cta_title(call_to_action: str, campaign_type: Optional[str] = None) -> str:
     # call_to_action에서 핵심 동사 추출
     if "문의" in call_to_action:
         return "지금 바로 문의하세요"
@@ -485,7 +496,15 @@ def generate_cta_title(call_to_action: str) -> str:
     elif "확인" in call_to_action or "링크" in call_to_action:
         return "자세한 정보 확인하기"
     else:
-        return "지금 바로 시작하세요"
+        # campaign_type에 따른 기본 제목
+        if campaign_type == "course":
+            return "강의 신청하기"
+        elif campaign_type == "product_launch":
+            return "제품 알아보기"
+        elif campaign_type == "seminar":
+            return "세미나 등록하기"
+        else:
+            return "지금 바로 시작하세요"
 ```
 
 **버튼 텍스트 추출**:
@@ -748,15 +767,40 @@ def extract_button_text(call_to_action: str) -> str:
 2. 블록 타입 7가지 충분함 (현재 요구사항 커버)
 3. 변환 규칙 명확함 (B팀이 구현 가능한 수준)
 
-### 8.2 ⚠️ 개선 필요
-1. **content_elements.type 값을 영어로 통일** (text, image, video, list)
-2. **campaign_type 필드 추가** (페이지 구성 다양화)
-3. **Overview 제목을 campaign_type에 따라 동적 생성**
+### 8.2 ✅ 버그 수정 완료
+1. **generate_audience_description 함수 버그 수정**
+   - `audience.audience.target_group` → `audience.target_group`
+2. **measurement_metrics 활용 추가**
+   - CTA 페이지에 list 블록으로 성과 지표 표시
+3. **campaign_type 기본값 처리**
+   - generate_cta_title에 campaign_type 파라미터 추가
+   - campaign_type이 없을 때도 적절한 기본 제목 반환
 
-### 8.3 📋 다음 단계
-1. B팀: 변환 함수 구현 (`content_plan_to_pages.py`)
-2. C팀: Pages 렌더러 구현 (React 컴포넌트)
-3. A팀: Golden Set 5개 작성 후 변환 결과 검증
+### 8.3 ⚠️ B팀 구현 시 주의사항
+1. **content_elements.type 값 영어 통일**
+   - 프롬프트에서 "type 값은 text, image, video, list 중 하나" 명시
+   - B팀 validation에서 한글 값 발견 시 자동 변환 또는 에러 처리
+
+2. **campaign_type 필드 권장**
+   - Optional이지만 프롬프트에서 자주 채우도록 유도
+   - 없을 때 기본값: "course" 또는 title 분석으로 추론
+
+3. **constraints 기본값 중앙 관리**
+   - Pydantic에서 기본값 설정 (20/30/80/3/20)
+   - 사용자가 constraints를 비워도 자동 적용
+
+### 8.4 📋 다음 단계
+1. **B팀**: 변환 함수 구현 (`content_plan_to_pages.py`)
+   - Input: ContentPlanOutputV1
+   - Output: ContentPlanPagesSchema
+   - Unit test 최소 5개 시나리오
+2. **C팀**: Pages 렌더러 구현 (React 컴포넌트)
+   - layout별 템플릿 컴포넌트
+   - block별 렌더링 컴포넌트
+   - 페이지 네비게이션 UI
+3. **A팀**: Golden Set 10개 작성 후 변환 결과 검증
+   - 파일: `backend/tests/golden_sets/copywriter/content_plan_golden_set.json`
+   - 각 케이스: Input + Expected Pages 구조
 
 ---
 
