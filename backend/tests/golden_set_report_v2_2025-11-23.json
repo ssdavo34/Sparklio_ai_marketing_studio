@@ -1,0 +1,85 @@
+{
+  "agent": "copywriter",
+  "timestamp": "2025-11-23T06:18:31.838201",
+  "total_cases": 10,
+  "summary": {
+    "passed": 0,
+    "failed": 10,
+    "pass_rate": 0.0,
+    "average_score": 0.0,
+    "min_score": 0.0,
+    "max_score": 0.0
+  },
+  "results": [
+    {
+      "case_id": "golden_001",
+      "scenario": "무선 이어폰 - 테크 제품",
+      "passed": false,
+      "error": "Copywriter execution failed: Output validation failed",
+      "score": 0.0
+    },
+    {
+      "case_id": "golden_002",
+      "scenario": "스킨케어 제품 - 뷰티",
+      "passed": false,
+      "error": "Copywriter execution failed: Output validation failed",
+      "score": 0.0
+    },
+    {
+      "case_id": "golden_003",
+      "scenario": "러닝화 - 패션/스포츠",
+      "passed": false,
+      "error": "Copywriter execution failed: Output validation failed",
+      "score": 0.0
+    },
+    {
+      "case_id": "golden_004",
+      "scenario": "건강기능식품 - 헬스케어",
+      "passed": false,
+      "error": "Copywriter execution failed: Output validation failed",
+      "score": 0.0
+    },
+    {
+      "case_id": "golden_005",
+      "scenario": "스마트워치 - 웨어러블",
+      "passed": false,
+      "error": "Copywriter execution failed: Output validation failed",
+      "score": 0.0
+    },
+    {
+      "case_id": "golden_006",
+      "scenario": "노트북 - 전자제품",
+      "passed": false,
+      "error": "Copywriter execution failed: Output validation failed",
+      "score": 0.0
+    },
+    {
+      "case_id": "golden_007",
+      "scenario": "커피 원두 - 식품",
+      "passed": false,
+      "error": "Copywriter execution failed: Output validation failed",
+      "score": 0.0
+    },
+    {
+      "case_id": "golden_008",
+      "scenario": "요가 매트 - 피트니스",
+      "passed": false,
+      "error": "Copywriter execution failed: Output validation failed",
+      "score": 0.0
+    },
+    {
+      "case_id": "golden_009",
+      "scenario": "향수 - 럭셔리",
+      "passed": false,
+      "error": "Copywriter execution failed: Output validation failed",
+      "score": 0.0
+    },
+    {
+      "case_id": "golden_010",
+      "scenario": "보조배터리 - 액세서리",
+      "passed": false,
+      "error": "Copywriter execution failed: Output validation failed",
+      "score": 0.0
+    }
+  ]
+}

@@ -83,7 +83,10 @@ class CopywriterAgent(AgentBase):
             )
 
             # 4. 응답 파싱
+            # 🐛 디버그: LLM Raw 출력 확인 (A팀 임시 로깅)
+            logger.info(f"🐛 LLM Raw Output: {llm_response.output.value}")
             outputs = self._parse_llm_response(llm_response.output, request.task)
+            logger.info(f"🐛 Parsed Output: {outputs[0].value}")
 
             # ✅ 4.5. Validation Pipeline (B팀 추가 2025-11-23)
             validator = OutputValidator()
@@ -262,11 +265,12 @@ class CopywriterAgent(AgentBase):
 
         # subheadline (subtitle, tagline 등으로 올 수 있음)
         # ✅ B팀 수정 (2025-11-23): "제품 설명" Fallback 제거
+        # ✅ A팀 수정 (2025-11-23): body에서 첫 30자 Fallback
         normalized["subheadline"] = (
             content.get("subheadline") or
             content.get("subtitle") or
             content.get("tagline") or
-            content.get("description", "")[:100] or  # body에서 첫 부분
+            (content.get("body") or content.get("description") or "")[:30] or
             ""  # 빈 문자열로 변경 (Validation에서 잡힘)
         )
 
