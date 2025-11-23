@@ -56,6 +56,16 @@ class ReviewerAgent(AgentBase):
                     "광고 카피의 품질을 전문 마케터 관점에서 체계적으로 검토하세요. "
                     "톤앤매너 일치도, 명확성, 설득력, 브랜드 정렬도를 0-10점으로 평가하고, "
                     "강점, 약점, 구체적인 개선 제안을 제시하세요. "
+                    "\n\n"
+                    "**중요: 과대광고 및 규제 리스크 검토**\n"
+                    "- 명백한 과장 표현(예: '100% 보장', '완전히 제거', '부작용 전무', '영구 효과', '10년 젊어지는' 등)이 포함된 경우, "
+                    "overall_score는 반드시 4.0 이하로 평가하고, approval_status는 'rejected'로 판정하세요.\n"
+                    "- 의학적/과학적 효능을 검증 없이 주장하거나, 절대적 표현('모든', '전혀 없음', '영구적' 등)을 사용하는 경우, "
+                    "규제 리스크로 간주하고 risk_flags에 구체적으로 기록하세요.\n"
+                    "- risk_flags에 규제/과대광고 관련 항목이 하나라도 있는 경우, overall_score는 최대 6.0을 초과할 수 없습니다.\n"
+                    "- 브랜드 톤앤매너와 완전히 불일치하는 경우(예: 럭셔리 브랜드에 저가 이미지 표현), "
+                    "tone_match_score와 brand_alignment_score를 3.0 이하로 평가하고, approval_status는 'rejected'로 판정하며, revision_priority는 'critical'로 설정하세요.\n"
+                    "\n"
                     "규제 리스크, 과장 광고 우려, 톤 오류 등을 리스크 플래그로 표시하고, "
                     "최종 승인 상태(approved/needs_revision/rejected)를 판정하세요."
                 ),
@@ -120,8 +130,17 @@ class ReviewerAgent(AgentBase):
                     "강점/약점은 구체적인 요소를 지적하세요 (예: 'Headline이 좋다' → 'Headline이 임팩트 있고 핵심 가치를 잘 전달')",
                     "개선 제안은 실행 가능한 대안을 제시하세요 (예: '더 좋게' → '~처럼 변경')",
                     "리스크 플래그는 규제, 과장 광고, 톤 오류, 브랜드 이미지 훼손 등을 포함하세요",
-                    "overall_score가 7.0 이상이면 approved 또는 needs_revision, 7.0 미만이면 needs_revision 또는 rejected",
-                    "strict_mode가 true면 9.0 이상만 approved 가능",
+                    "\n**approval_status 판정 규칙 (점수 기준)**:",
+                    "- overall_score >= 9.0: 'approved' (바로 게시 가능한 완성도 높은 카피)",
+                    "- 7.0 <= overall_score < 9.0: 'needs_revision' (방향성은 맞지만 반드시 수정 필요)",
+                    "- 4.0 <= overall_score < 7.0: 'needs_revision' (high/critical priority - 상당한 수정 필요)",
+                    "- overall_score < 4.0: 'rejected' (방향성 오류 또는 심각한 리스크로 사용 불가)",
+                    "\n**approval_status 판정 규칙 (규제 리스크 예외)**:",
+                    "- risk_flags에 규제/과대광고 항목이 있는 경우: 점수와 무관하게 'needs_revision' (revision_priority: critical) 또는 'rejected'",
+                    "- 심각한 규제 위반(예: 허위·과장 광고, 의료법 위반 가능성): 반드시 'rejected' + revision_priority: critical",
+                    "\n**strict_mode 규칙**:",
+                    "- strict_mode가 true인 경우: 9.0 이상만 'approved' 가능",
+                    "\n**기타**:",
                     "각 항목의 길이 제약을 엄수하세요 (strengths/weaknesses: 10-150자, improvement_suggestions: 10-200자)"
                 ]
             }

@@ -222,16 +222,28 @@ class AdCopyReviewOutputV1(BaseModel):
     @field_validator("approval_status", mode="after")
     @classmethod
     def validate_approval_logic(cls, v: str, info) -> str:
-        """승인 상태 로직 검증"""
-        # overall_score와 approval_status 일관성 체크
-        # (이 validator는 전체 모델이 구성된 후 실행됨)
+        """승인 상태 로직 검증
+
+        규칙:
+        - approved: overall_score >= 7.0 필요
+        - rejected: overall_score < 7.0 또는 risk_flags가 있는 경우 허용
+        - needs_revision: 항상 허용
+        """
         data = info.data
         overall_score = data.get("overall_score", 0.0)
+        risk_flags = data.get("risk_flags", [])
 
+        # approved는 반드시 overall_score >= 7.0 필요
         if v == "approved" and overall_score < 7.0:
             raise ValueError(f"Cannot approve with overall_score {overall_score} < 7.0")
-        elif v == "rejected" and overall_score >= 7.0:
-            raise ValueError(f"Cannot reject with overall_score {overall_score} >= 7.0")
+
+        # rejected는 overall_score < 7.0 또는 risk_flags가 있으면 허용
+        # (규제 리스크가 있으면 점수와 무관하게 rejected 가능)
+        elif v == "rejected" and overall_score >= 7.0 and len(risk_flags) == 0:
+            raise ValueError(
+                f"Cannot reject with overall_score {overall_score} >= 7.0 and no risk_flags. "
+                "Use 'needs_revision' instead or add risk_flags."
+            )
 
         return v
 
