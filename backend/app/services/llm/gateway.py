@@ -296,11 +296,12 @@ class LLMGateway:
         프롬프트 구성
 
         역할과 작업에 맞는 프롬프트를 생성
+        Context Engineering 필드 (_instructions, _output_structure 등)를 활용
 
         Args:
             role: Agent 역할
             task: 작업 유형
-            payload: 입력 데이터
+            payload: 입력 데이터 (Context Engineering 필드 포함 가능)
             mode: 출력 모드
 
         Returns:
@@ -309,11 +310,14 @@ class LLMGateway:
         # 시스템 프롬프트 (역할 정의)
         system_prompt = self._get_system_prompt(role, task)
 
+        # Context Engineering 필드 추출 및 시스템 프롬프트 강화
+        enhanced_system = self._enhance_system_prompt(system_prompt, payload)
+
         # 사용자 입력
         user_input = self._format_payload(payload)
 
         # 결합
-        prompt = f"{system_prompt}\n\n{user_input}"
+        prompt = f"{enhanced_system}\n\n{user_input}"
 
         # OpenAI JSON 모드 요구사항: 프롬프트에 'json' 단어가 포함되어야 함
         if mode == "json" and "json" not in prompt.lower():
@@ -340,6 +344,39 @@ class LLMGateway:
 3. **차별점 부각**: 경쟁 제품 대비 독보적 가치 제안
 4. **행동 유도**: 명확하고 긴급감 있는 CTA
 5. **간결성**: Canvas 1080x1080 크기에 최적화된 짧고 임팩트 있는 텍스트
+
+## 🧠 작성 프로세스 (Chain-of-Thought - 단계별 사고)
+
+다음 단계를 차근차근 생각하면서 카피를 작성하세요:
+
+**Step 1. 제품 분석**
+- 제품의 핵심 가치는 무엇인가?
+- 경쟁 제품 대비 차별점은?
+- 가장 매력적인 특징 Top 3는?
+
+**Step 2. 타겟 이해**
+- 타겟 오디언스의 니즈는?
+- 그들의 페인 포인트는?
+- 어떤 혜택이 가장 와닿을까?
+
+**Step 3. 메시지 구성**
+- AIDA 모델로 구조화
+- 감성과 이성의 균형
+- 톤앤매너 설정
+
+**Step 4. 길이 확인**
+- Headline ≤ 20자 확인
+- Body ≤ 80자 확인
+- Bullets 각 ≤ 20자 확인
+- CTA ≤ 10자 확인
+
+**Step 5. 최종 검증**
+- 제품명 포함 확인
+- 모든 특징 반영 확인
+- 톤앤매너 일치 확인
+- 길이 제약 준수 확인
+
+각 단계를 마음속으로 거친 후, 최종 JSON을 출력하세요.
 
 ## 엄격한 규칙
 🔴 모든 텍스트는 한국어로만 작성 (다른 언어 사용 금지)
@@ -860,12 +897,37 @@ class LLMGateway:
 4. **타겟 적합성** (1-10점): 타겟 고객에게 공감을 얻을 수 있는가?
 5. **문법/오탈자** (1-10점): 오류 없이 완성도가 높은가?
 
-## 검토 프로세스
-1. 전체 콘텐츠 3회 정독
-2. 각 기준별 객관적 평가 (구체적 근거 제시)
-3. 강점 3가지 도출
-4. 개선점 3가지 도출 (구체적 수정안 포함)
-5. 전체 종합 점수 산출
+## 🧠 검토 프로세스 (Chain-of-Thought - 단계별 사고)
+
+다음 단계를 차근차근 생각하면서 검토하세요:
+
+**Step 1. 콘텐츠 이해**
+- 콘텐츠의 목적은 무엇인가?
+- 누구를 대상으로 하는가?
+- 핵심 메시지는 무엇인가?
+
+**Step 2. 강점 분석**
+- 가장 효과적인 요소는?
+- 타겟에게 어필하는 부분은?
+- 차별화된 표현은?
+→ 강점 3가지 도출
+
+**Step 3. 약점 분석**
+- 모호하거나 이해하기 어려운 부분은?
+- 설득력이 부족한 부분은?
+- 문법/오탈자는?
+→ 개선점 3가지 도출
+
+**Step 4. 점수 산정**
+- 각 기준별로 1-10점 부여 (근거 포함)
+- 전체 평균 점수 계산
+
+**Step 5. 개선 제안**
+- 각 약점에 대한 구체적 수정안 작성
+- 실행 가능한 방향 제시
+- 최종 권장사항 결정 (승인/수정후승인/전면수정)
+
+각 단계를 마음속으로 거친 후, 최종 JSON을 출력하세요.
 
 ## 피드백 원칙
 - **건설적**: 비판만이 아닌 개선 방향 제시
@@ -2275,6 +2337,71 @@ social media thumbnail, [주제], eye-catching, vibrant colors, bold text, high 
         lines.append("⚠️  고정된 예시(모바일 충전기, 클린징 장치 등)를 사용하지 마세요.")
 
         return "\n".join(lines)
+
+    def _enhance_system_prompt(self, base_system_prompt: str, payload: Dict[str, Any]) -> str:
+        """
+        Context Engineering 필드를 활용하여 시스템 프롬프트 강화
+
+        Agent의 _enhance_payload에서 추가한 _instructions, _output_structure,
+        _constraints, _tone_guide 등을 시스템 프롬프트에 통합
+
+        Args:
+            base_system_prompt: 기본 시스템 프롬프트
+            payload: Context Engineering 필드가 포함된 payload
+
+        Returns:
+            강화된 시스템 프롬프트
+        """
+        enhanced_parts = [base_system_prompt]
+
+        # 1. 작업별 추가 지시사항 (_instructions)
+        if "_instructions" in payload and payload["_instructions"]:
+            enhanced_parts.append("\n## 📋 작업 지시사항")
+            enhanced_parts.append(payload["_instructions"])
+
+        # 2. 출력 구조 가이드 (_output_structure)
+        if "_output_structure" in payload and payload["_output_structure"]:
+            enhanced_parts.append("\n## 📝 출력 구조")
+            enhanced_parts.append("다음 구조에 맞춰 JSON을 생성하세요:")
+            for key, desc in payload["_output_structure"].items():
+                enhanced_parts.append(f"  - {key}: {desc}")
+
+        # 3. 추가 제약 조건 (_constraints)
+        if "_constraints" in payload and payload["_constraints"]:
+            enhanced_parts.append("\n## ⚠️ 제약 조건")
+            for constraint in payload["_constraints"]:
+                enhanced_parts.append(f"  🔴 {constraint}")
+
+        # 4. 톤앤매너 가이드 (_tone_guide)
+        if "_tone_guide" in payload and payload["_tone_guide"]:
+            enhanced_parts.append("\n## 🎨 톤앤매너")
+            enhanced_parts.append(f"이 톤으로 작성하세요: {payload['_tone_guide']}")
+
+        # 5. Few-shot 예시 (_examples)
+        if "_examples" in payload and payload["_examples"]:
+            enhanced_parts.append("\n## 💡 참고 예시 (스타일 참고용 - 내용 복사 금지)")
+            for i, example in enumerate(payload["_examples"], 1):
+                enhanced_parts.append(f"\n예시 {i}:")
+                enhanced_parts.append(f"```json\n{str(example)}\n```")
+
+        # 6. 추가 컨텍스트 (_context)
+        if "_context" in payload and payload["_context"]:
+            enhanced_parts.append("\n## 🔍 추가 컨텍스트")
+            enhanced_parts.append(payload["_context"])
+
+        # 7. 언어 설정 (language)
+        if "language" in payload and payload["language"] != "ko":
+            lang_map = {
+                "en": "영어 (English)",
+                "ja": "일본어 (日本語)",
+                "zh": "중국어 (中文)",
+                "es": "스페인어 (Español)"
+            }
+            lang = lang_map.get(payload["language"], payload["language"])
+            enhanced_parts.append(f"\n## 🌐 언어")
+            enhanced_parts.append(f"🔴 모든 출력은 {lang}로 작성하세요!")
+
+        return "\n".join(enhanced_parts)
 
     def _merge_options(
         self,

@@ -1,0 +1,84 @@
+[RedisClient] ⚠️ Failed to connect to Redis: Authentication required.
+[RedisClient] Running in NO-REDIS mode. Cache features will be disabled.
+NanoBanana Provider not available (missing google-genai package)
+Failed to parse JSON response: Expecting ',' delimiter: line 49 column 1 (char 353)
+✅ Loaded golden set: K:\sparklio_ai_marketing_studio\backend\tests\golden_sets\copywriter_golden_set.json
+   Agent: copywriter
+   Cases: 10
+
+🔍 Validating 10 golden cases...
+
+📝 [golden_001] 무선 이어폰 - 테크 제품
+   ❌ FAILED (Score: 4.7/10)
+      Expected score >= 7.0
+
+📝 [golden_002] 스킨케어 제품 - 뷰티
+   ❌ FAILED (Score: 2.3/10)
+      Expected score >= 7.0
+
+📝 [golden_003] 러닝화 - 패션/스포츠
+   ❌ FAILED (Score: 3.1/10)
+      Expected score >= 7.0
+
+📝 [golden_004] 건강기능식품 - 헬스케어
+   ❌ FAILED (Score: 2.8/10)
+      Expected score >= 7.5
+
+📝 [golden_005] 스마트워치 - 웨어러블
+   ❌ FAILED (Score: 3.1/10)
+      Expected score >= 7.0
+
+📝 [golden_006] 노트북 - 전자제품
+   ❌ FAILED (Score: 3.9/10)
+      Expected score >= 7.0
+
+📝 [golden_007] 커피 원두 - 식품
+   ❌ FAILED (Score: 4.9/10)
+      Expected score >= 7.5
+
+📝 [golden_008] 요가 매트 - 피트니스
+   ❌ FAILED (Score: 4.3/10)
+      Expected score >= 7.0
+
+📝 [golden_009] 향수 - 럭셔리
+   ❌ FAILED (Score: 4.0/10)
+      Expected score >= 8.0
+
+📝 [golden_010] 보조배터리 - 액세서리
+
+============================================================
+📊 VALIDATION SUMMARY
+============================================================
+Agent: copywriter
+Total Cases: 10
+Passed: 0
+Failed: 10
+Pass Rate: 0.0%
+Average Score: 3.3/10
+Score Range: 0.0-4.9
+============================================================
+
+❌ FAILED CASES:
+  - [golden_001] 무선 이어폰 - 테크 제품
+    Score: 4.7/10
+  - [golden_002] 스킨케어 제품 - 뷰티
+    Score: 2.3/10
+  - [golden_003] 러닝화 - 패션/스포츠
+    Score: 3.1/10
+  - [golden_004] 건강기능식품 - 헬스케어
+    Score: 2.8/10
+  - [golden_005] 스마트워치 - 웨어러블
+    Score: 3.1/10
+  - [golden_006] 노트북 - 전자제품
+    Score: 3.9/10
+  - [golden_007] 커피 원두 - 식품
+    Score: 4.9/10
+  - [golden_008] 요가 매트 - 피트니스
+    Score: 4.3/10
+  - [golden_009] 향수 - 럭셔리
+    Score: 4.0/10
+  - [golden_010] 보조배터리 - 액세서리
+    Score: 0.0/10
+    Error: No JSON output found
+
+✅ JSON report saved: golden_set_report_copywriter.json

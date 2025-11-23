@@ -1,0 +1,895 @@
+{
+  "agent": "copywriter",
+  "timestamp": "2025-11-23T03:44:28.894922",
+  "total_cases": 10,
+  "summary": {
+    "passed": 0,
+    "failed": 10,
+    "pass_rate": 0.0,
+    "average_score": 3.3,
+    "min_score": 0.0,
+    "max_score": 4.9
+  },
+  "results": [
+    {
+      "case_id": "golden_001",
+      "scenario": "무선 이어폰 - 테크 제품",
+      "passed": false,
+      "score": 4.7,
+      "actual_output": {
+        "headline": "울트라 무선 이어폰 Pro",
+        "subheadline": "제품 설명",
+        "body": "ANC 기술로 완벽한 음향 경험. 30시간 연속 재생으로 끊김 없이 오디오 플레이. IPX7 방수 설계로 어디서나 안심하고 사용 가능.",
+        "bullets": [
+          "ANC 노이즈캔슬링 - 조용한 청음",
+          "30시간 배터리 - 하루종일 이용",
+          "IPX7 방수 - 일상에서도 안전"
+        ],
+        "cta": "바로 구매하기"
+      },
+      "expected_output": {
+        "headline": "완벽한 소음 차단의 시작",
+        "subheadline": "프리미엄 ANC 기술로 집중력 극대화",
+        "body": "울트라 무선 이어폰 Pro는 30시간 배터리와 IPX7 방수로 언제 어디서나 최고의 사운드를 제공합니다.",
+        "bullets": [
+          "ANC 노이즈캔슬링",
+          "30시간 배터리",
+          "IPX7 방수"
+        ],
+        "cta": "지금 바로 체험하기"
+      },
+      "validation_details": {
+        "overall_score": 4.7,
+        "field_scores": {
+          "headline": 2.2,
+          "subheadline": 0.8,
+          "body": 4.4,
+          "bullets": 10.0,
+          "cta": 5.9
+        },
+        "details": {
+          "headline": {
+            "actual": "울트라 무선 이어폰 Pro",
+            "expected": "완벽한 소음 차단의 시작",
+            "length": 14,
+            "max_length": 20,
+            "length_ok": true
+          },
+          "subheadline": {
+            "actual": "제품 설명",
+            "expected": "프리미엄 ANC 기술로 집중력 극대화",
+            "length": 5,
+            "max_length": 30,
+            "length_ok": true
+          },
+          "body": {
+            "actual": "ANC 기술로 완벽한 음향 경험. 30시간 연속 재생으로 끊김 없이 오디오 플레이. IPX7 방수 설계로 어디서나 안심하고 사용 가능.",
+            "expected": "울트라 무선 이어폰 Pro는 30시간 배터리와 IPX7 방수로 언제 어디서나 최고의 사운드를 제공합니다.",
+            "length": 75,
+            "max_length": 80,
+            "length_ok": true
+          },
+          "bullets": {
+            "actual": [
+              "ANC 노이즈캔슬링 - 조용한 청음",
+              "30시간 배터리 - 하루종일 이용",
+              "IPX7 방수 - 일상에서도 안전"
+            ],
+            "expected": [
+              "ANC 노이즈캔슬링",
+              "30시간 배터리",
+              "IPX7 방수"
+            ],
+            "count": 3,
+            "expected_count": 3,
+            "lengths": [
+              19,
+              18,
+              18
+            ],
+            "max_item_length": 20,
+            "all_ok": true
+          },
+          "cta": {
+            "actual": "바로 구매하기",
+            "expected": "지금 바로 체험하기",
+            "length": 7,
+            "max_length": 15,
+            "length_ok": true
+          },
+          "tone": {
+            "expected": "professional",
+            "note": "Tone은 정성적 평가 필요"
+          }
+        }
+      },
+      "usage": {
+        "elapsed_seconds": 3.08,
+        "tokens": 1606
+      }
+    },
+    {
+      "case_id": "golden_002",
+      "scenario": "스킨케어 제품 - 뷰티",
+      "passed": false,
+      "score": 2.3,
+      "actual_output": {
+        "headline": "히알루론산 세럼",
+        "subheadline": "제품 설명",
+        "body": "20-30대 여성의 피부를 위한 강력 보습! 72시간 지속적인 보습과 피부 장벽 강화로 건강한 피부 상태 만들기.",
+        "bullets": [
+          "72시간 보습 - 오래도록 촉촉함",
+          "피부 장벽 강화 - 더 견고한 피부",
+          "순한 성분 사용 - 민감성 피부도 안심"
+        ],
+        "cta": "즉시 구매하기"
+      },
+      "expected_output": {
+        "headline": "72시간 촉촉함의 비밀",
+        "subheadline": "히알루론산의 강력한 보습력",
+        "body": "순한 성분으로 피부 장벽을 강화하고, 72시간 동안 깊은 보습을 선사합니다.",
+        "bullets": [
+          "72시간 보습",
+          "피부 장벽 강화",
+          "순한 성분"
+        ],
+        "cta": "지금 만나보세요"
+      },
+      "validation_details": {
+        "overall_score": 2.3,
+        "field_scores": {
+          "headline": 1.0,
+          "subheadline": 1.1,
+          "body": 2.9,
+          "bullets": 5.0,
+          "cta": 1.3
+        },
+        "details": {
+          "headline": {
+            "actual": "히알루론산 세럼",
+            "expected": "72시간 촉촉함의 비밀",
+            "length": 8,
+            "max_length": 20,
+            "length_ok": true
+          },
+          "subheadline": {
+            "actual": "제품 설명",
+            "expected": "히알루론산의 강력한 보습력",
+            "length": 5,
+            "max_length": 30,
+            "length_ok": true
+          },
+          "body": {
+            "actual": "20-30대 여성의 피부를 위한 강력 보습! 72시간 지속적인 보습과 피부 장벽 강화로 건강한 피부 상태 만들기.",
+            "expected": "순한 성분으로 피부 장벽을 강화하고, 72시간 동안 깊은 보습을 선사합니다.",
+            "length": 63,
+            "max_length": 80,
+            "length_ok": true
+          },
+          "bullets": {
+            "actual": [
+              "72시간 보습 - 오래도록 촉촉함",
+              "피부 장벽 강화 - 더 견고한 피부",
+              "순한 성분 사용 - 민감성 피부도 안심"
+            ],
+            "expected": [
+              "72시간 보습",
+              "피부 장벽 강화",
+              "순한 성분"
+            ],
+            "count": 3,
+            "expected_count": 3,
+            "lengths": [
+              18,
+              19,
+              21
+            ],
+            "max_item_length": 20,
+            "all_ok": false
+          },
+          "cta": {
+            "actual": "즉시 구매하기",
+            "expected": "지금 만나보세요",
+            "length": 7,
+            "max_length": 15,
+            "length_ok": true
+          },
+          "tone": {
+            "expected": "friendly",
+            "note": "Tone은 정성적 평가 필요"
+          }
+        }
+      },
+      "usage": {
+        "elapsed_seconds": 2.39,
+        "tokens": 1595
+      }
+    },
+    {
+      "case_id": "golden_003",
+      "scenario": "러닝화 - 패션/스포츠",
+      "passed": false,
+      "score": 3.1,
+      "actual_output": {
+        "headline": "에어로 X1 러닝화",
+        "subheadline": "제품 설명",
+        "body": "경량 디자인과 쿠션 기술로 편안한 달리기를 돕습니다. 통기성 메시 덕분에 발이 시원하게 증가된 활동 시간을 즐기세요!",
+        "bullets": [
+          "경량 디자인 - 빠르게 달릴 수 있어요",
+          "쿠션 기술 - 매끄러운 달리기로 피로도 줄여",
+          "통기성 메시 - 발이 시원하게 쾌적한 체감"
+        ],
+        "cta": "즉시 주문하기"
+      },
+      "expected_output": {
+        "headline": "더 빠르게, 더 가볍게",
+        "subheadline": "에어로 러닝화로 달리기의 즐거움을",
+        "body": "경량 디자인과 쿠션 기술, 통기성 메시로 최고의 러닝 경험을 선사합니다.",
+        "bullets": [
+          "경량 디자인",
+          "쿠션 기술",
+          "통기성 메시"
+        ],
+        "cta": "달리기 시작하기"
+      },
+      "validation_details": {
+        "overall_score": 3.1,
+        "field_scores": {
+          "headline": 1.8,
+          "subheadline": 0.9,
+          "body": 3.8,
+          "bullets": 5.0,
+          "cta": 4.0
+        },
+        "details": {
+          "headline": {
+            "actual": "에어로 X1 러닝화",
+            "expected": "더 빠르게, 더 가볍게",
+            "length": 10,
+            "max_length": 20,
+            "length_ok": true
+          },
+          "subheadline": {
+            "actual": "제품 설명",
+            "expected": "에어로 러닝화로 달리기의 즐거움을",
+            "length": 5,
+            "max_length": 30,
+            "length_ok": true
+          },
+          "body": {
+            "actual": "경량 디자인과 쿠션 기술로 편안한 달리기를 돕습니다. 통기성 메시 덕분에 발이 시원하게 증가된 활동 시간을 즐기세요!",
+            "expected": "경량 디자인과 쿠션 기술, 통기성 메시로 최고의 러닝 경험을 선사합니다.",
+            "length": 65,
+            "max_length": 80,
+            "length_ok": true
+          },
+          "bullets": {
+            "actual": [
+              "경량 디자인 - 빠르게 달릴 수 있어요",
+              "쿠션 기술 - 매끄러운 달리기로 피로도 줄여",
+              "통기성 메시 - 발이 시원하게 쾌적한 체감"
+            ],
+            "expected": [
+              "경량 디자인",
+              "쿠션 기술",
+              "통기성 메시"
+            ],
+            "count": 3,
+            "expected_count": 3,
+            "lengths": [
+              21,
+              24,
+              23
+            ],
+            "max_item_length": 20,
+            "all_ok": false
+          },
+          "cta": {
+            "actual": "즉시 주문하기",
+            "expected": "달리기 시작하기",
+            "length": 7,
+            "max_length": 15,
+            "length_ok": true
+          },
+          "tone": {
+            "expected": "energetic",
+            "note": "Tone은 정성적 평가 필요"
+          }
+        }
+      },
+      "usage": {
+        "elapsed_seconds": 2.98,
+        "tokens": 1626
+      }
+    },
+    {
+      "case_id": "golden_004",
+      "scenario": "건강기능식품 - 헬스케어",
+      "passed": false,
+      "score": 2.8,
+      "actual_output": {
+        "headline": "프리미엄 오메가3",
+        "subheadline": "제품 설명",
+        "body": "건강 관리자 위한 최고의 오메가3. 고함량 EPA/DHA와 rTG 기술로 체내 흡수가 빠르고 효율적입니다.",
+        "bullets": [
+          "rTG 오메가3 - 흡수력 대폭 향상",
+          "고함량 EPA/DHA - 건강 관리 최적화",
+          "식약처 인증 - 안심하고 섭취"
+        ],
+        "cta": "바로 주문하기"
+      },
+      "expected_output": {
+        "headline": "건강한 혈행의 시작",
+        "subheadline": "식약처 인증 rTG 오메가3",
+        "body": "고함량 EPA/DHA로 혈행 개선과 눈 건강을 동시에 관리하는 프리미엄 오메가3입니다.",
+        "bullets": [
+          "rTG 오메가3",
+          "고함량 EPA/DHA",
+          "식약처 인증"
+        ],
+        "cta": "건강 지키기"
+      },
+      "validation_details": {
+        "overall_score": 2.8,
+        "field_scores": {
+          "headline": 1.1,
+          "subheadline": 1.0,
+          "body": 3.6,
+          "bullets": 5.0,
+          "cta": 3.1
+        },
+        "details": {
+          "headline": {
+            "actual": "프리미엄 오메가3",
+            "expected": "건강한 혈행의 시작",
+            "length": 9,
+            "max_length": 20,
+            "length_ok": true
+          },
+          "subheadline": {
+            "actual": "제품 설명",
+            "expected": "식약처 인증 rTG 오메가3",
+            "length": 5,
+            "max_length": 30,
+            "length_ok": true
+          },
+          "body": {
+            "actual": "건강 관리자 위한 최고의 오메가3. 고함량 EPA/DHA와 rTG 기술로 체내 흡수가 빠르고 효율적입니다.",
+            "expected": "고함량 EPA/DHA로 혈행 개선과 눈 건강을 동시에 관리하는 프리미엄 오메가3입니다.",
+            "length": 59,
+            "max_length": 80,
+            "length_ok": true
+          },
+          "bullets": {
+            "actual": [
+              "rTG 오메가3 - 흡수력 대폭 향상",
+              "고함량 EPA/DHA - 건강 관리 최적화",
+              "식약처 인증 - 안심하고 섭취"
+            ],
+            "expected": [
+              "rTG 오메가3",
+              "고함량 EPA/DHA",
+              "식약처 인증"
+            ],
+            "count": 3,
+            "expected_count": 3,
+            "lengths": [
+              20,
+              23,
+              16
+            ],
+            "max_item_length": 20,
+            "all_ok": false
+          },
+          "cta": {
+            "actual": "바로 주문하기",
+            "expected": "건강 지키기",
+            "length": 7,
+            "max_length": 15,
+            "length_ok": true
+          },
+          "tone": {
+            "expected": "professional",
+            "note": "Tone은 정성적 평가 필요"
+          }
+        }
+      },
+      "usage": {
+        "elapsed_seconds": 2.99,
+        "tokens": 1597
+      }
+    },
+    {
+      "case_id": "golden_005",
+      "scenario": "스마트워치 - 웨어러블",
+      "passed": false,
+      "score": 3.1,
+      "actual_output": {
+        "headline": "스마트워치 울트라",
+        "subheadline": "제품 설명",
+        "body": "액티브 라이프스타일에 딱 맞는 GPS 내장 스마트워치! 심박수 측정과 긴 배터리 기술로 끊임없는 모바일 연결을 누비세요.",
+        "bullets": [
+          "GPS 내장 - 어디서든 정확한 위치 추적",
+          "심박수 측정 - 운동 효율성 향상",
+          "5일 배터리 - 긴 생존력으로 편리"
+        ],
+        "cta": "즉시 주문하기"
+      },
+      "expected_output": {
+        "headline": "당신의 액티브한 하루",
+        "subheadline": "스마트워치 울트라와 함께",
+        "body": "GPS 내장과 심박수 측정으로 운동을 기록하고, 5일 배터리로 충전 걱정 없이 사용하세요.",
+        "bullets": [
+          "GPS 내장",
+          "심박수 측정",
+          "5일 배터리"
+        ],
+        "cta": "지금 시작하기"
+      },
+      "validation_details": {
+        "overall_score": 3.1,
+        "field_scores": {
+          "headline": 1.0,
+          "subheadline": 1.1,
+          "body": 4.3,
+          "bullets": 5.0,
+          "cta": 4.3
+        },
+        "details": {
+          "headline": {
+            "actual": "스마트워치 울트라",
+            "expected": "당신의 액티브한 하루",
+            "length": 9,
+            "max_length": 20,
+            "length_ok": true
+          },
+          "subheadline": {
+            "actual": "제품 설명",
+            "expected": "스마트워치 울트라와 함께",
+            "length": 5,
+            "max_length": 30,
+            "length_ok": true
+          },
+          "body": {
+            "actual": "액티브 라이프스타일에 딱 맞는 GPS 내장 스마트워치! 심박수 측정과 긴 배터리 기술로 끊임없는 모바일 연결을 누비세요.",
+            "expected": "GPS 내장과 심박수 측정으로 운동을 기록하고, 5일 배터리로 충전 걱정 없이 사용하세요.",
+            "length": 67,
+            "max_length": 80,
+            "length_ok": true
+          },
+          "bullets": {
+            "actual": [
+              "GPS 내장 - 어디서든 정확한 위치 추적",
+              "심박수 측정 - 운동 효율성 향상",
+              "5일 배터리 - 긴 생존력으로 편리"
+            ],
+            "expected": [
+              "GPS 내장",
+              "심박수 측정",
+              "5일 배터리"
+            ],
+            "count": 3,
+            "expected_count": 3,
+            "lengths": [
+              23,
+              18,
+              19
+            ],
+            "max_item_length": 20,
+            "all_ok": false
+          },
+          "cta": {
+            "actual": "즉시 주문하기",
+            "expected": "지금 시작하기",
+            "length": 7,
+            "max_length": 15,
+            "length_ok": true
+          },
+          "tone": {
+            "expected": "energetic",
+            "note": "Tone은 정성적 평가 필요"
+          }
+        }
+      },
+      "usage": {
+        "elapsed_seconds": 2.76,
+        "tokens": 1615
+      }
+    },
+    {
+      "case_id": "golden_006",
+      "scenario": "노트북 - 전자제품",
+      "passed": false,
+      "score": 3.9,
+      "actual_output": {
+        "headline": "프로북 15인치",
+        "subheadline": "제품 설명",
+        "body": "강력한 Intel i7 프로세서와 빠른 속도의 16GB RAM, 512GB SSD가 탑재된 전문가용 노트북.",
+        "bullets": [
+          "Intel i7 프로세서 - 강력한 성능",
+          "16GB RAM - 효율적인 작업 속도",
+          "512GB SSD - 빠른 부팅과 저장"
+        ],
+        "cta": "즉시 체험하기"
+      },
+      "expected_output": {
+        "headline": "전문가를 위한 성능",
+        "subheadline": "프로북 15인치로 업무 효율 극대화",
+        "body": "Intel i7 프로세서와 16GB RAM, 512GB SSD로 모든 작업을 빠르게 처리합니다.",
+        "bullets": [
+          "Intel i7 프로세서",
+          "16GB RAM",
+          "512GB SSD"
+        ],
+        "cta": "성능 경험하기"
+      },
+      "validation_details": {
+        "overall_score": 3.9,
+        "field_scores": {
+          "headline": 1.1,
+          "subheadline": 0.8,
+          "body": 6.7,
+          "bullets": 5.0,
+          "cta": 5.7
+        },
+        "details": {
+          "headline": {
+            "actual": "프로북 15인치",
+            "expected": "전문가를 위한 성능",
+            "length": 8,
+            "max_length": 20,
+            "length_ok": true
+          },
+          "subheadline": {
+            "actual": "제품 설명",
+            "expected": "프로북 15인치로 업무 효율 극대화",
+            "length": 5,
+            "max_length": 30,
+            "length_ok": true
+          },
+          "body": {
+            "actual": "강력한 Intel i7 프로세서와 빠른 속도의 16GB RAM, 512GB SSD가 탑재된 전문가용 노트북.",
+            "expected": "Intel i7 프로세서와 16GB RAM, 512GB SSD로 모든 작업을 빠르게 처리합니다.",
+            "length": 60,
+            "max_length": 80,
+            "length_ok": true
+          },
+          "bullets": {
+            "actual": [
+              "Intel i7 프로세서 - 강력한 성능",
+              "16GB RAM - 효율적인 작업 속도",
+              "512GB SSD - 빠른 부팅과 저장"
+            ],
+            "expected": [
+              "Intel i7 프로세서",
+              "16GB RAM",
+              "512GB SSD"
+            ],
+            "count": 3,
+            "expected_count": 3,
+            "lengths": [
+              22,
+              21,
+              21
+            ],
+            "max_item_length": 20,
+            "all_ok": false
+          },
+          "cta": {
+            "actual": "즉시 체험하기",
+            "expected": "성능 경험하기",
+            "length": 7,
+            "max_length": 15,
+            "length_ok": true
+          },
+          "tone": {
+            "expected": "professional",
+            "note": "Tone은 정성적 평가 필요"
+          }
+        }
+      },
+      "usage": {
+        "elapsed_seconds": 2.41,
+        "tokens": 1592
+      }
+    },
+    {
+      "case_id": "golden_007",
+      "scenario": "커피 원두 - 식품",
+      "passed": false,
+      "score": 4.9,
+      "actual_output": {
+        "headline": "싱글 오리진 에티오피아",
+        "subheadline": "제품 설명",
+        "body": "프리미엄 스페셜티 레벨의 과일향 노트와 직접 로스팅 기술로 원품의 맛을 완벽히 재현합니다.",
+        "bullets": [
+          "싱글 오리진 - 고유한 맛 유지",
+          "직접 로스팅 - 최적의 샷 빌드",
+          "과일향 노트 - 달콤함과 산성균형"
+        ],
+        "cta": "이제 구매하기"
+      },
+      "expected_output": {
+        "headline": "에티오피아의 향기",
+        "subheadline": "싱글 오리진 스페셜티 커피",
+        "body": "직접 로스팅한 스페셜티 등급 원두로, 풍부한 과일향 노트를 경험하세요.",
+        "bullets": [
+          "직접 로스팅",
+          "과일향 노트",
+          "스페셜티 등급"
+        ],
+        "cta": "향 경험하기"
+      },
+      "validation_details": {
+        "overall_score": 4.9,
+        "field_scores": {
+          "headline": 4.8,
+          "subheadline": 1.1,
+          "body": 3.4,
+          "bullets": 10.0,
+          "cta": 4.6
+        },
+        "details": {
+          "headline": {
+            "actual": "싱글 오리진 에티오피아",
+            "expected": "에티오피아의 향기",
+            "length": 12,
+            "max_length": 20,
+            "length_ok": true
+          },
+          "subheadline": {
+            "actual": "제품 설명",
+            "expected": "싱글 오리진 스페셜티 커피",
+            "length": 5,
+            "max_length": 30,
+            "length_ok": true
+          },
+          "body": {
+            "actual": "프리미엄 스페셜티 레벨의 과일향 노트와 직접 로스팅 기술로 원품의 맛을 완벽히 재현합니다.",
+            "expected": "직접 로스팅한 스페셜티 등급 원두로, 풍부한 과일향 노트를 경험하세요.",
+            "length": 50,
+            "max_length": 80,
+            "length_ok": true
+          },
+          "bullets": {
+            "actual": [
+              "싱글 오리진 - 고유한 맛 유지",
+              "직접 로스팅 - 최적의 샷 빌드",
+              "과일향 노트 - 달콤함과 산성균형"
+            ],
+            "expected": [
+              "직접 로스팅",
+              "과일향 노트",
+              "스페셜티 등급"
+            ],
+            "count": 3,
+            "expected_count": 3,
+            "lengths": [
+              17,
+              17,
+              18
+            ],
+            "max_item_length": 20,
+            "all_ok": true
+          },
+          "cta": {
+            "actual": "이제 구매하기",
+            "expected": "향 경험하기",
+            "length": 7,
+            "max_length": 15,
+            "length_ok": true
+          },
+          "tone": {
+            "expected": "luxury",
+            "note": "Tone은 정성적 평가 필요"
+          }
+        }
+      },
+      "usage": {
+        "elapsed_seconds": 2.61,
+        "tokens": 1607
+      }
+    },
+    {
+      "case_id": "golden_008",
+      "scenario": "요가 매트 - 피트니스",
+      "passed": false,
+      "score": 4.3,
+      "actual_output": {
+        "headline": "프리미엄 요가 매트",
+        "subheadline": "제품 설명",
+        "body": "친환경 소재로 만든 두툼한 매트, 미끄러짐 없이 즐거운 운동时光，请您提供需要翻译成中文的具体内容，我会为您进行翻译。如果您有特定的文本或段落需要翻译，请直接粘贴在这里。否则，我将根据一般情况为您提供一个示例翻译。",
+        "bullets": [
+          "친환경 소재, 지구를 생각하세요",
+          "6mm 두께, 편안한 요가",
+          "미끄럼 방지, 안전한 운동"
+        ],
+        "cta": " 지금 주문하기"
+      },
+      "expected_output": {
+        "headline": "편안한 요가의 시작",
+        "subheadline": "프리미엄 요가 매트와 함께",
+        "body": "친환경 소재의 6mm 두께 매트로, 미끄럼 방지 기능까지 갖춘 요가 필수템입니다.",
+        "bullets": [
+          "친환경 소재",
+          "6mm 두께",
+          "미끄럼 방지"
+        ],
+        "cta": "요가 시작하기"
+      },
+      "validation_details": {
+        "overall_score": 4.3,
+        "field_scores": {
+          "headline": 4.0,
+          "subheadline": 1.1,
+          "body": 2.0,
+          "bullets": 10.0,
+          "cta": 4.0
+        },
+        "details": {
+          "headline": {
+            "actual": "프리미엄 요가 매트",
+            "expected": "편안한 요가의 시작",
+            "length": 10,
+            "max_length": 20,
+            "length_ok": true
+          },
+          "subheadline": {
+            "actual": "제품 설명",
+            "expected": "프리미엄 요가 매트와 함께",
+            "length": 5,
+            "max_length": 30,
+            "length_ok": true
+          },
+          "body": {
+            "actual": "친환경 소재로 만든 두툼한 매트, 미끄러짐 없이 즐거운 운동时光，请您提供需要翻译成中文的具体内容，我会为您进行翻译。如果您有特定的文本或段落需要翻译，请直接粘贴在这里。否则，我将根据一般情况为您提供一个示例翻译。",
+            "expected": "친환경 소재의 6mm 두께 매트로, 미끄럼 방지 기능까지 갖춘 요가 필수템입니다.",
+            "length": 110,
+            "max_length": 80,
+            "length_ok": false
+          },
+          "bullets": {
+            "actual": [
+              "친환경 소재, 지구를 생각하세요",
+              "6mm 두께, 편안한 요가",
+              "미끄럼 방지, 안전한 운동"
+            ],
+            "expected": [
+              "친환경 소재",
+              "6mm 두께",
+              "미끄럼 방지"
+            ],
+            "count": 3,
+            "expected_count": 3,
+            "lengths": [
+              17,
+              14,
+              14
+            ],
+            "max_item_length": 20,
+            "all_ok": true
+          },
+          "cta": {
+            "actual": " 지금 주문하기",
+            "expected": "요가 시작하기",
+            "length": 8,
+            "max_length": 15,
+            "length_ok": true
+          },
+          "tone": {
+            "expected": "friendly",
+            "note": "Tone은 정성적 평가 필요"
+          }
+        }
+      },
+      "usage": {
+        "elapsed_seconds": 3.13,
+        "tokens": 1607
+      }
+    },
+    {
+      "case_id": "golden_009",
+      "scenario": "향수 - 럭셔리",
+      "passed": false,
+      "score": 4.0,
+      "actual_output": {
+        "headline": "오드 퍼퓸 노블",
+        "subheadline": "제품 설명",
+        "body": "프랑스 조향사의 손길이 닿은 우디 플로럴 냄새, 12시간 지속의 고급스러움. 럭셔리 소비자의 선택.",
+        "bullets": [
+          "프랑스 조향사의 명품 향기",
+          "우디 플로럴 복합 향",
+          "12시간 지속 퍼퓸"
+        ],
+        "cta": "지금 체험하기"
+      },
+      "expected_output": {
+        "headline": "우아함의 향기",
+        "subheadline": "프랑스 조향사의 작품, 오드 퍼퓸 노블",
+        "body": "우디 플로럴 향으로 12시간 동안 지속되는 프리미엄 향수입니다.",
+        "bullets": [
+          "우디 플로럴",
+          "12시간 지속",
+          "프랑스 조향"
+        ],
+        "cta": "향 느껴보기"
+      },
+      "validation_details": {
+        "overall_score": 4.0,
+        "field_scores": {
+          "headline": 1.3,
+          "subheadline": 1.5,
+          "body": 3.8,
+          "bullets": 10.0,
+          "cta": 3.1
+        },
+        "details": {
+          "headline": {
+            "actual": "오드 퍼퓸 노블",
+            "expected": "우아함의 향기",
+            "length": 8,
+            "max_length": 20,
+            "length_ok": true
+          },
+          "subheadline": {
+            "actual": "제품 설명",
+            "expected": "프랑스 조향사의 작품, 오드 퍼퓸 노블",
+            "length": 5,
+            "max_length": 30,
+            "length_ok": true
+          },
+          "body": {
+            "actual": "프랑스 조향사의 손길이 닿은 우디 플로럴 냄새, 12시간 지속의 고급스러움. 럭셔리 소비자의 선택.",
+            "expected": "우디 플로럴 향으로 12시간 동안 지속되는 프리미엄 향수입니다.",
+            "length": 55,
+            "max_length": 80,
+            "length_ok": true
+          },
+          "bullets": {
+            "actual": [
+              "프랑스 조향사의 명품 향기",
+              "우디 플로럴 복합 향",
+              "12시간 지속 퍼퓸"
+            ],
+            "expected": [
+              "우디 플로럴",
+              "12시간 지속",
+              "프랑스 조향"
+            ],
+            "count": 3,
+            "expected_count": 3,
+            "lengths": [
+              14,
+              11,
+              10
+            ],
+            "max_item_length": 20,
+            "all_ok": true
+          },
+          "cta": {
+            "actual": "지금 체험하기",
+            "expected": "향 느껴보기",
+            "length": 7,
+            "max_length": 15,
+            "length_ok": true
+          },
+          "tone": {
+            "expected": "luxury",
+            "note": "Tone은 정성적 평가 필요"
+          }
+        }
+      },
+      "usage": {
+        "elapsed_seconds": 2.38,
+        "tokens": 1595
+      }
+    },
+    {
+      "case_id": "golden_010",
+      "scenario": "보조배터리 - 액세서리",
+      "passed": false,
+      "error": "No JSON output found",
+      "score": 0.0
+    }
+  ]
+}
