@@ -18,6 +18,12 @@
 | **Backend 인프라** | 🟡 **진행 중** | 60% | Docker 환경 일부 이슈, 테스트 커버리지 35% |
 | **Frontend (Polotno 마이그레이션)** | 🟡 **진행 중** | 70% | Editor 전환 진행 중 |
 
+**Backend 인프라 100% 기준 정의**:
+- ✅ Mac Mini Docker 환경 정상 동작 (모든 서비스 Healthy)
+- ✅ CI Pipeline 녹색 상태 유지
+- ✅ P0 Agent (Copywriter, Strategist) 테스트 커버리지 ≥ 70%
+- ✅ 주요 Agent 단위 테스트 추가 (Reviewer, Optimizer)
+
 ---
 
 ## 🏆 Part 1: CopywriterAgent 품질 시스템 구축 완료
@@ -146,25 +152,36 @@ class CampaignStrategyOutputV1(BaseModel):
 
 ## 📋 Part 3: Agent 확장 로드맵
 
-### 3단계 Rollout Plan
+### 3단계 Rollout Plan 요약
+
+| Agent | 대표 Task | 우선순위 | 목표 시점 | 목표 지표 | 상태 |
+|-------|----------|---------|----------|----------|------|
+| **CopywriterAgent** | `product_detail` | P0 | ✅ 완료 | Pass Rate 70% / Avg 7.5 | ✅ Production Ready |
+| **StrategistAgent** | `campaign_strategy` | P0 | 2025-12-06 | Pass Rate 70% / Avg 7.0 | 🟡 설계 완료, 구현 대기 |
+| **ReviewerAgent** | `content_review` | P1 | 2025-12-20 | Pass Rate 70% / Avg 7.0 | ⏳ 대기 |
+| **OptimizerAgent** | `tone_optimization` | P1 | 2026-01-03 | Pass Rate 70% / Avg 7.0 | ⏳ 대기 |
+| **DesignerAgent** | `layout_generation` | P1 | 2026-01-24 | Schema Pass 100% | ⏳ 대기 |
+
+### Phase별 상세 구조
 
 #### Phase 1 (P0): CopywriterAgent ✅ 완료
 - `copywriter.product_detail` - Production Ready
 - Pass Rate: 70%, Avg Score: 7.5/10
+- 검증 강도: 4단계 Validation + Semantic Similarity
 
 #### Phase 2 (P0-P1): Top 5 Agents (진행 예정)
 
-| Agent | 우선순위 | 예상 기간 | 상태 |
-|-------|---------|----------|------|
-| **StrategistAgent** | P0 | 2주 | 🟡 설계 완료, 구현 대기 |
-| ReviewerAgent | P1 | 2주 | ⏳ 대기 |
-| OptimizerAgent | P1 | 2주 | ⏳ 대기 |
-| DesignerAgent | P1 | 3주 | ⏳ 대기 |
+| Agent | 우선순위 | 예상 기간 | 검증 강도 | 상태 |
+|-------|---------|----------|----------|------|
+| **StrategistAgent** | P0 | 2주 | 4단계 + Semantic Similarity | 🟡 설계 완료 |
+| ReviewerAgent | P1 | 2주 | 4단계 + Semantic Similarity | ⏳ 대기 |
+| OptimizerAgent | P1 | 2주 | 4단계 + Semantic Similarity | ⏳ 대기 |
+| DesignerAgent | P1 | 3주 | Schema + Quality only | ⏳ 대기 |
 
 #### Phase 3 (P1-P2): Design/Internal Agents
 
-- Design/Layout Agents: Schema + Quality만 (Semantic Similarity 불필요)
-- Internal/RAG Agents: Schema only (최소 검증)
+- **Design/Layout Agents**: Schema + Quality만 (Semantic Similarity 불필요)
+- **Internal/RAG Agents**: Schema only (최소 검증)
 
 ### 공통 원칙 (4가지)
 
@@ -195,9 +212,13 @@ class CampaignStrategyOutputV1(BaseModel):
 - `TrendCollectorAgent`가 `analyze_trends` Task를 지원하지 않음
 - 지원 Task: `collect_trends`, `category_trends`, `competitor_trends` 등 ([trend_collector.py:277](k:\sparklio_ai_marketing_studio\backend\app\services\agents\trend_collector.py#L277))
 
-**해결 방안**:
-1. 테스트 케이스에서 지원되는 Task로 변경
-2. 또는 `analyze_trends` Task를 `TrendCollectorAgent`에 추가 구현
+**해결 방안** (우선순위 결정):
+1. **🎯 우선 권장**: 테스트를 지원되는 Task로 수정 (예: `category_trends`)
+   - 기존 구현 활용, 즉시 해결 가능
+   - 담당: B팀, 기한: 1일 이내
+2. **🔄 후속 검토**: `analyze_trends` Task 추가 구현
+   - 전략적 필요성 확인 후 별도 Agent로 설계 고려
+   - 현재 Roadmap에 없음, P2 이후 검토
 
 #### 코드 커버리지
 
@@ -215,7 +236,13 @@ Gap: -35%
 **권장 조치**:
 1. Agent별 단위 테스트 추가 (특히 P0-P1 Agent)
 2. LLM Gateway 핵심 로직 테스트 추가
-3. 레거시 코드 (`generators/`) 정리 또는 제거
+3. **레거시 코드 정리 방침**:
+   - **대상**: `app/generators/` (커버리지 0%, 미사용 추정)
+   - **기본 방침**: 현재 Roadmap은 Agent 구조로만 확장하므로:
+     1. **1단계**: 사용 여부 조사 (프론트엔드/API 호출 확인)
+     2. **2단계**: 미사용 확인 시 완전 삭제 (브랜치 백업 후)
+     3. **기한**: 2주 이내 (StrategistAgent Sprint 기간 중)
+   - **담당**: B팀
 
 ### Docker 환경 (Mac Mini)
 
@@ -269,7 +296,8 @@ executable file not found in $PATH
 1. **TrendCollector 테스트 수정**
    - 담당: B팀
    - 기한: 1일 이내
-   - 내용: 테스트 케이스를 지원되는 Task로 변경 또는 Task 추가
+   - **우선 방침**: 테스트를 지원 Task (`category_trends`)로 변경
+   - 후속: `analyze_trends` 필요성은 P2 이후 검토
 
 2. **Docker Credential 이슈 해결**
    - 담당: DevOps / B팀
@@ -293,7 +321,9 @@ executable file not found in $PATH
 5. **레거시 코드 정리**
    - 담당: B팀
    - 기한: 2주 이내
-   - 대상: `app/generators/` (커버리지 0%, 미사용 가능성)
+   - 대상: `app/generators/` (커버리지 0%)
+   - **방침**: 사용 여부 조사 → 미사용 시 완전 삭제
+   - 현재 Roadmap은 Agent 구조만 사용
 
 ---
 

@@ -112,12 +112,56 @@ export async function applyContentPlanToPolotno(
 // Layout Background
 // ============================================================================
 
-const LAYOUT_GRADIENTS: Record<PageLayoutType, { from: string; to: string }> = {
-  cover: { from: '#6366F1', to: '#4F46E5' },
-  audience: { from: '#3B82F6', to: '#06B6D4' },
-  overview: { from: '#10B981', to: '#059669' },
-  channels: { from: '#F59E0B', to: '#D97706' },
-  cta: { from: '#EC4899', to: '#DB2777' },
+/**
+ * 레이아웃별 비주얼 템플릿
+ * - 그라데이션 배경
+ * - 전용 아이콘
+ * - 색상 팔레트
+ */
+interface LayoutTemplate {
+  gradient: { from: string; to: string };
+  icon?: string;
+  accentColor: string;
+  textColor: string;
+  titleAlign: 'left' | 'center' | 'right';
+}
+
+const LAYOUT_TEMPLATES: Record<PageLayoutType, LayoutTemplate> = {
+  cover: {
+    gradient: { from: '#6366F1', to: '#4F46E5' },
+    icon: '🚀',
+    accentColor: '#A5B4FC',
+    textColor: '#FFFFFF',
+    titleAlign: 'center',
+  },
+  audience: {
+    gradient: { from: '#3B82F6', to: '#06B6D4' },
+    icon: '👥',
+    accentColor: '#7DD3FC',
+    textColor: '#1F2937',
+    titleAlign: 'left',
+  },
+  overview: {
+    gradient: { from: '#10B981', to: '#059669' },
+    icon: '📊',
+    accentColor: '#6EE7B7',
+    textColor: '#1F2937',
+    titleAlign: 'left',
+  },
+  channels: {
+    gradient: { from: '#F59E0B', to: '#D97706' },
+    icon: '📢',
+    accentColor: '#FCD34D',
+    textColor: '#1F2937',
+    titleAlign: 'left',
+  },
+  cta: {
+    gradient: { from: '#EC4899', to: '#DB2777' },
+    icon: '✨',
+    accentColor: '#F9A8D4',
+    textColor: '#FFFFFF',
+    titleAlign: 'center',
+  },
 };
 
 async function applyLayoutBackground(
@@ -125,18 +169,76 @@ async function applyLayoutBackground(
   layout: PageLayoutType,
   options: Required<ConversionOptions>
 ): Promise<void> {
-  const gradient = LAYOUT_GRADIENTS[layout];
+  const template = LAYOUT_TEMPLATES[layout];
 
-  // SVG 그라데이션 배경 생성
+  // Cover 레이아웃: 강한 풀스크린 그라데이션
+  if (layout === 'cover') {
+    const svgBackground = `
+      <svg width="${options.pageWidth}" height="${options.pageHeight}" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="bg-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:${template.gradient.from};stop-opacity:0.95" />
+            <stop offset="100%" style="stop-color:${template.gradient.to};stop-opacity:1" />
+          </linearGradient>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#bg-gradient)" />
+        ${createDecorativePattern(options.pageWidth, options.pageHeight, template.accentColor)}
+      </svg>
+    `;
+
+    page.addElement({
+      type: 'svg',
+      x: 0,
+      y: 0,
+      width: options.pageWidth,
+      height: options.pageHeight,
+      src: `data:image/svg+xml;base64,${btoa(svgBackground)}`,
+      selectable: false,
+      locked: true,
+    });
+    return;
+  }
+
+  // CTA 레이아웃: 중간 강도 그라데이션
+  if (layout === 'cta') {
+    const svgBackground = `
+      <svg width="${options.pageWidth}" height="${options.pageHeight}" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <radialGradient id="bg-radial" cx="50%" cy="30%">
+            <stop offset="0%" style="stop-color:${template.gradient.from};stop-opacity:0.4" />
+            <stop offset="100%" style="stop-color:${template.gradient.to};stop-opacity:0.6" />
+          </radialGradient>
+        </defs>
+        <rect width="100%" height="100%" fill="white" />
+        <rect width="100%" height="100%" fill="url(#bg-radial)" />
+      </svg>
+    `;
+
+    page.addElement({
+      type: 'svg',
+      x: 0,
+      y: 0,
+      width: options.pageWidth,
+      height: options.pageHeight,
+      src: `data:image/svg+xml;base64,${btoa(svgBackground)}`,
+      selectable: false,
+      locked: true,
+    });
+    return;
+  }
+
+  // 기타 레이아웃: 약한 그라데이션 + 장식 요소
   const svgBackground = `
     <svg width="${options.pageWidth}" height="${options.pageHeight}" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <linearGradient id="bg-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" style="stop-color:${gradient.from};stop-opacity:0.1" />
-          <stop offset="100%" style="stop-color:${gradient.to};stop-opacity:0.15" />
+          <stop offset="0%" style="stop-color:${template.gradient.from};stop-opacity:0.08" />
+          <stop offset="100%" style="stop-color:${template.gradient.to};stop-opacity:0.12" />
         </linearGradient>
       </defs>
+      <rect width="100%" height="100%" fill="white" />
       <rect width="100%" height="100%" fill="url(#bg-gradient)" />
+      ${createAccentBar(options.pageWidth, template.accentColor)}
     </svg>
   `;
 
@@ -152,6 +254,27 @@ async function applyLayoutBackground(
   });
 }
 
+/**
+ * 장식용 패턴 생성 (Cover 전용)
+ */
+function createDecorativePattern(width: number, height: number, color: string): string {
+  return `
+    <circle cx="${width * 0.1}" cy="${height * 0.2}" r="150" fill="${color}" opacity="0.1" />
+    <circle cx="${width * 0.9}" cy="${height * 0.8}" r="200" fill="${color}" opacity="0.08" />
+    <circle cx="${width * 0.7}" cy="${height * 0.3}" r="100" fill="${color}" opacity="0.12" />
+  `;
+}
+
+/**
+ * 액센트 바 생성 (기타 레이아웃)
+ */
+function createAccentBar(width: number, color: string): string {
+  return `
+    <rect x="0" y="0" width="8" height="120" fill="${color}" opacity="0.8" />
+    <rect x="0" y="140" width="8" height="60" fill="${color}" opacity="0.4" />
+  `;
+}
+
 // ============================================================================
 // Blocks to Elements Conversion
 // ============================================================================
@@ -164,6 +287,7 @@ async function convertBlocksToElements(
 ): Promise<void> {
   // 레이아웃별 위치 전략
   const layoutStrategy = getLayoutStrategy(layout, options);
+  const template = LAYOUT_TEMPLATES[layout];
 
   let currentY = layoutStrategy.startY;
 
@@ -173,12 +297,19 @@ async function convertBlocksToElements(
       currentY,
       layoutStrategy.contentWidth,
       layoutStrategy.contentX,
-      options
+      options,
+      template
     );
 
     if (element) {
-      page.addElement(element);
-      currentY += element.height + layoutStrategy.spacing;
+      // 배열인 경우 (CTA 버튼 등) 모든 요소 추가
+      if (Array.isArray(element)) {
+        element.forEach((el) => page.addElement(el));
+        currentY += element[0].height + layoutStrategy.spacing;
+      } else {
+        page.addElement(element);
+        currentY += element.height + layoutStrategy.spacing;
+      }
     }
   }
 }
@@ -246,23 +377,24 @@ async function convertBlockToElement(
   y: number,
   maxWidth: number,
   x: number,
-  options: Required<ConversionOptions>
+  options: Required<ConversionOptions>,
+  template: LayoutTemplate
 ): Promise<any | null> {
   switch (block.type) {
     case 'title':
-      return createTitleElement(block, y, maxWidth, x, options);
+      return createTitleElement(block, y, maxWidth, x, options, template);
     case 'subtitle':
-      return createSubtitleElement(block, y, maxWidth, x, options);
+      return createSubtitleElement(block, y, maxWidth, x, options, template);
     case 'paragraph':
-      return createParagraphElement(block, y, maxWidth, x, options);
+      return createParagraphElement(block, y, maxWidth, x, options, template);
     case 'list':
-      return createListElement(block, y, maxWidth, x, options);
+      return createListElement(block, y, maxWidth, x, options, template);
     case 'image_placeholder':
       return createImagePlaceholderElement(block, y, maxWidth, x, options);
     case 'video_placeholder':
       return createVideoPlaceholderElement(block, y, maxWidth, x, options);
     case 'cta_button':
-      return createCTAButtonElement(block, y, maxWidth, x, options);
+      return createCTAButtonElement(block, y, maxWidth, x, options, template);
     default:
       return null;
   }
@@ -277,7 +409,8 @@ function createTitleElement(
   y: number,
   maxWidth: number,
   x: number,
-  options: Required<ConversionOptions>
+  options: Required<ConversionOptions>,
+  template: LayoutTemplate
 ): any {
   const content = block.content as { text: string };
   return {
@@ -290,8 +423,8 @@ function createTitleElement(
     fontSize: 64,
     fontFamily: options.fontFamily,
     fontWeight: 'bold',
-    fill: options.colorTheme.text,
-    align: 'center',
+    fill: template.textColor,
+    align: template.titleAlign,
   };
 }
 
@@ -300,7 +433,8 @@ function createSubtitleElement(
   y: number,
   maxWidth: number,
   x: number,
-  options: Required<ConversionOptions>
+  options: Required<ConversionOptions>,
+  template: LayoutTemplate
 ): any {
   const content = block.content as { text: string };
   return {
@@ -313,8 +447,8 @@ function createSubtitleElement(
     fontSize: 36,
     fontFamily: options.fontFamily,
     fontWeight: '600',
-    fill: options.colorTheme.text,
-    align: 'left',
+    fill: template.textColor,
+    align: template.titleAlign,
   };
 }
 
@@ -323,7 +457,8 @@ function createParagraphElement(
   y: number,
   maxWidth: number,
   x: number,
-  options: Required<ConversionOptions>
+  options: Required<ConversionOptions>,
+  template: LayoutTemplate
 ): any {
   const content = block.content as { text: string };
   const estimatedHeight = Math.max(100, Math.ceil(content.text.length / 60) * 40);
@@ -337,7 +472,7 @@ function createParagraphElement(
     text: content.text,
     fontSize: 20,
     fontFamily: options.fontFamily,
-    fill: options.colorTheme.text,
+    fill: template.textColor === '#FFFFFF' ? '#F3F4F6' : options.colorTheme.text,
     align: 'left',
     lineHeight: 1.6,
   };
@@ -348,10 +483,11 @@ function createListElement(
   y: number,
   maxWidth: number,
   x: number,
-  options: Required<ConversionOptions>
+  options: Required<ConversionOptions>,
+  template: LayoutTemplate
 ): any {
   const content = block.content as { items: string[] };
-  const listText = content.items.map((item) => `• ${item}`).join('\n');
+  const listText = content.items.map((item, i) => `${template.icon ? template.icon : '•'} ${item}`).join('\n');
   const estimatedHeight = content.items.length * 45;
 
   return {
@@ -363,7 +499,7 @@ function createListElement(
     text: listText,
     fontSize: 22,
     fontFamily: options.fontFamily,
-    fill: options.colorTheme.text,
+    fill: template.textColor === '#FFFFFF' ? '#F3F4F6' : options.colorTheme.text,
     align: 'left',
     lineHeight: 1.8,
   };
@@ -426,14 +562,16 @@ function createCTAButtonElement(
   y: number,
   maxWidth: number,
   x: number,
-  options: Required<ConversionOptions>
+  options: Required<ConversionOptions>,
+  template: LayoutTemplate
 ): any {
   const content = block.content as { text: string };
   const buttonWidth = 400;
   const buttonHeight = 80;
   const centerX = x + (maxWidth - buttonWidth) / 2;
 
-  // SVG 버튼 생성
+  // SVG 버튼 생성 (레이아웃별 색상 적용)
+  const buttonColor = template.accentColor || options.colorTheme.primary;
   const buttonSVG = `
     <svg width="${buttonWidth}" height="${buttonHeight}" xmlns="http://www.w3.org/2000/svg">
       <defs>
@@ -449,7 +587,7 @@ function createCTAButtonElement(
           </feMerge>
         </filter>
       </defs>
-      <rect width="100%" height="100%" rx="12" fill="${options.colorTheme.primary}" filter="url(#shadow)" />
+      <rect width="100%" height="100%" rx="12" fill="${template.gradient.from}" filter="url(#shadow)" />
     </svg>
   `;
 
