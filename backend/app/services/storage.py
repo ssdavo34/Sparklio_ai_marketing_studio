@@ -120,3 +120,12 @@ class StorageService:
 
 # Global storage service instance
 storage_service = StorageService()
+
+
+def get_storage_service() -> StorageService:
+    """
+    Get StorageService singleton instance
+
+    FastAPI dependency injection에서 사용
+    """
+    return storage_service
