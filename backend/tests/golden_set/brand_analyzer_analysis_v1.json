@@ -1,0 +1,382 @@
+{
+  "version": "v1.0",
+  "agent": "brand_analyzer",
+  "task": "brand_dna_generation",
+  "description": "BrandAnalyzerAgent 품질 검증 Golden Set (5 cases)",
+  "created_at": "2025-11-24",
+  "author": "B팀 (Backend)",
+  "golden_cases": [
+    {
+      "id": "brand_analyzer_001",
+      "name": "친환경 브랜드 EcoLife (높은 신뢰도)",
+      "scenario": "명확한 브랜드 아이덴티티와 충분한 문서",
+      "difficulty": "medium",
+      "input": {
+        "brand_name": "EcoLife",
+        "documents": [
+          {
+            "type": "pdf",
+            "extracted_text": "EcoLife는 지속 가능한 라이프스타일을 제안합니다. 친환경 소재로 만든 일상용품으로 지구와 함께하는 삶을 실천합니다. 우리의 모든 제품은 재활용 가능하며, 생산 과정에서 탄소 배출을 최소화합니다. 품질과 환경, 두 마리 토끼를 모두 잡았습니다.",
+            "title": "브랜드 가이드라인"
+          },
+          {
+            "type": "url",
+            "extracted_text": "Our Mission: Creating a sustainable future for the next generation. We believe in quality products that don't compromise the environment. Every small action counts. Join us in making a difference. 환경을 생각하는 작은 실천이 큰 변화를 만듭니다.",
+            "title": "About Page"
+          },
+          {
+            "type": "text",
+            "extracted_text": "고객님께: EcoLife와 함께라면 일상 속 작은 변화가 지구를 구합니다. 우리는 절대 그린워싱을 하지 않습니다. 모든 인증과 소재 정보를 투명하게 공개합니다. 지속 가능한 내일을 위한 오늘의 선택, EcoLife입니다.",
+            "title": "브랜드 메시지"
+          }
+        ],
+        "website_url": "https://ecolife.com",
+        "industry": "친환경 생활용품"
+      },
+      "expected_output": {
+        "tone": "진정성 있고 따뜻한 톤, 환경 문제에 대한 진지함과 일상 속 실천 가능성을 동시에 전달",
+        "key_messages": [
+          "지속 가능한 내일을 위한 오늘의 선택",
+          "품질과 환경, 두 마리 토끼를 모두 잡다",
+          "작은 실천이 만드는 큰 변화"
+        ],
+        "target_audience": "환경 문제에 관심이 많은 2030 밀레니얼/Z세대, 윤리적 소비를 실천하며 일상 속 작은 변화를 중시하는 라이프스타일",
+        "dos": [
+          "환경 문제에 대한 진정성 있는 메시지 전달",
+          "실제 사용 가능한 구체적인 실천 방법 제시",
+          "제품의 친환경 인증, 소재 정보를 투명하게 공개",
+          "고객의 작은 실천을 격려하고 응원하는 톤 유지"
+        ],
+        "donts": [
+          "과도한 환경 보호 주장으로 부담감 주기",
+          "비현실적이거나 극단적인 제안",
+          "그린워싱으로 의심받을 수 있는 과장 광고",
+          "타 브랜드를 직접적으로 비난하는 표현"
+        ],
+        "sample_copies": [
+          "오늘 하나, 내일의 지구를 위한 작은 실천",
+          "품질은 타협하지 않습니다. 환경도 마찬가지로.",
+          "일상이 바뀌면 지구가 바뀝니다",
+          "지속 가능한 라이프스타일, EcoLife와 함께"
+        ],
+        "suggested_brand_kit": {
+          "primary_colors": ["#2E7D32", "#66BB6A"],
+          "secondary_colors": ["#F5F5F5", "#8D6E63"],
+          "fonts": {
+            "primary": "Montserrat",
+            "secondary": "Noto Sans KR"
+          },
+          "tone_keywords": ["진정성", "따뜻함", "실천", "지속가능", "품질"],
+          "forbidden_expressions": ["완벽한", "100%", "절대", "유일한", "최고급"]
+        },
+        "confidence_score": 8.5
+      },
+      "quality_metrics": {
+        "min_confidence_score": 7.0,
+        "required_fields": ["tone", "key_messages", "target_audience", "dos", "donts", "sample_copies", "suggested_brand_kit"]
+      }
+    },
+    {
+      "id": "brand_analyzer_002",
+      "name": "럭셔리 브랜드 LuxeMode (프리미엄)",
+      "scenario": "고급 브랜드 포지셔닝, 명확한 타겟층",
+      "difficulty": "medium",
+      "input": {
+        "brand_name": "LuxeMode",
+        "documents": [
+          {
+            "type": "pdf",
+            "extracted_text": "LuxeMode는 시간을 초월한 우아함을 추구합니다. 프랑스 장인의 손길과 최고급 소재가 만나 완성되는 예술작품. 우리는 트렌드를 따르지 않고, 트렌드를 만듭니다. 진정한 럭셔리는 과시가 아닌 품격입니다.",
+            "title": "Brand Book"
+          },
+          {
+            "type": "url",
+            "extracted_text": "Since 1985, LuxeMode has been synonymous with timeless elegance and uncompromising quality. Each piece is a masterpiece, crafted by French artisans with decades of expertise. For those who understand true luxury. 진정한 가치를 아는 이들을 위한 선택.",
+            "title": "Heritage Page"
+          }
+        ],
+        "industry": "럭셔리 패션"
+      },
+      "expected_output": {
+        "tone": "우아하고 절제된 톤, 과시보다 품격을 강조하며 클래식한 가치를 중시",
+        "key_messages": [
+          "시간을 초월한 우아함",
+          "트렌드를 따르지 않고, 트렌드를 만든다",
+          "진정한 럭셔리는 품격이다"
+        ],
+        "target_audience": "40-60대 상류층, 진정한 가치와 장인정신을 이해하며 트렌드보다 클래식한 우아함을 선호하는 고소득층",
+        "dos": [
+          "우아하고 절제된 언어 사용",
+          "장인정신과 헤리티지 강조",
+          "프리미엄 소재와 제작 과정의 차별성 전달",
+          "타임리스한 가치 지향"
+        ],
+        "donts": [
+          "트렌디하거나 캐주얼한 표현 사용",
+          "가격이나 할인 언급",
+          "대중적이거나 친근한 톤",
+          "과도한 감성 어필"
+        ],
+        "sample_copies": [
+          "시간이 증명하는 가치",
+          "장인의 손길, 당신의 품격",
+          "진정한 럭셔리는 영원합니다",
+          "우아함은 트렌드를 초월합니다"
+        ],
+        "suggested_brand_kit": {
+          "primary_colors": ["#000000", "#C9A063"],
+          "secondary_colors": ["#FFFFFF", "#8B7355"],
+          "fonts": {
+            "primary": "Playfair Display",
+            "secondary": "Lato"
+          },
+          "tone_keywords": ["우아함", "품격", "장인정신", "타임리스", "헤리티지"],
+          "forbidden_expressions": ["저렴한", "할인", "트렌디", "핫한", "대박"]
+        },
+        "confidence_score": 8.0
+      },
+      "quality_metrics": {
+        "min_confidence_score": 7.0,
+        "required_fields": ["tone", "key_messages", "target_audience", "dos", "donts", "sample_copies", "suggested_brand_kit"]
+      }
+    },
+    {
+      "id": "brand_analyzer_003",
+      "name": "스타트업 TechVibe (혁신적)",
+      "scenario": "젊은 타겟층, 혁신 지향",
+      "difficulty": "easy",
+      "input": {
+        "brand_name": "TechVibe",
+        "documents": [
+          {
+            "type": "text",
+            "extracted_text": "TechVibe는 기술로 일상을 혁신합니다. 복잡한 것은 심플하게, 불가능한 것은 가능하게. 우리는 젊은 크리에이터들의 파트너입니다. 함께 미래를 만들어갑니다. Stay curious, stay creative.",
+            "title": "Mission Statement"
+          },
+          {
+            "type": "url",
+            "extracted_text": "Innovation meets simplicity. We empower creators with cutting-edge tools that feel natural. No barriers, no complexity - just pure creativity. Join the revolution. 창의력에는 한계가 없습니다.",
+            "title": "About"
+          }
+        ],
+        "industry": "IT/소프트웨어"
+      },
+      "expected_output": {
+        "tone": "친근하고 혁신적인 톤, 기술에 대한 열정과 크리에이터 지향적 태도",
+        "key_messages": [
+          "복잡한 것은 심플하게, 불가능한 것은 가능하게",
+          "창의력에는 한계가 없다",
+          "함께 미래를 만들어가는 파트너"
+        ],
+        "target_audience": "2030 크리에이터, 디지털 노마드, 혁신적인 기술에 관심 많은 얼리어답터",
+        "dos": [
+          "친근하고 대화하는 듯한 톤 유지",
+          "혁신과 창의성 강조",
+          "사용자를 파트너로 존중",
+          "기술을 쉽고 재미있게 전달"
+        ],
+        "donts": [
+          "형식적이거나 딱딱한 표현",
+          "과도한 기술 용어 나열",
+          "일방적인 홍보성 메시지",
+          "보수적이거나 전통적인 톤"
+        ],
+        "sample_copies": [
+          "당신의 창의력, 우리의 기술",
+          "복잡함은 버리고, 창의력만 남기다",
+          "미래는 우리가 만들어갑니다",
+          "Stay curious, stay creative"
+        ],
+        "suggested_brand_kit": {
+          "primary_colors": ["#6C63FF", "#4F46E5"],
+          "secondary_colors": ["#10B981", "#F59E0B"],
+          "fonts": {
+            "primary": "Inter",
+            "secondary": "Space Grotesk"
+          },
+          "tone_keywords": ["혁신", "창의성", "심플", "친근함", "미래지향"],
+          "forbidden_expressions": ["전통적인", "보수적인", "복잡한", "딱딱한"]
+        },
+        "confidence_score": 7.5
+      },
+      "quality_metrics": {
+        "min_confidence_score": 6.5,
+        "required_fields": ["tone", "key_messages", "target_audience", "dos", "donts", "sample_copies", "suggested_brand_kit"]
+      }
+    },
+    {
+      "id": "brand_analyzer_004",
+      "name": "웰빙 브랜드 PureBalance (건강)",
+      "scenario": "건강/웰빙 포지셔닝, 과학적 근거 중시",
+      "difficulty": "medium",
+      "input": {
+        "brand_name": "PureBalance",
+        "documents": [
+          {
+            "type": "pdf",
+            "extracted_text": "PureBalance는 과학적으로 검증된 웰빙 솔루션을 제공합니다. 건강한 삶은 균형에서 시작됩니다. 우리는 엄격한 임상시험을 거친 성분만을 사용하며, 모든 제품은 식약처 인증을 받았습니다. 과장하지 않습니다. 과학이 증명합니다.",
+            "title": "Product Guide"
+          },
+          {
+            "type": "url",
+            "extracted_text": "Science-backed wellness for modern life. Our products are formulated by nutritionists and clinically tested. Transparency is our promise - we share all ingredient sources and test results. Your health deserves nothing but the truth. 건강한 삶을 위한 진실된 선택.",
+            "title": "Our Promise"
+          }
+        ],
+        "industry": "건강/웰빙"
+      },
+      "expected_output": {
+        "tone": "신뢰할 수 있고 전문적인 톤, 과학적 근거를 바탕으로 한 진정성",
+        "key_messages": [
+          "과학이 증명하는 웰빙",
+          "건강한 삶은 균형에서 시작한다",
+          "투명성이 우리의 약속"
+        ],
+        "target_audience": "3040 건강 관심층, 과학적 근거를 중시하며 과장 광고에 피로감을 느끼는 이성적 소비자",
+        "dos": [
+          "과학적 근거와 임상 데이터 강조",
+          "투명한 정보 공개",
+          "전문가 의견 및 인증 활용",
+          "진정성 있는 메시지 전달"
+        ],
+        "donts": [
+          "과장된 효과 주장",
+          "검증되지 않은 성분 언급",
+          "즉각적인 효과 약속",
+          "의학적 치료를 대체한다는 표현"
+        ],
+        "sample_copies": [
+          "과학이 증명한 건강",
+          "균형 잡힌 삶, 검증된 성분",
+          "투명함이 만드는 신뢰",
+          "건강한 선택, 과학적 근거"
+        ],
+        "suggested_brand_kit": {
+          "primary_colors": ["#0EA5E9", "#06B6D4"],
+          "secondary_colors": ["#10B981", "#F3F4F6"],
+          "fonts": {
+            "primary": "Source Sans Pro",
+            "secondary": "Noto Sans KR"
+          },
+          "tone_keywords": ["과학적", "신뢰", "균형", "투명성", "진정성"],
+          "forbidden_expressions": ["기적의", "100% 효과", "즉각", "완전히 치료", "부작용 없음"]
+        },
+        "confidence_score": 8.0
+      },
+      "quality_metrics": {
+        "min_confidence_score": 7.0,
+        "required_fields": ["tone", "key_messages", "target_audience", "dos", "donts", "sample_copies", "suggested_brand_kit"]
+      }
+    },
+    {
+      "id": "brand_analyzer_005",
+      "name": "펫케어 브랜드 PawsLove (감성)",
+      "scenario": "펫케어 브랜드, 감성과 전문성 조화",
+      "difficulty": "medium",
+      "input": {
+        "brand_name": "PawsLove",
+        "documents": [
+          {
+            "type": "text",
+            "extracted_text": "PawsLove는 반려동물을 가족으로 생각합니다. 우리 아이들에게 가장 좋은 것을 주고 싶은 마음, PawsLove가 함께합니다. 수의사와 함께 개발한 프리미엄 제품으로 우리 아이의 건강을 지킵니다. 사랑하는 만큼 책임지는 것, 그것이 PawsLove의 약속입니다.",
+            "title": "브랜드 스토리"
+          },
+          {
+            "type": "url",
+            "extracted_text": "Every pet deserves the best. Our products are vet-approved and made with love. Because they're family. 우리 아이들의 행복한 매일을 위해. PawsLove와 함께라면 안심입니다.",
+            "title": "Homepage"
+          }
+        ],
+        "industry": "펫케어"
+      },
+      "expected_output": {
+        "tone": "따뜻하고 감성적이면서도 전문성을 갖춘 톤, 반려동물을 가족으로 대하는 진심",
+        "key_messages": [
+          "반려동물은 가족입니다",
+          "사랑하는 만큼 책임진다",
+          "우리 아이의 행복한 매일"
+        ],
+        "target_audience": "2040 반려동물 보호자, 반려동물을 가족으로 생각하며 프리미엄 제품에 투자를 아끼지 않는 펫 부모",
+        "dos": [
+          "반려동물을 '우리 아이'로 지칭",
+          "감성적이면서도 전문성 있는 메시지",
+          "보호자의 마음 공감",
+          "수의사 승인 등 전문성 강조"
+        ],
+        "donts": [
+          "반려동물을 '애완동물'이라 칭하기",
+          "과도한 할인 강조",
+          "품질보다 가격 어필",
+          "보호자의 책임감을 무시하는 표현"
+        ],
+        "sample_copies": [
+          "우리 아이의 행복이 최우선",
+          "가족을 위한 마음, 전문가의 손길",
+          "사랑하는 만큼 더 좋은 것을",
+          "PawsLove, 우리 아이를 위한 선택"
+        ],
+        "suggested_brand_kit": {
+          "primary_colors": ["#F59E0B", "#FB923C"],
+          "secondary_colors": ["#FEF3C7", "#60A5FA"],
+          "fonts": {
+            "primary": "Poppins",
+            "secondary": "Noto Sans KR"
+          },
+          "tone_keywords": ["따뜻함", "가족", "책임", "전문성", "사랑"],
+          "forbidden_expressions": ["애완동물", "저렴한", "싼", "할인", "특가"]
+        },
+        "confidence_score": 8.0
+      },
+      "quality_metrics": {
+        "min_confidence_score": 7.0,
+        "required_fields": ["tone", "key_messages", "target_audience", "dos", "donts", "sample_copies", "suggested_brand_kit"]
+      }
+    }
+  ],
+  "validation_criteria": {
+    "tone": {
+      "min_length": 50,
+      "max_length": 200,
+      "required": true
+    },
+    "key_messages": {
+      "min_items": 3,
+      "max_items": 5,
+      "required": true
+    },
+    "target_audience": {
+      "min_length": 50,
+      "max_length": 300,
+      "required": true
+    },
+    "dos": {
+      "min_items": 3,
+      "max_items": 5,
+      "required": true
+    },
+    "donts": {
+      "min_items": 3,
+      "max_items": 5,
+      "required": true
+    },
+    "sample_copies": {
+      "min_items": 3,
+      "max_items": 5,
+      "required": true
+    },
+    "suggested_brand_kit": {
+      "required_fields": ["primary_colors", "secondary_colors", "fonts", "tone_keywords", "forbidden_expressions"],
+      "required": true
+    },
+    "confidence_score": {
+      "min": 0.0,
+      "max": 10.0,
+      "required": true
+    }
+  },
+  "pass_criteria": {
+    "overall_pass_rate": 0.7,
+    "min_confidence_score": 6.0,
+    "description": "Golden Set 5개 케이스 중 70% 이상 통과 (3.5개 이상), 평균 confidence_score 6.0 이상"
+  }
+}
