@@ -17,10 +17,12 @@ import { devtools } from 'zustand/middleware';
 // ============================================================================
 
 export type LeftPanelTab =
+  | 'project'
   | 'pages'
   | 'elements'
   | 'text'
   | 'upload'
+  | 'meeting'
   | 'photos'
   | 'brandkit';
 

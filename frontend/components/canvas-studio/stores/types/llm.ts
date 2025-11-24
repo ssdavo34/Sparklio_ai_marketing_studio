@@ -58,6 +58,45 @@ export type TaskType =
 export type CostMode = 'fast' | 'balanced' | 'quality';
 
 // ============================================================================
+// LLM Provider Types
+// ============================================================================
+
+/**
+ * 텍스트 생성 LLM 제공자
+ */
+export type TextLLMProvider =
+  | 'auto'          // 자동 선택 (기본)
+  | 'gpt-4'         // OpenAI GPT-4
+  | 'gpt-4o'        // OpenAI GPT-4 Optimized
+  | 'gemini'        // Google Gemini
+  | 'claude'        // Anthropic Claude
+  | 'llama'         // Meta Llama (Ollama)
+  | 'qwen'          // Alibaba Qwen (Ollama)
+  | 'mistral';      // Mistral (Ollama)
+
+/**
+ * 이미지 생성 LLM 제공자
+ */
+export type ImageLLMProvider =
+  | 'auto'          // 자동 선택 (기본)
+  | 'comfyui'       // ComfyUI
+  | 'nanobanana'    // NanoBanana
+  | 'dalle'         // DALL-E
+  | 'midjourney'    // Midjourney
+  | 'stable-diffusion'; // Stable Diffusion
+
+/**
+ * 동영상 생성 LLM 제공자
+ */
+export type VideoLLMProvider =
+  | 'auto'          // 자동 선택 (기본)
+  | 'veo3'          // Google Veo 3
+  | 'kling'         // Kling AI
+  | 'sora2'         // OpenAI Sora 2
+  | 'pika'          // Pika
+  | 'runway';       // Runway
+
+// ============================================================================
 // Gateway Request/Response
 // ============================================================================
 
@@ -120,6 +159,9 @@ export interface ChatConfig {
   language: string;
   temperature?: number;
   maxTokens?: number;
+  textLLM?: TextLLMProvider;      // 텍스트 LLM 선택
+  imageLLM?: ImageLLMProvider;    // 이미지 LLM 선택
+  videoLLM?: VideoLLMProvider;    // 동영상 LLM 선택
 }
 
 // ============================================================================
@@ -141,132 +183,256 @@ export interface TaskInfo {
   icon?: string;
 }
 
+export interface LLMProviderInfo {
+  id: string;
+  name: string;
+  description: string;
+}
+
 // ============================================================================
 // Constants
 // ============================================================================
 
 /**
- * Agent information
+ * 에이전트 정보 (한글)
  */
 export const AGENT_INFO: Record<AgentRole, AgentInfo> = {
   brief: {
     id: 'brief',
-    name: 'Brief Generator',
-    description: 'Create comprehensive marketing briefs',
+    name: '브리프 생성기',
+    description: '마케팅 브리프 작성',
     supportedTasks: ['marketing_brief', 'content_plan'],
   },
   strategist: {
     id: 'strategist',
-    name: 'Strategist',
-    description: '20-year marketing consultant',
+    name: '전략가',
+    description: '20년 경력 마케팅 컨설턴트',
     supportedTasks: ['marketing_brief', 'content_plan', 'brand_message'],
   },
   copywriter: {
     id: 'copywriter',
-    name: 'Copywriter',
-    description: '10-year copywriting expert',
+    name: '카피라이터',
+    description: '10년 경력 카피라이팅 전문가',
     supportedTasks: ['product_detail', 'sns', 'brand_message', 'headline', 'ad_copy'],
   },
   reviewer: {
     id: 'reviewer',
-    name: 'Reviewer',
-    description: 'Content review and quality assessment',
+    name: '검토자',
+    description: '콘텐츠 품질 검토 및 피드백',
     supportedTasks: ['review'],
   },
   optimizer: {
     id: 'optimizer',
-    name: 'Optimizer',
-    description: 'CRO specialist for conversion optimization',
+    name: '최적화 전문가',
+    description: '전환율 최적화 CRO 전문가',
     supportedTasks: ['optimize'],
   },
   editor: {
     id: 'editor',
-    name: 'Editor',
-    description: 'Professional proofreading and editing',
+    name: '에디터',
+    description: '전문 교정 및 편집',
     supportedTasks: ['proofread'],
   },
   vision: {
     id: 'vision',
-    name: 'Vision',
-    description: 'Image analysis and generation',
+    name: '비전 AI',
+    description: '이미지 분석 및 생성',
     supportedTasks: ['image_generate', 'image_analyze'],
   },
   custom: {
     id: 'custom',
-    name: 'Custom Agent',
-    description: 'Custom AI agent configuration',
+    name: '커스텀 에이전트',
+    description: '사용자 정의 AI 에이전트',
     supportedTasks: ['custom'],
   },
 };
 
 /**
- * Task information
+ * 작업 유형 정보 (한글)
  */
 export const TASK_INFO: Record<TaskType, TaskInfo> = {
   marketing_brief: {
     id: 'marketing_brief',
-    name: 'Marketing Brief',
-    description: 'Generate comprehensive marketing brief',
+    name: '마케팅 브리프',
+    description: '종합 마케팅 브리프 생성',
   },
   product_detail: {
     id: 'product_detail',
-    name: 'Product Description',
-    description: 'Create detailed product descriptions',
+    name: '상품 상세페이지',
+    description: '상품 설명 및 상세 정보 작성',
   },
   sns: {
     id: 'sns',
-    name: 'Social Media',
-    description: 'Generate social media content',
+    name: 'SNS 콘텐츠',
+    description: '소셜 미디어 콘텐츠 생성',
   },
   brand_message: {
     id: 'brand_message',
-    name: 'Brand Messaging',
-    description: 'Create brand messaging and positioning',
+    name: '브랜드 메시징',
+    description: '브랜드 메시지 및 포지셔닝',
   },
   content_plan: {
     id: 'content_plan',
-    name: 'Content Plan',
-    description: 'Plan content strategy',
+    name: '콘텐츠 기획',
+    description: '콘텐츠 전략 기획',
   },
   headline: {
     id: 'headline',
-    name: 'Headline',
-    description: 'Generate compelling headlines',
+    name: '헤드라인',
+    description: '매력적인 헤드라인 생성',
   },
   ad_copy: {
     id: 'ad_copy',
-    name: 'Ad Copy',
-    description: 'Create advertisement copy',
+    name: '광고 카피',
+    description: '광고 문구 작성',
   },
   review: {
     id: 'review',
-    name: 'Content Review',
-    description: 'Review and assess content quality',
+    name: '콘텐츠 검토',
+    description: '콘텐츠 품질 검토 및 평가',
   },
   optimize: {
     id: 'optimize',
-    name: 'Optimize',
-    description: 'Optimize content for conversion',
+    name: '최적화',
+    description: '전환율 최적화 콘텐츠',
   },
   proofread: {
     id: 'proofread',
-    name: 'Proofread',
-    description: 'Proofread and edit content',
+    name: '교정',
+    description: '맞춤법 및 문장 교정',
   },
   image_generate: {
     id: 'image_generate',
-    name: 'Generate Image',
-    description: 'Generate images from text prompts',
+    name: '이미지 생성',
+    description: '텍스트로 이미지 생성',
   },
   image_analyze: {
     id: 'image_analyze',
-    name: 'Analyze Image',
-    description: 'Analyze and describe images',
+    name: '이미지 분석',
+    description: '이미지 분석 및 설명',
   },
   custom: {
     id: 'custom',
-    name: 'Custom Task',
-    description: 'Custom task configuration',
+    name: '사용자 정의',
+    description: '사용자 정의 작업',
+  },
+};
+
+/**
+ * 텍스트 LLM 제공자 정보 (한글)
+ */
+export const TEXT_LLM_INFO: Record<TextLLMProvider, LLMProviderInfo> = {
+  auto: {
+    id: 'auto',
+    name: '자동 선택',
+    description: '최적의 모델 자동 선택',
+  },
+  'gpt-4': {
+    id: 'gpt-4',
+    name: 'GPT-4',
+    description: 'OpenAI GPT-4',
+  },
+  'gpt-4o': {
+    id: 'gpt-4o',
+    name: 'GPT-4 Optimized',
+    description: 'OpenAI GPT-4 최적화 버전',
+  },
+  gemini: {
+    id: 'gemini',
+    name: 'Gemini',
+    description: 'Google Gemini',
+  },
+  claude: {
+    id: 'claude',
+    name: 'Claude',
+    description: 'Anthropic Claude',
+  },
+  llama: {
+    id: 'llama',
+    name: 'Llama',
+    description: 'Meta Llama (Ollama)',
+  },
+  qwen: {
+    id: 'qwen',
+    name: 'Qwen',
+    description: 'Alibaba Qwen (Ollama)',
+  },
+  mistral: {
+    id: 'mistral',
+    name: 'Mistral',
+    description: 'Mistral (Ollama)',
+  },
+};
+
+/**
+ * 이미지 LLM 제공자 정보 (한글)
+ */
+export const IMAGE_LLM_INFO: Record<ImageLLMProvider, LLMProviderInfo> = {
+  auto: {
+    id: 'auto',
+    name: '자동 선택',
+    description: '최적의 이미지 생성 모델 자동 선택',
+  },
+  comfyui: {
+    id: 'comfyui',
+    name: 'ComfyUI',
+    description: 'ComfyUI 이미지 생성',
+  },
+  nanobanana: {
+    id: 'nanobanana',
+    name: 'NanoBanana',
+    description: 'NanoBanana 이미지 생성',
+  },
+  dalle: {
+    id: 'dalle',
+    name: 'DALL-E',
+    description: 'OpenAI DALL-E',
+  },
+  midjourney: {
+    id: 'midjourney',
+    name: 'Midjourney',
+    description: 'Midjourney 이미지 생성',
+  },
+  'stable-diffusion': {
+    id: 'stable-diffusion',
+    name: 'Stable Diffusion',
+    description: 'Stable Diffusion',
+  },
+};
+
+/**
+ * 동영상 LLM 제공자 정보 (한글)
+ */
+export const VIDEO_LLM_INFO: Record<VideoLLMProvider, LLMProviderInfo> = {
+  auto: {
+    id: 'auto',
+    name: '자동 선택',
+    description: '최적의 동영상 생성 모델 자동 선택',
+  },
+  veo3: {
+    id: 'veo3',
+    name: 'VEO 3',
+    description: 'Google VEO 3',
+  },
+  kling: {
+    id: 'kling',
+    name: 'Kling AI',
+    description: 'Kling AI 동영상 생성',
+  },
+  sora2: {
+    id: 'sora2',
+    name: 'Sora 2',
+    description: 'OpenAI Sora 2',
+  },
+  pika: {
+    id: 'pika',
+    name: 'Pika',
+    description: 'Pika 동영상 생성',
+  },
+  runway: {
+    id: 'runway',
+    name: 'Runway',
+    description: 'Runway 동영상 생성',
   },
 };
 
@@ -280,4 +446,7 @@ export const DEFAULT_CHAT_CONFIG: ChatConfig = {
   language: 'ko',
   temperature: 0.7,
   maxTokens: 1000,
+  textLLM: 'auto',
+  imageLLM: 'auto',
+  videoLLM: 'auto',
 };

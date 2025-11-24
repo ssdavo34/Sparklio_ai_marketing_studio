@@ -86,6 +86,22 @@
   - `components/canvas-studio/mocks/reviewer-mock.ts`
   - `lib/utils/response-type-detector.ts` (Reviewer 감지 추가)
   - `components/canvas-studio/components/AIResponseRenderer.tsx` (Reviewer 렌더링 추가)
+- **2025-11-24**: MVP Phase 1 완료 (데이터 아키텍처 & 라우팅)
+  - TypeScript 타입 정의 (`types/workspace.ts`, `types/brand.ts`, `types/brief.ts`, `types/asset.ts`)
+  - Zustand Store (`useWorkspaceStore`, `useBrandStore`, `useProjectStore`, `useBriefStore`)
+  - API 클라이언트 (`lib/api/workspace-api.ts`, `brand-api.ts`, `brief-api.ts`, `project-api.ts`, `brand-analyzer-api.ts`)
+  - 워크스페이스 목록 페이지 (`app/workspace/page.tsx`)
+  - 워크스페이스 대시보드 (`app/workspace/[id]/page.tsx`)
+  - 프로젝트 상세 페이지 (`app/workspace/[id]/project/[projectId]/page.tsx`)
+  - **에디터 연결**: `/studio/v3?projectId={id}` 로 프로젝트 컨텍스트 전달
+- **2025-11-24**: One-Page 아키텍처 통합 완료
+  - **중요 아키텍처 결정**: 모든 작업은 `/studio/v3` 단일 페이지에서 수행
+  - `/workspace/*` 페이지: 관리 & 히스토리 전용 (READ-ONLY)
+  - `/studio/v3`: 브리프 작성, 콘텐츠 생성, 편집 등 모든 실제 작업 수행
+  - 에디터 URL 파라미터 처리: `app/studio/v3/page.tsx` 에서 `projectId` 자동 로드
+  - 워크스페이스/프로젝트 셀렉터 추가: `TopToolbar.tsx` (드롭다운 UI)
+  - 프로젝트 컨텍스트 사이드바: `ProjectTab.tsx` (왼쪽 패널 새 탭)
+  - ActivityBar에 "Project" 탭 추가 (FolderOpen 아이콘)
 
 ---
 

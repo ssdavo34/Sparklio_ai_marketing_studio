@@ -16,10 +16,12 @@
 'use client';
 
 import { useLeftPanelStore } from '../../stores/useLeftPanelStore';
+import { ProjectTab } from './tabs/ProjectTab';
 import { PagesTab } from './tabs/PagesTab';
 import { ElementsTab } from './tabs/ElementsTab';
 import { TextTab } from './tabs/TextTab';
 import { UploadTab } from './tabs/UploadTab';
+import { MeetingTab } from './tabs/MeetingTab';
 import { PhotosTab } from './tabs/PhotosTab';
 import { BrandKitTab } from './tabs/BrandKitTab';
 
@@ -30,10 +32,12 @@ export function LeftPanel() {
     <div className="flex flex-col h-full bg-white">
       {/* Tab Content */}
       <div className="flex-1 overflow-y-auto">
+        {activeTab === 'project' && <ProjectTab />}
         {activeTab === 'pages' && <PagesTab />}
         {activeTab === 'elements' && <ElementsTab />}
         {activeTab === 'text' && <TextTab />}
         {activeTab === 'upload' && <UploadTab />}
+        {activeTab === 'meeting' && <MeetingTab />}
         {activeTab === 'photos' && <PhotosTab />}
         {activeTab === 'brandkit' && <BrandKitTab />}
       </div>

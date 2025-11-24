@@ -15,7 +15,7 @@
 
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
-import type { AgentRole, TaskType, ChatConfig, CostMode } from './types/llm';
+import type { AgentRole, TaskType, ChatConfig, CostMode, TextLLMProvider, ImageLLMProvider, VideoLLMProvider } from './types/llm';
 import { DEFAULT_CHAT_CONFIG } from './types/llm';
 import { sendChatMessage, generateImage, gatewayClient } from '@/lib/llm-gateway-client';
 import { useCanvasStore } from './useCanvasStore';
@@ -567,6 +567,9 @@ export interface ChatState {
   setLanguage: (language: string) => void;
   setTemperature: (temperature: number) => void;
   setMaxTokens: (maxTokens: number) => void;
+  setTextLLM: (provider: TextLLMProvider) => void;
+  setImageLLM: (provider: ImageLLMProvider) => void;
+  setVideoLLM: (provider: VideoLLMProvider) => void;
 
   // Agent Actions
   sendMessage: (content: string) => Promise<void>;
@@ -755,6 +758,42 @@ export const useChatStore = create<ChatState>()(
             chatConfig: {
               ...state.chatConfig,
               maxTokens,
+            },
+          }));
+        },
+
+        /**
+         * Text LLM 제공자 설정
+         */
+        setTextLLM: (provider) => {
+          set((state) => ({
+            chatConfig: {
+              ...state.chatConfig,
+              textLLM: provider,
+            },
+          }));
+        },
+
+        /**
+         * Image LLM 제공자 설정
+         */
+        setImageLLM: (provider) => {
+          set((state) => ({
+            chatConfig: {
+              ...state.chatConfig,
+              imageLLM: provider,
+            },
+          }));
+        },
+
+        /**
+         * Video LLM 제공자 설정
+         */
+        setVideoLLM: (provider) => {
+          set((state) => ({
+            chatConfig: {
+              ...state.chatConfig,
+              videoLLM: provider,
             },
           }));
         },
