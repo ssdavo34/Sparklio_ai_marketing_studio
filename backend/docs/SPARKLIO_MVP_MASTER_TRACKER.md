@@ -247,13 +247,13 @@
   - [x] 파일: `backend/app/api/v1/endpoints/brands.py`
 
 **Week 2: BrandAnalyzerAgent & Frontend 통합**
-- [x] 1.3 BrandAnalyzerAgent 구현 ✅ (2025-11-24)
+- [x] 1.3 BrandAnalyzerAgent 구현 ✅ (2025-11-24 완료)
   - [x] `app/schemas/brand_analyzer.py` - BrandAnalysisInput/Output 스키마
   - [x] `app/services/agents/brand_analyzer.py` - Agent 구현
   - [x] Task: `brand_dna_generation`
   - [x] Output: Brand DNA Card JSON `{tone, key_messages[3-5], target_audience, dos[3-5], donts[3-5], sample_copies[3-5], suggested_brand_kit, confidence_score}`
-  - [ ] Golden Set 5개 케이스 작성 (`tests/golden_set/brand_analyzer_analysis_v1.json`)
-  - [ ] BrandAnalyzerAgent API 엔드포인트 추가 (`POST /api/v1/brands/{id}/analyze`)
+  - [x] Golden Set 5개 케이스 작성 (`tests/golden_set/brand_analyzer_analysis_v1.json`)
+  - [x] BrandAnalyzerAgent API 엔드포인트 추가 (`POST /api/v1/brands/{id}/analyze`)
 
 - [x] 1.4 Frontend 통합 준비 ✅ (2025-11-24)
   - [x] Brand Kit 조회 API (`GET /api/v1/brands/{id}` - 기존 포함)
