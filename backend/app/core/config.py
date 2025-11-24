@@ -116,6 +116,7 @@ class Settings(BaseSettings):
     whisper_local_backend: str = Field("faster_whisper", env="WHISPER_LOCAL_BACKEND")  # whisper_cpp | faster_whisper | none
     whisper_fast_endpoint: str = Field("http://100.123.51.6:9000/transcribe", env="WHISPER_FAST_ENDPOINT")
     whisper_cpp_endpoint: str = Field("http://127.0.0.1:8765/transcribe", env="WHISPER_CPP_ENDPOINT")
+    whisper_openai_model: str = Field("whisper-1", env="WHISPER_OPENAI_MODEL")  # OpenAI Whisper model
     whisper_openai_max_minutes: int = Field(20, env="WHISPER_OPENAI_MAX_MINUTES")
     whisper_profile_fast: str = Field("small", env="WHISPER_PROFILE_FAST")
     whisper_profile_balanced: str = Field("medium", env="WHISPER_PROFILE_BALANCED")
@@ -229,6 +230,10 @@ class Settings(BaseSettings):
     @property
     def WHISPER_CPP_ENDPOINT(self) -> str:
         return self.whisper_cpp_endpoint
+
+    @property
+    def WHISPER_OPENAI_MODEL(self) -> str:
+        return self.whisper_openai_model
 
     @property
     def WHISPER_OPENAI_MAX_MINUTES(self) -> int:
