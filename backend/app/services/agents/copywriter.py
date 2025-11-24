@@ -26,11 +26,12 @@ class CopywriterAgent(AgentBase):
     제품 설명, SNS 콘텐츠, 브랜드 메시지 등 텍스트 콘텐츠 생성
 
     주요 작업:
-    1. product_detail: 제품 상세 설명 작성
-    2. sns: SNS 콘텐츠 작성
-    3. brand_message: 브랜드 메시지 작성
-    4. headline: 헤드라인/제목 생성
-    5. ad_copy: 광고 카피 작성
+    1. product_detail: 제품 상세 설명 작성 (단일 카드)
+    2. product_detail_full: 상품 상세페이지 전체 생성 (Hero + Problem/Solution + Specs + FAQ)
+    3. sns: SNS 콘텐츠 작성
+    4. brand_message: 브랜드 메시지 작성
+    5. headline: 헤드라인/제목 생성
+    6. ad_copy: 광고 카피 작성
 
     사용 예시:
         agent = CopywriterAgent()
@@ -280,6 +281,64 @@ class CopywriterAgent(AgentBase):
                     "body": "광고 본문 (50-100자)",
                     "cta": "행동 유도 문구"
                 }
+            },
+            "product_detail_full": {
+                "instruction": (
+                    "상품 상세페이지 전체 콘텐츠를 생성하세요. "
+                    "4개 섹션으로 구성됩니다: Hero, Problem/Solution, Specs, FAQ\\n\\n"
+                    "**1. Hero 섹션:**\\n"
+                    "- headline: 임팩트 있는 메인 헤드라인 (10-20자)\\n"
+                    "- subheadline: 핵심 가치를 담은 서브헤드라인 (30-50자)\\n"
+                    "- cta: 행동 유도 문구 (10자 이내)\\n\\n"
+                    "**2. Problem/Solution 섹션:**\\n"
+                    "- section_title: 섹션 제목 (예: '이런 고민 있으신가요?')\\n"
+                    "- problems: 고객이 겪는 문제점 2-3개 (각 30-50자)\\n"
+                    "- solution_title: 솔루션 제목 (예: 'OO가 해결해드립니다')\\n"
+                    "- solutions: 제품이 제공하는 솔루션 2-5개 (key_features 기반, 각 40-70자)\\n\\n"
+                    "**3. Specs 섹션:**\\n"
+                    "- section_title: 섹션 제목 (예: '제품 사양')\\n"
+                    "- specs: 제품 스펙 딕셔너리 (Key-Value 형태, 예: {'크기': '10cm x 5cm', '무게': '200g'})\\n\\n"
+                    "**4. FAQ 섹션:**\\n"
+                    "- section_title: 섹션 제목 (예: '자주 묻는 질문')\\n"
+                    "- faqs: 질문-답변 리스트 3-8개 (question: 질문, answer: 답변)\\n\\n"
+                    "**중요 지침:**\\n"
+                    "- 제공된 product_name, key_features, target_audience를 최대한 활용\\n"
+                    "- customer_pain_points가 제공되면 그대로 사용, 없으면 target_audience 기반 추론\\n"
+                    "- specifications가 제공되면 사용, 없으면 일반적인 스펙 생성\\n"
+                    "- faqs가 제공되면 사용, 없으면 제품 특성 기반 FAQ 생성\\n"
+                    "- 브랜드 컨텍스트(brand_context)가 있으면 톤앤매너 반영\\n"
+                    "- language에 맞는 언어로 생성 (ko/en)"
+                ),
+                "structure": {
+                    "hero": {
+                        "headline": "메인 헤드라인 (10-20자)",
+                        "subheadline": "서브 헤드라인 (30-50자)",
+                        "cta": "행동 유도 문구 (10자 이내)",
+                        "image_url": "이미지 URL (옵션)"
+                    },
+                    "problem_solution": {
+                        "section_title": "섹션 제목",
+                        "problems": ["문제점1", "문제점2", "문제점3"],
+                        "solution_title": "솔루션 제목",
+                        "solutions": ["솔루션1", "솔루션2", "솔루션3", "솔루션4", "솔루션5"]
+                    },
+                    "specs": {
+                        "section_title": "제품 사양",
+                        "specs": {
+                            "크기": "값",
+                            "무게": "값",
+                            "재질": "값"
+                        }
+                    },
+                    "faq": {
+                        "section_title": "자주 묻는 질문",
+                        "faqs": [
+                            {"question": "질문1", "answer": "답변1"},
+                            {"question": "질문2", "answer": "답변2"},
+                            {"question": "질문3", "answer": "답변3"}
+                        ]
+                    }
+                }
             }
         }
 
@@ -429,6 +488,14 @@ class CopywriterAgent(AgentBase):
                     name="ad_copy",
                     value=content,
                     meta={"format": "advertising"}
+                ))
+            elif task == "product_detail_full":
+                # Product Detail Full (Canvas JSON 변환 전 원본)
+                outputs.append(self._create_output(
+                    output_type="json",
+                    name="product_detail_full",
+                    value=content,
+                    meta={"format": "product_detail_full", "sections": ["hero", "problem_solution", "specs", "faq"]}
                 ))
             else:
                 # 기본 처리

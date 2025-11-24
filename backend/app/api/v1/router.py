@@ -6,7 +6,8 @@ from app.api.v1.endpoints import (
     llm_gateway, media_gateway, debug,
     sparklio_editor,  # Sparklio Editor API 추가
     workflows,  # Workflow Orchestration API 추가
-    meetings  # Meeting AI API (P0-2)
+    meetings,  # Meeting AI API (P0-2)
+    generators  # Multi-Channel Generators API (P1)
 )
 # agents (legacy) - Deprecated, import 에러로 주석 처리
 
@@ -119,6 +120,9 @@ api_router.include_router(chat.router, prefix="/chat", tags=["Editor"])
 
 # Meeting AI API (P0-2 - Week 1)
 api_router.include_router(meetings.router, prefix="", tags=["Meetings"])
+
+# Multi-Channel Generators API (P1)
+api_router.include_router(generators.router, prefix="/generators", tags=["Generators"])
 
 # Admin API (관리자 전용 모니터링)
 api_router.include_router(admin.router, prefix="/admin", tags=["Admin"])
