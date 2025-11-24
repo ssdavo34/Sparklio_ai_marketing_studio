@@ -10,9 +10,12 @@ URL에서 텍스트를 추출하는 크롤링 서비스
 
 import logging
 import re
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, TYPE_CHECKING
 from urllib.parse import urlparse
 import asyncio
+
+if TYPE_CHECKING:
+    from bs4 import BeautifulSoup
 
 try:
     import httpx
@@ -20,6 +23,7 @@ try:
     HTTPX_AVAILABLE = True
 except ImportError:
     HTTPX_AVAILABLE = False
+    BeautifulSoup = None  # type: ignore
 
 logger = logging.getLogger(__name__)
 
