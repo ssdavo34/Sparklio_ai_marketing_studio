@@ -5,6 +5,7 @@ from app.models.project import Project
 from app.models.workflow import Workflow, WorkflowNode
 from app.models.agent_log import AgentLog, RouterLog
 from app.models.document import Document, Template, GenerationJob
+from app.models.meeting import Meeting, MeetingTranscript, MeetingStatus
 
 __all__ = [
     "GeneratedAsset",
@@ -20,4 +21,7 @@ __all__ = [
     "Document",
     "Template",
     "GenerationJob",
+    "Meeting",
+    "MeetingTranscript",
+    "MeetingStatus",
 ]
