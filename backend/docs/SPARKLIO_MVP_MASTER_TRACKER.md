@@ -231,32 +231,35 @@
 
 ### 🔴 P0-1: Brand OS 모듈 (2주, 2025-12-08까지)
 
-**Week 1: DB Schema & API 기본**
-- [ ] 1.1 DB Schema 설계
-  - [ ] `brands` 테이블 생성 (logo_url, colors, fonts, tone_keywords, forbidden_expressions, key_messages)
-  - [ ] `brand_documents` 테이블 (업로드된 PDF/이미지 메타데이터)
-  - [ ] Alembic Migration 작성
-  - [ ] 파일: `backend/alembic/versions/xxx_create_brands_tables.py`
+**Week 1: DB Schema & API 기본** ✅ **완료 (2025-11-24)**
+- [x] 1.1 DB Schema 설계 ✅
+  - [x] `brands` 테이블 생성 (logo_url, colors, fonts, tone_keywords, forbidden_expressions, key_messages)
+  - [x] `brand_documents` 테이블 (업로드된 PDF/이미지 메타데이터)
+  - [x] Alembic Migration 작성
+  - [x] 파일: `backend/alembic/versions/c06bb9428f75_add_brand_os_schema_brand_dna_and_.py`
 
-- [ ] 1.2 Brand Intake API
-  - [ ] `POST /api/v1/brands` - 브랜드 생성
-  - [ ] `POST /api/v1/brands/{id}/documents` - 문서 업로드
-  - [ ] `POST /api/v1/brands/{id}/crawl` - URL 크롤링 (BeautifulSoup/Scrapy)
-  - [ ] 파일: `backend/app/api/v1/endpoints/brands.py`
+- [x] 1.2 Brand Intake API ✅
+  - [x] `POST /api/v1/brands` - 브랜드 생성 (기존)
+  - [x] `POST /api/v1/brands/{id}/documents` - 문서 업로드
+  - [x] `POST /api/v1/brands/{id}/documents/crawl` - URL 크롤링 (TODO: 실제 크롤링 로직)
+  - [x] `GET /api/v1/brands/{id}/documents` - 문서 목록 조회
+  - [x] `DELETE /api/v1/brands/{id}/documents/{doc_id}` - 문서 삭제
+  - [x] 파일: `backend/app/api/v1/endpoints/brands.py`
 
 **Week 2: BrandAnalyzerAgent & Frontend 통합**
-- [ ] 1.3 BrandAnalyzerAgent 구현
-  - [ ] `app/schemas/brand.py` - BrandAnalysisInput/Output 스키마
-  - [ ] `app/services/agents/brand_analyzer.py` - Agent 구현
-  - [ ] Task: `brand_analysis`
-  - [ ] Output: Brand DNA Card JSON `{tone, key_messages[3], target_audience, dos, donts, sample_copies[3]}`
+- [x] 1.3 BrandAnalyzerAgent 구현 ✅ (2025-11-24)
+  - [x] `app/schemas/brand_analyzer.py` - BrandAnalysisInput/Output 스키마
+  - [x] `app/services/agents/brand_analyzer.py` - Agent 구현
+  - [x] Task: `brand_dna_generation`
+  - [x] Output: Brand DNA Card JSON `{tone, key_messages[3-5], target_audience, dos[3-5], donts[3-5], sample_copies[3-5], suggested_brand_kit, confidence_score}`
   - [ ] Golden Set 5개 케이스 작성 (`tests/golden_set/brand_analyzer_analysis_v1.json`)
+  - [ ] BrandAnalyzerAgent API 엔드포인트 추가 (`POST /api/v1/brands/{id}/analyze`)
 
-- [ ] 1.4 Frontend 통합
-  - [ ] Brand Kit 조회 API (`GET /api/v1/brands/{id}/kit`)
-  - [ ] Brand Kit 수정 API (`PATCH /api/v1/brands/{id}/kit`)
-  - [ ] TypeScript 타입 정의 작성 → C팀 전달
-  - [ ] 통합 가이드 문서 작성 (`BRAND_OS_INTEGRATION_GUIDE_2025-11.md`)
+- [x] 1.4 Frontend 통합 준비 ✅ (2025-11-24)
+  - [x] Brand Kit 조회 API (`GET /api/v1/brands/{id}` - 기존 포함)
+  - [x] Brand Kit 수정 API (`PATCH /api/v1/brands/{id}` - 기존 포함)
+  - [x] TypeScript 타입 정의 작성 → A팀 전달
+  - [x] 통합 가이드 문서 작성 (`BRAND_OS_API_INTEGRATION_GUIDE.md`)
 
 **완료 조건**:
 - [ ] DB Migration 성공

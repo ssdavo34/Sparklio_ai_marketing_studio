@@ -23,6 +23,9 @@ from app.schemas.brand import (
     BrandDocumentCreate, BrandDocumentCrawl, BrandDocumentResponse,
     BrandDocumentListResponse
 )
+from app.schemas.brand_analyzer import BrandAnalysisInputV1, BrandDNAOutputV1, BrandDocumentInput
+from app.services.agents.brand_analyzer import get_brand_analyzer_agent
+from app.services.agents.base import AgentRequest, AgentError
 from app.auth.jwt import get_current_user
 
 router = APIRouter()
@@ -505,3 +508,153 @@ async def delete_brand_document(
     db.commit()
 
     logger.info(f"Document deleted: {document_id} from brand {brand_id}")
+
+
+# ==========================================
+# BrandAnalyzerAgent API (MVP P0-1)
+# ==========================================
+
+@router.post("/{brand_id}/analyze", response_model=BrandDNAOutputV1)
+async def analyze_brand(
+    brand_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    브랜드 분석 및 Brand DNA 자동 생성
+
+    브랜드에 업로드된 모든 문서를 분석하여 Brand DNA Card를 생성합니다.
+    생성된 Brand DNA는 자동으로 brands.brand_dna에 저장됩니다.
+
+    Args:
+        brand_id: 브랜드 ID
+        current_user: 현재 인증된 사용자
+        db: 데이터베이스 세션
+
+    Returns:
+        Brand DNA Card (tone, key_messages, target_audience, dos/donts, sample_copies, suggested_brand_kit)
+
+    Raises:
+        HTTPException: 브랜드를 찾을 수 없거나 권한이 없거나 문서가 없는 경우
+    """
+    # 브랜드 존재 및 권한 확인
+    brand = db.query(Brand).filter(
+        Brand.id == brand_id,
+        Brand.deleted_at == None
+    ).first()
+
+    if not brand:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Brand not found"
+        )
+
+    if brand.owner_id != current_user.id and current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions"
+        )
+
+    # 문서 조회
+    documents = db.query(BrandDocument).filter(
+        BrandDocument.brand_id == brand_id,
+        BrandDocument.processed == "completed"  # 완료된 문서만
+    ).all()
+
+    if not documents:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No processed documents found. Please upload and process documents first."
+        )
+
+    # BrandDocumentInput 변환
+    document_inputs = []
+    for doc in documents:
+        if doc.extracted_text:  # 텍스트가 있는 문서만
+            document_inputs.append(
+                BrandDocumentInput(
+                    type=doc.document_type.value,
+                    extracted_text=doc.extracted_text,
+                    title=doc.title
+                )
+            )
+
+    if not document_inputs:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No documents with extracted text found. Please ensure documents are processed."
+        )
+
+    # BrandAnalysisInput 생성
+    analysis_input = BrandAnalysisInputV1(
+        brand_name=brand.name,
+        documents=document_inputs,
+        website_url=brand.website_url,
+        industry=brand.industry,
+        existing_brand_kit=brand.brand_kit
+    )
+
+    # BrandAnalyzerAgent 실행
+    try:
+        agent = get_brand_analyzer_agent()
+        request = AgentRequest(
+            task="brand_dna_generation",
+            payload=analysis_input.model_dump()
+        )
+
+        response = await agent.execute(request)
+
+        # Output 추출
+        if not response.outputs or len(response.outputs) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="BrandAnalyzerAgent returned no output"
+            )
+
+        brand_dna_output = BrandDNAOutputV1(**response.outputs[0].value)
+
+        # Brand DNA를 DB에 저장
+        brand.brand_dna = brand_dna_output.model_dump()
+
+        # suggested_brand_kit을 brand_kit에 병합 (기존 값 유지)
+        if not brand.brand_kit:
+            brand.brand_kit = {}
+
+        suggested_kit = brand_dna_output.suggested_brand_kit.model_dump()
+
+        # 기존 brand_kit이 없는 항목만 suggested_brand_kit으로 채움
+        if "colors" not in brand.brand_kit:
+            brand.brand_kit["colors"] = {
+                "primary": suggested_kit.get("primary_colors", []),
+                "secondary": suggested_kit.get("secondary_colors", [])
+            }
+        if "fonts" not in brand.brand_kit:
+            brand.brand_kit["fonts"] = suggested_kit.get("fonts", {})
+        if "tone_keywords" not in brand.brand_kit:
+            brand.brand_kit["tone_keywords"] = suggested_kit.get("tone_keywords", [])
+        if "forbidden_expressions" not in brand.brand_kit:
+            brand.brand_kit["forbidden_expressions"] = suggested_kit.get("forbidden_expressions", [])
+
+        db.commit()
+        db.refresh(brand)
+
+        logger.info(
+            f"Brand DNA generated for brand {brand_id}, "
+            f"confidence_score: {brand_dna_output.confidence_score}, "
+            f"documents analyzed: {len(document_inputs)}"
+        )
+
+        return brand_dna_output
+
+    except AgentError as e:
+        logger.error(f"BrandAnalyzerAgent error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Brand analysis failed: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error during brand analysis: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Brand analysis failed: {str(e)}"
+        )
