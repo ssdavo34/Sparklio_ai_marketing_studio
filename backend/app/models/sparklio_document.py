@@ -86,7 +86,7 @@ class SparklioDocument(Base):
     brand = relationship("Brand")  # 단방향 관계 (back_populates 제거)
 
     project_id = Column(UUID(as_uuid=True), ForeignKey("projects.id"), nullable=True)
-    project = relationship("Project", back_populates="documents")
+    project = relationship("Project")  # 단방향 관계 (back_populates 제거)
 
     created_by_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     created_by = relationship("User", foreign_keys=[created_by_id])
