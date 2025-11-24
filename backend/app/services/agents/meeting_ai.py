@@ -25,16 +25,18 @@ class MeetingAIAgent(AgentBase):
     회의록 분석, 요약, Action Item 추출 및 문서 초안 생성
 
     주요 작업:
-    1. analyze_transcript: 회의록 분석 (요약, Action Items, 주요 안건)
-    2. generate_draft: 회의 내용을 바탕으로 마케팅 문서 초안 생성
+    1. meeting_summary: 회의 요약 및 분석 (요약, 안건, 결정사항, 액션아이템, 캠페인 아이디어)
+    2. analyze_transcript: 회의록 분석 (요약, Action Items, 주요 안건) - Legacy
+    3. generate_draft: 회의 내용을 바탕으로 마케팅 문서 초안 생성
 
     사용 예시:
         agent = MeetingAIAgent()
         response = await agent.execute(AgentRequest(
-            task="analyze_transcript",
+            task="meeting_summary",
             payload={
                 "transcript": "A: 이번 캠페인은...",
-                "context": "신제품 런칭 회의"
+                "meeting_title": "신제품 런칭 회의",
+                "brand_context": "Brand DNA..."
             }
         ))
     """
@@ -121,7 +123,31 @@ class MeetingAIAgent(AgentBase):
         """
         enhanced = request.payload.copy()
 
-        if request.task == "analyze_transcript":
+        if request.task == "meeting_summary":
+            # P0-2 Meeting AI: meeting_summary task
+            enhanced["_instructions"] = (
+                "제공된 회의 트랜스크립트를 분석하여 다음을 추출하세요:\n"
+                "1. 전체 요약 (summary): 회의의 핵심 내용을 3-5문장으로 요약\n"
+                "2. 회의 안건 (agenda): 논의된 주요 안건 목록\n"
+                "3. 결정 사항 (decisions): 회의에서 내려진 결정사항 목록\n"
+                "4. 액션 아이템 (action_items): 향후 실행해야 할 과제 목록 (담당자, 기한 포함 시 명시)\n"
+                "5. 캠페인 아이디어 (campaign_ideas): 회의 중 언급된 마케팅/캠페인 아이디어 목록\n\n"
+                "브랜드 컨텍스트(brand_context)가 제공된 경우, 브랜드의 톤앤매너와 전략에 맞춰 분석하세요.\n"
+                "한국어 회의인 경우 한국어로, 영어 회의인 경우 영어로 결과를 생성하세요."
+            )
+            enhanced["_output_structure"] = {
+                "summary": "회의 전체 요약 (3-5문장)",
+                "agenda": ["안건1", "안건2", "안건3"],
+                "decisions": ["결정사항1", "결정사항2"],
+                "action_items": [
+                    "액션아이템1 (담당자: OOO, 기한: YYYY-MM-DD)",
+                    "액션아이템2"
+                ],
+                "campaign_ideas": ["캠페인 아이디어1", "캠페인 아이디어2"]
+            }
+
+        elif request.task == "analyze_transcript":
+            # Legacy task (하위 호환성)
             enhanced["_instructions"] = (
                 "제공된 회의록(transcript)을 분석하여 다음을 추출하세요:\n"
                 "1. 전체 요약 (3-5문장)\n"

@@ -1,11 +1,12 @@
 from fastapi import APIRouter
-from app.api.v1 import chat, meeting, admin
+from app.api.v1 import chat, admin
 from app.api.v1.endpoints import (
     assets, brands, projects, users, agents_new,
     generate, documents, templates, editor,
     llm_gateway, media_gateway, debug,
     sparklio_editor,  # Sparklio Editor API 추가
-    workflows  # Workflow Orchestration API 추가
+    workflows,  # Workflow Orchestration API 추가
+    meetings  # Meeting AI API (P0-2)
 )
 # agents (legacy) - Deprecated, import 에러로 주석 처리
 
@@ -116,8 +117,8 @@ api_router.include_router(
 # Chat API (Phase 2)
 api_router.include_router(chat.router, prefix="/chat", tags=["Editor"])
 
-# Meeting AI API (Phase 3)
-api_router.include_router(meeting.router, prefix="/meeting", tags=["Agents"])
+# Meeting AI API (P0-2 - Week 1)
+api_router.include_router(meetings.router, prefix="", tags=["Meetings"])
 
 # Admin API (관리자 전용 모니터링)
 api_router.include_router(admin.router, prefix="/admin", tags=["Admin"])
