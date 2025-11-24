@@ -43,6 +43,53 @@ ssh macmini
 - 반드시 `woosun@100.123.51.5` 형식으로만 접속해야 합니다
 - 다른 형식은 모두 실패합니다
 
+### 1.3 RTX Desktop (Whisper STT 서버)
+
+- **호스트명**: RTX Desktop (Tailscale 네트워크)
+- **IP 주소**: 100.120.180.42
+- **포트**: 9000
+- **역할**: Faster-Whisper STT 서버 (Meeting AI Transcriber)
+- **GPU**: NVIDIA GeForce RTX 4070 SUPER (12GB VRAM)
+- **모델**: Systran/faster-distil-whisper-large-v3
+
+**엔드포인트:**
+```bash
+# 서버 상태 확인
+curl http://100.120.180.42:9000/
+
+# Health Check
+curl http://100.120.180.42:9000/health
+
+# 음성 → 텍스트 변환 (POST)
+curl -X POST http://100.120.180.42:9000/transcribe \
+  -F "audio_file=@recording.wav" \
+  -F "model=large-v3" \
+  -F "language=auto"
+
+# API 문서 확인
+curl http://100.120.180.42:9000/docs
+```
+
+**상태 확인 예시:**
+```json
+{
+  "status": "healthy",
+  "gpu": "NVIDIA GeForce RTX 4070 SUPER",
+  "memory": "2.4GB / 12.3GB",
+  "model": "Systran/faster-distil-whisper-large-v3"
+}
+```
+
+**팀별 사용 지침:**
+- **A팀**: 회의 녹음 STT 품질 검증 (OpenAI vs Local 비교 테스트)
+- **B팀**: TranscriberService 4-Mode 구현 및 연동 (faster-whisper client)
+- **C팀**: Meeting AI Transcriber UI 렌더링 (transcript segments 표시)
+
+**⚠️ 주의사항:**
+- 서버 재시작 불가 (GPU 서버 관리는 시스템 관리자만)
+- API 타임아웃 설정 필요 (긴 회의는 300초 이상 소요 가능)
+- 서버 다운 시 자동으로 OpenAI fallback 사용 (hybrid_cost/hybrid_quality 모드)
+
 ---
 
 ## 2. 전체 팀 공통 규정

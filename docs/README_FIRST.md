@@ -366,6 +366,16 @@
 - **ComfyUI**: `http://100.120.180.42:8188`
 - **역할**: LLM (Ollama), Image Generation (ComfyUI)
 
+### RTX Desktop (Whisper STT 서버) ✨ **NEW**
+- **IP**: 100.120.180.42
+- **Port**: 9000
+- **Whisper API**: `http://100.120.180.42:9000`
+- **Health Check**: `curl http://100.120.180.42:9000/health`
+- **API Docs**: `http://100.120.180.42:9000/docs`
+- **역할**: faster-whisper STT, Meeting AI Transcriber
+- **GPU**: NVIDIA GeForce RTX 4070 SUPER (12GB VRAM)
+- **모델**: Systran/faster-distil-whisper-large-v3
+
 ### Laptop (개발 환경)
 - **IP**: 192.168.0.101 (로컬)
 - **Next.js Dev**: `http://localhost:3000`
