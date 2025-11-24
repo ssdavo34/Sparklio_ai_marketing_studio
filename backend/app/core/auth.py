@@ -21,7 +21,7 @@ oauth2_scheme = OAuth2PasswordBearer(
 
 async def get_current_user(
     token: Optional[str] = Depends(oauth2_scheme)
-) -> Optional[User]:
+) -> User:
     """
     현재 사용자 정보 조회
 
@@ -29,17 +29,14 @@ async def get_current_user(
         token: JWT 토큰
 
     Returns:
-        User 객체 또는 None
+        User 객체
 
     Note:
-        개발 중에는 Mock User 반환
+        개발 환경에서는 token 없어도 Mock User 반환
         실제로는 JWT 토큰 검증 필요
     """
-    # 개발 중 Mock User
-    if not token:
-        return None
-
-    # Mock User 반환 (개발용)
+    # 개발 중 Mock User (token 없어도 반환)
+    # TODO: 프로덕션에서는 JWT 토큰 검증 로직 추가
     mock_user = User(
         id=1,
         email="test@sparklio.ai",

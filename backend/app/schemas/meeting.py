@@ -262,3 +262,25 @@ class MeetingUploadResponse(BaseModel):
     upload_url: str = Field(..., description="파일 업로드 URL (presigned URL)")
     file_key: str = Field(..., description="MinIO 파일 키")
     expires_in: int = Field(..., description="URL 만료 시간 (초)")
+
+
+# =============================================================================
+# From URL Request/Response
+# =============================================================================
+
+class MeetingFromURLRequest(BaseModel):
+    """URL로부터 회의 생성 요청"""
+    url: str = Field(..., description="YouTube URL 또는 웹 URL")
+    title: Optional[str] = Field(None, description="회의 제목 (자동 생성 가능)")
+    description: Optional[str] = Field(None, description="회의 설명")
+    brand_id: Optional[UUID4] = Field(None, description="브랜드 ID")
+    project_id: Optional[UUID4] = Field(None, description="프로젝트 ID")
+    auto_transcribe: bool = Field(True, description="자동 트랜스크립션 실행")
+
+
+class MeetingFromURLResponse(BaseModel):
+    """URL로부터 회의 생성 응답"""
+    meeting_id: UUID4
+    status: MeetingStatus
+    message: str
+    transcription_started: bool = Field(False, description="트랜스크립션 시작 여부")

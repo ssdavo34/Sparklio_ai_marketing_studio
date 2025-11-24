@@ -33,7 +33,9 @@ from app.schemas.meeting import (
     MeetingSummaryInput,
     MeetingSummaryOutput,
     MeetingToBriefInput,
-    CampaignBriefOutput
+    CampaignBriefOutput,
+    MeetingFromURLRequest,
+    MeetingFromURLResponse
 )
 from app.services.storage import get_storage_service
 from app.services.transcriber import get_transcriber_service
@@ -115,6 +117,76 @@ async def create_meeting(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create meeting: {str(e)}"
+        )
+
+
+@router.post("/from-url", response_model=MeetingFromURLResponse, status_code=status.HTTP_201_CREATED)
+async def create_meeting_from_url(
+    request: MeetingFromURLRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    URL로부터 회의 생성 (YouTube, 웹 URL 등)
+
+    현재는 placeholder로 구현되어 있으며, 실제 URL 다운로드 기능은 향후 구현 예정
+
+    Args:
+        request: URL 및 회의 정보
+        current_user: 현재 사용자
+        db: 데이터베이스 세션
+
+    Returns:
+        MeetingFromURLResponse: 생성된 회의 정보
+    """
+    try:
+        logger.info(f"Creating meeting from URL: {request.url}")
+
+        # TODO: URL 유효성 검증 (YouTube, 웹 URL 등)
+        # TODO: yt-dlp 또는 다른 도구로 오디오 다운로드
+        # TODO: MinIO에 파일 업로드
+
+        # 제목 자동 생성 (URL에서 추출)
+        title = request.title or f"Meeting from {request.url[:50]}"
+
+        # Meeting 생성
+        meeting = Meeting(
+            owner_id=current_user.id,
+            brand_id=request.brand_id,
+            project_id=request.project_id,
+            title=title,
+            description=request.description or f"Imported from: {request.url}",
+            status=MeetingStatus.PENDING,  # URL 다운로드 대기 중
+            meeting_metadata={"source_url": request.url}
+        )
+
+        db.add(meeting)
+        db.commit()
+        db.refresh(meeting)
+
+        logger.info(f"Meeting created from URL: {meeting.id}")
+
+        # TODO: 백그라운드 작업으로 URL 다운로드 및 트랜스크립션 실행
+        # if request.auto_transcribe:
+        #     background_tasks.add_task(download_and_transcribe, meeting.id, request.url)
+
+        return MeetingFromURLResponse(
+            meeting_id=meeting.id,
+            status=meeting.status,
+            message=(
+                "Meeting created successfully. "
+                "Note: URL download feature is not yet implemented. "
+                "Please use file upload instead."
+            ),
+            transcription_started=False
+        )
+
+    except Exception as e:
+        logger.error(f"Error creating meeting from URL: {str(e)}")
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create meeting from URL: {str(e)}"
         )
 
 
