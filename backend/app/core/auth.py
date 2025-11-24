@@ -10,7 +10,7 @@ JWT 토큰 검증 및 사용자 인증
 from typing import Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from app.db.models import User
+from app.models.user import User
 
 # OAuth2 scheme
 oauth2_scheme = OAuth2PasswordBearer(
@@ -38,12 +38,12 @@ async def get_current_user(
     # 개발 중 Mock User (token 없어도 반환)
     # TODO: 프로덕션에서는 JWT 토큰 검증 로직 추가
     mock_user = User(
-        id=1,
         email="test@sparklio.ai",
         username="test_user",
+        hashed_password="mock_password",
         full_name="Test User",
         is_active=True,
-        is_superuser=False
+        role="user"
     )
 
     return mock_user
