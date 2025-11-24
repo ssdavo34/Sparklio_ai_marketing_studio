@@ -283,12 +283,14 @@
   - [x] Test suite 작성 (65 tests)
   - [x] 구현 완료 문서 작성 (`WHISPER_INTEGRATION_COMPLETE_2025-11-24.md`)
 
-- [ ] 2.2 MeetingAgent 강화
-  - [ ] `app/schemas/meeting.py` - MeetingSummaryInput/Output 스키마
-  - [ ] `app/services/agents/meeting_ai.py` 완성
-  - [ ] Task: `meeting_summary`
-  - [ ] Output: `{summary, agenda[], decisions[], action_items[], campaign_ideas[]}`
-  - [ ] Golden Set 5개 케이스 작성 (`tests/golden_set/meeting_summary_v1.json`)
+- [x] 2.2 MeetingAgent 강화 ✅ (2025-11-24)
+  - [x] `app/schemas/meeting.py` - MeetingSummaryInput/Output 스키마
+  - [x] `app/services/agents/meeting_ai.py` 완성
+  - [x] Task: `meeting_summary`
+  - [x] Output: `{summary, agenda[], decisions[], action_items[], campaign_ideas[]}`
+  - [x] Golden Set 5개 케이스 작성 (`tests/golden_set/meeting_summary_v1.json`)
+  - [x] API 엔드포인트: `POST /api/v1/meetings/{id}/analyze`
+  - [x] Test suite 작성 (16 tests including Golden Set)
 
 **Week 2: Meeting → Brief 변환 & Frontend 통합**
 - [ ] 2.3 Meeting → Brief 변환

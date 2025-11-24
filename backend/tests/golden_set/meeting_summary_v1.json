@@ -1,0 +1,231 @@
+{
+  "version": "1.0",
+  "task": "meeting_summary",
+  "created_at": "2025-11-24",
+  "description": "MeetingAgent meeting_summary task의 Golden Set 테스트 케이스",
+  "test_cases": [
+    {
+      "id": "case_001_product_launch_meeting",
+      "name": "신제품 런칭 전략 회의 (한국어)",
+      "input": {
+        "transcript": "김대리: 안녕하세요, 오늘은 2025년 봄 시즌 신제품 런칭 전략에 대해 논의하겠습니다. 박팀장님, 타겟 고객에 대한 분석 결과 공유 부탁드립니다.\n\n박팀장: 네, 시장 조사 결과 20대에서 30대 초반 여성 고객층이 가장 높은 구매 의향을 보였습니다. 특히 인스타그램과 틱톡을 주로 사용하는 계층이에요.\n\n김대리: 좋습니다. 그럼 마케팅 채널은 소셜 미디어 중심으로 가야겠네요. 이번 캠페인 예산은 어느 정도로 책정하면 좋을까요?\n\n박팀장: 5천만원 정도면 3개월간 충분히 운영 가능할 것 같습니다. 인플루언서 마케팅에 3천, 광고 집행에 2천 정도로 배분하면 어떨까요?\n\n김대리: 좋습니다. 그럼 결정사항을 정리하면, 타겟은 20-30대 여성, 메인 채널은 인스타그램과 틱톡, 예산은 5천만원으로 확정하겠습니다.\n\n박팀장: 네, 그리고 액션 아이템으로는 인플루언서 3명 섭외를 12월 1일까지, 크리에이티브 시안 3개를 12월 5일까지 준비해야 합니다.\n\n김대리: 인플루언서 섭외는 제가, 시안은 박팀장님이 디자인팀과 협의해서 진행해주세요. 그리고 캠페인 아이디어로는 언박싱 챌린지, 고객 후기 이벤트, 시즌 한정 할인 프로모션 3가지를 고려하고 있습니다.\n\n박팀장: 좋습니다. 그럼 다음 주에 다시 모여서 진행 상황 공유하도록 하죠.\n\n김대리: 네, 감사합니다. 회의 마치겠습니다.",
+        "meeting_title": "2025 봄 시즌 신제품 런칭 전략 회의",
+        "meeting_date": "2025-11-24T14:00:00Z",
+        "brand_context": null
+      },
+      "expected_output": {
+        "summary": "2025년 봄 시즌 신제품 런칭 전략 회의. 타겟 고객층을 20-30대 여성으로 설정하고, 인스타그램과 틱톡 중심의 소셜 미디어 캠페인을 5천만원 예산으로 진행하기로 결정. 인플루언서 마케팅 3천만원, 광고 집행 2천만원으로 배분.",
+        "agenda": [
+          "타겟 고객 분석 결과 공유",
+          "마케팅 채널 선정",
+          "캠페인 예산 논의 및 배분",
+          "액션 아이템 및 일정 확정"
+        ],
+        "decisions": [
+          "타겟 고객: 20-30대 여성",
+          "메인 채널: 인스타그램, 틱톡",
+          "캠페인 예산: 5천만원 (인플루언서 3천, 광고 2천)"
+        ],
+        "action_items": [
+          "인플루언서 3명 섭외 (담당: 김대리, 기한: 12월 1일)",
+          "크리에이티브 시안 3개 제작 (담당: 박팀장+디자인팀, 기한: 12월 5일)"
+        ],
+        "campaign_ideas": [
+          "언박싱 챌린지",
+          "고객 후기 이벤트",
+          "시즌 한정 할인 프로모션"
+        ]
+      },
+      "validation_rules": {
+        "summary_min_length": 50,
+        "agenda_count": [3, 6],
+        "decisions_count": [2, 5],
+        "action_items_count": [1, 5],
+        "campaign_ideas_count": [1, 5]
+      }
+    },
+    {
+      "id": "case_002_brand_strategy_meeting_en",
+      "name": "Brand Strategy Meeting (English)",
+      "input": {
+        "transcript": "Sarah: Good morning everyone. Today we're discussing our Q1 2025 brand strategy for our new sustainable fashion line.\n\nJohn: Thanks Sarah. Our market research shows that Gen Z consumers, particularly ages 18-25, are highly interested in eco-friendly fashion. They're willing to pay 20-30% premium for sustainable products.\n\nSarah: That's great insight. What channels should we focus on?\n\nJohn: I recommend TikTok and Instagram Reels. Our competitors are seeing 5x engagement on short-form video content.\n\nSarah: Perfect. Let's set our budget at $100,000 for the first quarter. I suggest allocating $60K to content creation and influencer partnerships, and $40K to paid social ads.\n\nJohn: Sounds reasonable. For action items, we need to identify 5 sustainability-focused influencers by January 15th, and launch our TikTok account by January 20th.\n\nSarah: I'll handle the influencer outreach. John, can you work with the creative team on the TikTok strategy?\n\nJohn: Absolutely. I'm also thinking we could do a \"sustainable style challenge,\" partner with environmental organizations, and maybe run a limited-time eco-conscious collection drop.\n\nSarah: Love those ideas. Let's reconvene next week to review progress.",
+        "meeting_title": "Q1 2025 Brand Strategy - Sustainable Fashion Line",
+        "meeting_date": "2025-11-24T09:00:00Z",
+        "brand_context": "Eco-friendly fashion brand targeting Gen Z consumers"
+      },
+      "expected_output": {
+        "summary": "Q1 2025 brand strategy meeting for new sustainable fashion line. Targeting Gen Z consumers (18-25) with focus on TikTok and Instagram Reels. Budget set at $100,000: $60K for content/influencers, $40K for paid ads.",
+        "agenda": [
+          "Market research findings on Gen Z sustainable fashion interest",
+          "Marketing channel selection",
+          "Budget allocation for Q1 2025",
+          "Action items and timeline"
+        ],
+        "decisions": [
+          "Target audience: Gen Z (18-25 years old)",
+          "Primary channels: TikTok and Instagram Reels",
+          "Q1 budget: $100,000 ($60K content/influencers, $40K paid ads)"
+        ],
+        "action_items": [
+          "Identify 5 sustainability-focused influencers (Owner: Sarah, Due: January 15th)",
+          "Launch TikTok account (Owner: John + Creative team, Due: January 20th)"
+        ],
+        "campaign_ideas": [
+          "Sustainable style challenge",
+          "Partnership with environmental organizations",
+          "Limited-time eco-conscious collection drop"
+        ]
+      },
+      "validation_rules": {
+        "summary_min_length": 50,
+        "agenda_count": [3, 5],
+        "decisions_count": [2, 4],
+        "action_items_count": [2, 3],
+        "campaign_ideas_count": [2, 4]
+      }
+    },
+    {
+      "id": "case_003_minimal_meeting",
+      "name": "짧은 간단한 회의 (한국어)",
+      "input": {
+        "transcript": "김대리: 오늘은 블로그 포스팅 일정에 대해 간단히 논의하겠습니다.\n\n박과장: 네, 이번 주 금요일까지 2개 포스팅 올리는 걸로 하죠.\n\n김대리: 좋습니다. 주제는 신제품 리뷰와 사용 팁으로 하겠습니다.\n\n박과장: 알겠습니다. 제가 내일까지 초안 작성하겠습니다.",
+        "meeting_title": "블로그 포스팅 일정 논의",
+        "meeting_date": null,
+        "brand_context": null
+      },
+      "expected_output": {
+        "summary": "블로그 포스팅 일정 회의. 이번 주 금요일까지 신제품 리뷰와 사용 팁 2개 포스팅 업로드 결정.",
+        "agenda": [
+          "블로그 포스팅 일정 확정",
+          "포스팅 주제 선정"
+        ],
+        "decisions": [
+          "포스팅 개수: 2개 (금요일까지)",
+          "주제: 신제품 리뷰, 사용 팁"
+        ],
+        "action_items": [
+          "블로그 포스팅 초안 작성 (담당: 박과장, 기한: 내일)"
+        ],
+        "campaign_ideas": []
+      },
+      "validation_rules": {
+        "summary_min_length": 30,
+        "agenda_count": [1, 3],
+        "decisions_count": [1, 3],
+        "action_items_count": [1, 2],
+        "campaign_ideas_count": [0, 1]
+      }
+    },
+    {
+      "id": "case_004_brainstorming_session",
+      "name": "크리에이티브 브레인스토밍 (한국어)",
+      "input": {
+        "transcript": "최팀장: 오늘은 여름 시즌 캠페인 아이디어를 자유롭게 나눠봅시다.\n\n이대리: 여름하면 바다, 휴가가 생각나는데요. '바캉스 에센셜' 컨셉으로 가면 어떨까요?\n\n최팀장: 좋은데요. 구체적으로 어떤 걸 생각하셨어요?\n\n이대리: 바다 배경 화보 촬영, 여행 인플루언서와 협업, 휴가 패키징 세트 출시 이런 것들이요.\n\n김사원: 저는 '쿨링 챌린지'도 재밌을 것 같아요. 제품 사용 전후 온도 변화를 보여주는 거죠.\n\n최팀장: 오, 그것도 재밌네요. SNS에서 바이럴될 것 같은데요?\n\n이대리: 맞아요. 그리고 '여름 한정 향' 출시도 고려해볼 만할 것 같습니다. 코코넛이나 시트러스 계열로요.\n\n최팀장: 좋은 아이디어들 많이 나왔네요. 다음 회의에서 실현 가능성 검토하도록 하죠.",
+        "meeting_title": "여름 시즌 캠페인 브레인스토밍",
+        "meeting_date": "2025-11-24T15:00:00Z",
+        "brand_context": null
+      },
+      "expected_output": {
+        "summary": "여름 시즌 캠페인 아이디어 브레인스토밍 회의. '바캉스 에센셜' 컨셉을 중심으로 다양한 캠페인 아이디어 도출.",
+        "agenda": [
+          "여름 시즌 캠페인 컨셉 논의",
+          "크리에이티브 아이디어 발산"
+        ],
+        "decisions": [],
+        "action_items": [
+          "캠페인 아이디어 실현 가능성 검토 (다음 회의)"
+        ],
+        "campaign_ideas": [
+          "바캉스 에센셜 컨셉 (바다 배경 화보 촬영)",
+          "여행 인플루언서 협업",
+          "휴가 패키징 세트 출시",
+          "쿨링 챌린지 (사용 전후 온도 변화)",
+          "여름 한정 향 출시 (코코넛, 시트러스)"
+        ]
+      },
+      "validation_rules": {
+        "summary_min_length": 30,
+        "agenda_count": [1, 3],
+        "decisions_count": [0, 2],
+        "action_items_count": [0, 2],
+        "campaign_ideas_count": [3, 7]
+      }
+    },
+    {
+      "id": "case_005_quarterly_review",
+      "name": "분기 리뷰 회의 (한국어)",
+      "input": {
+        "transcript": "박이사: 3분기 마케팅 성과를 리뷰하고 4분기 전략을 수립하겠습니다. 김부장님, 3분기 결과부터 공유 부탁드립니다.\n\n김부장: 네, 3분기 매출은 목표 대비 120% 달성했습니다. 특히 인스타그램 광고 ROAS가 450%로 매우 우수했고요. 블로그 트래픽은 전분기 대비 35% 증가했습니다.\n\n박이사: 훌륭한 성과네요. 4분기에는 어떤 전략으로 가야 할까요?\n\n김부장: 연말 시즌이니까 선물 세트 마케팅에 집중하면 좋을 것 같습니다. 그리고 신규 고객 확보보다는 기존 고객 재구매율을 높이는 데 초점을 맞추면 어떨까요?\n\n박이사: 좋습니다. 예산은 3분기와 동일하게 8천만원으로 유지하고, CRM 마케팅 비중을 늘리는 걸로 하죠.\n\n김부장: 네, 그리고 크리스마스 한정 패키징, VIP 고객 대상 얼리버드 할인, 연말 감사 이벤트를 기획하고 있습니다.\n\n박이사: 완벽합니다. 그럼 결정사항을 정리하면, 4분기 전략은 선물 세트 + 기존 고객 재구매 중심, 예산 8천만원, CRM 강화입니다. 김부장님은 12월 1일까지 세부 실행 계획을 작성해주세요.\n\n김부장: 알겠습니다. 그리고 디자인팀과 11월 30일까지 패키징 시안 완성하겠습니다.",
+        "meeting_title": "3분기 리뷰 및 4분기 전략 수립",
+        "meeting_date": "2025-11-24T11:00:00Z",
+        "brand_context": null
+      },
+      "expected_output": {
+        "summary": "3분기 마케팅 성과 리뷰 및 4분기 전략 수립 회의. 3분기 매출 목표 120% 달성 (인스타그램 ROAS 450%, 블로그 트래픽 35% 증가). 4분기는 연말 선물 세트 마케팅과 기존 고객 재구매에 집중하기로 결정.",
+        "agenda": [
+          "3분기 마케팅 성과 리뷰",
+          "4분기 전략 방향 논의",
+          "예산 및 실행 계획 수립"
+        ],
+        "decisions": [
+          "4분기 전략: 선물 세트 마케팅 + 기존 고객 재구매 중심",
+          "4분기 예산: 8천만원 (3분기와 동일)",
+          "CRM 마케팅 비중 확대"
+        ],
+        "action_items": [
+          "4분기 세부 실행 계획 작성 (담당: 김부장, 기한: 12월 1일)",
+          "크리스마스 패키징 시안 완성 (담당: 김부장+디자인팀, 기한: 11월 30일)"
+        ],
+        "campaign_ideas": [
+          "크리스마스 한정 패키징",
+          "VIP 고객 대상 얼리버드 할인",
+          "연말 감사 이벤트"
+        ]
+      },
+      "validation_rules": {
+        "summary_min_length": 60,
+        "agenda_count": [2, 4],
+        "decisions_count": [2, 4],
+        "action_items_count": [1, 3],
+        "campaign_ideas_count": [2, 4]
+      }
+    }
+  ],
+  "evaluation_criteria": {
+    "summary": {
+      "description": "회의의 핵심 내용을 간결하게 요약",
+      "min_length": 30,
+      "max_length": 300,
+      "must_include": ["main_topic", "key_decisions_or_outcomes"]
+    },
+    "agenda": {
+      "description": "회의에서 논의된 주요 안건 목록",
+      "min_count": 1,
+      "max_count": 10,
+      "item_format": "명사구 또는 간단한 문장"
+    },
+    "decisions": {
+      "description": "회의에서 내려진 구체적인 결정사항",
+      "min_count": 0,
+      "max_count": 10,
+      "item_format": "결정 내용을 명확히 기술"
+    },
+    "action_items": {
+      "description": "향후 실행해야 할 과제 목록 (담당자, 기한 포함)",
+      "min_count": 0,
+      "max_count": 15,
+      "item_format": "과제 내용 (담당: 이름, 기한: 날짜) 또는 과제 내용만"
+    },
+    "campaign_ideas": {
+      "description": "회의 중 언급된 마케팅/캠페인 아이디어",
+      "min_count": 0,
+      "max_count": 15,
+      "item_format": "아이디어 간결히 기술"
+    }
+  },
+  "notes": [
+    "Golden Set은 실제 LLM 출력과 100% 일치를 요구하지 않음",
+    "구조적 유사성(agenda 개수, decisions 개수 등)과 의미적 일치를 평가",
+    "Pass 기준: 70% 이상의 케이스에서 구조 + 의미 일치"
+  ]
+}
