@@ -126,20 +126,28 @@
 
 ### P1: HIGH (MVP 가치 증명)
 
-#### 🟡 GAP #3: Multi-Channel Generator 통합
-**현재 상태**: ⚠️ CopywriterAgent만 있음 (Designer/Deck Agent 없음)
+#### 🟡 P1: Multi-Channel Generator 통합 (진행 중 ⏳)
+**현재 상태**: 🟢 ProductDetailGenerator 완료, 🟡 BannerGenerator 50% 완료
 **필요 이유**: "브리프 한 번으로 4개 채널 동시 생성" = MVP 핵심 가치
+**시작일**: 2025-11-24
 **예상 기간**: 3주 (2026-01-12까지)
 
 **구현 항목**:
-- [ ] **ProductDetailGenerator** (CopywriterAgent 확장: Task `product_detail_full`)
-  - Hero + Problem/Solution + Specs + FAQ 카드 구성
-  - Canvas JSON 출력 구조 설계
+- [x] **ProductDetailGenerator** (CopywriterAgent 확장: Task `product_detail_full`) ✅ **완료 (2025-11-24)**
+  - [x] Schema 설계 (ProductDetailFullInput/Output)
+  - [x] Canvas 변환 유틸리티 (product_detail_to_canvas.py)
+  - [x] CopywriterAgent에 product_detail_full task 추가
+  - [x] ProductDetailGenerator 서비스
+  - [x] API: POST /api/v1/generators/product-detail
+  - [x] 4-섹션 자동 생성 (Hero + Problem/Solution + Specs + FAQ)
 
-- [ ] **BannerGenerator** (신규)
-  - Task: `banner_set`
-  - 3~4 사이즈 세트 (1080x1080, 1200x628, 1080x1920)
-  - ReviewerAgent 연동 (과대광고 체크)
+- [x] **BannerGenerator** (50% 완료 ⏳)
+  - [x] Schema 설계 (BannerSetInput/Output, AdComplianceResult)
+  - [x] BannerAIAgent 구현 (banner_set task)
+  - [ ] Canvas 변환 유틸리티 (banner_to_canvas.py)
+  - [ ] BannerGenerator 서비스
+  - [ ] ReviewerAgent 연동 (과대광고 체크)
+  - [ ] API 엔드포인트 구현
 
 - [ ] **DeckGenerator** (신규)
   - Task: `deck_generation`
@@ -154,7 +162,11 @@
 
 - [ ] 각 Generator별 Golden Set 5개 케이스
 
-**의존성**: Brand OS + Meeting AI 완료 후 시작
+**완료된 Commits**:
+- eab0c82: ProductDetailGenerator 구현 (2025-11-24)
+- 5a2e7ba: BannerAIAgent 및 스키마 구현 (2025-11-24)
+
+**의존성**: Brand OS + Meeting AI 완료 후 시작 ✅
 
 ---
 
