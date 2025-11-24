@@ -34,9 +34,10 @@ from app.schemas.meeting import (
     MeetingSummaryOutput
 )
 from app.services.storage import get_storage_service
-from app.services.transcriber import get_transcriber, TranscriberError
+from app.services.transcriber import get_transcriber_service
 from app.services.agents.meeting_ai import get_meeting_ai_agent
 from app.services.agents.base import AgentRequest
+from app.models.meeting import TranscriptSourceType, TranscriptProvider, TranscriptBackend
 
 logger = logging.getLogger(__name__)
 
@@ -274,17 +275,22 @@ async def transcribe_meeting(
     db: Session = Depends(get_db)
 ):
     """
-    회의 트랜스크립션 실행
+    회의 트랜스크립션 실행 (Multi-backend Whisper 통합)
 
     1. MinIO에서 오디오 파일 다운로드
-    2. Whisper API로 트랜스크립션
-    3. meeting_transcripts 테이블에 저장
+    2. TranscriberService (4-mode)로 트랜스크립션
+    3. meeting_transcripts 테이블에 저장 (backend, model, confidence, latency_ms 포함)
     4. Meeting status를 transcribed로 업데이트
+    5. (선택) MeetingAgent 자동 실행
 
     Body:
         - language: 언어 코드 (ISO-639-1, 예: 'ko', 'en'). None이면 자동 감지
         - prompt: Whisper에게 주는 힌트 텍스트 (선택)
         - temperature: 샘플링 온도 (0.0 = 결정론적, 1.0 = 랜덤)
+        - force_mode: 강제 모드 지정 (openai | local | hybrid_cost | hybrid_quality)
+        - reprocess: 기존 트랜스크립트 무시하고 재처리 (True) vs 기존 사용 (False)
+        - importance: 중요도 (normal | high) - high면 품질 우선
+        - run_meeting_agent: 트랜스크립션 완료 후 MeetingAgent 분석 자동 실행
     """
     try:
         # 1. Meeting 조회
@@ -306,11 +312,31 @@ async def transcribe_meeting(
                 detail="Meeting file not uploaded yet"
             )
 
-        # 2. 상태 업데이트: transcribing
+        # 2. 기존 트랜스크립트 확인
+        existing_transcript = db.query(MeetingTranscript).filter(
+            MeetingTranscript.meeting_id == meeting_id,
+            MeetingTranscript.is_primary == True
+        ).first()
+
+        if existing_transcript and not transcribe_data.reprocess:
+            # 기존 트랜스크립트 재사용
+            logger.info(f"Reusing existing transcript: {existing_transcript.id}")
+
+            return TranscribeResponse(
+                meeting_id=meeting_id,
+                transcript_id=existing_transcript.id,
+                status=meeting.status,
+                transcript_text=existing_transcript.transcript_text,
+                language=existing_transcript.language or "unknown",
+                duration=meeting.duration_seconds,
+                segments_count=len(existing_transcript.segments) if existing_transcript.segments else 0
+            )
+
+        # 3. 상태 업데이트: transcribing
         meeting.status = MeetingStatus.TRANSCRIBING
         db.commit()
 
-        # 3. Storage에서 파일 다운로드 (로컬 임시 경로)
+        # 4. Storage에서 파일 다운로드 (로컬 임시 경로)
         storage = get_storage_service()
         local_file_path = storage.download_file(
             bucket="meetings",
@@ -318,53 +344,138 @@ async def transcribe_meeting(
             local_path=f"/tmp/meeting_{meeting_id}.mp4"
         )
 
-        # 4. Whisper API 트랜스크립션
-        transcriber = get_transcriber()
+        # 5. TranscriberService (4-mode)로 트랜스크립션
+        transcriber = get_transcriber_service()
+
+        # importance가 high면 hybrid_quality 모드 강제
+        force_mode = transcribe_data.force_mode
+        if transcribe_data.importance == "high" and not force_mode:
+            force_mode = "hybrid_quality"
+            logger.info(f"High importance meeting, using hybrid_quality mode")
+
         try:
-            result = await transcriber.transcribe_async(
-                file_path=local_file_path,
-                language=transcribe_data.language,
-                prompt=transcribe_data.prompt,
+            result = await transcriber.transcribe(
+                audio_path=local_file_path,
+                duration_seconds=float(meeting.duration_seconds) if meeting.duration_seconds else None,
+                force_mode=force_mode,
+                importance=transcribe_data.importance,
+                language=transcribe_data.language or "auto",
                 temperature=transcribe_data.temperature
             )
-        except TranscriberError as e:
+        except Exception as e:
             # 트랜스크립션 실패
             meeting.status = MeetingStatus.FAILED
             db.commit()
+            logger.error(f"Transcription failed: {e}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Transcription failed: {str(e)}"
             )
 
-        # 5. meeting_transcripts 저장
+        # 6. 기존 primary transcript 해제
+        if transcribe_data.reprocess and existing_transcript:
+            existing_transcript.is_primary = False
+            db.commit()
+
+        # 7. Backend enum 매핑
+        backend_map = {
+            "openai": TranscriptBackend.OPENAI,
+            "faster_whisper": TranscriptBackend.FASTER_WHISPER,
+            "whisper_cpp": TranscriptBackend.WHISPER_CPP,
+        }
+        backend_enum = backend_map.get(result.backend, TranscriptBackend.UNKNOWN)
+
+        # 8. meeting_transcripts 저장
         transcript = MeetingTranscript(
             meeting_id=meeting_id,
-            transcript_text=result["transcript_text"],
-            language=result["language"],
-            segments=result["segments"],
-            whisper_metadata=result["whisper_metadata"]
+            source_type=TranscriptSourceType.WHISPER,
+            provider=TranscriptProvider.UPLOAD,
+            backend=backend_enum,
+            model=result.model,
+            is_primary=True,
+            confidence=result.confidence,
+            latency_ms=result.latency_ms,
+            transcript_text=result.text,
+            language=result.language,
+            segments=[
+                {
+                    "start": seg.start,
+                    "end": seg.end,
+                    "text": seg.text
+                }
+                for seg in result.segments
+            ],
+            whisper_metadata={
+                "backend": result.backend,
+                "model": result.model,
+                "duration": result.duration_seconds,
+                "language_detected": result.language,
+                "confidence": result.confidence,
+                "latency_ms": result.latency_ms
+            }
         )
 
         db.add(transcript)
 
-        # 6. Meeting 업데이트
+        # 9. Meeting 업데이트
         meeting.status = MeetingStatus.TRANSCRIBED
-        meeting.duration_seconds = int(result.get("duration", 0)) if result.get("duration") else None
+        if not meeting.duration_seconds:
+            meeting.duration_seconds = int(result.duration_seconds)
         meeting.updated_at = datetime.utcnow()
 
         db.commit()
         db.refresh(transcript)
 
-        logger.info(f"Meeting transcribed: {meeting_id}, transcript_id: {transcript.id}")
+        logger.info(
+            f"Meeting transcribed: {meeting_id}, transcript_id: {transcript.id}, "
+            f"backend: {result.backend}, model: {result.model}, latency: {result.latency_ms}ms"
+        )
+
+        # 10. (선택) MeetingAgent 자동 실행
+        if transcribe_data.run_meeting_agent:
+            logger.info(f"Running MeetingAgent for meeting: {meeting_id}")
+            try:
+                # Brand context 조회
+                brand_context = None
+                if meeting.brand_id:
+                    from app.models.brand import Brand
+                    brand = db.query(Brand).filter(Brand.id == meeting.brand_id).first()
+                    if brand and brand.brand_dna:
+                        brand_context = str(brand.brand_dna)
+
+                # MeetingAgent 실행
+                agent = get_meeting_ai_agent()
+                agent_request = AgentRequest(
+                    task="meeting_summary",
+                    payload={
+                        "transcript": transcript.transcript_text,
+                        "meeting_title": meeting.title,
+                        "meeting_date": meeting.meeting_date.isoformat() if meeting.meeting_date else None,
+                        "brand_context": brand_context
+                    }
+                )
+
+                agent_response = await agent.execute(agent_request)
+
+                if agent_response.outputs:
+                    analysis_result = agent_response.outputs[0].value
+                    meeting.analysis_result = analysis_result
+                    meeting.status = MeetingStatus.ANALYZED
+                    db.commit()
+                    logger.info(f"MeetingAgent completed for meeting: {meeting_id}")
+
+            except Exception as agent_error:
+                logger.error(f"MeetingAgent failed for meeting {meeting_id}: {agent_error}")
+                # Agent 실패해도 트랜스크립션 성공은 유지
 
         return TranscribeResponse(
             meeting_id=meeting_id,
             transcript_id=transcript.id,
             status=meeting.status,
-            transcript_text=result["transcript_text"],
-            language=result["language"],
-            duration=result.get("duration"),
-            segments_count=len(result["segments"]) if result["segments"] else 0
+            transcript_text=result.text,
+            language=result.language,
+            duration=result.duration_seconds,
+            segments_count=len(result.segments)
         )
 
     except HTTPException:
@@ -372,8 +483,9 @@ async def transcribe_meeting(
     except Exception as e:
         logger.error(f"Error transcribing meeting {meeting_id}: {str(e)}")
         # 실패 상태 업데이트
-        meeting.status = MeetingStatus.FAILED
-        db.commit()
+        if meeting:
+            meeting.status = MeetingStatus.FAILED
+            db.commit()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Transcription failed: {str(e)}"
@@ -445,10 +557,17 @@ async def analyze_meeting(
                 detail=f"Meeting not found: {meeting_id}"
             )
 
-        # 2. Transcript 조회
+        # 2. Primary Transcript 조회
         transcript = db.query(MeetingTranscript).filter(
-            MeetingTranscript.meeting_id == meeting_id
-        ).order_by(desc(MeetingTranscript.created_at)).first()
+            MeetingTranscript.meeting_id == meeting_id,
+            MeetingTranscript.is_primary == True
+        ).first()
+
+        if not transcript:
+            # Fallback: 가장 최근 트랜스크립트 사용
+            transcript = db.query(MeetingTranscript).filter(
+                MeetingTranscript.meeting_id == meeting_id
+            ).order_by(desc(MeetingTranscript.created_at)).first()
 
         if not transcript:
             raise HTTPException(

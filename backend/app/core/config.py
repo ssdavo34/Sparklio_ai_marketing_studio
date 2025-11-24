@@ -95,6 +95,18 @@ class Settings(BaseSettings):
     # Vector Search
     EMBEDDING_DIMENSION: int = 1536
 
+    # Whisper STT (Meeting AI)
+    whisper_mode: str = Field("hybrid_cost", env="WHISPER_MODE")  # openai | local | hybrid_cost | hybrid_quality
+    whisper_local_backend: str = Field("faster_whisper", env="WHISPER_LOCAL_BACKEND")  # whisper_cpp | faster_whisper | none
+    whisper_fast_endpoint: str = Field("http://100.123.51.6:9000/transcribe", env="WHISPER_FAST_ENDPOINT")
+    whisper_cpp_endpoint: str = Field("http://127.0.0.1:8765/transcribe", env="WHISPER_CPP_ENDPOINT")
+    whisper_openai_max_minutes: int = Field(20, env="WHISPER_OPENAI_MAX_MINUTES")
+    whisper_profile_fast: str = Field("small", env="WHISPER_PROFILE_FAST")
+    whisper_profile_balanced: str = Field("medium", env="WHISPER_PROFILE_BALANCED")
+    whisper_profile_accurate: str = Field("large-v3", env="WHISPER_PROFILE_ACCURATE")
+    whisper_timeout_seconds: int = Field(600, env="WHISPER_TIMEOUT_SECONDS")
+    whisper_max_retries: int = Field(2, env="WHISPER_MAX_RETRIES")
+
     # Database URL (computed)
     @property
     def DATABASE_URL(self) -> str:
@@ -184,6 +196,47 @@ class Settings(BaseSettings):
     def COMFYUI_TIMEOUT(self) -> int:
         """Deprecated: Use comfyui_timeout instead"""
         return self.comfyui_timeout
+
+    # Whisper 대문자 속성
+    @property
+    def WHISPER_MODE(self) -> str:
+        return self.whisper_mode
+
+    @property
+    def WHISPER_LOCAL_BACKEND(self) -> str:
+        return self.whisper_local_backend
+
+    @property
+    def WHISPER_FAST_ENDPOINT(self) -> str:
+        return self.whisper_fast_endpoint
+
+    @property
+    def WHISPER_CPP_ENDPOINT(self) -> str:
+        return self.whisper_cpp_endpoint
+
+    @property
+    def WHISPER_OPENAI_MAX_MINUTES(self) -> int:
+        return self.whisper_openai_max_minutes
+
+    @property
+    def WHISPER_PROFILE_FAST(self) -> str:
+        return self.whisper_profile_fast
+
+    @property
+    def WHISPER_PROFILE_BALANCED(self) -> str:
+        return self.whisper_profile_balanced
+
+    @property
+    def WHISPER_PROFILE_ACCURATE(self) -> str:
+        return self.whisper_profile_accurate
+
+    @property
+    def WHISPER_TIMEOUT_SECONDS(self) -> int:
+        return self.whisper_timeout_seconds
+
+    @property
+    def WHISPER_MAX_RETRIES(self) -> int:
+        return self.whisper_max_retries
 
     model_config = SettingsConfigDict(
         env_file=".env",

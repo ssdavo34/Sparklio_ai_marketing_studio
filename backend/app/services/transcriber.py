@@ -1,282 +1,388 @@
 """
-Meeting Transcriber Service
+TranscriberService
 
-OpenAI Whisper API를 사용하여 음성/영상 파일을 텍스트로 변환
+Meeting AI용 Whisper 백엔드 통합 서비스
+4가지 모드 전략 구현 (openai, local, hybrid_cost, hybrid_quality)
 
 작성일: 2025-11-24
 작성자: B팀 (Backend)
-참조: SPARKLIO_MVP_MASTER_TRACKER.md - P0-2 Meeting AI Module
+참조: docs/MEETING_AI_TRANSCRIBER_SPEC.md
 """
 
 import logging
-from typing import Dict, Any, Optional, List
+from typing import Optional
 from pathlib import Path
-import httpx
-from openai import OpenAI, AsyncOpenAI
 
 from app.core.config import settings
+from app.schemas.transcriber import TranscriptionResult
+from app.services.transcriber_clients import (
+    BaseWhisperClient,
+    OpenAIWhisperClient,
+    WhisperCppClient,
+    FasterWhisperClient,
+)
 
 logger = logging.getLogger(__name__)
 
 
-class TranscriberError(Exception):
-    """트랜스크립션 에러"""
-    pass
-
-
-class MeetingTranscriber:
+class TranscriberService:
     """
-    회의 음성/영상 트랜스크립션 서비스
+    Whisper 백엔드 통합 서비스
 
-    OpenAI Whisper API를 사용하여 오디오 파일을 텍스트로 변환합니다.
-
-    Features:
-    - 음성/영상 → 텍스트 변환
-    - 타임스탬프 포함 세그먼트 생성
-    - 언어 자동 감지 (또는 수동 지정)
-    - 긴 오디오 처리 (청크 분할)
-
-    Supported formats:
-    - mp3, mp4, mpeg, mpga, m4a, wav, webm
-    - Max file size: 25MB (Whisper API 제한)
+    4가지 모드:
+    - openai: OpenAI만 사용
+    - local: 로컬 (faster-whisper 또는 whisper.cpp)만 사용
+    - hybrid_cost: 비용 최적화 (짧은 회의는 OpenAI, 긴 회의는 로컬)
+    - hybrid_quality: 품질 우선 (로컬 large-v3 우선, 실패 시 OpenAI)
     """
 
-    def __init__(self, api_key: Optional[str] = None):
-        """
-        Args:
-            api_key: OpenAI API 키 (optional, settings에서 가져옴)
-        """
-        self.api_key = api_key or settings.OPENAI_API_KEY
-        if not self.api_key:
-            raise ValueError("OpenAI API key is required for transcription")
+    def __init__(self):
+        self.mode = settings.WHISPER_MODE
+        self.local_backend = settings.WHISPER_LOCAL_BACKEND
+        self.openai_max_minutes = settings.WHISPER_OPENAI_MAX_MINUTES
+        self.max_retries = settings.WHISPER_MAX_RETRIES
 
-        self.client = OpenAI(api_key=self.api_key)
-        self.async_client = AsyncOpenAI(api_key=self.api_key)
+        # 클라이언트 초기화
+        self.openai_client = OpenAIWhisperClient()
+        self.faster_whisper_client = FasterWhisperClient()
+        self.whisper_cpp_client = WhisperCppClient()
 
-        # Whisper API 지원 포맷
-        self.supported_formats = {
-            '.mp3', '.mp4', '.mpeg', '.mpga',
-            '.m4a', '.wav', '.webm'
-        }
+        logger.info(
+            f"[TranscriberService] Initialized: mode={self.mode}, "
+            f"local_backend={self.local_backend}, "
+            f"openai_max_minutes={self.openai_max_minutes}"
+        )
 
-        # Whisper API 파일 크기 제한 (25MB)
-        self.max_file_size = 25 * 1024 * 1024
-
-    def transcribe(
+    async def transcribe(
         self,
-        file_path: str,
-        language: Optional[str] = None,
-        prompt: Optional[str] = None,
-        temperature: float = 0.0
-    ) -> Dict[str, Any]:
+        audio_path: str,
+        duration_seconds: Optional[float] = None,
+        force_mode: Optional[str] = None,
+        importance: str = "normal",
+        **kwargs
+    ) -> TranscriptionResult:
         """
-        음성/영상 파일을 텍스트로 변환 (동기)
+        오디오 파일을 텍스트로 변환
 
         Args:
-            file_path: 오디오 파일 경로
-            language: 언어 코드 (ISO-639-1, 예: 'ko', 'en'), None이면 자동 감지
-            prompt: Whisper에게 주는 힌트 텍스트 (선택)
-            temperature: 샘플링 온도 (0.0 = 결정론적, 1.0 = 랜덤)
+            audio_path: 오디오 파일 경로
+            duration_seconds: 회의 길이 (초) - hybrid_cost 모드에서 사용
+            force_mode: 강제 모드 지정 (openai | local | hybrid_cost | hybrid_quality)
+            importance: 중요도 (normal | high) - high면 품질 우선
+            **kwargs: 엔진별 추가 옵션
 
         Returns:
-            Dict with:
-                - transcript_text: 전체 트랜스크립트 텍스트
-                - language: 감지된 언어 코드
-                - segments: 타임스탬프 포함 세그먼트 리스트
-                - duration: 오디오 길이 (초)
-                - whisper_metadata: Whisper 메타데이터
-
-        Raises:
-            TranscriberError: 트랜스크립션 실패 시
+            TranscriptionResult
         """
+        mode = force_mode or self.mode
+
+        logger.info(
+            f"[TranscriberService] transcribe() called: "
+            f"audio_path={audio_path}, duration={duration_seconds}s, "
+            f"mode={mode}, importance={importance}"
+        )
+
         try:
-            # 파일 검증
-            self._validate_file(file_path)
-
-            # Whisper API 호출
-            with open(file_path, 'rb') as audio_file:
-                # verbose_json 형식으로 세그먼트 포함 결과 요청
-                transcript = self.client.audio.transcriptions.create(
-                    model="whisper-1",
-                    file=audio_file,
-                    language=language,
-                    prompt=prompt,
-                    temperature=temperature,
-                    response_format="verbose_json",  # 세그먼트 포함
-                    timestamp_granularities=["segment"]
-                )
-
-            # 세그먼트 파싱
-            segments = self._parse_segments(transcript)
-
-            # 메타데이터 생성
-            whisper_metadata = {
-                "model": "whisper-1",
-                "duration": transcript.duration if hasattr(transcript, 'duration') else None,
-                "language_detected": transcript.language if hasattr(transcript, 'language') else language,
-                "temperature": temperature,
-                "prompt": prompt
-            }
-
-            logger.info(
-                f"Successfully transcribed audio: {file_path}, "
-                f"duration: {whisper_metadata.get('duration')}s, "
-                f"language: {whisper_metadata.get('language_detected')}, "
-                f"segments: {len(segments)}"
-            )
-
-            return {
-                "transcript_text": transcript.text.strip(),
-                "language": whisper_metadata["language_detected"],
-                "segments": segments,
-                "duration": whisper_metadata["duration"],
-                "whisper_metadata": whisper_metadata
-            }
+            if mode == "openai":
+                return await self._openai_only(audio_path, duration_seconds, **kwargs)
+            elif mode == "local":
+                return await self._local_only(audio_path, duration_seconds, **kwargs)
+            elif mode == "hybrid_cost":
+                return await self._hybrid_cost(audio_path, duration_seconds, **kwargs)
+            elif mode == "hybrid_quality":
+                return await self._hybrid_quality(audio_path, duration_seconds, **kwargs)
+            else:
+                logger.warning(f"Unknown mode '{mode}', falling back to hybrid_cost")
+                return await self._hybrid_cost(audio_path, duration_seconds, **kwargs)
 
         except Exception as e:
-            logger.error(f"Error transcribing audio {file_path}: {str(e)}")
-            raise TranscriberError(f"Transcription failed: {str(e)}")
+            logger.error(f"[TranscriberService] transcribe() failed: {e}")
+            raise
 
-    async def transcribe_async(
+    async def _openai_only(
         self,
-        file_path: str,
-        language: Optional[str] = None,
-        prompt: Optional[str] = None,
-        temperature: float = 0.0
-    ) -> Dict[str, Any]:
+        audio_path: str,
+        duration_seconds: Optional[float] = None,
+        **kwargs
+    ) -> TranscriptionResult:
         """
-        음성/영상 파일을 텍스트로 변환 (비동기)
+        OpenAI 전용 모드
+
+        OpenAI Whisper API만 사용
+        """
+        logger.info(f"[TranscriberService] _openai_only: {audio_path}")
+
+        return await self._with_retries(
+            self.openai_client,
+            audio_path,
+            duration_seconds,
+            fallback_client=None,  # OpenAI 전용, fallback 없음
+            **kwargs
+        )
+
+    async def _local_only(
+        self,
+        audio_path: str,
+        duration_seconds: Optional[float] = None,
+        **kwargs
+    ) -> TranscriptionResult:
+        """
+        로컬 전용 모드
+
+        로컬 백엔드 (faster-whisper 또는 whisper.cpp)만 사용
+        fallback_openai 설정에 따라 OpenAI fallback 가능
+        """
+        logger.info(
+            f"[TranscriberService] _local_only: {audio_path}, "
+            f"local_backend={self.local_backend}"
+        )
+
+        # 로컬 백엔드 선택
+        if self.local_backend == "faster_whisper":
+            local_client = self.faster_whisper_client
+        elif self.local_backend == "whisper_cpp":
+            local_client = self.whisper_cpp_client
+        else:
+            logger.warning(
+                f"Unknown local_backend '{self.local_backend}', using faster_whisper"
+            )
+            local_client = self.faster_whisper_client
+
+        # Model profile 선택
+        model_profile = self._choose_model_profile(duration_seconds)
+        kwargs.setdefault("model_profile", model_profile)
+
+        # OpenAI fallback 여부
+        fallback_openai = kwargs.pop("fallback_openai", True)
+        fallback_client = self.openai_client if fallback_openai else None
+
+        return await self._with_retries(
+            local_client,
+            audio_path,
+            duration_seconds,
+            fallback_client=fallback_client,
+            **kwargs
+        )
+
+    async def _hybrid_cost(
+        self,
+        audio_path: str,
+        duration_seconds: Optional[float] = None,
+        **kwargs
+    ) -> TranscriptionResult:
+        """
+        비용 최적화 하이브리드 모드 (기본값)
+
+        전략:
+        - 짧은 회의 (≤ openai_max_minutes): OpenAI 우선
+        - 긴 회의 (> openai_max_minutes): 로컬 우선, OpenAI fallback
+        """
+        logger.info(
+            f"[TranscriberService] _hybrid_cost: {audio_path}, "
+            f"duration={duration_seconds}s"
+        )
+
+        # Duration 기반 라우팅
+        if duration_seconds is None:
+            logger.warning("duration_seconds not provided, using local backend")
+            use_openai = False
+        else:
+            duration_minutes = duration_seconds / 60
+            use_openai = duration_minutes <= self.openai_max_minutes
+
+        if use_openai:
+            logger.info(
+                f"[TranscriberService] _hybrid_cost: Short meeting "
+                f"({duration_seconds}s), using OpenAI"
+            )
+            return await self._with_retries(
+                self.openai_client,
+                audio_path,
+                duration_seconds,
+                fallback_client=None,  # OpenAI는 fallback 없음
+                **kwargs
+            )
+        else:
+            logger.info(
+                f"[TranscriberService] _hybrid_cost: Long meeting "
+                f"({duration_seconds}s), using local with OpenAI fallback"
+            )
+
+            # 로컬 백엔드 선택
+            if self.local_backend == "faster_whisper":
+                local_client = self.faster_whisper_client
+            elif self.local_backend == "whisper_cpp":
+                local_client = self.whisper_cpp_client
+            else:
+                local_client = self.faster_whisper_client
+
+            # Model profile 선택 (긴 회의는 작은 모델 사용)
+            model_profile = self._choose_model_profile(duration_seconds)
+            kwargs.setdefault("model_profile", model_profile)
+
+            return await self._with_retries(
+                local_client,
+                audio_path,
+                duration_seconds,
+                fallback_client=self.openai_client,
+                **kwargs
+            )
+
+    async def _hybrid_quality(
+        self,
+        audio_path: str,
+        duration_seconds: Optional[float] = None,
+        **kwargs
+    ) -> TranscriptionResult:
+        """
+        품질 우선 하이브리드 모드
+
+        전략:
+        - 항상 로컬 large-v3 모델 우선
+        - 실패 시 OpenAI fallback
+        """
+        logger.info(
+            f"[TranscriberService] _hybrid_quality: {audio_path}, "
+            f"always using local large-v3"
+        )
+
+        # 로컬 백엔드 선택
+        if self.local_backend == "faster_whisper":
+            local_client = self.faster_whisper_client
+        elif self.local_backend == "whisper_cpp":
+            local_client = self.whisper_cpp_client
+        else:
+            local_client = self.faster_whisper_client
+
+        # 항상 large-v3 (최고 품질)
+        kwargs["model_profile"] = settings.WHISPER_PROFILE_ACCURATE
+
+        return await self._with_retries(
+            local_client,
+            audio_path,
+            duration_seconds,
+            fallback_client=self.openai_client,
+            **kwargs
+        )
+
+    async def _with_retries(
+        self,
+        client: BaseWhisperClient,
+        audio_path: str,
+        duration_seconds: Optional[float],
+        fallback_client: Optional[BaseWhisperClient] = None,
+        **kwargs
+    ) -> TranscriptionResult:
+        """
+        Retry 로직 with fallback
 
         Args:
-            file_path: 오디오 파일 경로
-            language: 언어 코드 (ISO-639-1, 예: 'ko', 'en'), None이면 자동 감지
-            prompt: Whisper에게 주는 힌트 텍스트 (선택)
-            temperature: 샘플링 온도 (0.0 = 결정론적, 1.0 = 랜덤)
+            client: Primary 클라이언트
+            audio_path: 오디오 파일 경로
+            duration_seconds: 회의 길이
+            fallback_client: Fallback 클라이언트 (옵션)
+            **kwargs: 엔진별 추가 옵션
 
         Returns:
-            Dict with:
-                - transcript_text: 전체 트랜스크립트 텍스트
-                - language: 감지된 언어 코드
-                - segments: 타임스탬프 포함 세그먼트 리스트
-                - duration: 오디오 길이 (초)
-                - whisper_metadata: Whisper 메타데이터
-
-        Raises:
-            TranscriberError: 트랜스크립션 실패 시
+            TranscriptionResult
         """
-        try:
-            # 파일 검증
-            self._validate_file(file_path)
+        last_error = None
 
-            # Whisper API 호출 (비동기)
-            with open(file_path, 'rb') as audio_file:
-                transcript = await self.async_client.audio.transcriptions.create(
-                    model="whisper-1",
-                    file=audio_file,
-                    language=language,
-                    prompt=prompt,
-                    temperature=temperature,
-                    response_format="verbose_json",
-                    timestamp_granularities=["segment"]
+        # Primary 클라이언트 시도
+        for attempt in range(self.max_retries):
+            try:
+                logger.info(
+                    f"[TranscriberService] Attempt {attempt + 1}/{self.max_retries} "
+                    f"with {client.__class__.__name__}"
+                )
+                result = await client.transcribe(audio_path, **kwargs)
+                logger.info(
+                    f"[TranscriberService] Success with {client.__class__.__name__}: "
+                    f"backend={result.backend}, model={result.model}, "
+                    f"latency={result.latency_ms}ms"
+                )
+                return result
+
+            except Exception as e:
+                last_error = e
+                logger.warning(
+                    f"[TranscriberService] Attempt {attempt + 1} failed "
+                    f"with {client.__class__.__name__}: {e}"
                 )
 
-            # 세그먼트 파싱
-            segments = self._parse_segments(transcript)
-
-            # 메타데이터 생성
-            whisper_metadata = {
-                "model": "whisper-1",
-                "duration": transcript.duration if hasattr(transcript, 'duration') else None,
-                "language_detected": transcript.language if hasattr(transcript, 'language') else language,
-                "temperature": temperature,
-                "prompt": prompt
-            }
-
+        # Primary 실패 → Fallback 시도
+        if fallback_client:
             logger.info(
-                f"Successfully transcribed audio (async): {file_path}, "
-                f"duration: {whisper_metadata.get('duration')}s, "
-                f"language: {whisper_metadata.get('language_detected')}, "
-                f"segments: {len(segments)}"
+                f"[TranscriberService] Primary client failed, "
+                f"trying fallback {fallback_client.__class__.__name__}"
             )
 
-            return {
-                "transcript_text": transcript.text.strip(),
-                "language": whisper_metadata["language_detected"],
-                "segments": segments,
-                "duration": whisper_metadata["duration"],
-                "whisper_metadata": whisper_metadata
-            }
+            try:
+                # Fallback은 1회만 시도
+                result = await fallback_client.transcribe(audio_path, **kwargs)
+                logger.info(
+                    f"[TranscriberService] Fallback success: "
+                    f"backend={result.backend}, model={result.model}"
+                )
+                return result
 
-        except Exception as e:
-            logger.error(f"Error transcribing audio (async) {file_path}: {str(e)}")
-            raise TranscriberError(f"Transcription failed: {str(e)}")
+            except Exception as fallback_error:
+                logger.error(
+                    f"[TranscriberService] Fallback also failed: {fallback_error}"
+                )
+                raise fallback_error
 
-    def _validate_file(self, file_path: str) -> None:
-        """파일 검증"""
-        path = Path(file_path)
+        # Fallback도 없거나 실패
+        logger.error(
+            f"[TranscriberService] All retries exhausted, no fallback available"
+        )
+        raise last_error
 
-        # 파일 존재 확인
-        if not path.exists():
-            raise TranscriberError(f"File not found: {file_path}")
-
-        # 파일 포맷 확인
-        if path.suffix.lower() not in self.supported_formats:
-            raise TranscriberError(
-                f"Unsupported audio format: {path.suffix}. "
-                f"Supported: {self.supported_formats}"
-            )
-
-        # 파일 크기 확인
-        file_size = path.stat().st_size
-        if file_size > self.max_file_size:
-            raise TranscriberError(
-                f"File too large: {file_size / 1024 / 1024:.1f}MB. "
-                f"Max size: {self.max_file_size / 1024 / 1024:.0f}MB"
-            )
-
-    def _parse_segments(self, transcript: Any) -> List[Dict[str, Any]]:
+    def _choose_model_profile(self, duration_seconds: Optional[float]) -> str:
         """
-        Whisper API 응답에서 세그먼트 파싱
+        회의 길이에 따라 최적 모델 프로파일 선택
+
+        전략:
+        - 짧은 회의 (< 10분): small (빠르고 저렴)
+        - 중간 회의 (10-30분): medium (균형)
+        - 긴 회의 (> 30분): large-v3 (정확도 우선)
+
+        Args:
+            duration_seconds: 회의 길이 (초)
 
         Returns:
-            List of segments:
-            [
-                {
-                    "start": 0.0,
-                    "end": 5.2,
-                    "text": "안녕하세요 오늘 회의를 시작하겠습니다"
-                },
-                ...
-            ]
+            model_profile: "small" | "medium" | "large-v3"
         """
-        segments = []
+        if duration_seconds is None:
+            logger.warning("duration_seconds not provided, using balanced profile")
+            return settings.WHISPER_PROFILE_BALANCED
 
-        if hasattr(transcript, 'segments') and transcript.segments:
-            for seg in transcript.segments:
-                segments.append({
-                    "start": seg.get('start', 0.0) if isinstance(seg, dict) else getattr(seg, 'start', 0.0),
-                    "end": seg.get('end', 0.0) if isinstance(seg, dict) else getattr(seg, 'end', 0.0),
-                    "text": seg.get('text', '').strip() if isinstance(seg, dict) else getattr(seg, 'text', '').strip()
-                })
+        duration_minutes = duration_seconds / 60
 
-        return segments
+        if duration_minutes < 10:
+            profile = settings.WHISPER_PROFILE_FAST
+            logger.info(f"Short meeting ({duration_minutes:.1f}min), using {profile}")
+        elif duration_minutes < 30:
+            profile = settings.WHISPER_PROFILE_BALANCED
+            logger.info(f"Medium meeting ({duration_minutes:.1f}min), using {profile}")
+        else:
+            profile = settings.WHISPER_PROFILE_ACCURATE
+            logger.info(f"Long meeting ({duration_minutes:.1f}min), using {profile}")
+
+        return profile
 
 
 # Singleton instance
-_transcriber_instance: Optional[MeetingTranscriber] = None
+_transcriber_service: Optional[TranscriberService] = None
 
 
-def get_transcriber(api_key: Optional[str] = None) -> MeetingTranscriber:
+def get_transcriber_service() -> TranscriberService:
     """
-    MeetingTranscriber 싱글톤 인스턴스 반환
+    TranscriberService 싱글톤 인스턴스 반환
 
-    Args:
-        api_key: OpenAI API 키 (optional)
-
-    Returns:
-        MeetingTranscriber 인스턴스
+    FastAPI dependency injection에서 사용
     """
-    global _transcriber_instance
-    if _transcriber_instance is None:
-        _transcriber_instance = MeetingTranscriber(api_key=api_key)
-    return _transcriber_instance
+    global _transcriber_service
+    if _transcriber_service is None:
+        _transcriber_service = TranscriberService()
+    return _transcriber_service

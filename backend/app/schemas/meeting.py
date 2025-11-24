@@ -120,6 +120,22 @@ class TranscribeRequest(BaseModel):
         le=1.0,
         description="샘플링 온도 (0.0 = 결정론적, 1.0 = 랜덤)"
     )
+    force_mode: Optional[str] = Field(
+        None,
+        description="강제 모드 지정 (openai | local | hybrid_cost | hybrid_quality)"
+    )
+    reprocess: bool = Field(
+        False,
+        description="기존 트랜스크립트 무시하고 재처리 (True) vs 기존 사용 (False)"
+    )
+    importance: str = Field(
+        "normal",
+        description="중요도 (normal | high) - high면 품질 우선 모드 사용"
+    )
+    run_meeting_agent: bool = Field(
+        False,
+        description="트랜스크립션 완료 후 MeetingAgent 분석 자동 실행"
+    )
 
 
 class TranscribeResponse(BaseModel):
