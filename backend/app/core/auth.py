@@ -37,7 +37,9 @@ async def get_current_user(
     """
     # 개발 중 Mock User (token 없어도 반환)
     # TODO: 프로덕션에서는 JWT 토큰 검증 로직 추가
+    import uuid
     mock_user = User(
+        id=uuid.UUID('00000000-0000-0000-0000-000000000001'),
         email="test@sparklio.ai",
         username="test_user",
         hashed_password="mock_password",
