@@ -83,7 +83,7 @@ class SparklioDocument(Base):
 
     # 관계
     brand_id = Column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=True)
-    brand = relationship("Brand", back_populates="documents")
+    brand = relationship("Brand")  # 단방향 관계 (back_populates 제거)
 
     project_id = Column(UUID(as_uuid=True), ForeignKey("projects.id"), nullable=True)
     project = relationship("Project", back_populates="documents")

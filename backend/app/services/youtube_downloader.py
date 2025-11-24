@@ -133,7 +133,7 @@ class YouTubeDownloader:
         output_path: str
     ) -> bool:
         """
-        YouTube 오디오 다운로드 (Stage 2에서 구현)
+        YouTube 오디오 다운로드 (Stage 2)
 
         Args:
             url: YouTube URL
@@ -142,9 +142,40 @@ class YouTubeDownloader:
         Returns:
             성공 여부
         """
-        # TODO: Stage 2에서 구현
-        logger.warning("download_audio not implemented yet (Stage 2)")
-        return False
+        logger.info(f"YouTubeDownloader: Downloading audio from {url}")
+
+        try:
+            cmd = [
+                self.yt_dlp_path,
+                "--format", "bestaudio",  # 오디오만
+                "--output", output_path,
+                url
+            ]
+
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=300  # 5분 타임아웃
+            )
+
+            if result.returncode != 0:
+                logger.error(f"yt-dlp audio download failed: {result.stderr}")
+                return False
+
+            if not Path(output_path).exists():
+                logger.error(f"Audio file not created: {output_path}")
+                return False
+
+            logger.info(f"YouTubeDownloader: Audio downloaded to {output_path}")
+            return True
+
+        except subprocess.TimeoutExpired:
+            logger.error(f"yt-dlp audio download timeout for {url}")
+            return False
+        except Exception as e:
+            logger.exception(f"Failed to download audio: {e}")
+            return False
 
 
 def get_youtube_downloader() -> YouTubeDownloader:
