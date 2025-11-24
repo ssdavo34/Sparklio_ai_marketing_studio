@@ -26,6 +26,7 @@ from app.schemas.brand import (
 from app.schemas.brand_analyzer import BrandAnalysisInputV1, BrandDNAOutputV1, BrandDocumentInput
 from app.services.agents.brand_analyzer import get_brand_analyzer_agent
 from app.services.agents.base import AgentRequest, AgentError
+from app.services.crawlers import get_web_crawler, WebCrawlerError
 from app.auth.jwt import get_current_user
 
 router = APIRouter()
@@ -372,32 +373,63 @@ async def crawl_brand_url(
             detail="Not enough permissions"
         )
 
-    # URL 크롤링 (실제 구현에서는 비동기 작업)
-    # TODO: 실제 크롤링 로직 구현 (BeautifulSoup, Playwright 등)
+    # URL 크롤링 (동기 실행)
+    try:
+        crawler = get_web_crawler(timeout=30)
+        crawl_result = await crawler.crawl(crawl_data.url)
 
-    # BrandDocument 생성
-    document = BrandDocument(
-        brand_id=brand_id,
-        title=crawl_data.title or f"Crawled from {crawl_data.url}",
-        document_type=DocumentType.URL,
-        source_url=crawl_data.url,
-        processed="pending",
-        document_metadata={
-            "crawl_user_id": str(current_user.id),
-            "crawl_requested_at": str(db.query(db.func.now()).scalar())
-        }
-    )
+        # BrandDocument 생성
+        document = BrandDocument(
+            brand_id=brand_id,
+            title=crawl_data.title or crawl_result.get("title", f"Crawled from {crawl_data.url}"),
+            document_type=DocumentType.URL,
+            source_url=crawl_data.url,
+            extracted_text=crawl_result.get("extracted_text", ""),
+            processed="completed",  # 크롤링 완료
+            document_metadata={
+                "crawl_user_id": str(current_user.id),
+                "crawl_requested_at": str(db.query(db.func.now()).scalar()),
+                "description": crawl_result.get("description"),
+                **crawl_result.get("metadata", {})
+            }
+        )
 
-    db.add(document)
-    db.commit()
-    db.refresh(document)
+        db.add(document)
+        db.commit()
+        db.refresh(document)
 
-    logger.info(f"URL crawl requested: {document.id} for brand {brand_id}, URL: {crawl_data.url}")
+        logger.info(
+            f"URL crawled successfully: {document.id} for brand {brand_id}, "
+            f"URL: {crawl_data.url}, extracted {len(document.extracted_text)} chars"
+        )
 
-    # TODO: 백그라운드 태스크로 크롤링 작업 실행
-    # background_tasks.add_task(crawl_and_extract, document.id, crawl_data.url)
+        return document
 
-    return document
+    except WebCrawlerError as e:
+        # 크롤링 실패 시 pending 상태로 저장
+        logger.error(f"Crawling failed for {crawl_data.url}: {str(e)}")
+
+        document = BrandDocument(
+            brand_id=brand_id,
+            title=crawl_data.title or f"Crawled from {crawl_data.url}",
+            document_type=DocumentType.URL,
+            source_url=crawl_data.url,
+            processed="failed",
+            document_metadata={
+                "crawl_user_id": str(current_user.id),
+                "crawl_requested_at": str(db.query(db.func.now()).scalar()),
+                "error": str(e)
+            }
+        )
+
+        db.add(document)
+        db.commit()
+        db.refresh(document)
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Crawling failed: {str(e)}"
+        )
 
 
 @router.get("/{brand_id}/documents", response_model=BrandDocumentListResponse)
