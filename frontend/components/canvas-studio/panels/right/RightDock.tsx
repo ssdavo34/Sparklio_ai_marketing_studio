@@ -17,8 +17,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useTabsStore } from '../../stores/useTabsStore';
 import { useCanvasStore } from '../../stores/useCanvasStore';
 import { useChatStore } from '../../stores/useChatStore';
-import { AGENT_INFO, TASK_INFO } from '../../stores/types/llm';
-import type { AgentRole, TaskType, CostMode } from '../../stores/types/llm';
+import { AGENT_INFO, TASK_INFO, TEXT_LLM_INFO, IMAGE_LLM_INFO, VIDEO_LLM_INFO } from '../../stores/types/llm';
+import type { AgentRole, TaskType, CostMode, TextLLMProvider, ImageLLMProvider, VideoLLMProvider } from '../../stores/types/llm';
 import { MessageSquare, Layers, Settings } from 'lucide-react';
 import { ErrorMessage } from '../../components/ErrorMessage';
 
@@ -109,9 +109,18 @@ function ChatTab() {
     setRole,
     setTask,
     setCostMode,
+    setTextLLM,
+    setImageLLM,
+    setVideoLLM,
   } = useChatStore();
   const [input, setInput] = useState('');
+  const [isMounted, setIsMounted] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Client-side mount check to prevent hydration errors
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -135,32 +144,29 @@ function ChatTab() {
     }
   };
 
-  // Get supported tasks for current role
-  const supportedTasks = AGENT_INFO[chatConfig.role]?.supportedTasks || [];
-
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
       <div className="p-3 border-b border-gray-200">
         <div className="flex items-center justify-between mb-2">
           <div>
-            <h3 className="text-sm font-semibold text-gray-900">AI Assistant</h3>
+            <h3 className="text-sm font-semibold text-gray-900">AI 어시스턴트</h3>
             <p className="text-xs text-gray-500">
-              Backend Gateway • Smart Router
+              백엔드 게이트웨이 • 스마트 라우터
             </p>
           </div>
           <button
             onClick={clearMessages}
             className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 rounded hover:bg-gray-100"
           >
-            Clear
+            지우기
           </button>
         </div>
 
         {/* Agent Role Selector */}
         <div className="mb-2">
           <label className="text-xs font-semibold text-gray-700 uppercase mb-1 block">
-            Agent Role
+            에이전트 역할
           </label>
           <select
             value={chatConfig.role}
@@ -175,29 +181,26 @@ function ChatTab() {
           </select>
         </div>
 
-        {/* Task Selector */}
+        {/* Task Selector - 모든 작업 유형 표시 */}
         <div className="mb-2">
           <label className="text-xs font-semibold text-gray-700 uppercase mb-1 block">
-            Task Type
+            작업 유형
           </label>
           <select
             value={chatConfig.task}
             onChange={(e) => setTask(e.target.value as TaskType)}
             className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
           >
-            {supportedTasks.map((taskId) => {
-              const taskInfo = TASK_INFO[taskId];
-              return (
-                <option key={taskId} value={taskId}>
-                  {taskInfo.name} - {taskInfo.description}
-                </option>
-              );
-            })}
+            {Object.entries(TASK_INFO).map(([taskId, taskInfo]) => (
+              <option key={taskId} value={taskId}>
+                {taskInfo.name} - {taskInfo.description}
+              </option>
+            ))}
           </select>
         </div>
 
         {/* Cost Mode Selector */}
-        <div className="flex gap-2">
+        <div className="flex gap-2 mb-2">
           {(['fast', 'balanced', 'quality'] as CostMode[]).map((mode) => (
             <button
               key={mode}
@@ -208,11 +211,68 @@ function ChatTab() {
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              {mode === 'fast' && '⚡ Fast'}
-              {mode === 'balanced' && '⚖️ Balanced'}
-              {mode === 'quality' && '✨ Quality'}
+              {mode === 'fast' && '⚡ 빠름'}
+              {mode === 'balanced' && '⚖️ 균형'}
+              {mode === 'quality' && '✨ 품질'}
             </button>
           ))}
+        </div>
+
+        {/* LLM Provider Selectors */}
+        <div className="space-y-2 pt-2 border-t border-gray-200">
+          {/* Text LLM Selector */}
+          <div>
+            <label className="text-xs font-semibold text-gray-700 uppercase mb-1 block">
+              텍스트 LLM
+            </label>
+            <select
+              value={chatConfig.textLLM || 'auto'}
+              onChange={(e) => setTextLLM(e.target.value as TextLLMProvider)}
+              className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
+            >
+              {Object.entries(TEXT_LLM_INFO).map(([key, info]) => (
+                <option key={key} value={key}>
+                  {info.name} - {info.description}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Image LLM Selector */}
+          <div>
+            <label className="text-xs font-semibold text-gray-700 uppercase mb-1 block">
+              이미지 생성 LLM
+            </label>
+            <select
+              value={chatConfig.imageLLM || 'auto'}
+              onChange={(e) => setImageLLM(e.target.value as ImageLLMProvider)}
+              className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
+            >
+              {Object.entries(IMAGE_LLM_INFO).map(([key, info]) => (
+                <option key={key} value={key}>
+                  {info.name} - {info.description}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Video LLM Selector */}
+          <div>
+            <label className="text-xs font-semibold text-gray-700 uppercase mb-1 block">
+              동영상 생성 LLM
+            </label>
+            <select
+              value={chatConfig.videoLLM || 'auto'}
+              onChange={(e) => setVideoLLM(e.target.value as VideoLLMProvider)}
+              className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
+            >
+              {Object.entries(VIDEO_LLM_INFO).map(([key, info]) => (
+                <option key={key} value={key}>
+                  {info.name} - {info.description}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -240,29 +300,31 @@ function ChatTab() {
                   />
                 </div>
               )}
-              <div
-                className={`text-xs mt-1 flex items-center gap-2 ${
-                  message.role === 'user' ? 'text-purple-200' : 'text-gray-500'
-                }`}
-              >
-                <span>
-                  {new Date(message.timestamp).toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </span>
-                {message.agentUsed && (
-                  <span className="text-xs opacity-75">
-                    • {message.agentUsed}
-                    {message.taskUsed && ` → ${message.taskUsed}`}
+              {isMounted && (
+                <div
+                  className={`text-xs mt-1 flex items-center gap-2 ${
+                    message.role === 'user' ? 'text-purple-200' : 'text-gray-500'
+                  }`}
+                >
+                  <span>
+                    {new Date(message.timestamp).toLocaleTimeString([], {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
                   </span>
-                )}
-                {message.usage?.tokens && (
-                  <span className="text-xs opacity-75">
-                    • {message.usage.tokens} tokens
-                  </span>
-                )}
-              </div>
+                  {message.agentUsed && (
+                    <span className="text-xs opacity-75">
+                      • {message.agentUsed}
+                      {message.taskUsed && ` → ${message.taskUsed}`}
+                    </span>
+                  )}
+                  {message.usage?.tokens && (
+                    <span className="text-xs opacity-75">
+                      • {message.usage.tokens} tokens
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         ))}

@@ -15,7 +15,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { createStore } from 'polotno/model/store';
-import { PolotnoContainer, SidePanelWrap, WorkspaceWrap } from 'polotno';
+import { PolotnoContainer, WorkspaceWrap } from 'polotno';
 import { ZoomButtons } from 'polotno/toolbar/zoom-buttons';
 import { Workspace } from 'polotno/canvas/workspace';
 import { useCanvasStore } from '../stores/useCanvasStore';
@@ -27,12 +27,20 @@ interface PolotnoWorkspaceProps {
 
 export function PolotnoWorkspace({ apiKey }: PolotnoWorkspaceProps) {
   const storeRef = useRef<any>(null);
+  const [isMounted, setIsMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const setPolotnoStore = useCanvasStore((state) => state.setPolotnoStore);
   const currentTemplate = useCanvasStore((state) => state.currentTemplate);
   const isViewMode = useLayoutStore((state) => state.isViewMode);
 
+  // Client-side mount check
   useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isMounted) return;
+
     // Polotno Store 초기화
     const store = createStore({
       key: apiKey,
@@ -55,7 +63,7 @@ export function PolotnoWorkspace({ apiKey }: PolotnoWorkspaceProps) {
         storeRef.current = null;
       }
     };
-  }, [apiKey, setPolotnoStore]);
+  }, [isMounted, apiKey, setPolotnoStore]);
 
   // View Mode 변경 시 선택 해제
   useEffect(() => {
@@ -65,7 +73,7 @@ export function PolotnoWorkspace({ apiKey }: PolotnoWorkspaceProps) {
     }
   }, [isViewMode]);
 
-  if (isLoading) {
+  if (!isMounted || isLoading) {
     return (
       <div className="flex items-center justify-center h-full bg-gray-50">
         <div className="text-center">

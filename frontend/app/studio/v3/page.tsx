@@ -2,20 +2,33 @@
  * Canvas Studio v3.1 - Main Page
  *
  * Polotno-based editor with Sparklio custom UI
+ * One-page application for all work (brief, generation, editing)
  *
  * @author C팀 (Frontend Team)
  * @version 3.1
- * @date 2025-11-22
+ * @date 2025-11-24
  */
 
 'use client';
 
+import { useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { StudioLayout } from '@/components/canvas-studio/layout/StudioLayout';
 import { TopToolbar } from '@/components/canvas-studio/layout/TopToolbar';
 import { ActivityBar } from '@/components/canvas-studio/layout/ActivityBar';
 import { LeftPanel } from '@/components/canvas-studio/panels/left/LeftPanel';
 import { RightDock } from '@/components/canvas-studio/panels/right/RightDock';
+import {
+  useWorkspaceStore,
+  useProjectStore,
+  useBriefStore,
+  useBrandStore,
+} from '@/components/canvas-studio/stores';
+import { getMockProjects } from '@/lib/api/project-api';
+import { getMockBrief } from '@/lib/api/brief-api';
+import { getMockBrandKit } from '@/lib/api/brand-api';
+import { getMockWorkspaces } from '@/lib/api/workspace-api';
 
 const PolotnoWorkspace = dynamic(
   () => import('@/components/canvas-studio/polotno/PolotnoWorkspace').then((mod) => mod.PolotnoWorkspace),
@@ -25,6 +38,59 @@ const PolotnoWorkspace = dynamic(
 const POLOTNO_API_KEY = 'ng2ylHnHO2NscxqyUEWy';
 
 export default function CanvasStudioV3Page() {
+  const searchParams = useSearchParams();
+  const projectId = searchParams.get('projectId');
+  const contentId = searchParams.get('contentId');
+
+  const { setCurrentWorkspace } = useWorkspaceStore();
+  const { setCurrentProject } = useProjectStore();
+  const { setBrief } = useBriefStore();
+  const { setBrandKit } = useBrandStore();
+
+  // Load project context when projectId is provided
+  useEffect(() => {
+    if (projectId) {
+      loadProjectContext(projectId);
+    }
+  }, [projectId]);
+
+  async function loadProjectContext(projectId: string) {
+    try {
+      // Find project and workspace
+      const workspaces = getMockWorkspaces();
+
+      for (const workspace of workspaces) {
+        const projects = getMockProjects(workspace.id);
+        const project = projects.find((p) => p.id === projectId);
+
+        if (project) {
+          // Set workspace and project context
+          setCurrentWorkspace(workspace);
+          setCurrentProject(project);
+
+          // Load brief
+          const briefData = getMockBrief(projectId);
+          setBrief(briefData);
+
+          // Load brand kit
+          const brandKitData = getMockBrandKit(workspace.id);
+          setBrandKit(brandKitData);
+
+          console.log('✅ Project context loaded:', {
+            workspace: workspace.name,
+            project: project.name,
+            hasBrief: !!briefData,
+            hasBrandKit: !!brandKitData,
+          });
+
+          break;
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load project context:', error);
+    }
+  }
+
   return (
     <StudioLayout
       topToolbar={<TopToolbar />}

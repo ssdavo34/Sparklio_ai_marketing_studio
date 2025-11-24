@@ -13,7 +13,7 @@
 'use client';
 
 import { useLeftPanelStore, type LeftPanelTab } from '../stores/useLeftPanelStore';
-import { FileText, Plus, Type, Upload, Image as ImageIcon, Palette, Settings, HelpCircle } from 'lucide-react';
+import { FileText, Plus, Type, Upload, Image as ImageIcon, Palette, Settings, HelpCircle, FolderOpen } from 'lucide-react';
 
 interface Tool {
   id: LeftPanelTab;
@@ -22,6 +22,7 @@ interface Tool {
 }
 
 const TOOLS: Tool[] = [
+  { id: 'project', label: 'Project', Icon: FolderOpen },
   { id: 'pages', label: 'Pages', Icon: FileText },
   { id: 'elements', label: 'Elements', Icon: Plus },
   { id: 'text', label: 'Text', Icon: Type },
