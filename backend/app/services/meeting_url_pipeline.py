@@ -13,8 +13,7 @@ from typing import Optional
 from uuid import UUID
 from sqlalchemy.orm import Session
 
-from app.db.models import Meeting, MeetingTranscript
-from app.models.meeting import MeetingStatus, TranscriptSourceType, TranscriptProvider, TranscriptBackend
+from app.models.meeting import Meeting, MeetingTranscript, MeetingStatus, TranscriptSourceType, TranscriptProvider, TranscriptBackend
 from app.services.youtube_downloader import get_youtube_downloader
 
 logger = logging.getLogger(__name__)
