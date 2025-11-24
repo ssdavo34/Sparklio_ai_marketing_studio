@@ -61,7 +61,7 @@ class Settings(BaseSettings):
         env="OLLAMA_BASE_URL"
     )
     ollama_timeout: int = Field(120, env="OLLAMA_TIMEOUT")
-    ollama_default_model: str = Field("qwen2.5:7b", env="OLLAMA_DEFAULT_MODEL")
+    ollama_default_model: str = Field("llama3.2:latest", env="OLLAMA_DEFAULT_MODEL")
 
     # OpenAI API
     openai_api_key: str = Field("", env="OPENAI_API_KEY")
