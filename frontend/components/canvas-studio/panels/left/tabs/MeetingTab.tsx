@@ -1,9 +1,67 @@
 'use client';
 
 import { useRef, useState, useEffect } from 'react';
-import { Upload, X, Mic, Video, Sparkles, Loader2, FileAudio, Clock } from 'lucide-react';
+import { Upload, X, Mic, Video, Sparkles, Loader2, FileAudio, Clock, Download, Radio } from 'lucide-react';
 import { useCanvasStore } from '../../../stores/useCanvasStore';
-import type { Meeting, MeetingAnalysisResult, TranscribeResponse } from '@/types';
+import type { Meeting, MeetingAnalysisResult, MeetingStatus } from '@/types/meeting';
+import {
+  createMeetingFromFile,
+  createMeetingFromUrl,
+  transcribeMeeting,
+  analyzeMeeting,
+  meetingToBrief,
+  listMeetings,
+  getMeeting,
+} from '@/lib/api/meeting-api';
+
+// Status Badge Helper
+const getStatusBadgeConfig = (status: MeetingStatus) => {
+  switch (status) {
+    case 'created':
+      return { label: 'Created', color: 'bg-gray-100 text-gray-700', icon: null };
+    case 'downloading':
+      return { label: 'Downloading', color: 'bg-blue-100 text-blue-700', icon: Download };
+    case 'caption_ready':
+      return { label: 'Caption Ready', color: 'bg-cyan-100 text-cyan-700', icon: null };
+    case 'ready_for_stt':
+      return { label: 'Ready for STT', color: 'bg-indigo-100 text-indigo-700', icon: null };
+    case 'transcribing':
+      return { label: 'Transcribing', color: 'bg-yellow-100 text-yellow-700', icon: Radio };
+    case 'ready':
+      return { label: 'Ready', color: 'bg-green-100 text-green-700', icon: null };
+    case 'download_failed':
+      return { label: 'Download Failed', color: 'bg-red-100 text-red-700', icon: null };
+    case 'stt_failed':
+      return { label: 'STT Failed', color: 'bg-orange-100 text-orange-700', icon: null };
+    case 'uploaded':
+      return { label: 'Uploaded', color: 'bg-gray-100 text-gray-700', icon: null };
+    case 'transcribed':
+      return { label: 'Transcribed', color: 'bg-blue-100 text-blue-700', icon: null };
+    case 'analyzed':
+      return { label: 'Analyzed', color: 'bg-green-100 text-green-700', icon: null };
+    case 'failed':
+      return { label: 'Failed', color: 'bg-red-100 text-red-700', icon: null };
+    default:
+      return { label: status, color: 'bg-gray-100 text-gray-700', icon: null };
+  }
+};
+
+// Progress mapping
+const getStatusProgress = (status: MeetingStatus): number => {
+  switch (status) {
+    case 'created': return 10;
+    case 'downloading': return 30;
+    case 'caption_ready': return 50;
+    case 'ready_for_stt': return 60;
+    case 'transcribing': return 80;
+    case 'ready': return 100;
+    case 'analyzed': return 100;
+    case 'download_failed': return 0;
+    case 'stt_failed': return 0;
+    case 'failed': return 0;
+    default: return 0;
+  }
+};
 
 type UploadedMeetingFile = {
   id: string;
@@ -23,6 +81,7 @@ export function MeetingTab() {
   const [analysisResult, setAnalysisResult] = useState<MeetingAnalysisResult | null>(null);
   const [uploading, setUploading] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
+  const [pollingMeetings, setPollingMeetings] = useState<Set<string>>(new Set());
   const polotnoStore = useCanvasStore((state) => state.polotnoStore);
 
   // Load meetings on mount
@@ -30,17 +89,61 @@ export function MeetingTab() {
     loadMeetings();
   }, []);
 
+  // Polling logic for meetings in progress
+  useEffect(() => {
+    if (pollingMeetings.size === 0) return;
+
+    const interval = setInterval(async () => {
+      for (const meetingId of Array.from(pollingMeetings)) {
+        try {
+          const updatedMeeting = await getMeeting(meetingId);
+
+          // Update meetings list
+          setMeetings((prev) =>
+            prev.map((m) => (m.id === updatedMeeting.id ? updatedMeeting : m))
+          );
+
+          // Update selected meeting if it's the one being polled
+          if (selectedMeeting?.id === updatedMeeting.id) {
+            setSelectedMeeting(updatedMeeting);
+          }
+
+          // Stop polling if meeting is done
+          const isDone = !['created', 'downloading', 'ready_for_stt', 'transcribing'].includes(
+            updatedMeeting.status
+          );
+
+          if (isDone) {
+            setPollingMeetings((prev) => {
+              const next = new Set(prev);
+              next.delete(meetingId);
+              return next;
+            });
+
+            // Show notification
+            if (updatedMeeting.status === 'ready') {
+              alert(`✅ Meeting "${updatedMeeting.title}" is ready!`);
+            } else if (updatedMeeting.status.includes('failed')) {
+              alert(`❌ Meeting "${updatedMeeting.title}" failed: ${updatedMeeting.status}`);
+            }
+          }
+        } catch (error) {
+          console.error(`Failed to poll meeting ${meetingId}:`, error);
+        }
+      }
+    }, 3000); // Poll every 3 seconds
+
+    return () => clearInterval(interval);
+  }, [pollingMeetings, selectedMeeting]);
+
   const loadMeetings = async () => {
     try {
-      // TODO: Replace with actual API call
-      // const response = await fetch('/api/v1/meetings');
-      // const data = await response.json();
-      // setMeetings(data.items || data);
-
-      // Mock data for now
-      setMeetings([]);
+      const meetings = await listMeetings();
+      setMeetings(meetings);
     } catch (error) {
       console.error('Failed to load meetings:', error);
+      // 에러 발생 시 빈 배열로 초기화
+      setMeetings([]);
     }
   };
 
@@ -116,26 +219,11 @@ export function MeetingTab() {
 
     setUploading(true);
     try {
-      // TODO: Replace with actual API call
-      // const formData = new FormData();
-      // formData.append('file', uploadedFile.file);
-      // formData.append('title', uploadedFile.name);
-      //
-      // const response = await fetch('/api/v1/meetings/upload', {
-      //   method: 'POST',
-      //   body: formData,
-      // });
-      // const meeting: Meeting = await response.json();
-
-      // Mock meeting for now
-      const meeting: Meeting = {
-        id: `meeting-${Date.now()}`,
+      const meeting = await createMeetingFromFile({
+        file: uploadedFile.file,
         title: uploadedFile.name,
         source_type: 'upload',
-        status: 'uploaded',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
+      });
 
       setMeetings((prev) => [meeting, ...prev]);
       setSelectedMeeting(meeting);
@@ -159,35 +247,27 @@ export function MeetingTab() {
     setUploading(true);
     try {
       // Detect source type from URL
-      let detectedType: 'youtube' | 'webpage' = 'webpage';
+      let detectedType: 'youtube' | 'other' = 'other';
       if (url.includes('youtube.com') || url.includes('youtu.be')) {
         detectedType = 'youtube';
       }
 
-      // TODO: Replace with actual API call
-      // const response = await fetch('/api/v1/meetings/from-url', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ url, source_type: detectedType }),
-      // });
-      // const meeting: Meeting = await response.json();
-
-      // Mock meeting for now
-      const meeting: Meeting = {
-        id: `meeting-${Date.now()}`,
+      const meeting = await createMeetingFromUrl({
+        url: url,
         title: detectedType === 'youtube' ? 'YouTube Video' : 'Web Page Analysis',
-        source_type: detectedType === 'youtube' ? 'youtube' : 'other',
-        source_url: url,
-        status: 'uploaded',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
+        source_type: detectedType,
+      });
 
       setMeetings((prev) => [meeting, ...prev]);
       setSelectedMeeting(meeting);
       setUrl('');
 
-      alert('✅ Meeting이 생성되었습니다. Transcribe를 시작하세요.');
+      // Start polling if meeting is in progress
+      if (['created', 'downloading', 'ready_for_stt', 'transcribing'].includes(meeting.status)) {
+        setPollingMeetings((prev) => new Set(prev).add(meeting.id));
+      }
+
+      alert(`✅ Meeting이 생성되었습니다 (Status: ${meeting.status}). 자동으로 처리 중입니다.`);
     } catch (error) {
       console.error('Create from URL failed:', error);
       alert('❌ URL 처리 실패');
@@ -201,51 +281,26 @@ export function MeetingTab() {
     setSelectedMeeting(meeting);
 
     try {
-      // TODO: Replace with actual API call
-      // const response = await fetch(`/api/v1/meetings/${meeting.id}/transcribe`, {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({
-      //     importance: 'normal',
-      //     run_meeting_agent: true,
-      //   }),
-      // });
-      // const data: TranscribeResponse = await response.json();
+      // Step 1: Transcribe
+      console.log(`[MeetingTab] Transcribing meeting ${meeting.id}...`);
+      await transcribeMeeting(meeting.id, {
+        mode: 'hybrid_quality', // 또는 사용자 선택
+      });
 
-      // Mock delay
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      // Update meeting status to transcribed
+      setMeetings((prev) =>
+        prev.map((m) =>
+          m.id === meeting.id ? { ...m, status: 'transcribed' as const } : m
+        )
+      );
 
-      // Mock analysis result
-      const mockResult: MeetingAnalysisResult = {
-        summary: '이번 마케팅 팀 회의에서는 신제품 론칭 캠페인 전략을 논의했습니다. 타겟 고객층을 20-30대로 설정하고, SNS 마케팅을 중심으로 진행하기로 결정했습니다.',
-        agenda: [
-          '신제품 론칭 일정 확정',
-          'SNS 마케팅 채널 선정',
-          '예산 배분 논의',
-          'KPI 설정',
-        ],
-        decisions: [
-          '론칭일: 2025년 12월 15일',
-          '주요 채널: Instagram, TikTok',
-          '총 예산: 5,000만원',
-        ],
-        action_items: [
-          '마케팅 담당자: 채널별 콘텐츠 기획안 작성 (~ 11/30)',
-          '디자인 팀: 비주얼 컨셉 초안 제출 (~ 12/05)',
-          '개발팀: 랜딩페이지 구축 (~ 12/10)',
-        ],
-        campaign_ideas: [
-          '인플루언서 협업 캠페인',
-          '얼리버드 할인 이벤트',
-          '사용자 후기 공모전',
-        ],
-        analyzed_at: new Date().toISOString(),
-        analyzer_version: 'v1.0',
-      };
+      // Step 2: Analyze
+      console.log(`[MeetingTab] Analyzing meeting ${meeting.id}...`);
+      const analyzeResponse = await analyzeMeeting(meeting.id);
 
-      setAnalysisResult(mockResult);
+      setAnalysisResult(analyzeResponse.analysis);
 
-      // Update meeting status
+      // Update meeting status to analyzed
       setMeetings((prev) =>
         prev.map((m) =>
           m.id === meeting.id ? { ...m, status: 'analyzed' as const } : m
@@ -255,7 +310,7 @@ export function MeetingTab() {
       alert('✅ Transcribe & 분석 완료!');
     } catch (error) {
       console.error('Transcribe failed:', error);
-      alert('❌ 분석 실패');
+      alert(`❌ 분석 실패: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
     } finally {
       setTranscribing(false);
     }
@@ -544,20 +599,34 @@ export function MeetingTab() {
                         </p>
                       </div>
                     </div>
-                    <span
-                      className={`text-xs px-2 py-1 rounded-full ${
-                        meeting.status === 'analyzed'
-                          ? 'bg-green-100 text-green-700'
-                          : meeting.status === 'transcribed'
-                          ? 'bg-blue-100 text-blue-700'
-                          : meeting.status === 'transcribing'
-                          ? 'bg-yellow-100 text-yellow-700'
-                          : 'bg-gray-100 text-gray-700'
-                      }`}
-                    >
-                      {meeting.status}
-                    </span>
+                    {(() => {
+                      const statusConfig = getStatusBadgeConfig(meeting.status);
+                      const Icon = statusConfig.icon;
+                      return (
+                        <span
+                          className={`text-xs px-2 py-1 rounded-full flex items-center gap-1 ${statusConfig.color}`}
+                        >
+                          {Icon && <Icon className="w-3 h-3" />}
+                          {statusConfig.label}
+                        </span>
+                      );
+                    })()}
                   </div>
+                  {/* Progress Bar for in-progress meetings */}
+                  {['created', 'downloading', 'ready_for_stt', 'transcribing'].includes(meeting.status) && (
+                    <div className="mt-2">
+                      <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
+                        <span>Processing...</span>
+                        <span>{getStatusProgress(meeting.status)}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-1.5">
+                        <div
+                          className="bg-purple-600 h-1.5 rounded-full transition-all duration-500"
+                          style={{ width: `${getStatusProgress(meeting.status)}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  )}
                   {meeting.status === 'uploaded' && (
                     <button
                       onClick={(e) => {

@@ -8,8 +8,20 @@
  * @date 2025-11-24
  */
 
-// Meeting Status
-export type MeetingStatus = 'uploaded' | 'transcribing' | 'transcribed' | 'analyzed' | 'failed';
+// Meeting Status (Backend 계약서 기준)
+export type MeetingStatus =
+  | 'created'           // Meeting 레코드만 생성됨
+  | 'downloading'       // YouTube에서 다운로드 중
+  | 'caption_ready'     // Caption만 준비됨 (STT 불필요)
+  | 'ready_for_stt'     // Audio 다운로드 완료, STT 대기
+  | 'transcribing'      // STT 진행 중
+  | 'ready'             // Transcript 완료, 사용 가능
+  | 'download_failed'   // 다운로드 실패
+  | 'stt_failed'        // STT 실패
+  | 'uploaded'          // 파일 업로드 (기존 호환)
+  | 'transcribed'       // (기존 호환)
+  | 'analyzed'          // Analysis 완료
+  | 'failed';           // 기타 실패
 
 // Transcript Source Type
 export type TranscriptSourceType = 'caption' | 'whisper' | 'merged' | 'manual';

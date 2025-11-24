@@ -372,5 +372,5 @@ export function getAPIClient(config?: Partial<APIConfig>): APIClient {
 // Export Default Instance
 // ============================================================================
 
-const apiClient = getAPIClient();
+export const apiClient = getAPIClient();
 export default apiClient;

@@ -19,7 +19,7 @@
  */
 
 import { useState } from "react";
-import { apiClient } from "@/lib/api/client";
+import { apiClient } from "@/lib/api/api-client";
 import type { GenerateKind, GenerateResponse, ApiError } from "@/lib/api/types";
 
 export interface UseGenerateResult {
