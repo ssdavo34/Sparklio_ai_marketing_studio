@@ -1,0 +1,750 @@
+{
+  "agent": "reviewer",
+  "timestamp": "2025-11-23T23:10:46.918310",
+  "total_cases": 5,
+  "summary": {
+    "passed": 2,
+    "failed": 3,
+    "pass_rate": 40.0,
+    "average_score": 5.9,
+    "min_score": 1.6,
+    "max_score": 10.0
+  },
+  "results": [
+    {
+      "case_id": "reviewer_001",
+      "scenario": "모든 요소가 우수한 카피 - 즉시 승인",
+      "passed": true,
+      "score": 8.2,
+      "actual_output": {
+        "overall_score": 8.7,
+        "tone_match_score": 9.0,
+        "clarity_score": 8.5,
+        "persuasiveness_score": 8.3,
+        "brand_alignment_score": 9.2,
+        "strengths": [
+          "헤드라인과 서브헤드라인이 제품의 핵심 가치를 잘 전달하며, 사용자 경험을 강조하고 있습니다.",
+          "CTA가 명확하게 설정되어 있어 행동 유도에 효과적입니다.",
+          "주요 특징이 간결하게 나열되어 있어 읽기 쉽고 이해하기 쉬운 구조를 가지고 있습니다."
+        ],
+        "weaknesses": [
+          "서브헤드라인이 기술 스펙만을 강조하고 있어 차별화가 부족합니다.",
+          "본문이 너무 짧아 제품의 전체적인 가치와 사용자 경험을 더 잘 전달할 수 있는 공간이 필요합니다."
+        ],
+        "improvement_suggestions": [
+          "서브헤드라인을 '하루 종일 끊김 없는 몰입, 당신의 음악 세계'처럼 감성적으로 변경하여 차별화를 강조하세요.",
+          "본문에 사용자 경험 스토리나 더 구체적인 제품 가치를 추가하여 설득력을 높이세요 (예: '출퇴근길이 나만의 콘서트홀로 변합니다').",
+          "주요 특징 중 하나를 차별점으로 교체하여 사용자에게 더욱 강한 인상을 줄 수 있도록 하세요 (예: '프리미엄 사운드 튜닝')"
+        ],
+        "risk_flags": [
+          "24시간 배터리는 실제 사용 시간과 다를 수 있어 과대광고 우려",
+          "IPX7 방수 등급 표기 시 사용 조건 명시 필요 (방송통신심의위원회)"
+        ],
+        "approval_status": "needs_revision",
+        "revision_priority": "medium",
+        "approval_reason": "전반적으로 품질이 우수하지만 서브헤드라인과 본문을 개선하여 차별화와 설득력을 높일 필요가 있습니다."
+      },
+      "expected_output": {
+        "overall_score": 8.5,
+        "tone_match_score": 9.0,
+        "clarity_score": 8.5,
+        "persuasiveness_score": 8.5,
+        "brand_alignment_score": 9.0,
+        "strengths": [
+          "Headline이 임팩트 있고 제품 핵심 가치를 명확히 전달함",
+          "Subheadline이 감성적이면서도 기술적 우위를 잘 표현함",
+          "Body가 사용자 경험 스토리를 효과적으로 전달함"
+        ],
+        "weaknesses": [
+          "Bullets가 기능 나열에 치우쳐 차별점 강조 부족"
+        ],
+        "improvement_suggestions": [
+          "Bullets 중 하나를 차별화 요소로 교체 (예: '음향 전문가 추천' 또는 '독자적 음향 알고리즘')"
+        ],
+        "risk_flags": [],
+        "approval_status": "approved",
+        "revision_priority": "low",
+        "approval_reason": "전반적인 품질이 우수하며 즉시 사용 가능, 소폭 개선 시 더욱 효과적일 것으로 예상"
+      },
+      "validation_details": {
+        "overall_score": 8.2,
+        "field_scores": {
+          "overall_score": 10.0,
+          "tone_match_score": 10.0,
+          "clarity_score": 10.0,
+          "persuasiveness_score": 10.0,
+          "brand_alignment_score": 10.0,
+          "approval_status": 0.0,
+          "revision_priority": 5.0,
+          "strengths": 10.0,
+          "weaknesses": 10.0,
+          "improvement_suggestions": 10.0,
+          "risk_flags": 10.0
+        },
+        "details": {
+          "overall_score": {
+            "actual": 8.7,
+            "expected": 8.5,
+            "diff": 0.1999999999999993,
+            "passed": true
+          },
+          "tone_match_score": {
+            "actual": 9.0,
+            "expected": 9.0,
+            "diff": 0.0,
+            "passed": true
+          },
+          "clarity_score": {
+            "actual": 8.5,
+            "expected": 8.5,
+            "diff": 0.0,
+            "passed": true
+          },
+          "persuasiveness_score": {
+            "actual": 8.3,
+            "expected": 8.5,
+            "diff": 0.1999999999999993,
+            "passed": true
+          },
+          "brand_alignment_score": {
+            "actual": 9.2,
+            "expected": 9.0,
+            "diff": 0.1999999999999993,
+            "passed": true
+          },
+          "approval_status": {
+            "actual": "needs_revision",
+            "expected": "approved",
+            "passed": false
+          },
+          "revision_priority": {
+            "actual": "medium",
+            "expected": "low",
+            "passed": false
+          },
+          "strengths": {
+            "actual_count": 3,
+            "expected_count": 3,
+            "count_ok": true,
+            "length_ok": true,
+            "passed": true
+          },
+          "weaknesses": {
+            "actual_count": 2,
+            "expected_count": 1,
+            "count_ok": true,
+            "length_ok": true,
+            "passed": true
+          },
+          "improvement_suggestions": {
+            "actual_count": 3,
+            "expected_count": 1,
+            "count_ok": true,
+            "length_ok": true,
+            "passed": true
+          },
+          "risk_flags": {
+            "count": 2,
+            "count_ok": true,
+            "length_ok": true,
+            "passed": true
+          }
+        }
+      },
+      "usage": {
+        "elapsed_seconds": 0.0,
+        "tokens": 2140
+      }
+    },
+    {
+      "case_id": "reviewer_002",
+      "scenario": "효과 과장 및 규제 리스크 존재",
+      "passed": false,
+      "score": 1.6,
+      "actual_output": {
+        "overall_score": 8.0,
+        "tone_match_score": 9.5,
+        "clarity_score": 8.5,
+        "persuasiveness_score": 7.5,
+        "brand_alignment_score": 9.0,
+        "strengths": [
+          "헤드라인과 부제목이 제품의 주요 특징을 효과적으로 전달하며, 브랜드 이미지와 일치",
+          "CTA가 명확하고 독자에게 구매를 유도함",
+          "불량 부작용 없음을 강조하여 신뢰성 있는 이미지를 형성"
+        ],
+        "weaknesses": [
+          "부제목의 '100% 주름 제거 보장'이 과대광고 우려가 있어 규제 리스크 플래그",
+          "본문 내용이 짧아 제품에 대한 상세한 정보 전달 부족"
+        ],
+        "improvement_suggestions": [
+          "부제목을 '의학적으로 증명된 주름 제거'로 수정하여 과대광고 우려 완화",
+          "본문 내용을 확장하여 제품의 특징과 효과에 대한 자세한 설명 추가",
+          "브랜드 이미지와 일치하는 고급스러운 언어 사용"
+        ],
+        "risk_flags": [
+          "100% 주름 제거 보장은 과대광고 우려가 있어 규제 리스크 플래그",
+          "의학적으로 증명된 효과에 대한 구체적인 근거 필요 (예: 연구 논문, 인증서 등)"
+        ],
+        "approval_status": "needs_revision",
+        "revision_priority": "medium",
+        "approval_reason": "전반적으로 브랜드와 일치하며 설득력이 있지만 과대광고 우려가 있어 수정 필요"
+      },
+      "expected_output": {
+        "overall_score": 3.0,
+        "tone_match_score": 4.0,
+        "clarity_score": 5.0,
+        "persuasiveness_score": 2.0,
+        "brand_alignment_score": 3.0,
+        "strengths": [
+          "Headline이 임팩트는 있음"
+        ],
+        "weaknesses": [
+          "Headline과 Subheadline이 과도한 효과 주장으로 신뢰도 하락",
+          "Body가 구체적 근거 없이 비현실적 표현 사용",
+          "Bullets의 절대적 표현들이 검증 불가능"
+        ],
+        "improvement_suggestions": [
+          "Headline을 과학이 만든 시간의 기적, 피부 본연의 빛을 되찾다처럼 감성적이면서도 과장 없이 변경",
+          "Subheadline을 임상 테스트 결과 주름 개선 효과 확인처럼 검증 가능한 표현으로 수정",
+          "Bullets에 구체적 수치와 조건 명시"
+        ],
+        "risk_flags": [
+          "Headline 10년 젊어지는은 과대광고 소지로 방송통신심의위원회 제재 가능",
+          "Subheadline 100% 주름 제거 보장은 허위 과장 광고",
+          "Bullets 부작용 전무는 절대적 표현으로 공정거래위원회 시정명령 가능"
+        ],
+        "approval_status": "rejected",
+        "revision_priority": "critical",
+        "approval_reason": "과대광고 및 허위 표현으로 법적 리스크 심각, 전면 재작성 필요"
+      },
+      "validation_details": {
+        "overall_score": 1.6,
+        "field_scores": {
+          "overall_score": 0.0,
+          "tone_match_score": 0.0,
+          "clarity_score": 3.0,
+          "persuasiveness_score": 0.0,
+          "brand_alignment_score": 0.0,
+          "approval_status": 0.0,
+          "revision_priority": 5.0,
+          "strengths": 10.0,
+          "weaknesses": 10.0,
+          "improvement_suggestions": 10.0,
+          "risk_flags": 10.0
+        },
+        "details": {
+          "overall_score": {
+            "actual": 8.0,
+            "expected": 3.0,
+            "diff": 5.0,
+            "passed": false
+          },
+          "tone_match_score": {
+            "actual": 9.5,
+            "expected": 4.0,
+            "diff": 5.5,
+            "passed": false
+          },
+          "clarity_score": {
+            "actual": 8.5,
+            "expected": 5.0,
+            "diff": 3.5,
+            "passed": false
+          },
+          "persuasiveness_score": {
+            "actual": 7.5,
+            "expected": 2.0,
+            "diff": 5.5,
+            "passed": false
+          },
+          "brand_alignment_score": {
+            "actual": 9.0,
+            "expected": 3.0,
+            "diff": 6.0,
+            "passed": false
+          },
+          "approval_status": {
+            "actual": "needs_revision",
+            "expected": "rejected",
+            "passed": false
+          },
+          "revision_priority": {
+            "actual": "medium",
+            "expected": "critical",
+            "passed": false
+          },
+          "strengths": {
+            "actual_count": 3,
+            "expected_count": 1,
+            "count_ok": true,
+            "length_ok": true,
+            "passed": true
+          },
+          "weaknesses": {
+            "actual_count": 2,
+            "expected_count": 3,
+            "count_ok": true,
+            "length_ok": true,
+            "passed": true
+          },
+          "improvement_suggestions": {
+            "actual_count": 3,
+            "expected_count": 3,
+            "count_ok": true,
+            "length_ok": true,
+            "passed": true
+          },
+          "risk_flags": {
+            "count": 2,
+            "count_ok": true,
+            "length_ok": true,
+            "passed": true
+          }
+        }
+      },
+      "usage": {
+        "elapsed_seconds": 0.0,
+        "tokens": 2012
+      }
+    },
+    {
+      "case_id": "reviewer_003",
+      "scenario": "럭셔리 브랜드인데 캐주얼한 톤 사용",
+      "passed": false,
+      "score": 3.7,
+      "actual_output": {
+        "overall_score": 7.8,
+        "tone_match_score": 8.2,
+        "clarity_score": 7.5,
+        "persuasiveness_score": 7.9,
+        "brand_alignment_score": 8.0,
+        "strengths": [
+          "Headline가 강렬하고 제품의 가치를 잘 전달",
+          "Bullets가 주요 특징을 간결하게 정리"
+        ],
+        "weaknesses": [
+          "Subheadline이 약간 부족하여 차별화가 부족함",
+          "Body가 짧아 제품 스토리를 더 자세히 전달해야 함"
+        ],
+        "improvement_suggestions": [
+          "Subheadline을 '40-50대 여성의 피부 관리, 저렴하게 실현하세요'처럼 맞춤화하여 차별화",
+          "Body에 제품의 안티에이징 효과나 사용 후기 추가 (예: '친구들로부터 높은 호응')",
+          "CTA를 더 명확하고 강력하게 변경 (예: '지금 바로 경험해보세요')"
+        ],
+        "risk_flags": [
+          "과장 광고 우려 없음, 그러나 효과나 사용 후기 추가로 신뢰성을 높일 수 있음"
+        ],
+        "approval_status": "needs_revision",
+        "revision_priority": "medium",
+        "approval_reason": "전반적으로 좋은然而，我需要将答案转换成符合要求的JSON格式。以下是修改后的JSON格式评估结果：```json{"
+      },
+      "expected_output": {
+        "overall_score": 4.5,
+        "tone_match_score": 2.0,
+        "clarity_score": 6.0,
+        "persuasiveness_score": 5.0,
+        "brand_alignment_score": 2.0,
+        "strengths": [
+          "친근한 표현으로 진입 장벽을 낮춤"
+        ],
+        "weaknesses": [
+          "Headline 와!, 대박 등 캐주얼한 표현이 럭셔리 브랜드 이미지와 완전히 불일치",
+          "Subheadline 완전 강추, 저렴하게는 프리미엄 포지셔닝에 역행",
+          "Bullets 가성비, 인싸템 등 젊은층 속어가 타겟과 브랜드 톤에 모두 부적합"
+        ],
+        "improvement_suggestions": [
+          "Headline을 시간을 거스르는 우아함, 피부 본연의 빛을 되찾다처럼 품격 있게 변경",
+          "Subheadline을 피부과 전문의가 추천하는 프리미엄 안티에이징 솔루션으로 수정",
+          "Bullets를 의학 연구 기반 포뮬라, 피부과 임상 테스트 완료 등 브랜드 가치에 부합하게 변경"
+        ],
+        "risk_flags": [
+          "브랜드 이미지 훼손 심각 (럭셔리에서 저가 이미지로 하향 평준화)",
+          "타겟 오디언스 이탈 가능성 (40-50대가 인싸템 등 표현에 거부감)"
+        ],
+        "approval_status": "rejected",
+        "revision_priority": "critical",
+        "approval_reason": "브랜드 톤앤매너와 완전히 불일치하여 브랜드 가치 훼손, 전면 재작성 필요"
+      },
+      "validation_details": {
+        "overall_score": 3.7,
+        "field_scores": {
+          "overall_score": 3.4000000000000004,
+          "tone_match_score": 0.0,
+          "clarity_score": 10.0,
+          "persuasiveness_score": 4.199999999999999,
+          "brand_alignment_score": 0.0,
+          "approval_status": 0.0,
+          "revision_priority": 5.0,
+          "strengths": 10.0,
+          "weaknesses": 10.0,
+          "improvement_suggestions": 10.0,
+          "risk_flags": 10.0
+        },
+        "details": {
+          "overall_score": {
+            "actual": 7.8,
+            "expected": 4.5,
+            "diff": 3.3,
+            "passed": false
+          },
+          "tone_match_score": {
+            "actual": 8.2,
+            "expected": 2.0,
+            "diff": 6.199999999999999,
+            "passed": false
+          },
+          "clarity_score": {
+            "actual": 7.5,
+            "expected": 6.0,
+            "diff": 1.5,
+            "passed": true
+          },
+          "persuasiveness_score": {
+            "actual": 7.9,
+            "expected": 5.0,
+            "diff": 2.9000000000000004,
+            "passed": false
+          },
+          "brand_alignment_score": {
+            "actual": 8.0,
+            "expected": 2.0,
+            "diff": 6.0,
+            "passed": false
+          },
+          "approval_status": {
+            "actual": "needs_revision",
+            "expected": "rejected",
+            "passed": false
+          },
+          "revision_priority": {
+            "actual": "medium",
+            "expected": "critical",
+            "passed": false
+          },
+          "strengths": {
+            "actual_count": 2,
+            "expected_count": 1,
+            "count_ok": true,
+            "length_ok": true,
+            "passed": true
+          },
+          "weaknesses": {
+            "actual_count": 2,
+            "expected_count": 3,
+            "count_ok": true,
+            "length_ok": true,
+            "passed": true
+          },
+          "improvement_suggestions": {
+            "actual_count": 3,
+            "expected_count": 3,
+            "count_ok": true,
+            "length_ok": true,
+            "passed": true
+          },
+          "risk_flags": {
+            "count": 1,
+            "count_ok": true,
+            "length_ok": true,
+            "passed": true
+          }
+        }
+      },
+      "usage": {
+        "elapsed_seconds": 0.0,
+        "tokens": 1935
+      }
+    },
+    {
+      "case_id": "reviewer_004",
+      "scenario": "기술 스펙만 강조하고 감성적 요소 부족",
+      "passed": false,
+      "score": 5.8,
+      "actual_output": {
+        "overall_score": 8.0,
+        "tone_match_score": 9.5,
+        "clarity_score": 8.5,
+        "persuasiveness_score": 8.2,
+        "brand_alignment_score": 9.3,
+        "strengths": [
+          "Headline가 '프리미엄 무선 이어폰'이라는 명확한 제품 이름을 사용하여 브랜드 이미지를 잘 반영하고 있습니다.",
+          "CTA('구매하기')는 명확하며, 행동 유도에 효과적입니다."
+        ],
+        "weaknesses": [
+          "Subheadline이 'ANC 노이즈캔슬링, 24시간 배터리'로 스펙 중심으로 작성되어 차별화된 가치 전달 부족",
+          "Body가 너무 짧아 제품의 특징과 이점에 대한 설명이 부족합니다."
+        ],
+        "improvement_suggestions": [
+          "Subheadline을 'ANC 기술로 끊김 없는 음악, 24시간 배터리로 오래 들으세요'처럼 감성적으로 변경하여 차별화된 가치를 강조",
+          "Body에 사용자 경험 스토리나 이어폰의 사운드 품질 등 제품 특징을 더 자세히 설명"
+        ],
+        "risk_flags": [
+          "Subheadline에서 '24시간 배터리'는 실제 사용 시간과 다를 수 있어 과대광고 우려",
+          "ANC 기술에 대한 구체적인 설명 부족으로 투명성이 떨어짐"
+        ],
+        "approval_status": "needs_revision",
+        "revision_priority": "medium",
+        "approval_reason": "전반적으로 브랜드와 일치하며, CTA는 명확하지만 Subheadline과 Body가 개선 필요하여 수정 우선순위 중간으로 설정"
+      },
+      "expected_output": {
+        "overall_score": 5.5,
+        "tone_match_score": 6.0,
+        "clarity_score": 7.0,
+        "persuasiveness_score": 4.0,
+        "brand_alignment_score": 5.0,
+        "strengths": [
+          "Subheadline에서 주요 기능을 명확히 전달함"
+        ],
+        "weaknesses": [
+          "Headline이 너무 일반적이어서 차별화 부족",
+          "Body가 너무 짧고 제품 스토리나 사용자 가치 전달 미흡",
+          "Bullets가 스펙 중심으로 감성적 소구 전혀 없음"
+        ],
+        "improvement_suggestions": [
+          "Headline을 소음은 지우고, 음악만 남기다처럼 임팩트 있게 변경",
+          "Body에 사용자 경험 스토리 추가 (예: 출퇴근길이 나만의 콘서트홀로)",
+          "Bullets에 혜택 중심 메시지 포함 (예: 하루 종일 끊김 없는 음악, 비 오는 날도 안심)"
+        ],
+        "risk_flags": [
+          "Body가 너무 짧아 심의 기준 미달 가능성 (일부 채널)"
+        ],
+        "approval_status": "needs_revision",
+        "revision_priority": "high",
+        "approval_reason": "기술 스펙만 나열하여 설득력 부족, 감성적 요소와 사용자 혜택 추가 필요"
+      },
+      "validation_details": {
+        "overall_score": 5.8,
+        "field_scores": {
+          "overall_score": 5.0,
+          "tone_match_score": 3.0,
+          "clarity_score": 10.0,
+          "persuasiveness_score": 1.6000000000000014,
+          "brand_alignment_score": 1.3999999999999986,
+          "approval_status": 10.0,
+          "revision_priority": 5.0,
+          "strengths": 10.0,
+          "weaknesses": 10.0,
+          "improvement_suggestions": 10.0,
+          "risk_flags": 10.0
+        },
+        "details": {
+          "overall_score": {
+            "actual": 8.0,
+            "expected": 5.5,
+            "diff": 2.5,
+            "passed": false
+          },
+          "tone_match_score": {
+            "actual": 9.5,
+            "expected": 6.0,
+            "diff": 3.5,
+            "passed": false
+          },
+          "clarity_score": {
+            "actual": 8.5,
+            "expected": 7.0,
+            "diff": 1.5,
+            "passed": true
+          },
+          "persuasiveness_score": {
+            "actual": 8.2,
+            "expected": 4.0,
+            "diff": 4.199999999999999,
+            "passed": false
+          },
+          "brand_alignment_score": {
+            "actual": 9.3,
+            "expected": 5.0,
+            "diff": 4.300000000000001,
+            "passed": false
+          },
+          "approval_status": {
+            "actual": "needs_revision",
+            "expected": "needs_revision",
+            "passed": true
+          },
+          "revision_priority": {
+            "actual": "medium",
+            "expected": "high",
+            "passed": false
+          },
+          "strengths": {
+            "actual_count": 2,
+            "expected_count": 1,
+            "count_ok": true,
+            "length_ok": true,
+            "passed": true
+          },
+          "weaknesses": {
+            "actual_count": 2,
+            "expected_count": 3,
+            "count_ok": true,
+            "length_ok": true,
+            "passed": true
+          },
+          "improvement_suggestions": {
+            "actual_count": 2,
+            "expected_count": 3,
+            "count_ok": true,
+            "length_ok": true,
+            "passed": true
+          },
+          "risk_flags": {
+            "count": 2,
+            "count_ok": true,
+            "length_ok": true,
+            "passed": true
+          }
+        }
+      },
+      "usage": {
+        "elapsed_seconds": 0.0,
+        "tokens": 1988
+      }
+    },
+    {
+      "case_id": "reviewer_005",
+      "scenario": "친환경 브랜드 가치를 효과적으로 전달",
+      "passed": true,
+      "score": 10.0,
+      "actual_output": {
+        "overall_score": 8.7,
+        "tone_match_score": 9.0,
+        "clarity_score": 8.5,
+        "persuasiveness_score": 8.8,
+        "brand_alignment_score": 9.2,
+        "strengths": [
+          "헤드라인 '지구를 위한 선택, 나를 위한 아름다움'이 친환경 가치와 개인의 이익을 동시에 강조하여 효과적입니다.",
+          "브랜드 가치 중 지속가능성과 동물권이 잘 반영되어 있으며, CTA '지속가능한 뷰티 시작하기'는 행동 유도에 도움이 됩니다."
+        ],
+        "weaknesses": [
+          "부제목 '100% 비건, 재활용 패키징, 탄소중립 배송'은 특징을 나열하는 느낌으로 차별화가 부족합니다.",
+          "본문 내용이 약간 짧아 제품의 가치를 더 자세히 설명할 수 있습니다."
+        ],
+        "improvement_suggestions": [
+          "부제목을 '100% 비건, 재활용 가능한 패키징, 탄소중립 배송으로 지구와 당신을 위한 선택'처럼 감성적으로 변경하여 차별화를 강조할 수 있습니다.",
+          "본문에 더 자세한 정보나 사용자 경험 스토리를 추가하여 제품의 가치를 더욱 구체적으로 전달할 수 있습니다."
+        ],
+        "risk_flags": [
+          "부제목 '100% 비건, 재활용 패키징, 탄소중립 배송'은 실제 인증 상태와 일치해야 하므로 확인이 필요합니다.",
+          "CTA가 더 구체적으로 작성되면 행동 유도 효과를 높일 수 있습니다."
+        ],
+        "approval_status": "approved",
+        "revision_priority": "low",
+        "approval_reason": "전반적인 품질이 우수하며, 약간의 수정만으로 더욱 강력한 광고 카피가 될 것입니다."
+      },
+      "expected_output": {
+        "overall_score": 9.0,
+        "tone_match_score": 9.5,
+        "clarity_score": 9.0,
+        "persuasiveness_score": 8.5,
+        "brand_alignment_score": 10.0,
+        "strengths": [
+          "Headline이 브랜드 가치(친환경)와 사용자 혜택(아름다움)을 동시에 전달함",
+          "Subheadline이 구체적 친환경 요소를 명확히 제시함",
+          "Body가 브랜드 철학과 사용자 임팩트를 감성적으로 연결함",
+          "CTA가 브랜드 미션을 반영하면서도 행동 유도가 명확함"
+        ],
+        "weaknesses": [
+          "Bullets가 인증 중심으로 제품 효능 언급 부족 (일부 사용자는 친환경보다 효과 궁금)"
+        ],
+        "improvement_suggestions": [
+          "Bullets 중 하나를 제품 효능으로 교체 (예: 피부 진정 효과 (임상 테스트 완료))"
+        ],
+        "risk_flags": [],
+        "approval_status": "approved",
+        "revision_priority": "low",
+        "approval_reason": "브랜드 가치와 완벽히 정렬되어 있으며 타겟에게 강력한 메시지 전달, 즉시 사용 가능"
+      },
+      "validation_details": {
+        "overall_score": 10.0,
+        "field_scores": {
+          "overall_score": 10.0,
+          "tone_match_score": 10.0,
+          "clarity_score": 10.0,
+          "persuasiveness_score": 10.0,
+          "brand_alignment_score": 10.0,
+          "approval_status": 10.0,
+          "revision_priority": 10.0,
+          "strengths": 10.0,
+          "weaknesses": 10.0,
+          "improvement_suggestions": 10.0,
+          "risk_flags": 10.0
+        },
+        "details": {
+          "overall_score": {
+            "actual": 8.7,
+            "expected": 9.0,
+            "diff": 0.3000000000000007,
+            "passed": true
+          },
+          "tone_match_score": {
+            "actual": 9.0,
+            "expected": 9.5,
+            "diff": 0.5,
+            "passed": true
+          },
+          "clarity_score": {
+            "actual": 8.5,
+            "expected": 9.0,
+            "diff": 0.5,
+            "passed": true
+          },
+          "persuasiveness_score": {
+            "actual": 8.8,
+            "expected": 8.5,
+            "diff": 0.3000000000000007,
+            "passed": true
+          },
+          "brand_alignment_score": {
+            "actual": 9.2,
+            "expected": 10.0,
+            "diff": 0.8000000000000007,
+            "passed": true
+          },
+          "approval_status": {
+            "actual": "approved",
+            "expected": "approved",
+            "passed": true
+          },
+          "revision_priority": {
+            "actual": "low",
+            "expected": "low",
+            "passed": true
+          },
+          "strengths": {
+            "actual_count": 2,
+            "expected_count": 4,
+            "count_ok": true,
+            "length_ok": true,
+            "passed": true
+          },
+          "weaknesses": {
+            "actual_count": 2,
+            "expected_count": 1,
+            "count_ok": true,
+            "length_ok": true,
+            "passed": true
+          },
+          "improvement_suggestions": {
+            "actual_count": 2,
+            "expected_count": 1,
+            "count_ok": true,
+            "length_ok": true,
+            "passed": true
+          },
+          "risk_flags": {
+            "count": 2,
+            "count_ok": true,
+            "length_ok": true,
+            "passed": true
+          }
+        }
+      },
+      "usage": {
+        "elapsed_seconds": 0.0,
+        "tokens": 2120
+      }
+    }
+  ]
+}
