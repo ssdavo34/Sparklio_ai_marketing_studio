@@ -95,12 +95,22 @@ export function MeetingTab() {
 
     const interval = setInterval(async () => {
       for (const meetingId of Array.from(pollingMeetings)) {
+        // Skip if meetingId is invalid
+        if (!meetingId || meetingId === 'undefined') {
+          setPollingMeetings((prev) => {
+            const next = new Set(prev);
+            next.delete(meetingId);
+            return next;
+          });
+          continue;
+        }
+
         try {
           const updatedMeeting = await getMeeting(meetingId);
 
           // Update meetings list
           setMeetings((prev) =>
-            prev.map((m) => (m.id === updatedMeeting.id ? updatedMeeting : m))
+            (Array.isArray(prev) ? prev : []).map((m) => (m.id === updatedMeeting.id ? updatedMeeting : m))
           );
 
           // Update selected meeting if it's the one being polled
@@ -225,7 +235,7 @@ export function MeetingTab() {
         source_type: 'upload',
       });
 
-      setMeetings((prev) => [meeting, ...prev]);
+      setMeetings((prev) => [meeting, ...(Array.isArray(prev) ? prev : [])]);
       setSelectedMeeting(meeting);
       setUploadedFile(null);
 
@@ -258,13 +268,15 @@ export function MeetingTab() {
         source_type: detectedType,
       });
 
-      setMeetings((prev) => [meeting, ...prev]);
+      setMeetings((prev) => [meeting, ...(Array.isArray(prev) ? prev : [])]);
       setSelectedMeeting(meeting);
       setUrl('');
 
-      // Start polling if meeting is in progress
+      // Start polling if meeting is in progress (moved to setTimeout to avoid render phase setState)
       if (['created', 'downloading', 'ready_for_stt', 'transcribing'].includes(meeting.status)) {
-        setPollingMeetings((prev) => new Set(prev).add(meeting.id));
+        setTimeout(() => {
+          setPollingMeetings((prev) => new Set(prev).add(meeting.id));
+        }, 0);
       }
 
       alert(`✅ Meeting이 생성되었습니다 (Status: ${meeting.status}). 자동으로 처리 중입니다.`);
@@ -289,7 +301,7 @@ export function MeetingTab() {
 
       // Update meeting status to transcribed
       setMeetings((prev) =>
-        prev.map((m) =>
+        (Array.isArray(prev) ? prev : []).map((m) =>
           m.id === meeting.id ? { ...m, status: 'transcribed' as const } : m
         )
       );
@@ -302,7 +314,7 @@ export function MeetingTab() {
 
       // Update meeting status to analyzed
       setMeetings((prev) =>
-        prev.map((m) =>
+        (Array.isArray(prev) ? prev : []).map((m) =>
           m.id === meeting.id ? { ...m, status: 'analyzed' as const } : m
         )
       );
