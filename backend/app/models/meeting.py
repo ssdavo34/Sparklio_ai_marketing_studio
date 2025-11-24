@@ -183,3 +183,25 @@ class MeetingTranscript(Base):
 
     # Relationships
     meeting = relationship("Meeting", back_populates="transcripts")
+
+    @classmethod
+    async def clear_primary_for_meeting(cls, db, meeting_id: uuid.UUID):
+        """
+        Meeting의 모든 transcript에서 is_primary 플래그 제거
+
+        reprocess 시나리오에서 사용:
+        - 새로운 transcript를 primary로 지정하기 전에 기존 primary 플래그 제거
+
+        Args:
+            db: AsyncSession
+            meeting_id: Meeting UUID
+        """
+        from sqlalchemy import update
+
+        stmt = (
+            update(cls)
+            .where(cls.meeting_id == meeting_id)
+            .values(is_primary=False)
+        )
+        await db.execute(stmt)
+        await db.commit()

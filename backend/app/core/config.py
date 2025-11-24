@@ -1,8 +1,24 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 from typing import Optional, Literal
+from enum import Enum
 import os
 from urllib.parse import quote_plus
+
+
+class WhisperMode(str, Enum):
+    """Whisper STT 전략 모드"""
+    openai = "openai"  # OpenAI Whisper API 전용
+    local = "local"  # 로컬 서버 전용
+    hybrid_cost = "hybrid_cost"  # 비용/속도 균형
+    hybrid_quality = "hybrid_quality"  # 품질 우선
+
+
+class WhisperLocalBackend(str, Enum):
+    """로컬 Whisper 백엔드 타입"""
+    faster_whisper = "faster_whisper"  # faster-whisper (GPU, CTranslate2)
+    whisper_cpp = "whisper_cpp"  # whisper.cpp (CPU, C++)
+    none = "none"  # 로컬 백엔드 사용 안 함
 
 class Settings(BaseSettings):
     # Application

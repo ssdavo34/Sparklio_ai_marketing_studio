@@ -8,8 +8,9 @@ TranscriberService 입출력 스키마
 참조: docs/MEETING_AI_TRANSCRIBER_SPEC.md
 """
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional
+from uuid import UUID
 
 
 class TranscriptSegment(BaseModel):
@@ -59,3 +60,40 @@ class TranscriptionResult(BaseModel):
                 "confidence": 0.92
             }
         }
+
+
+class TranscribeRequest(BaseModel):
+    """POST /meetings/{id}/transcribe 요청 스키마"""
+    force_mode: Optional[str] = Field(
+        None,
+        description="강제 모드 지정 (openai | local | hybrid_cost | hybrid_quality)",
+        examples=["hybrid_cost"]
+    )
+    reprocess: bool = Field(
+        False,
+        description="기존 transcript 무시하고 재처리 여부"
+    )
+    importance: str = Field(
+        "normal",
+        description="회의 중요도 (normal | high)",
+        examples=["high"]
+    )
+    run_meeting_agent: bool = Field(
+        True,
+        description="변환 완료 후 MeetingAgent 자동 실행 여부"
+    )
+
+
+class TranscribeResponse(BaseModel):
+    """POST /meetings/{id}/transcribe 응답 스키마"""
+    meeting_id: UUID
+    transcript_id: UUID
+    source_type: str  # "whisper"
+    backend: str  # "faster_whisper" | "whisper_cpp" | "openai"
+    model: str  # "large-v3" | "medium" | "small" | "whisper-1"
+    language: str  # "ko" | "en" | ...
+    duration_seconds: float
+    latency_ms: int
+    is_primary: bool
+    status: str  # "completed" | "failed"
+    meeting_agent_triggered: bool
