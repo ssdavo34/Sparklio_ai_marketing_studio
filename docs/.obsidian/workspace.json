@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "README_FIRST.md",
+                "file": "DEMO/README_DEMO_DOCS_HANDOFF.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "README_FIRST"
+              "title": "README_DEMO_DOCS_HANDOFF"
             }
           }
         ]
@@ -94,7 +94,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "README_FIRST.md",
+                "file": "DEMO/README_DEMO_DOCS_HANDOFF.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -104,7 +104,7 @@
                 "unlinkedCollapsed": true
               },
               "icon": "links-coming-in",
-              "title": "README_FIRST 의 백링크"
+              "title": "README_DEMO_DOCS_HANDOFF 의 백링크"
             }
           },
           {
@@ -113,12 +113,12 @@
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "README_FIRST.md",
+                "file": "DEMO/README_DEMO_DOCS_HANDOFF.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               },
               "icon": "links-going-out",
-              "title": "README_FIRST 의 나가는 링크"
+              "title": "README_DEMO_DOCS_HANDOFF 의 나가는 링크"
             }
           },
           {
@@ -156,13 +156,13 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "README_FIRST.md",
+                "file": "DEMO/README_DEMO_DOCS_HANDOFF.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "README_FIRST 의 개요"
+              "title": "README_DEMO_DOCS_HANDOFF 의 개요"
             }
           }
         ]
@@ -185,6 +185,23 @@
   },
   "active": "9bdbdc73904e2757",
   "lastOpenFiles": [
+    "C_TEAM_HANDOVER_2025-11-24.md.tmp.171984.1763995513332",
+    "DEMO/SPARKLIO_DEMO_V1_PRD.md",
+    "DEMO/README_DEMO_DOCS_HANDOFF.md",
+    "DEMO/README_DEMO_DOCS_HANDOFF.md.tmp.32360.1763995451926",
+    "README_FIRST.md",
+    "C_TEAM_HANDOVER_2025-11-24.md",
+    "DAILY_SUMMARY_2025-11-24.md.tmp.171984.1763995285388",
+    "DEMO",
+    "PROJECT_STATUS_REPORT_2025-11-24.md",
+    "PROJECT_STATUS_REPORT_2025-11-24.md.tmp.174408.1763994817121",
+    "C_TEAM_DAILY_FRONTEND_REPORT_2025-11-24.md",
+    "B_TEAM_DAILY_BACKEND_REPORT_2025-11-24.md.tmp.32360.1763994694319",
+    "DAILY_SUMMARY_2025-11-24.md",
+    "DAILY_SUMMARY_2025-11-24.md.tmp.174408.1763994664703",
+    "B_TEAM_DAILY_BACKEND_REPORT_2025-11-24.md",
+    "B_TEAM_DAILY_BACKEND_REPORT_2025-11-24.md.tmp.174408.1763994546889",
+    "A_TEAM_MEETING_FROM_URL_TEST_REPORT_2025-11-24.md",
     "README_FIRST.md.tmp.32360.1763958127332",
     "MAC_MINI_SERVER_GUIDELINES.md.tmp.32360.1763958125081",
     "PRD/Sparklio_V4_PRD_Final.md",
@@ -192,27 +209,17 @@
     "A_TEAM_REVIEWER_GOLDEN_SET_VALIDATION_2025-11-24.md",
     "A_TEAM_REVIEWER_GOLDEN_SET_VALIDATION_2025-11-24.md.tmp.32360.1763918893040",
     "MONITORING_INFRASTRUCTURE_SETUP.md",
-    "README_FIRST.md",
     "PROJECT_STATUS_REPORT_2025-11-23.md",
-    "MORNING_BRIEFING_TEMPLATE.md.tmp.32360.1763915078305",
     "DAILY_WORK_PREP_GUIDE.md",
     "A_TEAM_WORK_COMPLETE_2025-11-23.md",
-    "A_TEAM_WORK_COMPLETE_2025-11-23.md.tmp.32360.1763888793429",
     "REVIEWER_EVALUATION_GUIDE.md",
-    "REVIEWER_EVALUATION_GUIDE.md.tmp.32360.1763888639979",
     "PROMPT_REVIEWER_AD_COPY_V1.md",
-    "PROMPT_REVIEWER_AD_COPY_V1.md.tmp.32360.1763888389152",
     "B_TEAM_NEXT_STEPS_2025-11-23.md",
-    "B_TEAM_NEXT_STEPS_2025-11-23.md.tmp.171984.1763888140008",
-    "TASK_SCHEMA_CATALOG_V2.md.tmp.32360.1763888081281",
     "STRATEGIST_IMPLEMENTATION_COMPLETE_2025-11-23.md",
-    "STRATEGIST_IMPLEMENTATION_COMPLETE_2025-11-23.md.tmp.32360.1763887155345",
-    "PROJECT_STATUS_REPORT_2025-11-23.md.tmp.32360.1763887071738",
     "STRATEGIST_EVALUATION_GUIDE.md",
     "C_TEAM_NEXT_STEPS_2025-11-23.md",
     "PROMPT_STRATEGIST_CAMPAIGN_V1.md",
     "C_TEAM_WORK_BRIEF_2025-11-23.md",
-    "B_TEAM_WORK_BRIEF_2025-11-23.md",
-    "PROJECT_COMPREHENSIVE_ANALYSIS_2025_11_15.md"
+    "B_TEAM_WORK_BRIEF_2025-11-23.md"
   ]
 }
