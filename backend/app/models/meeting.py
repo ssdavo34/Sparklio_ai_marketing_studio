@@ -105,6 +105,15 @@ class TranscriptProvider(str, enum.Enum):
     MANUAL = "manual"  # 수동 입력
 
 
+class TranscriptBackend(str, enum.Enum):
+    """STT 백엔드 엔진 (추적성 향상)"""
+    OPENAI = "openai"  # OpenAI Whisper API
+    WHISPER_CPP = "whisper_cpp"  # whisper.cpp (Mac mini CPU)
+    FASTER_WHISPER = "faster_whisper"  # faster-whisper (RTX Desktop GPU)
+    MANUAL = "manual"  # 수동 입력/편집
+    UNKNOWN = "unknown"  # 알 수 없음 (Caption 등)
+
+
 class MeetingTranscript(Base):
     """
     회의 트랜스크립트 모델 (표준 Transcript Layer)
@@ -127,12 +136,16 @@ class MeetingTranscript(Base):
     # 소스 정보
     source_type = Column(SQLEnum(TranscriptSourceType), nullable=False, default=TranscriptSourceType.WHISPER)
     provider = Column(SQLEnum(TranscriptProvider), nullable=False, default=TranscriptProvider.UPLOAD)
+    backend = Column(SQLEnum(TranscriptBackend), nullable=False, default=TranscriptBackend.UNKNOWN)
+    model = Column(String(100), nullable=True)  # whisper-1, large-v3, medium 등
 
     # Primary 지정 (MeetingAgent가 사용할 transcript)
     is_primary = Column(sa.Boolean, default=False, nullable=False)
 
-    # 품질 점수 (0.0 ~ 1.0, 자동 계산 또는 수동 지정)
-    quality_score = Column(sa.Float, nullable=True)
+    # 품질 점수 및 메타데이터
+    quality_score = Column(sa.Float, nullable=True)  # 0.0 ~ 1.0
+    confidence = Column(sa.Float, nullable=True)  # Whisper confidence (0.0 ~ 1.0)
+    latency_ms = Column(Integer, nullable=True)  # STT 처리 시간 (ms)
     # 계산 기준:
     # - 텍스트 길이 vs 영상 길이 비율
     # - 공백/특수문자 비율
