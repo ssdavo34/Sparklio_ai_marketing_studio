@@ -191,6 +191,64 @@ class MeetingURLPipeline:
             db.commit()
             return False
 
+    def _calculate_quality_score(self, transcript: MeetingTranscript) -> float:
+        """
+        Transcript quality score 계산 (0-10)
+
+        Stage 3: 간단한 휴리스틱 기반
+        - Caption: 텍스트 길이, 세그먼트 수 기반
+        - Whisper: confidence 기반
+
+        Args:
+            transcript: MeetingTranscript
+
+        Returns:
+            quality_score (0-10)
+        """
+        if transcript.source_type == TranscriptSourceType.CAPTION:
+            # Caption 품질 계산
+            # - 기본 점수: 5.0
+            # - 세그먼트 수가 많을수록 +점수 (최대 +3.0)
+            # - 텍스트 길이가 길수록 +점수 (최대 +2.0)
+            base_score = 5.0
+
+            # 세그먼트 수 점수 (100개당 +0.3, 최대 3.0)
+            segment_count = len(transcript.segments) if transcript.segments else 0
+            segment_score = min(3.0, segment_count / 100 * 0.3)
+
+            # 텍스트 길이 점수 (1000자당 +0.2, 최대 2.0)
+            text_length = len(transcript.transcript_text) if transcript.transcript_text else 0
+            length_score = min(2.0, text_length / 1000 * 0.2)
+
+            total_score = base_score + segment_score + length_score
+
+            logger.debug(
+                f"Caption quality: base={base_score}, "
+                f"segments={segment_score:.2f} ({segment_count}), "
+                f"length={length_score:.2f} ({text_length}), "
+                f"total={total_score:.2f}"
+            )
+
+            return round(total_score, 2)
+
+        elif transcript.source_type == TranscriptSourceType.WHISPER:
+            # Whisper 품질 계산
+            # - confidence 기반 (0-1 → 0-10)
+            # - confidence가 높을수록 점수 높음
+            confidence = transcript.confidence or 0.0
+            score = confidence * 10.0
+
+            logger.debug(
+                f"Whisper quality: confidence={confidence:.2f}, "
+                f"score={score:.2f}"
+            )
+
+            return round(score, 2)
+
+        else:
+            # 기타 (merged 등) - 기본값
+            return 7.0
+
     async def _select_primary_transcript(
         self,
         meeting_id: UUID,
@@ -199,8 +257,9 @@ class MeetingURLPipeline:
         """
         Primary transcript 선택 (Caption vs Whisper)
 
-        Stage 2: 간단한 룰 - Whisper 우선
         Stage 3: quality_score 비교
+        - 각 transcript의 quality_score 계산
+        - 가장 높은 quality_score를 가진 transcript를 primary로 선택
         """
         transcripts = db.query(MeetingTranscript).filter(
             MeetingTranscript.meeting_id == meeting_id
@@ -210,26 +269,30 @@ class MeetingURLPipeline:
             logger.warning(f"No transcripts found for meeting {meeting_id}")
             return
 
-        # Stage 2: 간단한 룰 - Whisper가 있으면 Whisper를 primary로
-        whisper_transcript = None
-        caption_transcript = None
-
+        # Stage 3: quality_score 계산 및 비교
         for t in transcripts:
-            if t.source_type == TranscriptSourceType.WHISPER:
-                whisper_transcript = t
-            elif t.source_type == TranscriptSourceType.CAPTION:
-                caption_transcript = t
+            # quality_score가 없으면 계산
+            if t.quality_score is None or t.quality_score == 0.0:
+                t.quality_score = self._calculate_quality_score(t)
 
-        if whisper_transcript:
-            # Whisper를 primary로
-            for t in transcripts:
-                t.is_primary = (t.id == whisper_transcript.id)
+        # 가장 높은 quality_score를 가진 transcript 선택
+        best_transcript = max(transcripts, key=lambda t: t.quality_score)
 
-            logger.info(f"Selected Whisper as primary for meeting {meeting_id}")
-        elif caption_transcript:
-            # Caption만 있으면 Caption을 primary로
-            caption_transcript.is_primary = True
-            logger.info(f"Selected Caption as primary for meeting {meeting_id}")
+        # primary 설정
+        for t in transcripts:
+            t.is_primary = (t.id == best_transcript.id)
+
+        logger.info(
+            f"Selected {best_transcript.source_type} as primary for meeting {meeting_id}, "
+            f"quality_score={best_transcript.quality_score:.2f}"
+        )
+
+        # 모든 transcript의 quality_score 로깅
+        for t in transcripts:
+            logger.debug(
+                f"  - {t.source_type}: quality_score={t.quality_score:.2f}, "
+                f"is_primary={t.is_primary}"
+            )
 
         db.commit()
 
