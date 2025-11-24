@@ -19,7 +19,12 @@ from app.schemas.product_detail import (
     ProductDetailGenerateRequest,
     ProductDetailGenerateResponse
 )
+from app.schemas.banner import (
+    BannerSetGenerateRequest,
+    BannerSetGenerateResponse
+)
 from app.services.product_detail_generator import get_product_detail_generator
+from app.services.banner_generator import get_banner_generator
 
 logger = logging.getLogger(__name__)
 
@@ -138,18 +143,100 @@ async def generate_product_detail(
 
 @router.post(
     "/banner-set",
-    summary="배너 세트 생성 (구현 예정)",
-    description="다양한 사이즈의 광고 배너 세트를 생성합니다 (1080x1080, 1200x628, 1080x1920).",
+    response_model=BannerSetGenerateResponse,
+    summary="배너 세트 생성",
+    description=(
+        "광고 배너 세트를 생성합니다 (여러 사이즈 동시 생성).\\n\\n"
+        "**지원 사이즈:**\\n"
+        "- 1080x1080 (Square): 인스타그램 피드, 페이스북 포스트\\n"
+        "- 1200x628 (Landscape): 페이스북 링크, 트위터 카드\\n"
+        "- 1080x1920 (Story): 인스타그램/페이스북 스토리, 틱톡\\n\\n"
+        "**출력:**\\n"
+        "- content: 원본 콘텐츠 (각 사이즈별 최적화된 텍스트)\\n"
+        "- canvas_json_set: Canvas Studio 호환 DocumentPayload 배열\\n"
+        "- ad_compliance: 과대광고 체크 결과 (옵션)\\n\\n"
+        "**사용 예시:**\\n"
+        "```json\\n"
+        "{\\n"
+        '  "banner_input": {\\n'
+        '    "headline": "신제품 출시 기념 특가",\\n'
+        '    "cta_text": "지금 구매하기",\\n'
+        '    "sizes": ["1080x1080", "1200x628", "1080x1920"],\\n'
+        '    "ad_type": "sale"\\n'
+        "  }\\n"
+        "}\\n"
+        "```"
+    ),
     tags=["generators"]
 )
 async def generate_banner_set(
-    current_user: User = Depends(get_current_user)
+    request: BannerSetGenerateRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
-    """배너 세트 생성 (구현 예정)"""
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Banner generation is not implemented yet"
-    )
+    """
+    배너 세트 생성
+
+    Args:
+        request: 배너 입력 정보
+        current_user: 현재 사용자
+        db: 데이터베이스 세션
+
+    Returns:
+        BannerSetGenerateResponse: 생성된 배너 세트 (원본 + Canvas JSON 배열)
+
+    Raises:
+        HTTPException: 생성 실패 시
+    """
+    try:
+        logger.info(
+            f"Generating banner set: headline={request.banner_input.headline}, "
+            f"sizes={request.banner_input.sizes}, user={current_user.id}"
+        )
+
+        # BrandKit 조회 (옵션)
+        brand_colors = None
+        brand_fonts = None
+        if request.brand_id:
+            # TODO: BrandKit에서 브랜드 컬러/폰트 조회
+            pass
+
+        # BannerGenerator 실행
+        generator = get_banner_generator()
+        banner_set, canvas_documents, usage = await generator.generate(
+            banner_input=request.banner_input,
+            brand_id=request.brand_id,
+            brand_colors=brand_colors,
+            brand_fonts=brand_fonts
+        )
+
+        # TODO: Documents 저장 (옵션)
+        # if request.project_id:
+        #     document_ids = await save_documents(db, canvas_documents, request.project_id, current_user.id)
+        # else:
+        #     document_ids = None
+
+        logger.info(
+            f"Banner set generated: headline={request.banner_input.headline}, "
+            f"banners={len(banner_set.banners)}, tokens={usage['llm_tokens']}, "
+            f"elapsed={usage['elapsed_seconds']}s"
+        )
+
+        return BannerSetGenerateResponse(
+            success=True,
+            document_ids=None,  # TODO: 저장된 Document IDs
+            canvas_json_set=[doc.model_dump() for doc in canvas_documents],
+            content=banner_set,
+            error=None,
+            usage=usage
+        )
+
+    except Exception as e:
+        logger.error(f"Banner set generation failed: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate banner set: {str(e)}"
+        )
 
 
 # =============================================================================
