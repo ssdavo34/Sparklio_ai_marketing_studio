@@ -20,12 +20,42 @@ from app.core.database import Base
 
 
 class MeetingStatus(str, enum.Enum):
-    """회의 상태"""
-    UPLOADED = "uploaded"  # 파일 업로드 완료
-    TRANSCRIBING = "transcribing"  # 트랜스크립션 진행 중
-    TRANSCRIBED = "transcribed"  # 트랜스크립션 완료
-    ANALYZED = "analyzed"  # MeetingAgent 분석 완료
-    FAILED = "failed"  # 실패
+    """
+    회의 상태
+
+    계약서 참조: MEETING_FROM_URL_CONTRACT.md - Section 2
+
+    기존 상태 (파일 업로드 방식):
+    - UPLOADED: 파일 업로드 완료
+    - TRANSCRIBING: 트랜스크립션 진행 중
+    - TRANSCRIBED: 트랜스크립션 완료
+    - ANALYZED: MeetingAgent 분석 완료
+    - FAILED: 실패
+
+    Meeting From URL 전용 상태:
+    - CREATED: Meeting 레코드 생성됨
+    - DOWNLOADING: URL에서 오디오/자막 다운로드 중
+    - CAPTION_READY: Caption transcript 준비됨
+    - READY_FOR_STT: 오디오 다운로드 완료, STT 대기
+    - READY: Primary transcript 준비됨 (최종 완료)
+    - DOWNLOAD_FAILED: 다운로드 실패
+    - STT_FAILED: STT 실패
+    """
+    # 기존 상태 (파일 업로드 방식)
+    UPLOADED = "uploaded"
+    TRANSCRIBING = "transcribing"
+    TRANSCRIBED = "transcribed"
+    ANALYZED = "analyzed"
+    FAILED = "failed"
+
+    # Meeting From URL 전용 상태
+    CREATED = "created"
+    DOWNLOADING = "downloading"
+    CAPTION_READY = "caption_ready"
+    READY_FOR_STT = "ready_for_stt"
+    READY = "ready"
+    DOWNLOAD_FAILED = "download_failed"
+    STT_FAILED = "stt_failed"
 
 
 class Meeting(Base):

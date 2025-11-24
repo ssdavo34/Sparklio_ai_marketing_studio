@@ -13,7 +13,7 @@ from typing import List, Optional
 from uuid import UUID
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, BackgroundTasks
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
@@ -42,6 +42,7 @@ from app.services.transcriber import get_transcriber_service
 from app.services.agents.meeting_ai import get_meeting_ai_agent
 from app.services.agents.base import AgentRequest
 from app.models.meeting import TranscriptSourceType, TranscriptProvider, TranscriptBackend
+from app.services.meeting_url_pipeline import get_meeting_url_pipeline
 
 logger = logging.getLogger(__name__)
 
@@ -123,16 +124,18 @@ async def create_meeting(
 @router.post("/from-url", response_model=MeetingFromURLResponse, status_code=status.HTTP_201_CREATED)
 async def create_meeting_from_url(
     request: MeetingFromURLRequest,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
     URL로부터 회의 생성 (YouTube, 웹 URL 등)
 
-    현재는 placeholder로 구현되어 있으며, 실제 URL 다운로드 기능은 향후 구현 예정
+    Stage 1: Caption만 가져오기
 
     Args:
         request: URL 및 회의 정보
+        background_tasks: 백그라운드 작업
         current_user: 현재 사용자
         db: 데이터베이스 세션
 
@@ -142,21 +145,16 @@ async def create_meeting_from_url(
     try:
         logger.info(f"Creating meeting from URL: {request.url}")
 
-        # TODO: URL 유효성 검증 (YouTube, 웹 URL 등)
-        # TODO: yt-dlp 또는 다른 도구로 오디오 다운로드
-        # TODO: MinIO에 파일 업로드
-
-        # 제목 자동 생성 (URL에서 추출)
+        # 1. Meeting 레코드 생성
         title = request.title or f"Meeting from {request.url[:50]}"
 
-        # Meeting 생성
         meeting = Meeting(
             owner_id=current_user.id,
             brand_id=request.brand_id,
             project_id=request.project_id,
             title=title,
             description=request.description or f"Imported from: {request.url}",
-            status=MeetingStatus.PENDING,  # URL 다운로드 대기 중
+            status=MeetingStatus.CREATED,  # ← PENDING → CREATED 변경
             meeting_metadata={"source_url": request.url}
         )
 
@@ -164,21 +162,35 @@ async def create_meeting_from_url(
         db.commit()
         db.refresh(meeting)
 
-        logger.info(f"Meeting created from URL: {meeting.id}")
+        # 2. 백그라운드에서 URL 처리 시작
+        pipeline = get_meeting_url_pipeline()
 
-        # TODO: 백그라운드 작업으로 URL 다운로드 및 트랜스크립션 실행
-        # if request.auto_transcribe:
-        #     background_tasks.add_task(download_and_transcribe, meeting.id, request.url)
+        async def process_meeting_url():
+            """백그라운드 작업: URL 처리"""
+            # 새로운 DB 세션 필요 (백그라운드 스레드)
+            from app.core.database import SessionLocal
+            bg_db = SessionLocal()
+            try:
+                await pipeline.process_url(
+                    meeting_id=meeting.id,
+                    url=request.url,
+                    db=bg_db,
+                    auto_transcribe=request.auto_transcribe
+                )
+            finally:
+                bg_db.close()
+
+        background_tasks.add_task(process_meeting_url)
+
+        logger.info(
+            f"Meeting {meeting.id} created, background processing started"
+        )
 
         return MeetingFromURLResponse(
             meeting_id=meeting.id,
             status=meeting.status,
-            message=(
-                "Meeting created successfully. "
-                "Note: URL download feature is not yet implemented. "
-                "Please use file upload instead."
-            ),
-            transcription_started=False
+            message="Meeting created successfully. URL processing will start in background.",
+            transcription_started=False  # Stage 1에서는 STT 없음
         )
 
     except Exception as e:
