@@ -201,6 +201,58 @@ class MeetingSummaryOutput(BaseModel):
 
 
 # =============================================================================
+# Meeting to Brief Schemas
+# =============================================================================
+
+class MeetingToBriefInput(BaseModel):
+    """회의 → 브리프 변환 입력"""
+    meeting_summary: Dict[str, Any] = Field(..., description="MeetingAgent 분석 결과")
+    brand_context: Optional[str] = Field(None, description="브랜드 컨텍스트 (Brand DNA)")
+    additional_context: Optional[str] = Field(None, description="추가 컨텍스트 (사용자 입력)")
+
+
+class CampaignBriefOutput(BaseModel):
+    """캠페인 브리프 출력"""
+    brief_title: str = Field(..., description="브리프 제목")
+    objective: str = Field(..., description="마케팅 목표")
+    target_audience: str = Field(..., description="타겟 고객")
+    key_messages: List[str] = Field(..., description="핵심 메시지 (3-5개)")
+    channels: List[str] = Field(..., description="마케팅 채널")
+    timeline: Optional[str] = Field(None, description="일정/타임라인")
+    budget: Optional[str] = Field(None, description="예산")
+    deliverables: List[str] = Field(..., description="산출물 목록")
+    constraints: Optional[List[str]] = Field(None, description="제약사항")
+    success_metrics: Optional[List[str]] = Field(None, description="성공 지표")
+    created_at: datetime = Field(default_factory=datetime.utcnow, description="생성 시각")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "brief_title": "2025 봄 시즌 신제품 런칭 캠페인",
+                "objective": "20-30대 여성을 타겟으로 신제품 인지도 확보 및 초기 구매 유도",
+                "target_audience": "20-30대 여성, 인스타그램/틱톡 활성 사용자, 트렌디한 제품에 관심 있는 얼리어답터",
+                "key_messages": [
+                    "혁신적인 신제품으로 새로운 경험 제공",
+                    "20-30대 여성의 라이프스타일에 최적화",
+                    "프리미엄 품질, 합리적인 가격"
+                ],
+                "channels": ["인스타그램", "틱톡", "인플루언서 협업"],
+                "timeline": "2025년 12월 ~ 2026년 2월 (3개월)",
+                "budget": "5천만원 (인플루언서 3천, 광고 2천)",
+                "deliverables": [
+                    "인플루언서 언박싱 영상 3편",
+                    "소셜 미디어 광고 크리에이티브 10종",
+                    "제품 상세페이지",
+                    "이벤트 랜딩페이지"
+                ],
+                "constraints": ["12월 1일까지 인플루언서 섭외 완료", "브랜드 톤앤매너 준수"],
+                "success_metrics": ["월 신규 고객 1,000명", "SNS 인게이지먼트 5% 이상", "전환율 3% 이상"],
+                "created_at": "2025-11-24T15:00:00Z"
+            }
+        }
+
+
+# =============================================================================
 # Upload Response
 # =============================================================================
 

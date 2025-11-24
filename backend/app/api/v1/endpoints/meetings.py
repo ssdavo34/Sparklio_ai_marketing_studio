@@ -31,7 +31,9 @@ from app.schemas.meeting import (
     TranscribeResponse,
     MeetingUploadResponse,
     MeetingSummaryInput,
-    MeetingSummaryOutput
+    MeetingSummaryOutput,
+    MeetingToBriefInput,
+    CampaignBriefOutput
 )
 from app.services.storage import get_storage_service
 from app.services.transcriber import get_transcriber_service
@@ -633,4 +635,143 @@ async def analyze_meeting(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Analysis failed: {str(e)}"
+        )
+
+
+@router.post("/{meeting_id}/to-brief", response_model=CampaignBriefOutput)
+async def meeting_to_brief(
+    meeting_id: UUID,
+    additional_context: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    회의 분석 결과를 캠페인 브리프로 변환 (MeetingAgent)
+
+    1. Meeting의 analysis_result 조회 (없으면 자동 분석)
+    2. MeetingAgent의 meeting_to_brief task 실행
+    3. Campaign Brief 생성 및 반환
+
+    Args:
+        meeting_id: 회의 ID
+        additional_context: 추가 컨텍스트 (사용자 입력, optional)
+
+    Returns:
+        CampaignBriefOutput: 생성된 캠페인 브리프
+    """
+    try:
+        # 1. Meeting 조회
+        meeting = db.query(Meeting).filter(
+            Meeting.id == meeting_id,
+            Meeting.owner_id == current_user.id,
+            Meeting.deleted_at.is_(None)
+        ).first()
+
+        if not meeting:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Meeting not found: {meeting_id}"
+            )
+
+        # 2. analysis_result 확인 (없으면 자동 분석)
+        if not meeting.analysis_result:
+            logger.info(f"No analysis_result found for meeting {meeting_id}, running analysis first")
+
+            # Primary Transcript 조회
+            transcript = db.query(MeetingTranscript).filter(
+                MeetingTranscript.meeting_id == meeting_id,
+                MeetingTranscript.is_primary == True
+            ).first()
+
+            if not transcript:
+                # Fallback: 가장 최근 트랜스크립트
+                transcript = db.query(MeetingTranscript).filter(
+                    MeetingTranscript.meeting_id == meeting_id
+                ).order_by(desc(MeetingTranscript.created_at)).first()
+
+            if not transcript:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="No transcript found. Please transcribe the meeting first."
+                )
+
+            # Brand context 조회
+            brand_context = None
+            if meeting.brand_id:
+                from app.models.brand import Brand
+                brand = db.query(Brand).filter(Brand.id == meeting.brand_id).first()
+                if brand and brand.brand_dna:
+                    brand_context = str(brand.brand_dna)
+
+            # MeetingAgent로 분석 실행
+            agent = get_meeting_ai_agent()
+            summary_request = AgentRequest(
+                task="meeting_summary",
+                payload={
+                    "transcript": transcript.transcript_text,
+                    "meeting_title": meeting.title,
+                    "meeting_date": meeting.meeting_date.isoformat() if meeting.meeting_date else None,
+                    "brand_context": brand_context
+                }
+            )
+
+            summary_response = await agent.execute(summary_request)
+            meeting.analysis_result = summary_response.outputs[0].value
+            meeting.status = MeetingStatus.ANALYZED
+            db.commit()
+
+        # 3. Brand context 조회
+        brand_context = None
+        if meeting.brand_id:
+            from app.models.brand import Brand
+            brand = db.query(Brand).filter(Brand.id == meeting.brand_id).first()
+            if brand and brand.brand_dna:
+                brand_context = str(brand.brand_dna)
+
+        # 4. MeetingAgent로 meeting_to_brief 실행
+        agent = get_meeting_ai_agent()
+        brief_request = AgentRequest(
+            task="meeting_to_brief",
+            payload={
+                "meeting_summary": meeting.analysis_result,
+                "brand_context": brand_context,
+                "additional_context": additional_context
+            }
+        )
+
+        brief_response = await agent.execute(brief_request)
+
+        # 5. 결과 파싱
+        if not brief_response.outputs:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Agent returned no outputs"
+            )
+
+        brief_data = brief_response.outputs[0].value
+
+        logger.info(f"Campaign brief generated for meeting {meeting_id}")
+
+        # 6. CampaignBriefOutput으로 변환
+        return CampaignBriefOutput(
+            brief_title=brief_data.get("brief_title", ""),
+            objective=brief_data.get("objective", ""),
+            target_audience=brief_data.get("target_audience", ""),
+            key_messages=brief_data.get("key_messages", []),
+            channels=brief_data.get("channels", []),
+            timeline=brief_data.get("timeline"),
+            budget=brief_data.get("budget"),
+            deliverables=brief_data.get("deliverables", []),
+            constraints=brief_data.get("constraints"),
+            success_metrics=brief_data.get("success_metrics"),
+            created_at=datetime.utcnow()
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating brief from meeting {meeting_id}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Brief generation failed: {str(e)}"
         )

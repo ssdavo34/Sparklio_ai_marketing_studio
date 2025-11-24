@@ -440,6 +440,108 @@ async def test_full_flow_with_all_fields(meeting_agent, mock_llm_gateway):
     assert len(result["campaign_ideas"]) == 3
 
 
+# =============================================================================
+# Unit Tests - meeting_to_brief Task
+# =============================================================================
+
+@pytest.mark.asyncio
+async def test_meeting_to_brief_basic(meeting_agent, mock_llm_gateway):
+    """meeting_to_brief 기본 동작 테스트"""
+    mock_llm_response = Mock()
+    mock_llm_response.output = LLMProviderOutput(
+        type="json",
+        value={
+            "brief_title": "Test Campaign Brief",
+            "objective": "Test objective",
+            "target_audience": "Test audience",
+            "key_messages": ["Message 1", "Message 2", "Message 3"],
+            "channels": ["Instagram", "TikTok"],
+            "timeline": "2025-12 ~ 2026-02",
+            "budget": "50,000,000원",
+            "deliverables": ["Deliverable 1", "Deliverable 2"],
+            "constraints": ["Constraint 1"],
+            "success_metrics": ["Metric 1"]
+        }
+    )
+    mock_llm_response.provider = "openai"
+    mock_llm_response.model = "gpt-4o-mini"
+    mock_llm_response.usage = {"total_tokens": 1500}
+
+    mock_llm_gateway.generate.return_value = mock_llm_response
+
+    request = AgentRequest(
+        task="meeting_to_brief",
+        payload={
+            "meeting_summary": {
+                "summary": "Product launch meeting",
+                "agenda": ["Target audience", "Channels"],
+                "decisions": ["Target: 20-30s women"],
+                "action_items": ["Hire influencers"],
+                "campaign_ideas": ["Unboxing challenge"]
+            },
+            "brand_context": "Eco-friendly brand"
+        }
+    )
+
+    response = await meeting_agent.execute(request)
+
+    assert isinstance(response, AgentResponse)
+    assert response.agent == "meeting_ai"
+    assert response.task == "meeting_to_brief"
+    assert len(response.outputs) == 1
+    assert response.outputs[0].type == "json"
+    assert response.outputs[0].name == "campaign_brief"
+    assert "brief_title" in response.outputs[0].value
+    assert "objective" in response.outputs[0].value
+    assert "key_messages" in response.outputs[0].value
+
+
+@pytest.mark.asyncio
+async def test_meeting_to_brief_with_brand_context(meeting_agent, mock_llm_gateway):
+    """Brand context 포함한 meeting_to_brief 테스트"""
+    mock_llm_response = Mock()
+    mock_llm_response.output = LLMProviderOutput(
+        type="json",
+        value={
+            "brief_title": "Brand-aligned Campaign",
+            "objective": "Brand objective",
+            "target_audience": "Brand target",
+            "key_messages": ["Message 1"],
+            "channels": ["Instagram"],
+            "deliverables": ["Deliverable 1"]
+        }
+    )
+    mock_llm_response.provider = "ollama"
+    mock_llm_response.model = "qwen2.5:7b"
+    mock_llm_response.usage = {"total_tokens": 1000}
+
+    mock_llm_gateway.generate.return_value = mock_llm_response
+
+    request = AgentRequest(
+        task="meeting_to_brief",
+        payload={
+            "meeting_summary": {
+                "summary": "Test meeting",
+                "agenda": [],
+                "decisions": [],
+                "action_items": [],
+                "campaign_ideas": []
+            },
+            "brand_context": "Premium beauty brand targeting Gen Z"
+        }
+    )
+
+    response = await meeting_agent.execute(request)
+
+    # LLM gateway가 brand_context를 받았는지 확인
+    call_args = mock_llm_gateway.generate.call_args
+    assert "brand_context" in call_args[1]["payload"]
+
+
+# =============================================================================
+# Integration-like Tests
+# =============================================================================
+
 @pytest.mark.asyncio
 async def test_usage_and_meta_tracking(meeting_agent, mock_llm_gateway):
     """사용량 및 메타데이터 추적 테스트"""

@@ -293,11 +293,14 @@
   - [x] Test suite 작성 (16 tests including Golden Set)
 
 **Week 2: Meeting → Brief 변환 & Frontend 통합**
-- [ ] 2.3 Meeting → Brief 변환
-  - [ ] Task: `meeting_to_brief`
-  - [ ] MeetingOutput + BrandKit → CampaignBriefInput 자동 생성
-  - [ ] API: `POST /api/v1/meetings/{id}/to-brief`
-  - [ ] 파일: `backend/app/api/v1/endpoints/meetings.py`
+- [x] 2.3 Meeting → Brief 변환 ✅ (2025-11-24)
+  - [x] Task: `meeting_to_brief`
+  - [x] MeetingSummary + BrandKit → CampaignBriefOutput 자동 생성
+  - [x] API: `POST /api/v1/meetings/{id}/to-brief`
+  - [x] 파일: `backend/app/api/v1/endpoints/meetings.py`
+  - [x] 스키마: `MeetingToBriefInput`, `CampaignBriefOutput`
+  - [x] 자동 분석 기능 (analysis_result 없으면 자동 실행)
+  - [x] Test suite 추가 (2 tests)
 
 - [ ] 2.4 Frontend 통합
   - [ ] Meeting 업로드 UI (Audio/Video 파일)

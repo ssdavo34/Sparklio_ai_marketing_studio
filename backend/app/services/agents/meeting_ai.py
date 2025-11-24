@@ -26,8 +26,9 @@ class MeetingAIAgent(AgentBase):
 
     주요 작업:
     1. meeting_summary: 회의 요약 및 분석 (요약, 안건, 결정사항, 액션아이템, 캠페인 아이디어)
-    2. analyze_transcript: 회의록 분석 (요약, Action Items, 주요 안건) - Legacy
-    3. generate_draft: 회의 내용을 바탕으로 마케팅 문서 초안 생성
+    2. meeting_to_brief: 회의 분석 결과 → 캠페인 브리프 자동 생성
+    3. analyze_transcript: 회의록 분석 (요약, Action Items, 주요 안건) - Legacy
+    4. generate_draft: 회의 내용을 바탕으로 마케팅 문서 초안 생성 - Legacy
 
     사용 예시:
         agent = MeetingAIAgent()
@@ -146,6 +147,43 @@ class MeetingAIAgent(AgentBase):
                 "campaign_ideas": ["캠페인 아이디어1", "캠페인 아이디어2"]
             }
 
+        elif request.task == "meeting_to_brief":
+            # P0-2 Meeting AI: meeting_to_brief task
+            enhanced["_instructions"] = (
+                "회의 분석 결과(meeting_summary)를 바탕으로 실행 가능한 캠페인 브리프를 생성하세요.\n\n"
+                "**입력 정보:**\n"
+                "- meeting_summary: 회의 요약, 안건, 결정사항, 액션 아이템, 캠페인 아이디어\n"
+                "- brand_context: 브랜드 DNA (있는 경우 브랜드에 맞게 조정)\n"
+                "- additional_context: 사용자 추가 요청사항\n\n"
+                "**생성 지침:**\n"
+                "1. brief_title: 회의 제목과 핵심 내용을 반영한 브리프 제목\n"
+                "2. objective: 명확한 마케팅 목표 (SMART 원칙)\n"
+                "3. target_audience: 구체적인 타겟 고객 페르소나\n"
+                "4. key_messages: 3-5개의 핵심 메시지 (회의 내용 기반)\n"
+                "5. channels: 논의된 마케팅 채널 목록\n"
+                "6. timeline: 회의에서 언급된 일정 (없으면 null)\n"
+                "7. budget: 회의에서 논의된 예산 (없으면 null)\n"
+                "8. deliverables: 구체적인 산출물 목록 (campaign_ideas 및 decisions 기반)\n"
+                "9. constraints: 제약사항 (기한, 브랜드 가이드라인 등)\n"
+                "10. success_metrics: 성공 지표 (언급된 경우, 없으면 null)\n\n"
+                "**중요:**\n"
+                "- 회의에서 실제로 논의된 내용만 사용 (추측하지 말 것)\n"
+                "- 없는 정보는 null 또는 빈 리스트로 처리\n"
+                "- 브랜드 컨텍스트가 있으면 브랜드 톤에 맞게 작성"
+            )
+            enhanced["_output_structure"] = {
+                "brief_title": "브리프 제목",
+                "objective": "마케팅 목표",
+                "target_audience": "타겟 고객 설명",
+                "key_messages": ["핵심 메시지 1", "핵심 메시지 2", "핵심 메시지 3"],
+                "channels": ["채널1", "채널2"],
+                "timeline": "일정 (없으면 null)",
+                "budget": "예산 (없으면 null)",
+                "deliverables": ["산출물1", "산출물2"],
+                "constraints": ["제약사항1", "제약사항2"] or null,
+                "success_metrics": ["지표1", "지표2"] or null
+            }
+
         elif request.task == "analyze_transcript":
             # Legacy task (하위 호환성)
             enhanced["_instructions"] = (
@@ -199,10 +237,12 @@ class MeetingAIAgent(AgentBase):
 
         if llm_output.type == "json":
             content = llm_output.value
-            
+
             output_name = "analysis_result"
             if task == "generate_draft":
                 output_name = "draft_document"
+            elif task == "meeting_to_brief":
+                output_name = "campaign_brief"
 
             outputs.append(self._create_output(
                 output_type="json",
