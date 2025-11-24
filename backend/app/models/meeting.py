@@ -10,6 +10,7 @@ Meeting 모델
 
 import uuid
 from sqlalchemy import Column, String, Text, Integer, ForeignKey, TIMESTAMP, Enum as SQLEnum
+import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID, JSONB, ARRAY
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
@@ -87,11 +88,33 @@ class Meeting(Base):
     transcripts = relationship("MeetingTranscript", back_populates="meeting", cascade="all, delete-orphan")
 
 
+class TranscriptSourceType(str, enum.Enum):
+    """트랜스크립트 소스 타입"""
+    CAPTION = "caption"  # YouTube/Zoom 자막
+    WHISPER = "whisper"  # Whisper STT
+    MERGED = "merged"  # Caption + Whisper 병합
+
+
+class TranscriptProvider(str, enum.Enum):
+    """트랜스크립트 제공자"""
+    UPLOAD = "upload"  # 직접 업로드
+    YOUTUBE = "youtube"  # YouTube
+    ZOOM = "zoom"  # Zoom
+    GMEET = "gmeet"  # Google Meet
+    TEAMS = "teams"  # Microsoft Teams
+    MANUAL = "manual"  # 수동 입력
+
+
 class MeetingTranscript(Base):
     """
-    회의 트랜스크립트 모델
+    회의 트랜스크립트 모델 (표준 Transcript Layer)
 
-    Whisper API로 생성된 회의 스크립트 (타임스탬프 포함)
+    다양한 소스(자막, Whisper STT, 병합)를 통합 관리
+
+    설계 원칙:
+    - 하나의 Meeting은 여러 Transcript를 가질 수 있음 (caption, whisper, merged 등)
+    - is_primary=True인 Transcript가 MeetingAgent가 사용하는 메인 스크립트
+    - 품질 개선을 위해 나중에 primary를 교체 가능
     """
     __tablename__ = "meeting_transcripts"
 
@@ -100,6 +123,21 @@ class MeetingTranscript(Base):
 
     # Foreign Keys
     meeting_id = Column(UUID(as_uuid=True), ForeignKey('meetings.id', ondelete='CASCADE'), nullable=False)
+
+    # 소스 정보
+    source_type = Column(SQLEnum(TranscriptSourceType), nullable=False, default=TranscriptSourceType.WHISPER)
+    provider = Column(SQLEnum(TranscriptProvider), nullable=False, default=TranscriptProvider.UPLOAD)
+
+    # Primary 지정 (MeetingAgent가 사용할 transcript)
+    is_primary = Column(sa.Boolean, default=False, nullable=False)
+
+    # 품질 점수 (0.0 ~ 1.0, 자동 계산 또는 수동 지정)
+    quality_score = Column(sa.Float, nullable=True)
+    # 계산 기준:
+    # - 텍스트 길이 vs 영상 길이 비율
+    # - 공백/특수문자 비율
+    # - 언어 감지 일치도
+    # - Whisper confidence 점수
 
     # 트랜스크립트 정보
     transcript_text = Column(Text, nullable=False)  # 전체 트랜스크립트 텍스트
