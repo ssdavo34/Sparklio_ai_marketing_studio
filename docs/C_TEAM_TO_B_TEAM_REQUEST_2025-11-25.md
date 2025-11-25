@@ -1,9 +1,25 @@
-# C팀 → B팀 협조요청서
+# C팀 → B팀 협조요청서 (Updated)
 
 **작성일**: 2025-11-25
+**업데이트**: 2025-11-25 15:13
 **작성팀**: C팀 (Frontend)
 **수신팀**: B팀 (Backend - Meeting AI)
 **긴급도**: 높음
+
+---
+
+## 0. 최신 업데이트 (2025-11-25 15:13)
+
+### 원인 발견!
+```
+"error_message": "Download failed: 'StorageService' object has no attribute 'upload_file_async'"
+```
+
+**StorageService 클래스에 `upload_file_async` 메서드가 없습니다.**
+
+### 수정 필요
+- `StorageService` 클래스에 `upload_file_async` 메서드 추가
+- 또는 호출하는 코드에서 올바른 메서드명 사용
 
 ---
 
