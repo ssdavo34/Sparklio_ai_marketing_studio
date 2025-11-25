@@ -118,6 +118,67 @@ class StorageService:
         except S3Error as e:
             raise Exception(f"MinIO delete failed: {str(e)}")
 
+    async def upload_file_async(
+        self,
+        file_path: str,
+        bucket: str,
+        object_key: str,
+        content_type: str = "application/octet-stream"
+    ) -> dict:
+        """
+        Async wrapper for file upload from local path
+
+        Args:
+            file_path: Local file path
+            bucket: Target bucket name
+            object_key: Object key (path in bucket)
+            content_type: MIME type
+
+        Returns:
+            Upload metadata dict
+        """
+        import asyncio
+
+        def _upload():
+            with open(file_path, 'rb') as f:
+                file_data = f.read()
+            return self.upload_file(bucket, object_key, file_data, content_type)
+
+        return await asyncio.to_thread(_upload)
+
+    async def download_file_async(
+        self,
+        bucket: str,
+        object_key: str,
+        file_path: str
+    ) -> bool:
+        """
+        Async wrapper for file download to local path
+
+        Args:
+            bucket: Source bucket name
+            object_key: Object key (path in bucket)
+            file_path: Local file path to save
+
+        Returns:
+            Success boolean
+        """
+        import asyncio
+
+        def _download():
+            try:
+                response = self.client.get_object(bucket, object_key)
+                with open(file_path, 'wb') as f:
+                    for chunk in response.stream(32*1024):
+                        f.write(chunk)
+                response.close()
+                response.release_conn()
+                return True
+            except S3Error as e:
+                raise Exception(f"MinIO download failed: {str(e)}")
+
+        return await asyncio.to_thread(_download)
+
 # Global storage service instance
 storage_service = StorageService()
 

@@ -472,6 +472,18 @@ curl http://100.123.51.5:8000/health
 
 ---
 
+## ⚡ Quick Reference
+
+**SSH 명령어가 안 될 때?** → [CLAUDE_SESSION_QUICK_START.md](./CLAUDE_SESSION_QUICK_START.md) 참조
+
+이 문서에는:
+- SSH PATH 문제 해결 (docker, npm 못 찾을 때)
+- Frontend/Backend 시작 명령어
+- Health Check 명령어
+- 문제 해결 가이드
+
+---
+
 **작성일**: 2025-11-23 (일요일)
 **버전**: v1.0
 **대상**: 전체 팀 (A/B/C)
