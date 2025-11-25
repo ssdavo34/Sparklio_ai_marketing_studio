@@ -355,8 +355,8 @@ class CampaignStrategyOutputV1(BaseModel):
     @field_validator("success_metrics")
     @classmethod
     def validate_success_metrics(cls, v: List[str]) -> List[str]:
-        """각 성공 지표의 길이 검증 (10-200자, LLM 출력 수용을 위해 완화)"""
+        """각 성공 지표의 길이 검증 (최소 5자만 검증, 상한 제거)"""
         for metric in v:
-            if len(metric) < 10 or len(metric) > 200:
-                raise ValueError("Each success_metric must be between 10-200 characters")
+            if len(metric) < 5:
+                raise ValueError("Each success_metric must be at least 5 characters")
         return v
