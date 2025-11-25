@@ -1,4 +1,4 @@
-# SPARKLIO AI Marketing Studio - Agent 명세서
+            # SPARKLIO AI Marketing Studio - Agent 명세서
 
 **작성일**: 2025년 11월 19일 (수요일)
 **작성자**: B팀 (Backend)

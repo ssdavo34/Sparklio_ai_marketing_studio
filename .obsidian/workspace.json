@@ -185,6 +185,7 @@
   },
   "active": "6eb772d2c3e11c27",
   "lastOpenFiles": [
+    "backend/app/schemas/strategist.py.tmp.20184.1764048565732",
     "backend/app/services/agents/strategist.py.tmp.20184.1764046465187",
     "backend/app/services/agents/strategist.py.tmp.20184.1764046432907",
     "docs/B_TEAM_RESPONSE_TO_C_TEAM_2025-11-25.md",
@@ -197,7 +198,6 @@
     "backend/app/schemas/meeting.py.tmp.38592.1764040789923",
     "docs/C_TEAM_TO_B_TEAM_REQUEST_2025-11-25.md",
     "docs/C_TEAM_TO_B_TEAM_REQUEST_2025-11-25.md.tmp.44588.1764040567184",
-    "frontend/components/canvas-studio/panels/left/tabs/MeetingTab.tsx.tmp.44588.1764040327037",
     "docs/HANDOVER_2025-11-25_A_TEAM.md",
     "docs/DEMO/DEMO_QA_CHECKLIST.md",
     "docs/DEMO/SHORTS_VIDEO_PIPELINE.md",
