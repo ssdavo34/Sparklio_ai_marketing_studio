@@ -87,6 +87,7 @@ class Meeting(Base):
 
     # 상태
     status = Column(SQLEnum(MeetingStatus), default=MeetingStatus.UPLOADED, nullable=False)
+    error_message = Column(Text, nullable=True)  # 실패 시 에러 메시지 (C팀 요청 2025-11-25)
 
     # MeetingAgent 분석 결과 (JSON)
     analysis_result = Column(JSONB, nullable=True)

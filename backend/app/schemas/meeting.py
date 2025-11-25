@@ -51,6 +51,7 @@ class MeetingResponse(MeetingBase):
     mime_type: Optional[str]
     duration_seconds: Optional[int]
     status: MeetingStatus
+    error_message: Optional[str] = Field(None, description="실패 시 에러 메시지")
     analysis_result: Optional[Dict[str, Any]]
     meeting_metadata: Optional[Dict[str, Any]]
     created_at: datetime

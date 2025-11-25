@@ -103,11 +103,14 @@ class MeetingURLPipeline:
                 audio_path = Path(tmpdir) / "audio.mp4"
 
                 logger.info(f"Downloading audio to {audio_path}")
-                success = await self.youtube_downloader.download_audio(url, str(audio_path))
+                success, error_msg = await self.youtube_downloader.download_audio(
+                    url, str(audio_path)
+                )
 
                 if not success:
-                    logger.error(f"Audio download failed for {url}")
+                    logger.error(f"Audio download failed for {url}: {error_msg}")
                     meeting.status = MeetingStatus.DOWNLOAD_FAILED
+                    meeting.error_message = error_msg  # C팀 요청: 에러 메시지 저장
                     db.commit()
                     return False
 
@@ -182,12 +185,15 @@ class MeetingURLPipeline:
             return True
 
         except Exception as e:
-            logger.exception(f"Failed to process URL: {e}")
+            error_msg = str(e)
+            logger.exception(f"Failed to process URL: {error_msg}")
             # 실패 시 상태 결정
             if meeting.status == MeetingStatus.TRANSCRIBING:
                 meeting.status = MeetingStatus.STT_FAILED
+                meeting.error_message = f"STT failed: {error_msg}"
             else:
                 meeting.status = MeetingStatus.DOWNLOAD_FAILED
+                meeting.error_message = f"Download failed: {error_msg}"
             db.commit()
             return False
 

@@ -14,7 +14,7 @@ import subprocess
 import json
 import tempfile
 from pathlib import Path
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -133,7 +133,7 @@ class YouTubeDownloader:
         self,
         url: str,
         output_path: str
-    ) -> bool:
+    ) -> Tuple[bool, Optional[str]]:
         """
         YouTube 오디오 다운로드 (Stage 2)
 
@@ -142,7 +142,9 @@ class YouTubeDownloader:
             output_path: 저장할 파일 경로 (예: /tmp/audio.mp4)
 
         Returns:
-            성공 여부
+            Tuple[성공여부, 에러메시지]
+            - (True, None): 성공
+            - (False, "에러메시지"): 실패
         """
         logger.info(f"YouTubeDownloader: Downloading audio from {url}")
 
@@ -164,22 +166,33 @@ class YouTubeDownloader:
             )
 
             if result.returncode != 0:
-                logger.error(f"yt-dlp audio download failed: {result.stderr}")
-                return False
+                error_msg = result.stderr.strip() if result.stderr else "Unknown yt-dlp error"
+                # 에러 메시지 정리 (너무 길면 자르기)
+                if len(error_msg) > 500:
+                    error_msg = error_msg[:500] + "..."
+                logger.error(f"yt-dlp audio download failed: {error_msg}")
+                return False, f"yt-dlp error: {error_msg}"
 
             if not Path(output_path).exists():
-                logger.error(f"Audio file not created: {output_path}")
-                return False
+                error_msg = f"Audio file not created at {output_path}"
+                logger.error(error_msg)
+                return False, error_msg
 
             logger.info(f"YouTubeDownloader: Audio downloaded to {output_path}")
-            return True
+            return True, None
 
         except subprocess.TimeoutExpired:
-            logger.error(f"yt-dlp audio download timeout for {url}")
-            return False
+            error_msg = f"Download timeout (>5min) for {url}"
+            logger.error(error_msg)
+            return False, error_msg
+        except FileNotFoundError:
+            error_msg = "yt-dlp not installed. Please install: pip install yt-dlp"
+            logger.error(error_msg)
+            return False, error_msg
         except Exception as e:
-            logger.exception(f"Failed to download audio: {e}")
-            return False
+            error_msg = f"Download failed: {str(e)}"
+            logger.exception(error_msg)
+            return False, error_msg
 
 
 def get_youtube_downloader() -> YouTubeDownloader:

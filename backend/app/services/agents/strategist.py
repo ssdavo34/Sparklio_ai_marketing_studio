@@ -104,7 +104,11 @@ class StrategistAgent(AgentBase):
                     # 응답 파싱
                     logger.info(f"🐛 LLM Raw Output Type: {llm_response.output.type}")
                     outputs = self._parse_llm_response(llm_response.output, request.task)
-                    logger.info(f"🐛 Parsed Output Keys: {list(outputs[0].value.keys()) if outputs else 'None'}")
+                    # dict 타입일 때만 keys() 호출 (str일 경우 AttributeError 방지)
+                    if outputs and isinstance(outputs[0].value, dict):
+                        logger.info(f"🐛 Parsed Output Keys: {list(outputs[0].value.keys())}")
+                    else:
+                        logger.info(f"🐛 Parsed Output Type: {type(outputs[0].value).__name__ if outputs else 'None'}")
 
                     # Validation Pipeline
                     validation_result = validator.validate(
@@ -243,12 +247,17 @@ class StrategistAgent(AgentBase):
                     "마케팅 캠페인 전략을 체계적으로 수립하세요. "
                     "타겟 인사이트, 창의적인 빅 아이디어, 실행 가능한 전략 기둥, "
                     "채널별 전술, 마케팅 퍼널 구조, 리스크 대응 방안을 포함하세요. "
-                    "모든 전략은 측정 가능한 성공 지표(KPI)와 연결되어야 합니다."
+                    "모든 전략은 측정 가능한 성공 지표(KPI)와 연결되어야 합니다.\n\n"
+                    "중요: target_insights, risk_factors, success_metrics는 반드시 문자열(string) 배열이어야 합니다. "
+                    "객체(object) 배열이 아닙니다!\n"
+                    "예시 (올바름): \"target_insights\": [\"인사이트1\", \"인사이트2\", \"인사이트3\"]\n"
+                    "예시 (틀림): \"target_insights\": [{\"insight\": \"...\"}]\n\n"
+                    "success_metrics는 각 항목이 10-100자 사이여야 합니다. 너무 길면 안됩니다."
                 ),
                 "structure": {
                     "core_message": "캠페인 핵심 메시지 (20-100자, 임팩트 있고 명확하게)",
                     "positioning": "브랜드/제품 포지셔닝 (20-150자, 차별점 강조)",
-                    "target_insights": "타겟 고객 인사이트 (3-5개, 각 20-150자, 데이터 기반)",
+                    "target_insights": ["인사이트1 (20-150자 문자열)", "인사이트2", "인사이트3"],
                     "big_idea": "캠페인 빅 아이디어 (15-100자, 창의적이고 기억에 남는)",
                     "strategic_pillars": [
                         {
@@ -271,8 +280,8 @@ class StrategistAgent(AgentBase):
                         "conversion": ["전환 단계 전술 1", "..."],
                         "retention": ["유지 단계 전술 1", "..."]
                     },
-                    "risk_factors": "리스크 요인 및 대응 방안 (1-5개, 각 20-200자)",
-                    "success_metrics": "성공 지표 (3-8개, 각 10-100자, 측정 가능하게)"
+                    "risk_factors": ["리스크1 및 대응방안 (20-200자 문자열)", "리스크2 및 대응방안"],
+                    "success_metrics": ["런칭 첫 달 매출 5000만원 (10-100자)", "인스타그램 도달률 50만+", "재구매율 25%"]
                 }
             },
             "brand_kit": {

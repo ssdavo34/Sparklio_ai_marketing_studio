@@ -197,7 +197,9 @@ export async function listMeetings(): Promise<Meeting[]> {
     throw new Error(`Failed to list meetings: ${response.statusText}`);
   }
 
-  return await response.json();
+  const data = await response.json();
+  // Backend returns paginated response: { items: [], total, page, page_size }
+  return data.items || [];
 }
 
 /**

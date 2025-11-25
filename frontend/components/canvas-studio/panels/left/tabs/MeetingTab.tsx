@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState, useEffect } from 'react';
-import { Upload, X, Mic, Video, Sparkles, Loader2, FileAudio, Clock, Download, Radio } from 'lucide-react';
+import { Upload, X, Video, Sparkles, Loader2, FileAudio, Clock, Download, Radio, Trash2, StopCircle, CheckSquare, Square } from 'lucide-react';
 import { useCanvasStore } from '../../../stores/useCanvasStore';
 import type { Meeting, MeetingAnalysisResult, MeetingStatus } from '@/types/meeting';
 import {
@@ -9,9 +9,9 @@ import {
   createMeetingFromUrl,
   transcribeMeeting,
   analyzeMeeting,
-  meetingToBrief,
   listMeetings,
   getMeeting,
+  deleteMeeting,
 } from '@/lib/api/meeting-api';
 
 // Status Badge Helper
@@ -75,13 +75,14 @@ export function MeetingTab() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadedFile, setUploadedFile] = useState<UploadedMeetingFile | null>(null);
   const [url, setUrl] = useState('');
-  const [sourceType, setSourceType] = useState<'upload' | 'youtube' | 'webpage'>('upload');
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
   const [analysisResult, setAnalysisResult] = useState<MeetingAnalysisResult | null>(null);
   const [uploading, setUploading] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [pollingMeetings, setPollingMeetings] = useState<Set<string>>(new Set());
+  const [selectedForDelete, setSelectedForDelete] = useState<Set<string>>(new Set());
+  const [isSelectMode, setIsSelectMode] = useState(false);
   const polotnoStore = useCanvasStore((state) => state.polotnoStore);
 
   // Load meetings on mount
@@ -148,11 +149,10 @@ export function MeetingTab() {
 
   const loadMeetings = async () => {
     try {
-      const meetings = await listMeetings();
-      setMeetings(meetings);
+      const loadedMeetings = await listMeetings();
+      setMeetings(loadedMeetings);
     } catch (error) {
       console.error('Failed to load meetings:', error);
-      // 에러 발생 시 빈 배열로 초기화
       setMeetings([]);
     }
   };
@@ -344,7 +344,6 @@ export function MeetingTab() {
     page.children.forEach((child: any) => child.remove());
 
     const pageWidth = page.width;
-    const pageHeight = page.height;
     const margin = 40;
     const contentWidth = pageWidth - margin * 2;
     let currentY = margin;
@@ -464,14 +463,145 @@ export function MeetingTab() {
     }
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return 'No date';
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'Invalid Date';
     return date.toLocaleDateString('ko-KR', {
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
     });
+  };
+
+  // 개별 Meeting 삭제
+  const handleDeleteMeeting = async (meeting: Meeting, e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    if (!confirm(`"${meeting.title}"을(를) 삭제하시겠습니까?`)) {
+      return;
+    }
+
+    try {
+      await deleteMeeting(meeting.id);
+
+      // UI에서 제거
+      setMeetings((prev) => (Array.isArray(prev) ? prev : []).filter((m) => m.id !== meeting.id));
+
+      // 선택된 meeting이면 선택 해제
+      if (selectedMeeting?.id === meeting.id) {
+        setSelectedMeeting(null);
+        setAnalysisResult(null);
+      }
+
+      // 폴링 중이면 폴링 중지
+      if (pollingMeetings.has(meeting.id)) {
+        setPollingMeetings((prev) => {
+          const next = new Set(prev);
+          next.delete(meeting.id);
+          return next;
+        });
+      }
+    } catch (error) {
+      console.error('Delete failed:', error);
+      alert(`❌ 삭제 실패: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
+    }
+  };
+
+  // 폴링 중지 (진행 중인 Meeting 취소)
+  const handleStopPolling = (meeting: Meeting, e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    setPollingMeetings((prev) => {
+      const next = new Set(prev);
+      next.delete(meeting.id);
+      return next;
+    });
+
+    alert(`⏹️ "${meeting.title}" 모니터링을 중지했습니다.`);
+  };
+
+  // 체크박스 토글
+  const toggleSelectForDelete = (meetingId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedForDelete((prev) => {
+      const next = new Set(prev);
+      if (next.has(meetingId)) {
+        next.delete(meetingId);
+      } else {
+        next.add(meetingId);
+      }
+      return next;
+    });
+  };
+
+  // 전체 선택/해제
+  const toggleSelectAll = () => {
+    if (selectedForDelete.size === meetings.length) {
+      // 전체 해제
+      setSelectedForDelete(new Set());
+    } else {
+      // 전체 선택
+      setSelectedForDelete(new Set(meetings.filter((m) => m && m.id).map((m) => m.id)));
+    }
+  };
+
+  // 선택 모드 종료
+  const exitSelectMode = () => {
+    setIsSelectMode(false);
+    setSelectedForDelete(new Set());
+  };
+
+  // 선택된 항목 일괄 삭제
+  const handleBulkDelete = async () => {
+    if (selectedForDelete.size === 0) {
+      alert('삭제할 항목을 선택해주세요.');
+      return;
+    }
+
+    if (!confirm(`선택된 ${selectedForDelete.size}개의 Meeting을 삭제하시겠습니까?`)) {
+      return;
+    }
+
+    const deletePromises = Array.from(selectedForDelete).map(async (id) => {
+      try {
+        await deleteMeeting(id);
+        return { id, success: true };
+      } catch (error) {
+        console.error(`Failed to delete meeting ${id}:`, error);
+        return { id, success: false };
+      }
+    });
+
+    const results = await Promise.all(deletePromises);
+    const successIds = results.filter((r) => r.success).map((r) => r.id);
+    const failedCount = results.filter((r) => !r.success).length;
+
+    // UI 업데이트
+    setMeetings((prev) => (Array.isArray(prev) ? prev : []).filter((m) => !successIds.includes(m.id)));
+
+    // 선택된 meeting이 삭제되었으면 선택 해제
+    if (selectedMeeting && successIds.includes(selectedMeeting.id)) {
+      setSelectedMeeting(null);
+      setAnalysisResult(null);
+    }
+
+    // 폴링 중인 meeting이 삭제되었으면 폴링 중지
+    setPollingMeetings((prev) => {
+      const next = new Set(prev);
+      successIds.forEach((id) => next.delete(id));
+      return next;
+    });
+
+    // 선택 모드 종료
+    exitSelectMode();
+
+    if (failedCount > 0) {
+      alert(`✅ ${successIds.length}개 삭제 완료, ❌ ${failedCount}개 삭제 실패`);
+    } else {
+      alert(`✅ ${successIds.length}개 삭제 완료`);
+    }
   };
 
   return (
@@ -585,21 +715,84 @@ export function MeetingTab() {
         {/* Meeting List */}
         {meetings.length > 0 && (
           <div className="mt-6">
-            <h3 className="text-xs font-semibold text-gray-700 mb-3">
-              Meetings ({meetings.length})
-            </h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-xs font-semibold text-gray-700">
+                Meetings ({meetings.length})
+              </h3>
+              {!isSelectMode ? (
+                <button
+                  onClick={() => setIsSelectMode(true)}
+                  className="text-xs text-purple-600 hover:text-purple-700 font-medium"
+                >
+                  선택
+                </button>
+              ) : (
+                <button
+                  onClick={exitSelectMode}
+                  className="text-xs text-gray-500 hover:text-gray-700 font-medium"
+                >
+                  취소
+                </button>
+              )}
+            </div>
+
+            {/* 선택 모드 컨트롤 */}
+            {isSelectMode && (
+              <div className="flex items-center justify-between mb-3 p-2 bg-purple-50 rounded-lg">
+                <button
+                  onClick={toggleSelectAll}
+                  className="flex items-center gap-2 text-xs text-purple-700 hover:text-purple-800 font-medium"
+                >
+                  {selectedForDelete.size === meetings.filter((m) => m && m.id).length ? (
+                    <CheckSquare className="w-4 h-4" />
+                  ) : (
+                    <Square className="w-4 h-4" />
+                  )}
+                  {selectedForDelete.size === meetings.filter((m) => m && m.id).length ? '전체 해제' : '전체 선택'}
+                </button>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-purple-600">
+                    {selectedForDelete.size}개 선택됨
+                  </span>
+                  <button
+                    onClick={handleBulkDelete}
+                    disabled={selectedForDelete.size === 0}
+                    className="flex items-center gap-1 px-2 py-1 bg-red-500 hover:bg-red-600 text-white text-xs font-medium rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    삭제
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-2">
-              {meetings.map((meeting) => (
+              {meetings.filter((m) => m && m.id).map((meeting, index) => (
                 <div
-                  key={meeting.id}
+                  key={meeting.id || `meeting-fallback-${index}`}
                   className={`p-3 border rounded-lg transition-colors cursor-pointer ${
-                    selectedMeeting?.id === meeting.id
-                      ? 'border-purple-500 bg-purple-50'
-                      : 'border-gray-200 hover:border-purple-300 hover:bg-gray-50'
+                    selectedForDelete.has(meeting.id)
+                      ? 'border-red-300 bg-red-50'
+                      : selectedMeeting?.id === meeting.id
+                        ? 'border-purple-500 bg-purple-50'
+                        : 'border-gray-200 hover:border-purple-300 hover:bg-gray-50'
                   }`}
-                  onClick={() => setSelectedMeeting(meeting)}
+                  onClick={() => isSelectMode ? toggleSelectForDelete(meeting.id, { stopPropagation: () => {} } as React.MouseEvent) : setSelectedMeeting(meeting)}
                 >
                   <div className="flex items-start justify-between gap-2">
+                    {/* 선택 모드일 때 체크박스 표시 */}
+                    {isSelectMode && (
+                      <button
+                        onClick={(e) => toggleSelectForDelete(meeting.id, e)}
+                        className="flex-shrink-0 mt-0.5"
+                      >
+                        {selectedForDelete.has(meeting.id) ? (
+                          <CheckSquare className="w-4 h-4 text-red-500" />
+                        ) : (
+                          <Square className="w-4 h-4 text-gray-400" />
+                        )}
+                      </button>
+                    )}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">
                         {meeting.title}
@@ -611,18 +804,30 @@ export function MeetingTab() {
                         </p>
                       </div>
                     </div>
-                    {(() => {
-                      const statusConfig = getStatusBadgeConfig(meeting.status);
-                      const Icon = statusConfig.icon;
-                      return (
-                        <span
-                          className={`text-xs px-2 py-1 rounded-full flex items-center gap-1 ${statusConfig.color}`}
+                    <div className="flex items-center gap-1">
+                      {(() => {
+                        const statusConfig = getStatusBadgeConfig(meeting.status);
+                        const Icon = statusConfig.icon;
+                        return (
+                          <span
+                            className={`text-xs px-2 py-1 rounded-full flex items-center gap-1 ${statusConfig.color}`}
+                          >
+                            {Icon && <Icon className="w-3 h-3" />}
+                            {statusConfig.label}
+                          </span>
+                        );
+                      })()}
+                      {/* 삭제 버튼 (선택 모드가 아닐 때만) */}
+                      {!isSelectMode && (
+                        <button
+                          onClick={(e) => handleDeleteMeeting(meeting, e)}
+                          className="p-1 hover:bg-red-100 rounded-full transition-colors"
+                          title="삭제"
                         >
-                          {Icon && <Icon className="w-3 h-3" />}
-                          {statusConfig.label}
-                        </span>
-                      );
-                    })()}
+                          <Trash2 className="w-3.5 h-3.5 text-gray-400 hover:text-red-500" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                   {/* Progress Bar for in-progress meetings */}
                   {['created', 'downloading', 'ready_for_stt', 'transcribing'].includes(meeting.status) && (
@@ -637,6 +842,16 @@ export function MeetingTab() {
                           style={{ width: `${getStatusProgress(meeting.status)}%` }}
                         ></div>
                       </div>
+                      {/* 중지 버튼 (폴링 중일 때만) */}
+                      {pollingMeetings.has(meeting.id) && (
+                        <button
+                          onClick={(e) => handleStopPolling(meeting, e)}
+                          className="w-full mt-2 flex items-center justify-center gap-1 px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-medium rounded transition-colors"
+                        >
+                          <StopCircle className="w-3 h-3" />
+                          모니터링 중지
+                        </button>
+                      )}
                     </div>
                   )}
                   {meeting.status === 'uploaded' && (
@@ -676,10 +891,13 @@ export function MeetingTab() {
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => {
-                  if (selectedMeeting) handleTranscribe(selectedMeeting);
-                  else alert('Meeting을 먼저 선택해주세요.');
+                  if (!selectedMeeting || !selectedMeeting.id) {
+                    alert('Meeting을 먼저 선택해주세요.');
+                    return;
+                  }
+                  handleTranscribe(selectedMeeting);
                 }}
-                disabled={transcribing || !selectedMeeting}
+                disabled={transcribing || !selectedMeeting || !selectedMeeting.id}
                 className="px-3 py-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 🔄 Analyze
