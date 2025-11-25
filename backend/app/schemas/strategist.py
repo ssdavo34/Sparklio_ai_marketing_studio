@@ -249,8 +249,8 @@ class CampaignStrategyOutputV1(BaseModel):
 
     core_message: str = Field(
         ...,
-        min_length=20,
-        max_length=100,
+        min_length=10,
+        max_length=200,
         description="캠페인 핵심 메시지",
         examples=[
             "과학이 만든 시간의 기적, 피부 본연의 빛을 되찾다",
