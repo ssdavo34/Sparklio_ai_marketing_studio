@@ -36,6 +36,8 @@ from .performance_analyzer import PerformanceAnalyzerAgent, create_performance_a
 from .self_learning import SelfLearningAgent, create_self_learning_agent
 from .error_handler import ErrorHandlerAgent, create_error_handler_agent
 from .logger import LoggerAgent, create_logger_agent
+from .concept import ConceptAgent, get_concept_agent
+from .shorts_script import ShortsScriptAgent, get_shorts_script_agent
 
 __all__ = [
     # Base classes
@@ -89,5 +91,10 @@ __all__ = [
     "create_performance_analyzer_agent",
     "create_self_learning_agent",
     "create_error_handler_agent",
-    "create_logger_agent"
+    "create_logger_agent",
+    # Demo Day Agents
+    "ConceptAgent",
+    "ShortsScriptAgent",
+    "get_concept_agent",
+    "get_shorts_script_agent"
 ]

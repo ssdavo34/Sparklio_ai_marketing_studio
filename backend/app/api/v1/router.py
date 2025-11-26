@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1 import chat, admin
+from app.api.v1 import chat, admin, demo
 from app.api.v1.endpoints import (
     assets, brands, projects, users, agents_new,
     generate, documents, templates, editor,
@@ -126,3 +126,6 @@ api_router.include_router(generators.router, prefix="/generators", tags=["Genera
 
 # Admin API (관리자 전용 모니터링)
 api_router.include_router(admin.router, prefix="/admin", tags=["Admin"])
+
+# Demo Day API (2025-11-26)
+api_router.include_router(demo.router, prefix="", tags=["Demo"])
