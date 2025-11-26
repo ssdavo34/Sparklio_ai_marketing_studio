@@ -22,6 +22,8 @@ import { useCanvasStore } from './useCanvasStore';
 import { getAdLayout, selectBestLayout, type AdLayoutType } from '../utils/ad-layouts';
 import { detectErrorType, createUserFriendlyError, type ErrorType } from '../components/ErrorMessage';
 import { useGeneratedAssetsStore } from './useGeneratedAssetsStore';
+import { useCenterViewStore } from './useCenterViewStore';
+import { getPolotnoStore } from '../polotno/polotnoStoreSingleton';
 
 // ============================================================================
 // Helper Functions - Canvas 요소 추가
@@ -29,11 +31,13 @@ import { useGeneratedAssetsStore } from './useGeneratedAssetsStore';
 
 /**
  * AI 응답에서 텍스트를 추출하여 Canvas에 추가
+ * 싱글톤 Polotno Store를 우선 사용하고, 없으면 Zustand store를 사용
  */
 function addTextToCanvas(text: string, yPosition: number = 100) {
   console.log(`[addTextToCanvas] Adding text at y=${yPosition}:`, text);
 
-  const polotnoStore = useCanvasStore.getState().polotnoStore;
+  // 싱글톤 store 우선, 없으면 Zustand store 사용
+  const polotnoStore = getPolotnoStore() || useCanvasStore.getState().polotnoStore;
   if (!polotnoStore) {
     console.warn('[addTextToCanvas] Polotno store not available');
     return;
@@ -83,11 +87,13 @@ function addBackgroundToCanvas() {
 
 /**
  * Canvas에 AI 생성 이미지 추가
+ * 싱글톤 Polotno Store를 우선 사용
  */
 async function addImageToCanvas(imageUrl: string, productName?: string) {
   console.log('[addImageToCanvas] Adding image to canvas:', imageUrl);
 
-  const polotnoStore = useCanvasStore.getState().polotnoStore;
+  // 싱글톤 store 우선, 없으면 Zustand store 사용
+  const polotnoStore = getPolotnoStore() || useCanvasStore.getState().polotnoStore;
   if (!polotnoStore) return;
 
   const activePage = polotnoStore.activePage;
@@ -193,9 +199,10 @@ async function parseAndAddToCanvas(responseText: string, userMessage?: string) {
   console.log('[parseAndAddToCanvas] Response length:', responseText?.length);
   console.log('[parseAndAddToCanvas] User message:', userMessage);
 
-  // Check Polotno Store availability first
-  const polotnoStore = useCanvasStore.getState().polotnoStore;
+  // 싱글톤 store 우선, 없으면 Zustand store 사용
+  const polotnoStore = getPolotnoStore() || useCanvasStore.getState().polotnoStore;
   console.log('[parseAndAddToCanvas] Polotno Store available:', !!polotnoStore);
+  console.log('[parseAndAddToCanvas] Using singleton store:', !!getPolotnoStore());
 
   if (!polotnoStore) {
     console.error('[parseAndAddToCanvas] ❌ Polotno store not available!');
@@ -945,6 +952,43 @@ export const useChatStore = create<ChatState>()(
               console.log('[sendMessage] Storing generated assets...');
               try {
                 useGeneratedAssetsStore.getState().parseAndStoreFromAIResponse(response.content, content);
+
+                // CenterViewStore에도 동기화 (Preview 뷰에서 사용)
+                // GeneratedConceptBoardData → ConceptBoardData 변환
+                const generatedAssets = useGeneratedAssetsStore.getState();
+                if (generatedAssets.conceptBoardData) {
+                  const converted = {
+                    campaign_id: generatedAssets.conceptBoardData.id,
+                    campaign_name: generatedAssets.conceptBoardData.campaign_name,
+                    status: 'completed' as const,
+                    created_at: generatedAssets.conceptBoardData.createdAt.toISOString(),
+                    meeting_summary: {
+                      title: generatedAssets.conceptBoardData.campaign_name,
+                      duration_minutes: 0,
+                      participants: [],
+                      key_points: [],
+                      core_message: generatedAssets.conceptBoardData.sourceMessage || '',
+                    },
+                    concepts: generatedAssets.conceptBoardData.concepts.map((c) => ({
+                      concept_id: c.concept_id,
+                      concept_name: c.concept_name,
+                      concept_description: c.description,
+                      target_audience: c.target_audience || '',
+                      key_message: c.headline,
+                      tone_and_manner: c.tone || '',
+                      visual_style: '',
+                      thumbnail_url: undefined,
+                      assets: {
+                        presentation: { id: `pres-${c.concept_id}`, status: 'pending' as const },
+                        product_detail: { id: `detail-${c.concept_id}`, status: 'pending' as const },
+                        instagram_ads: { id: `insta-${c.concept_id}`, status: 'pending' as const, count: 0 },
+                        shorts_script: { id: `shorts-${c.concept_id}`, status: 'pending' as const, duration_seconds: 0 },
+                      },
+                    })),
+                  };
+                  useCenterViewStore.getState().setConceptBoardData(converted);
+                  console.log('[sendMessage] ✅ CenterViewStore synced with conceptBoardData');
+                }
               } catch (err) {
                 console.error('[sendMessage] Failed to store generated assets:', err);
               }

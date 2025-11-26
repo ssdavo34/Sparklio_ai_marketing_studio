@@ -15,6 +15,7 @@
 
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
+import { sendChatMessage } from '@/lib/llm-gateway-client';
 
 // ============================================================================
 // Types
@@ -162,6 +163,18 @@ export interface GeneratedAssetsState {
 
   // AI 응답에서 에셋 파싱 및 저장
   parseAndStoreFromAIResponse: (response: string, userMessage: string) => void;
+
+  // 컨셉 기반 컨텐츠 생성 함수들
+  generateSlidesFromConcept: (concept: GeneratedConcept) => Promise<void>;
+  generateDetailFromConcept: (concept: GeneratedConcept) => Promise<void>;
+  generateInstagramFromConcept: (concept: GeneratedConcept) => Promise<void>;
+  generateShortsFromConcept: (concept: GeneratedConcept) => Promise<void>;
+
+  // 생성 로딩 상태
+  isGeneratingSlides: boolean;
+  isGeneratingDetail: boolean;
+  isGeneratingInstagram: boolean;
+  isGeneratingShorts: boolean;
 
   // 전체 초기화
   clearAll: () => void;
@@ -396,21 +409,112 @@ function extractConceptBoardData(parsed: any, userMessage: string): GeneratedCon
     };
   }
 
-  // 단일 컨셉 데이터에서 컨셉보드 생성
-  if (parsed.optimized_product_title || parsed.headline) {
+  // product_features 또는 product_benefits에서 3개 컨셉 생성 (최대 3개로 제한)
+  if (parsed.product_features && Array.isArray(parsed.product_features) && parsed.product_features.length > 0) {
+    const campaignName = parsed.product_title || parsed.optimized_product_title || userMessage || '생성된 캠페인';
+    const productDescription = parsed.product_description || parsed.optimized_description || '';
+    const targetAudience = parsed.marketing_brief?.target_audience || parsed.target_audience || '전체 고객';
+    const tone = parsed.marketing_brief?.tone || parsed.tone || '친근하고 전문적인';
+
+    // features와 benefits 합치기 (문자열 배열 또는 객체 배열 둘 다 지원)
+    const allItems: string[] = [];
+
+    // product_features 처리 (문자열 배열 또는 객체 배열)
+    parsed.product_features.forEach((item: any) => {
+      if (typeof item === 'string') {
+        allItems.push(item);
+      } else if (item.feature_title || item.title || item.name) {
+        allItems.push(item.feature_title || item.title || item.name);
+      }
+    });
+
+    // product_benefits 처리
+    if (parsed.product_benefits && Array.isArray(parsed.product_benefits)) {
+      parsed.product_benefits.forEach((item: any) => {
+        if (typeof item === 'string') {
+          allItems.push(item);
+        } else if (item.benefit_title || item.title || item.name) {
+          allItems.push(item.benefit_title || item.title || item.name);
+        }
+      });
+    }
+
+    // 최대 3개 컨셉만 생성
+    const concepts: GeneratedConcept[] = allItems.slice(0, 3).map((itemTitle: string, idx: number) => ({
+      concept_id: `concept-${idx + 1}-${generateId()}`,
+      concept_name: itemTitle,
+      description: productDescription,
+      headline: itemTitle,
+      subheadline: campaignName,
+      cta: idx === 0 ? '자세히 알아보기' : idx === 1 ? '지금 시작하기' : '경험하기',
+      target_audience: targetAudience,
+      tone: tone,
+    }));
+
     return {
       id: generateId(),
-      campaign_name: '생성된 캠페인',
-      concepts: [{
-        concept_id: 'concept-1',
-        concept_name: parsed.optimized_product_title || parsed.headline || '메인 컨셉',
-        description: parsed.product_description || parsed.marketing_brief?.summary || '',
-        headline: parsed.optimized_product_title || parsed.headline || '',
-        subheadline: parsed.unique_selling_points?.[0] || '',
+      campaign_name: campaignName,
+      concepts,
+      createdAt: new Date(),
+      sourceMessage: userMessage,
+    };
+  }
+
+  // 단일 컨셉 데이터에서 3가지 컨셉 변형 생성
+  if (parsed.optimized_product_title || parsed.headline || parsed.product_title) {
+    const productTitle = parsed.product_title || parsed.optimized_product_title || parsed.headline || '메인 컨셉';
+    const productDescription = parsed.product_description || parsed.optimized_description || parsed.marketing_brief?.summary || '';
+    const usps = parsed.unique_selling_points || [];
+    const targetAudience = parsed.marketing_brief?.target_audience || parsed.target_audience || '';
+    const tone = parsed.marketing_brief?.tone || parsed.tone || '';
+
+    // content_optimization에서 키워드 추출
+    const keywords: string[] = parsed.content_optimization?.keywords || [];
+    const contentStrategy = parsed.content_optimization?.content_strategy || '';
+
+    // social_media_headline 활용
+    const socialHeadline = parsed.social_media_headline || '';
+
+    const concepts: GeneratedConcept[] = [
+      // 컨셉 1: 메인 (제품 특징 강조)
+      {
+        concept_id: `concept-main-${generateId()}`,
+        concept_name: '성능 강조',
+        description: productDescription,
+        headline: productTitle,
+        subheadline: targetAudience ? `${targetAudience}를 위한 최적의 선택` : '당신을 위한 최적의 선택',
         cta: '자세히 알아보기',
-        target_audience: parsed.marketing_brief?.target_audience || '',
-        tone: parsed.marketing_brief?.tone || '',
-      }],
+        target_audience: targetAudience,
+        tone: tone,
+      },
+      // 컨셉 2: SNS/마케팅 (소셜 미디어용)
+      {
+        concept_id: `concept-social-${generateId()}`,
+        concept_name: 'SNS 마케팅',
+        description: contentStrategy || `${productDescription}\n\n지금 바로 경험해보세요.`,
+        headline: socialHeadline || (keywords.length > 0 ? keywords.slice(0, 3).join(' | ') : `${productTitle} - 특별한 경험`),
+        subheadline: keywords.length > 0 ? `#${keywords.slice(0, 3).join(' #')}` : productTitle,
+        cta: '지금 시작하기',
+        target_audience: targetAudience,
+        tone: tone,
+      },
+      // 컨셉 3: 감성적 접근 (USP 강조)
+      {
+        concept_id: `concept-emotional-${generateId()}`,
+        concept_name: '감성 마케팅',
+        description: usps.length > 0 ? usps.join('\n• ') : productDescription,
+        headline: usps.length > 0 ? usps[0] : `${tone || '특별한'} ${productTitle}`,
+        subheadline: targetAudience ? `${targetAudience}의 선택` : '당신의 선택',
+        cta: '경험하기',
+        target_audience: targetAudience,
+        tone: tone,
+      },
+    ];
+
+    return {
+      id: generateId(),
+      campaign_name: productTitle,
+      concepts,
       createdAt: new Date(),
       sourceMessage: userMessage,
     };
@@ -434,6 +538,12 @@ export const useGeneratedAssetsStore = create<GeneratedAssetsState>()(
         shortsData: null,
         conceptBoardData: null,
         lastUpdated: null,
+
+        // 생성 로딩 상태
+        isGeneratingSlides: false,
+        isGeneratingDetail: false,
+        isGeneratingInstagram: false,
+        isGeneratingShorts: false,
 
         // Computed
         get hasSlides() {
@@ -520,6 +630,277 @@ export const useGeneratedAssetsStore = create<GeneratedAssetsState>()(
           }
         },
 
+        /**
+         * 컨셉 기반 슬라이드 생성
+         */
+        generateSlidesFromConcept: async (concept: GeneratedConcept) => {
+          set({ isGeneratingSlides: true });
+          console.log('[useGeneratedAssetsStore] Generating slides for concept:', concept.concept_name);
+
+          try {
+            const prompt = `다음 마케팅 컨셉을 기반으로 프레젠테이션 슬라이드를 생성해주세요:
+
+컨셉명: ${concept.concept_name}
+설명: ${concept.description}
+헤드라인: ${concept.headline}
+서브헤드라인: ${concept.subheadline || ''}
+타겟 고객: ${concept.target_audience || '전체 고객'}
+톤앤매너: ${concept.tone || '전문적'}
+
+총 5개의 슬라이드를 JSON 형식으로 생성해주세요:
+{
+  "slides": [
+    { "title": "제목", "content": "내용", "bullets": ["포인트1", "포인트2"], "speaker_notes": "발표자 노트" }
+  ]
+}`;
+
+            const response = await sendChatMessage({
+              userInput: prompt,
+              agent: 'copywriter',
+              task: 'generate_slides',
+              language: 'ko',
+            });
+
+            if (response.content) {
+              const jsonMatch = response.content.match(/\{[\s\S]*\}/);
+              if (jsonMatch) {
+                const parsed = JSON.parse(jsonMatch[0]);
+                if (parsed.slides && Array.isArray(parsed.slides)) {
+                  const slidesData: GeneratedSlidesData = {
+                    id: generateId(),
+                    title: concept.concept_name,
+                    slides: parsed.slides.map((slide: any, idx: number) => ({
+                      id: `slide-${idx + 1}`,
+                      title: slide.title || `슬라이드 ${idx + 1}`,
+                      content: slide.content || '',
+                      bullets: slide.bullets || [],
+                      speakerNotes: slide.speaker_notes || '',
+                    })),
+                    createdAt: new Date(),
+                    sourceMessage: concept.concept_name,
+                  };
+                  set({ slidesData, lastUpdated: new Date() });
+                  console.log('[useGeneratedAssetsStore] Slides generated:', slidesData.slides.length);
+                }
+              }
+            }
+          } catch (error) {
+            console.error('[useGeneratedAssetsStore] Failed to generate slides:', error);
+          } finally {
+            set({ isGeneratingSlides: false });
+          }
+        },
+
+        /**
+         * 컨셉 기반 상세페이지 생성
+         */
+        generateDetailFromConcept: async (concept: GeneratedConcept) => {
+          set({ isGeneratingDetail: true });
+          console.log('[useGeneratedAssetsStore] Generating detail page for concept:', concept.concept_name);
+
+          try {
+            const prompt = `다음 마케팅 컨셉을 기반으로 제품 상세페이지 섹션을 생성해주세요:
+
+컨셉명: ${concept.concept_name}
+설명: ${concept.description}
+헤드라인: ${concept.headline}
+타겟 고객: ${concept.target_audience || '전체 고객'}
+
+다음 JSON 형식으로 생성해주세요:
+{
+  "sections": [
+    { "section_type": "hero", "order": 1, "content": { "headline": "", "subheadline": "", "cta": "" } },
+    { "section_type": "benefits", "order": 2, "content": { "title": "", "items": [] } },
+    { "section_type": "features", "order": 3, "content": { "title": "", "features": [] } },
+    { "section_type": "cta", "order": 4, "content": { "headline": "", "button_text": "" } }
+  ]
+}`;
+
+            const response = await sendChatMessage({
+              userInput: prompt,
+              agent: 'copywriter',
+              task: 'generate_detail',
+              language: 'ko',
+            });
+
+            if (response.content) {
+              const jsonMatch = response.content.match(/\{[\s\S]*\}/);
+              if (jsonMatch) {
+                const parsed = JSON.parse(jsonMatch[0]);
+                if (parsed.sections && Array.isArray(parsed.sections)) {
+                  const detailData: GeneratedDetailData = {
+                    id: generateId(),
+                    title: concept.concept_name,
+                    sections: parsed.sections.map((section: any, idx: number) => ({
+                      section_type: section.section_type || 'hero',
+                      order: section.order || idx + 1,
+                      content: section.content || {},
+                    })),
+                    createdAt: new Date(),
+                    sourceMessage: concept.concept_name,
+                  };
+                  set({ detailData, lastUpdated: new Date() });
+                  console.log('[useGeneratedAssetsStore] Detail page generated:', detailData.sections.length);
+                }
+              }
+            }
+          } catch (error) {
+            console.error('[useGeneratedAssetsStore] Failed to generate detail page:', error);
+          } finally {
+            set({ isGeneratingDetail: false });
+          }
+        },
+
+        /**
+         * 컨셉 기반 인스타그램 광고 생성
+         */
+        generateInstagramFromConcept: async (concept: GeneratedConcept) => {
+          set({ isGeneratingInstagram: true });
+          console.log('[useGeneratedAssetsStore] Generating Instagram ads for concept:', concept.concept_name);
+
+          try {
+            const prompt = `다음 마케팅 컨셉을 기반으로 인스타그램 광고를 생성해주세요:
+
+컨셉명: ${concept.concept_name}
+설명: ${concept.description}
+헤드라인: ${concept.headline}
+타겟 고객: ${concept.target_audience || '전체 고객'}
+톤앤매너: ${concept.tone || '친근한'}
+
+다음 JSON 형식으로 3개의 광고와 해시태그를 생성해주세요:
+{
+  "ads": [
+    {
+      "ad_type": "single_image",
+      "format": "feed",
+      "creative": {
+        "headline": "광고 헤드라인",
+        "primary_text": "광고 본문 텍스트",
+        "cta_text": "CTA 버튼 텍스트",
+        "image_prompt": "이미지 생성을 위한 프롬프트"
+      }
+    }
+  ],
+  "hashtags": ["#해시태그1", "#해시태그2"]
+}`;
+
+            const response = await sendChatMessage({
+              userInput: prompt,
+              agent: 'copywriter',
+              task: 'generate_instagram',
+              language: 'ko',
+            });
+
+            if (response.content) {
+              const jsonMatch = response.content.match(/\{[\s\S]*\}/);
+              if (jsonMatch) {
+                const parsed = JSON.parse(jsonMatch[0]);
+                if (parsed.ads && Array.isArray(parsed.ads)) {
+                  const instagramData: GeneratedInstagramData = {
+                    id: generateId(),
+                    title: concept.concept_name,
+                    ads: parsed.ads.map((ad: any, idx: number) => ({
+                      ad_id: `ig-${idx + 1}`,
+                      ad_type: ad.ad_type || 'single_image',
+                      format: ad.format || 'feed',
+                      aspect_ratio: '1:1',
+                      creative: {
+                        headline: ad.creative?.headline || '',
+                        primary_text: ad.creative?.primary_text || '',
+                        cta_text: ad.creative?.cta_text || '자세히 알아보기',
+                        image_prompt: ad.creative?.image_prompt || '',
+                      },
+                    })),
+                    hashtags: parsed.hashtags || [],
+                    createdAt: new Date(),
+                    sourceMessage: concept.concept_name,
+                  };
+                  set({ instagramData, lastUpdated: new Date() });
+                  console.log('[useGeneratedAssetsStore] Instagram ads generated:', instagramData.ads.length);
+                }
+              }
+            }
+          } catch (error) {
+            console.error('[useGeneratedAssetsStore] Failed to generate Instagram ads:', error);
+          } finally {
+            set({ isGeneratingInstagram: false });
+          }
+        },
+
+        /**
+         * 컨셉 기반 쇼츠 스크립트 생성
+         */
+        generateShortsFromConcept: async (concept: GeneratedConcept) => {
+          set({ isGeneratingShorts: true });
+          console.log('[useGeneratedAssetsStore] Generating Shorts script for concept:', concept.concept_name);
+
+          try {
+            const prompt = `다음 마케팅 컨셉을 기반으로 30초 쇼츠 영상 스크립트를 생성해주세요:
+
+컨셉명: ${concept.concept_name}
+설명: ${concept.description}
+헤드라인: ${concept.headline}
+타겟 고객: ${concept.target_audience || '전체 고객'}
+톤앤매너: ${concept.tone || '역동적'}
+
+다음 JSON 형식으로 생성해주세요:
+{
+  "hook": "시작 후킹 멘트",
+  "scenes": [
+    {
+      "scene_number": 1,
+      "duration": "5초",
+      "visual": "화면 설명",
+      "narration": "나레이션",
+      "text_overlay": "화면 텍스트"
+    }
+  ],
+  "cta": "마지막 CTA",
+  "music_suggestion": "배경음악 스타일"
+}`;
+
+            const response = await sendChatMessage({
+              userInput: prompt,
+              agent: 'copywriter',
+              task: 'generate_shorts',
+              language: 'ko',
+            });
+
+            if (response.content) {
+              const jsonMatch = response.content.match(/\{[\s\S]*\}/);
+              if (jsonMatch) {
+                const parsed = JSON.parse(jsonMatch[0]);
+                if (parsed.scenes && Array.isArray(parsed.scenes)) {
+                  const shortsData: GeneratedShortsData = {
+                    id: generateId(),
+                    title: concept.concept_name,
+                    hook: parsed.hook || '',
+                    scenes: parsed.scenes.map((scene: any, idx: number) => ({
+                      scene_number: scene.scene_number || idx + 1,
+                      duration: scene.duration || '5초',
+                      visual: scene.visual || '',
+                      narration: scene.narration || '',
+                      text_overlay: scene.text_overlay || '',
+                      transition: scene.transition,
+                    })),
+                    cta: parsed.cta || '',
+                    music_suggestion: parsed.music_suggestion,
+                    total_duration: '30초',
+                    createdAt: new Date(),
+                    sourceMessage: concept.concept_name,
+                  };
+                  set({ shortsData, lastUpdated: new Date() });
+                  console.log('[useGeneratedAssetsStore] Shorts script generated:', shortsData.scenes.length);
+                }
+              }
+            }
+          } catch (error) {
+            console.error('[useGeneratedAssetsStore] Failed to generate Shorts script:', error);
+          } finally {
+            set({ isGeneratingShorts: false });
+          }
+        },
+
         clearAll: () => set({
           slidesData: null,
           instagramData: null,
@@ -527,6 +908,10 @@ export const useGeneratedAssetsStore = create<GeneratedAssetsState>()(
           shortsData: null,
           conceptBoardData: null,
           lastUpdated: null,
+          isGeneratingSlides: false,
+          isGeneratingDetail: false,
+          isGeneratingInstagram: false,
+          isGeneratingShorts: false,
         }),
       }),
       {

@@ -133,13 +133,26 @@ export const useShortsGenerationStore = create<ShortsGenerationStore>((set, get)
 
     } catch (error) {
       console.error(`[ShortsGeneration] Failed to start:`, error);
+
+      // 에러 메시지 파싱
+      let errorMessage = 'Shorts 생성 시작 실패';
+      if (error instanceof Error) {
+        // 400 에러의 경우 백엔드에서 반환한 상세 메시지 추출
+        const errorMatch = error.message.match(/\{"detail":"([^"]+)"\}/);
+        if (errorMatch) {
+          errorMessage = `Shorts 생성 요청 실패 ${error.message.match(/\d{3}/)?.[0] || ''} - {"detail":"${errorMatch[1]}"}`;
+        } else {
+          errorMessage = error.message;
+        }
+      }
+
       set((state) => ({
         generations: {
           ...state.generations,
           [conceptId]: {
             ...state.generations[conceptId],
             status: 'failed',
-            error: error instanceof Error ? error.message : 'Shorts 생성 시작 실패',
+            error: errorMessage,
           },
         },
       }));

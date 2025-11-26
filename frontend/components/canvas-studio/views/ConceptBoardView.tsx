@@ -20,6 +20,11 @@ interface ConceptCardProps {
   onOpenShorts: () => void;
   onGenerateShorts: () => void;
   shortsGenerationState: ShortsGenerationState;
+  // 생성 로딩 상태
+  isGeneratingSlides: boolean;
+  isGeneratingDetail: boolean;
+  isGeneratingInstagram: boolean;
+  isGeneratingShorts: boolean;
 }
 
 function ConceptCard({
@@ -32,6 +37,10 @@ function ConceptCard({
   onOpenShorts,
   onGenerateShorts,
   shortsGenerationState,
+  isGeneratingSlides,
+  isGeneratingDetail,
+  isGeneratingInstagram,
+  isGeneratingShorts,
 }: ConceptCardProps) {
   const isGenerating = shortsGenerationState.status === 'processing';
   const isCompleted = shortsGenerationState.status === 'completed';
@@ -95,35 +104,91 @@ function ConceptCard({
 
       {/* 산출물 버튼 */}
       <div className="border-t pt-4">
-        <p className="text-xs text-gray-500 mb-2">산출물 보기</p>
+        <p className="text-xs text-gray-500 mb-2">산출물 생성 및 보기</p>
         <div className="grid grid-cols-2 gap-2">
           <button
             onClick={(e) => { e.stopPropagation(); onOpenSlides(); }}
-            className="flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-50 hover:bg-purple-50 rounded-lg text-sm text-gray-700 hover:text-purple-700 transition-colors"
+            disabled={isGeneratingSlides}
+            className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-colors ${
+              isGeneratingSlides
+                ? 'bg-purple-100 text-purple-600 cursor-wait'
+                : 'bg-gray-50 hover:bg-purple-50 text-gray-700 hover:text-purple-700'
+            }`}
           >
-            <span>📊</span>
-            <span>슬라이드</span>
+            {isGeneratingSlides ? (
+              <>
+                <span className="animate-spin">⏳</span>
+                <span>생성중...</span>
+              </>
+            ) : (
+              <>
+                <span>📊</span>
+                <span>슬라이드</span>
+              </>
+            )}
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); onOpenDetail(); }}
-            className="flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-50 hover:bg-purple-50 rounded-lg text-sm text-gray-700 hover:text-purple-700 transition-colors"
+            disabled={isGeneratingDetail}
+            className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-colors ${
+              isGeneratingDetail
+                ? 'bg-purple-100 text-purple-600 cursor-wait'
+                : 'bg-gray-50 hover:bg-purple-50 text-gray-700 hover:text-purple-700'
+            }`}
           >
-            <span>📄</span>
-            <span>상세페이지</span>
+            {isGeneratingDetail ? (
+              <>
+                <span className="animate-spin">⏳</span>
+                <span>생성중...</span>
+              </>
+            ) : (
+              <>
+                <span>📄</span>
+                <span>상세페이지</span>
+              </>
+            )}
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); onOpenInstagram(); }}
-            className="flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-50 hover:bg-purple-50 rounded-lg text-sm text-gray-700 hover:text-purple-700 transition-colors"
+            disabled={isGeneratingInstagram}
+            className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-colors ${
+              isGeneratingInstagram
+                ? 'bg-purple-100 text-purple-600 cursor-wait'
+                : 'bg-gray-50 hover:bg-purple-50 text-gray-700 hover:text-purple-700'
+            }`}
           >
-            <span>📸</span>
-            <span>인스타그램</span>
+            {isGeneratingInstagram ? (
+              <>
+                <span className="animate-spin">⏳</span>
+                <span>생성중...</span>
+              </>
+            ) : (
+              <>
+                <span>📸</span>
+                <span>인스타그램</span>
+              </>
+            )}
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); onOpenShorts(); }}
-            className="flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-50 hover:bg-purple-50 rounded-lg text-sm text-gray-700 hover:text-purple-700 transition-colors"
+            disabled={isGeneratingShorts}
+            className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-colors ${
+              isGeneratingShorts
+                ? 'bg-purple-100 text-purple-600 cursor-wait'
+                : 'bg-gray-50 hover:bg-purple-50 text-gray-700 hover:text-purple-700'
+            }`}
           >
-            <span>🎬</span>
-            <span>쇼츠</span>
+            {isGeneratingShorts ? (
+              <>
+                <span className="animate-spin">⏳</span>
+                <span>생성중...</span>
+              </>
+            ) : (
+              <>
+                <span>🎬</span>
+                <span>쇼츠</span>
+              </>
+            )}
           </button>
         </div>
 
@@ -289,12 +354,45 @@ export function ConceptBoardView() {
 
   const { startGeneration, getGenerationState } = useShortsGenerationStore();
 
-  const [error, setError] = useState<string | null>(null);
+  // AI 생성된 ConceptBoard 데이터 (우선 사용)
+  const generatedConceptBoard = useGeneratedAssetsStore((state) => state.conceptBoardData);
 
-  // Mock 데이터 로드
+  // 생성 함수들과 로딩 상태
+  const {
+    generateSlidesFromConcept,
+    generateDetailFromConcept,
+    generateInstagramFromConcept,
+    generateShortsFromConcept,
+    isGeneratingSlides,
+    isGeneratingDetail,
+    isGeneratingInstagram,
+    isGeneratingShorts,
+    slidesData,
+    detailData,
+    instagramData,
+    shortsData,
+  } = useGeneratedAssetsStore();
+
+  const [mockData, setMockData] = useState<ConceptBoardData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [dataSource, setDataSource] = useState<'generated' | 'mock'>('generated');
+
+  // Mock 데이터 로드 (생성된 데이터가 없을 때만)
   useEffect(() => {
     async function loadMockData() {
-      if (conceptBoardData) return; // 이미 데이터가 있으면 스킵
+      // AI 생성 데이터가 있으면 그것을 사용
+      if (generatedConceptBoard) {
+        setDataSource('generated');
+        setLoading(false);
+        return;
+      }
+
+      // 이미 CenterViewStore에 데이터가 있으면 스킵
+      if (conceptBoardData) {
+        setDataSource('mock');
+        setLoading(false);
+        return;
+      }
 
       setLoading(true);
       setError(null);
@@ -305,7 +403,9 @@ export function ConceptBoardView() {
           throw new Error('Failed to load concept board data');
         }
         const data: ConceptBoardData = await response.json();
+        setMockData(data);
         setConceptBoardData(data);
+        setDataSource('mock');
       } catch (err) {
         console.error('Error loading concept board:', err);
         setError('데이터를 불러오는데 실패했습니다.');
@@ -315,7 +415,40 @@ export function ConceptBoardView() {
     }
 
     loadMockData();
-  }, [conceptBoardData, setConceptBoardData, setLoading]);
+  }, [generatedConceptBoard, conceptBoardData, setConceptBoardData, setLoading]);
+
+  // 표시할 데이터 결정: AI 생성 > CenterViewStore > Mock
+  const displayData: ConceptBoardData | null = generatedConceptBoard
+    ? {
+        campaign_id: generatedConceptBoard.id,
+        campaign_name: generatedConceptBoard.campaign_name,
+        status: 'completed',
+        created_at: generatedConceptBoard.createdAt?.toISOString() || new Date().toISOString(),
+        meeting_summary: {
+          title: `${generatedConceptBoard.campaign_name} 회의`,
+          duration_minutes: 30,
+          participants: ['AI Assistant'],
+          key_points: generatedConceptBoard.concepts.map(c => c.headline),
+          core_message: generatedConceptBoard.concepts[0]?.description || '',
+        },
+        concepts: generatedConceptBoard.concepts.map((concept) => ({
+          concept_id: concept.concept_id,
+          concept_name: concept.concept_name,
+          concept_description: concept.description,
+          target_audience: concept.target_audience || '전체 고객',
+          key_message: concept.headline,
+          tone_and_manner: concept.tone || '친근하고 전문적인',
+          visual_style: concept.color_scheme ? `${concept.color_scheme.primary} 기반` : '모던하고 심플한',
+          thumbnail_url: undefined,
+          assets: {
+            presentation: { id: `pres-${concept.concept_id}`, status: 'pending' as const },
+            product_detail: { id: `detail-${concept.concept_id}`, status: 'pending' as const },
+            instagram_ads: { id: `ig-${concept.concept_id}`, status: 'pending' as const, count: 0 },
+            shorts_script: { id: `shorts-${concept.concept_id}`, status: 'pending' as const, duration_seconds: 30 },
+          },
+        })),
+      }
+    : conceptBoardData || mockData;
 
   // 로딩 상태
   if (isLoading) {
@@ -347,7 +480,7 @@ export function ConceptBoardView() {
   }
 
   // 데이터 없음
-  if (!conceptBoardData) {
+  if (!displayData) {
     return (
       <div className="h-full flex items-center justify-center bg-gray-50">
         <p className="text-gray-500">Concept Board 데이터가 없습니다.</p>
@@ -359,18 +492,34 @@ export function ConceptBoardView() {
     <div className="h-full flex flex-col bg-gray-50 overflow-hidden">
       {/* 헤더 */}
       <MeetingHeader
-        meetingSummary={conceptBoardData.meeting_summary}
-        campaignName={conceptBoardData.campaign_name}
+        meetingSummary={displayData.meeting_summary}
+        campaignName={displayData.campaign_name}
       />
+
+      {/* AI 생성 데이터 안내 */}
+      {dataSource === 'generated' && (
+        <div className="bg-green-50 px-6 py-2 border-b">
+          <p className="text-sm text-green-700">
+            <span className="font-medium">AI 생성</span> - Chat AI가 생성한 Concept Board입니다.
+          </p>
+        </div>
+      )}
 
       {/* Concept Cards 영역 */}
       <div className="flex-1 overflow-auto p-6">
         <div className="max-w-6xl mx-auto">
           {/* 섹션 타이틀 */}
           <div className="mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">
-              🎨 마케팅 콘셉트 ({conceptBoardData.concepts.length}개)
-            </h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-gray-900">
+                🎨 마케팅 콘셉트 ({displayData.concepts.length}개)
+              </h2>
+              {dataSource === 'generated' && (
+                <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">
+                  AI 생성
+                </span>
+              )}
+            </div>
             <p className="text-sm text-gray-500">
               각 콘셉트를 클릭하여 상세 산출물을 확인하세요
             </p>
@@ -378,32 +527,71 @@ export function ConceptBoardView() {
 
           {/* 카드 그리드 */}
           <div className="flex flex-wrap gap-5">
-            {conceptBoardData.concepts.map((concept) => (
-              <ConceptCard
-                key={concept.concept_id}
-                concept={concept}
-                isSelected={selectedConceptId === concept.concept_id}
-                onSelect={() => setConceptId(concept.concept_id)}
-                onOpenSlides={() => openSlidesPreview(
-                  concept.concept_id,
-                  concept.assets.presentation.id
-                )}
-                onOpenDetail={() => openDetailPreview(
-                  concept.concept_id,
-                  concept.assets.product_detail.id
-                )}
-                onOpenInstagram={() => openInstagramPreview(
-                  concept.concept_id,
-                  concept.assets.instagram_ads.id
-                )}
-                onOpenShorts={() => openShortsPreview(
-                  concept.concept_id,
-                  concept.assets.shorts_script.id
-                )}
-                onGenerateShorts={() => startGeneration(concept.concept_id)}
-                shortsGenerationState={getGenerationState(concept.concept_id)}
-              />
-            ))}
+            {displayData.concepts.map((concept) => {
+              // 생성된 컨셉에서 GeneratedConcept 형태로 변환
+              const generatedConcept = generatedConceptBoard?.concepts.find(
+                c => c.concept_id === concept.concept_id
+              ) || {
+                concept_id: concept.concept_id,
+                concept_name: concept.concept_name,
+                description: concept.concept_description,
+                headline: concept.key_message,
+                target_audience: concept.target_audience,
+                tone: concept.tone_and_manner,
+              };
+
+              return (
+                <ConceptCard
+                  key={concept.concept_id}
+                  concept={concept}
+                  isSelected={selectedConceptId === concept.concept_id}
+                  onSelect={() => setConceptId(concept.concept_id)}
+                  onOpenSlides={async () => {
+                    // 데이터가 없으면 먼저 생성
+                    if (!slidesData) {
+                      await generateSlidesFromConcept(generatedConcept);
+                    }
+                    openSlidesPreview(
+                      concept.concept_id,
+                      concept.assets.presentation.id
+                    );
+                  }}
+                  onOpenDetail={async () => {
+                    if (!detailData) {
+                      await generateDetailFromConcept(generatedConcept);
+                    }
+                    openDetailPreview(
+                      concept.concept_id,
+                      concept.assets.product_detail.id
+                    );
+                  }}
+                  onOpenInstagram={async () => {
+                    if (!instagramData) {
+                      await generateInstagramFromConcept(generatedConcept);
+                    }
+                    openInstagramPreview(
+                      concept.concept_id,
+                      concept.assets.instagram_ads.id
+                    );
+                  }}
+                  onOpenShorts={async () => {
+                    if (!shortsData) {
+                      await generateShortsFromConcept(generatedConcept);
+                    }
+                    openShortsPreview(
+                      concept.concept_id,
+                      concept.assets.shorts_script.id
+                    );
+                  }}
+                  onGenerateShorts={() => startGeneration(concept.concept_id)}
+                  shortsGenerationState={getGenerationState(concept.concept_id)}
+                  isGeneratingSlides={isGeneratingSlides}
+                  isGeneratingDetail={isGeneratingDetail}
+                  isGeneratingInstagram={isGeneratingInstagram}
+                  isGeneratingShorts={isGeneratingShorts}
+                />
+              );
+            })}
           </div>
 
           {/* 하단 안내 */}

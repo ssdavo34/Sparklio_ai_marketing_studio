@@ -18,6 +18,7 @@ import { useTabsStore } from '../../stores/useTabsStore';
 import { useCanvasStore } from '../../stores/useCanvasStore';
 import { useChatStore } from '../../stores/useChatStore';
 import { useCenterViewStore } from '../../stores/useCenterViewStore';
+import { useGeneratedAssetsStore } from '../../stores/useGeneratedAssetsStore';
 import type { NextAction } from '@/types/demo';
 import { AGENT_INFO, TASK_INFO, TEXT_LLM_INFO, IMAGE_LLM_INFO, VIDEO_LLM_INFO } from '../../stores/types/llm';
 import type { AgentRole, TaskType, CostMode, TextLLMProvider, ImageLLMProvider, VideoLLMProvider } from '../../stores/types/llm';
@@ -134,6 +135,10 @@ function ChatTab() {
     openShortsPreview,
     backToCanvas,
   } = useCenterViewStore();
+
+  // Generated Assets Store - 생성된 컨셉 데이터 가져오기
+  const conceptBoardData = useGeneratedAssetsStore((state) => state.conceptBoardData);
+  const firstConceptId = conceptBoardData?.concepts?.[0]?.concept_id || 'no-concept';
 
   const [input, setInput] = useState('');
   const [isMounted, setIsMounted] = useState(false);
@@ -443,7 +448,7 @@ function ChatTab() {
             Concept Board
           </button>
           <button
-            onClick={() => openSlidesPreview('concept-1', 'pres-1')}
+            onClick={() => openSlidesPreview(firstConceptId, 'pres-1')}
             className={`px-2 py-1 text-xs rounded transition-colors ${
               currentView === 'slides_preview'
                 ? 'bg-purple-600 text-white'
@@ -453,7 +458,7 @@ function ChatTab() {
             Slides
           </button>
           <button
-            onClick={() => openDetailPreview('concept-1', 'detail-1')}
+            onClick={() => openDetailPreview(firstConceptId, 'detail-1')}
             className={`px-2 py-1 text-xs rounded transition-colors ${
               currentView === 'detail_preview'
                 ? 'bg-purple-600 text-white'
@@ -463,7 +468,7 @@ function ChatTab() {
             Detail
           </button>
           <button
-            onClick={() => openInstagramPreview('concept-1', 'insta-1')}
+            onClick={() => openInstagramPreview(firstConceptId, 'insta-1')}
             className={`px-2 py-1 text-xs rounded transition-colors ${
               currentView === 'instagram_preview'
                 ? 'bg-purple-600 text-white'
@@ -473,7 +478,7 @@ function ChatTab() {
             Instagram
           </button>
           <button
-            onClick={() => openShortsPreview('concept-1', 'shorts-1')}
+            onClick={() => openShortsPreview(firstConceptId, 'shorts-1')}
             className={`px-2 py-1 text-xs rounded transition-colors ${
               currentView === 'shorts_preview'
                 ? 'bg-purple-600 text-white'

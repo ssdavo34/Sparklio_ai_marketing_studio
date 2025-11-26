@@ -2,24 +2,27 @@
  * Polotno Workspace
  *
  * Polotno SDK를 통합하는 핵심 컴포넌트
- * - Polotno Store 초기화 및 관리
+ * - Polotno Store 싱글톤으로 관리 (뷰 전환 시 상태 유지)
  * - Zustand Store와 동기화
  * - Canvas 렌더링
  *
  * @author C팀 (Frontend Team)
- * @version 3.1
- * @date 2025-11-22
+ * @version 3.2
+ * @date 2025-11-26
  */
 
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { createStore } from 'polotno/model/store';
 import { PolotnoContainer, WorkspaceWrap } from 'polotno';
 import { ZoomButtons } from 'polotno/toolbar/zoom-buttons';
 import { Workspace } from 'polotno/canvas/workspace';
 import { useCanvasStore } from '../stores/useCanvasStore';
 import { useLayoutStore } from '../stores/useLayoutStore';
+import {
+  getOrCreatePolotnoStore,
+  isPolotnoStoreInitialized,
+} from './polotnoStoreSingleton';
 
 interface PolotnoWorkspaceProps {
   apiKey: string;
@@ -41,29 +44,31 @@ export function PolotnoWorkspace({ apiKey }: PolotnoWorkspaceProps) {
   useEffect(() => {
     if (!isMounted) return;
 
-    // Polotno Store 초기화
-    const store = createStore({
-      key: apiKey,
-      showCredit: true, // Free version requirement
-    });
+    // 싱글톤 Polotno Store 가져오기 또는 생성
+    const store = getOrCreatePolotnoStore(apiKey);
+    const wasAlreadyInitialized = isPolotnoStoreInitialized();
 
-    // 현재 템플릿 크기로 페이지 추가
-    store.addPage({
-      width: currentTemplate.width,
-      height: currentTemplate.height,
-    });
+    // 새로 생성된 경우에만 초기 페이지 추가
+    if (store.pages.length === 0) {
+      store.addPage({
+        width: currentTemplate.width,
+        height: currentTemplate.height,
+      });
+      console.log('[PolotnoWorkspace] Added initial page');
+    } else {
+      console.log('[PolotnoWorkspace] Using existing pages:', store.pages.length);
+    }
 
     storeRef.current = store;
     setPolotnoStore(store);
     setIsLoading(false);
 
+    // 싱글톤이므로 cleanup에서 store를 파괴하지 않음
     return () => {
-      // Cleanup
-      if (storeRef.current) {
-        storeRef.current = null;
-      }
+      // storeRef만 정리, 실제 store는 유지
+      console.log('[PolotnoWorkspace] Component unmounting, store preserved');
     };
-  }, [isMounted, apiKey, setPolotnoStore]);
+  }, [isMounted, apiKey, setPolotnoStore, currentTemplate.width, currentTemplate.height]);
 
   // View Mode 변경 시 선택 해제
   useEffect(() => {
