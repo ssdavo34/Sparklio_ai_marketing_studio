@@ -1,0 +1,134 @@
+{
+  "id": "shorts_001",
+  "concept_id": "concept_001",
+  "title": "AI 마케팅 솔루션 숏폼 영상 스크립트",
+  "status": "completed",
+  "created_at": "2025-11-26T10:45:00Z",
+  "video_specs": {
+    "duration_seconds": 45,
+    "aspect_ratio": "9:16",
+    "resolution": "1080x1920",
+    "fps": 30,
+    "format": "mp4"
+  },
+  "hook": {
+    "text": "마케터 여러분, 하루에 몇 시간을 콘텐츠 만드는 데 쓰세요?",
+    "duration_seconds": 3,
+    "visual_description": "스트레스 받는 마케터가 여러 모니터 앞에서 머리를 감싸는 모습"
+  },
+  "scenes": [
+    {
+      "scene_number": 1,
+      "start_time": 0,
+      "end_time": 3,
+      "duration_seconds": 3,
+      "narration": "마케터 여러분, 하루에 몇 시간을 콘텐츠 만드는 데 쓰세요?",
+      "visual_description": "스트레스 받는 마케터가 여러 모니터 앞에서 머리를 감싸는 모습",
+      "text_overlay": null,
+      "transition": "cut",
+      "bgm_mood": "tense"
+    },
+    {
+      "scene_number": 2,
+      "start_time": 3,
+      "end_time": 8,
+      "duration_seconds": 5,
+      "narration": "발표자료 만들고, 상세페이지 디자인하고, 인스타 광고 만들고, 영상까지...",
+      "visual_description": "화면 분할로 4가지 작업을 동시에 보여주는 빠른 몽타주",
+      "text_overlay": "발표자료 / 상세페이지 / 인스타 광고 / 영상",
+      "transition": "quick_cuts",
+      "bgm_mood": "tense"
+    },
+    {
+      "scene_number": 3,
+      "start_time": 8,
+      "end_time": 12,
+      "duration_seconds": 4,
+      "narration": "이제 그 시간, AI가 대신합니다",
+      "visual_description": "화면이 밝아지며 AI 로봇 캐릭터가 등장",
+      "text_overlay": "AI가 대신합니다",
+      "transition": "fade",
+      "bgm_mood": "uplifting"
+    },
+    {
+      "scene_number": 4,
+      "start_time": 12,
+      "end_time": 18,
+      "duration_seconds": 6,
+      "narration": "회의 녹음 파일 하나만 업로드하세요",
+      "visual_description": "스마트폰으로 회의 녹음하고 앱에 업로드하는 화면",
+      "text_overlay": "STEP 1: 회의 녹음 업로드",
+      "transition": "slide_left",
+      "bgm_mood": "uplifting"
+    },
+    {
+      "scene_number": 5,
+      "start_time": 18,
+      "end_time": 24,
+      "duration_seconds": 6,
+      "narration": "AI가 핵심 메시지를 분석하고 3가지 마케팅 컨셉을 제안합니다",
+      "visual_description": "AI 분석 애니메이션, 3개의 컨셉 카드가 나타나는 화면",
+      "text_overlay": "STEP 2: AI 분석 & 컨셉 생성",
+      "transition": "slide_left",
+      "bgm_mood": "uplifting"
+    },
+    {
+      "scene_number": 6,
+      "start_time": 24,
+      "end_time": 30,
+      "duration_seconds": 6,
+      "narration": "원하는 컨셉을 선택하면 4종 마케팅 에셋이 자동으로 만들어집니다",
+      "visual_description": "컨셉 선택 후 4종 에셋이 화려하게 생성되는 애니메이션",
+      "text_overlay": "4종 에셋 자동 생성!",
+      "transition": "zoom_in",
+      "bgm_mood": "exciting"
+    },
+    {
+      "scene_number": 7,
+      "start_time": 30,
+      "end_time": 38,
+      "duration_seconds": 8,
+      "narration": "발표자료, 상세페이지, 인스타 광고, 숏폼 영상. 단 5분만에 완성!",
+      "visual_description": "4종 에셋을 하나씩 보여주는 슬라이드, 마지막에 타이머 '5분' 강조",
+      "text_overlay": "단 5분!",
+      "transition": "slide_up",
+      "bgm_mood": "exciting"
+    },
+    {
+      "scene_number": 8,
+      "start_time": 38,
+      "end_time": 45,
+      "duration_seconds": 7,
+      "narration": "지금 바로 무료로 체험해보세요. 링크는 프로필에!",
+      "visual_description": "로고와 CTA 버튼, 프로필 링크 안내 화살표",
+      "text_overlay": "무료 체험 👆 프로필 링크",
+      "transition": "fade",
+      "bgm_mood": "uplifting"
+    }
+  ],
+  "cta": {
+    "text": "지금 바로 무료로 체험해보세요",
+    "visual_description": "로고와 CTA 버튼, 프로필 링크 안내",
+    "duration_seconds": 5
+  },
+  "audio": {
+    "tts_voice": "ko-KR-SunHiNeural",
+    "tts_provider": "edge-tts",
+    "bgm_track": "upbeat_corporate_01.mp3",
+    "bgm_volume": 0.3
+  },
+  "style": {
+    "color_scheme": {
+      "primary": "#4F46E5",
+      "secondary": "#10B981",
+      "accent": "#F59E0B",
+      "text": "#1F2937",
+      "background": "#FFFFFF"
+    },
+    "font": "Pretendard",
+    "visual_theme": "modern_minimal"
+  },
+  "export_formats": ["mp4", "webm"],
+  "preview_url": "/api/v1/assets/shorts-scripts/shorts_001/preview",
+  "download_url": "/api/v1/assets/shorts-scripts/shorts_001/download"
+}

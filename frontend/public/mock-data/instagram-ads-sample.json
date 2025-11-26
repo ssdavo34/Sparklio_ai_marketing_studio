@@ -1,0 +1,113 @@
+{
+  "id": "insta_001",
+  "concept_id": "concept_001",
+  "title": "AI 마케팅 솔루션 인스타그램 광고 세트",
+  "status": "completed",
+  "created_at": "2025-11-26T10:40:00Z",
+  "campaign_objective": "brand_awareness",
+  "target_audience": {
+    "age_range": "25-45",
+    "interests": ["마케팅", "스타트업", "비즈니스", "생산성"],
+    "demographics": "중소기업 마케팅 담당자, 1인 기업가"
+  },
+  "ads": [
+    {
+      "ad_id": "insta_001_1",
+      "ad_type": "single_image",
+      "format": "feed",
+      "aspect_ratio": "1:1",
+      "creative": {
+        "headline": "하루 3시간, AI가 대신 일합니다",
+        "primary_text": "회의 녹음 하나로 마케팅 콘텐츠 4종이 자동 생성됩니다.\n\n✅ 발표자료\n✅ 상세페이지\n✅ 인스타 광고\n✅ 숏폼 영상\n\n지금 무료로 체험해보세요!",
+        "cta_text": "자세히 알아보기",
+        "image_url": "/mock-data/instagram/ad_001_1.png",
+        "image_prompt": "Modern office desk with laptop showing AI marketing dashboard, warm lighting, minimalist style, professional atmosphere"
+      },
+      "specs": {
+        "width": 1080,
+        "height": 1080,
+        "file_format": "png",
+        "max_file_size_mb": 30
+      }
+    },
+    {
+      "ad_id": "insta_001_2",
+      "ad_type": "single_image",
+      "format": "story",
+      "aspect_ratio": "9:16",
+      "creative": {
+        "headline": "마케팅 자동화의 시작",
+        "primary_text": "5분 만에 4종 마케팅 에셋 완성",
+        "cta_text": "위로 스와이프",
+        "image_url": "/mock-data/instagram/ad_001_2.png",
+        "image_prompt": "Vertical smartphone screen showing marketing automation app, vibrant colors, dynamic composition, before-after split screen showing time saved"
+      },
+      "specs": {
+        "width": 1080,
+        "height": 1920,
+        "file_format": "png",
+        "max_file_size_mb": 30
+      }
+    },
+    {
+      "ad_id": "insta_001_3",
+      "ad_type": "carousel",
+      "format": "feed",
+      "aspect_ratio": "1:1",
+      "creative": {
+        "headline": "이렇게 만들어집니다",
+        "primary_text": "회의 녹음부터 마케팅 콘텐츠까지, AI가 자동으로 처리합니다. 👉 스와이프해서 과정을 확인하세요!",
+        "cta_text": "무료 체험",
+        "cards": [
+          {
+            "card_number": 1,
+            "image_url": "/mock-data/instagram/ad_001_3_card1.png",
+            "title": "STEP 1",
+            "description": "회의 녹음 업로드",
+            "image_prompt": "Hand holding smartphone recording a business meeting, clean white background, professional setting"
+          },
+          {
+            "card_number": 2,
+            "image_url": "/mock-data/instagram/ad_001_3_card2.png",
+            "title": "STEP 2",
+            "description": "AI가 핵심 메시지 추출",
+            "image_prompt": "AI brain analyzing speech bubbles, extracting key points, futuristic blue glow, abstract visualization"
+          },
+          {
+            "card_number": 3,
+            "image_url": "/mock-data/instagram/ad_001_3_card3.png",
+            "title": "STEP 3",
+            "description": "3가지 컨셉 제안",
+            "image_prompt": "Three creative concept cards floating in space, each with different color scheme, modern design, choice illustration"
+          },
+          {
+            "card_number": 4,
+            "image_url": "/mock-data/instagram/ad_001_3_card4.png",
+            "title": "STEP 4",
+            "description": "4종 에셋 자동 생성",
+            "image_prompt": "Four marketing assets (presentation, webpage, social ad, video) arranged in grid, polished professional look, success celebration"
+          }
+        ]
+      },
+      "specs": {
+        "width": 1080,
+        "height": 1080,
+        "file_format": "png",
+        "max_file_size_mb": 30,
+        "max_cards": 10
+      }
+    }
+  ],
+  "hashtags": [
+    "#AI마케팅", "#마케팅자동화", "#콘텐츠제작", "#스타트업마케팅",
+    "#마케터일상", "#디지털마케팅", "#생산성향상", "#업무자동화"
+  ],
+  "style": {
+    "primary_color": "#4F46E5",
+    "secondary_color": "#10B981",
+    "font_family": "Pretendard",
+    "visual_theme": "modern_minimal"
+  },
+  "export_formats": ["png", "jpg"],
+  "download_url": "/api/v1/assets/instagram-ads/insta_001/download"
+}

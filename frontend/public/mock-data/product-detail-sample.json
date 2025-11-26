@@ -1,0 +1,177 @@
+{
+  "id": "pd_001",
+  "concept_id": "concept_001",
+  "title": "AI 마케팅 솔루션 상세페이지",
+  "status": "completed",
+  "created_at": "2025-11-26T10:35:00Z",
+  "sections": [
+    {
+      "section_type": "hero",
+      "order": 1,
+      "content": {
+        "headline": "하루 3시간, AI가 대신 일합니다",
+        "subheadline": "회의 녹음 하나로 마케팅 콘텐츠 4종 자동 생성",
+        "cta_text": "무료 체험 시작",
+        "background_image_url": "/mock-data/product-detail/hero_bg.png"
+      }
+    },
+    {
+      "section_type": "problem",
+      "order": 2,
+      "content": {
+        "title": "이런 고민 있으신가요?",
+        "problems": [
+          {
+            "icon": "clock",
+            "title": "시간 부족",
+            "description": "콘텐츠 하나 만드는데 반나절이 걸려요"
+          },
+          {
+            "icon": "wallet",
+            "title": "비용 부담",
+            "description": "디자이너, 영상 편집자 외주비가 부담돼요"
+          },
+          {
+            "icon": "refresh",
+            "title": "반복 작업",
+            "description": "같은 내용을 여러 형식으로 만드는게 지겨워요"
+          }
+        ]
+      }
+    },
+    {
+      "section_type": "solution",
+      "order": 3,
+      "content": {
+        "title": "AI 마케팅 솔루션이 해결합니다",
+        "description": "회의 녹음 파일만 업로드하면 AI가 자동으로 4종의 마케팅 콘텐츠를 생성합니다",
+        "features": [
+          {
+            "icon": "mic",
+            "title": "회의 녹음 업로드",
+            "description": "줌, 팀즈, 오디오 파일 모두 지원"
+          },
+          {
+            "icon": "sparkles",
+            "title": "AI 자동 분석",
+            "description": "핵심 메시지와 마케팅 컨셉 추출"
+          },
+          {
+            "icon": "package",
+            "title": "4종 에셋 생성",
+            "description": "발표자료, 상세페이지, 인스타 광고, 숏폼 영상"
+          }
+        ],
+        "image_url": "/mock-data/product-detail/solution_diagram.png"
+      }
+    },
+    {
+      "section_type": "demo",
+      "order": 4,
+      "content": {
+        "title": "5분 만에 완성되는 마케팅 콘텐츠",
+        "video_url": "/mock-data/product-detail/demo_video.mp4",
+        "thumbnail_url": "/mock-data/product-detail/demo_thumbnail.png",
+        "steps": [
+          { "step": 1, "title": "회의 녹음 업로드", "duration": "30초" },
+          { "step": 2, "title": "AI 분석 및 컨셉 생성", "duration": "2분" },
+          { "step": 3, "title": "컨셉 선택 및 수정", "duration": "1분" },
+          { "step": 4, "title": "4종 에셋 자동 생성", "duration": "1분 30초" }
+        ]
+      }
+    },
+    {
+      "section_type": "benefits",
+      "order": 5,
+      "content": {
+        "title": "도입 효과",
+        "metrics": [
+          { "value": "70%", "label": "시간 절약", "description": "콘텐츠 제작 시간 단축" },
+          { "value": "50%", "label": "비용 절감", "description": "외주 비용 절감" },
+          { "value": "3배", "label": "생산량 증가", "description": "월간 콘텐츠 생산량" }
+        ]
+      }
+    },
+    {
+      "section_type": "testimonials",
+      "order": 6,
+      "content": {
+        "title": "고객 후기",
+        "reviews": [
+          {
+            "name": "김마케팅",
+            "company": "스타트업 A",
+            "role": "마케팅 매니저",
+            "content": "혼자서 마케팅 전체를 담당하는데, 이 솔루션 덕분에 콘텐츠 제작 시간이 크게 줄었어요.",
+            "rating": 5,
+            "avatar_url": "/mock-data/avatars/user_001.png"
+          },
+          {
+            "name": "이대표",
+            "company": "중소기업 B",
+            "role": "대표이사",
+            "content": "대행사 없이도 전문적인 마케팅 자료를 만들 수 있어서 비용이 많이 절약됐습니다.",
+            "rating": 5,
+            "avatar_url": "/mock-data/avatars/user_002.png"
+          }
+        ]
+      }
+    },
+    {
+      "section_type": "pricing",
+      "order": 7,
+      "content": {
+        "title": "요금제",
+        "plans": [
+          {
+            "name": "Free",
+            "price": "0원",
+            "period": "월",
+            "features": ["월 3회 캠페인 생성", "기본 에셋 4종", "워터마크 포함"],
+            "cta": "무료로 시작"
+          },
+          {
+            "name": "Pro",
+            "price": "49,000원",
+            "period": "월",
+            "features": ["무제한 캠페인 생성", "고품질 에셋", "워터마크 없음", "우선 지원"],
+            "cta": "Pro 시작하기",
+            "popular": true
+          },
+          {
+            "name": "Enterprise",
+            "price": "문의",
+            "period": "",
+            "features": ["팀 협업 기능", "API 연동", "전담 매니저", "맞춤 교육"],
+            "cta": "문의하기"
+          }
+        ]
+      }
+    },
+    {
+      "section_type": "cta",
+      "order": 8,
+      "content": {
+        "title": "지금 바로 시작하세요",
+        "subtitle": "3분 만에 첫 번째 마케팅 콘텐츠를 만들어보세요",
+        "primary_cta": {
+          "text": "무료 체험 시작",
+          "url": "/signup"
+        },
+        "secondary_cta": {
+          "text": "데모 예약",
+          "url": "/demo"
+        }
+      }
+    }
+  ],
+  "style": {
+    "primary_color": "#4F46E5",
+    "secondary_color": "#10B981",
+    "font_family": "Pretendard",
+    "theme": "modern"
+  },
+  "export_formats": ["html", "pdf"],
+  "preview_url": "/api/v1/assets/product-details/pd_001/preview",
+  "download_url": "/api/v1/assets/product-details/pd_001/download"
+}

@@ -1,0 +1,109 @@
+{
+  "id": "pres_001",
+  "concept_id": "concept_001",
+  "title": "AI 마케팅 솔루션 - 시간을 되찾으세요",
+  "status": "completed",
+  "created_at": "2025-11-26T10:30:00Z",
+  "slides": [
+    {
+      "slide_number": 1,
+      "slide_type": "cover",
+      "title": "AI 마케팅 솔루션",
+      "subtitle": "하루 3시간, AI가 대신 일합니다",
+      "background_image_url": "/mock-data/slides/slide_001_bg.png",
+      "elements": [
+        {
+          "type": "logo",
+          "position": { "x": 50, "y": 30 },
+          "size": { "width": 120, "height": 40 }
+        }
+      ]
+    },
+    {
+      "slide_number": 2,
+      "slide_type": "problem",
+      "title": "마케터의 고민",
+      "content": [
+        "콘텐츠 제작에 하루 3시간 이상 소요",
+        "디자이너, 카피라이터 협업 대기 시간",
+        "반복되는 단순 작업에 지친 마케터"
+      ],
+      "background_image_url": "/mock-data/slides/slide_002_bg.png",
+      "elements": [
+        {
+          "type": "icon",
+          "name": "clock",
+          "position": { "x": 400, "y": 200 }
+        }
+      ]
+    },
+    {
+      "slide_number": 3,
+      "slide_type": "solution",
+      "title": "AI가 해결합니다",
+      "content": [
+        "회의 녹음만 하면 마케팅 콘텐츠 자동 생성",
+        "발표자료, 상세페이지, 인스타 광고, 숏폼 영상",
+        "5분 만에 4종 마케팅 에셋 완성"
+      ],
+      "background_image_url": "/mock-data/slides/slide_003_bg.png",
+      "elements": [
+        {
+          "type": "image",
+          "url": "/mock-data/slides/ai_robot.png",
+          "position": { "x": 350, "y": 180 }
+        }
+      ]
+    },
+    {
+      "slide_number": 4,
+      "slide_type": "features",
+      "title": "주요 기능",
+      "content": [
+        {
+          "feature": "회의 자동 요약",
+          "description": "핵심 메시지 추출"
+        },
+        {
+          "feature": "컨셉 자동 생성",
+          "description": "3가지 마케팅 컨셉 제안"
+        },
+        {
+          "feature": "에셋 자동 제작",
+          "description": "4종 마케팅 자료 생성"
+        }
+      ],
+      "background_image_url": "/mock-data/slides/slide_004_bg.png"
+    },
+    {
+      "slide_number": 5,
+      "slide_type": "benefits",
+      "title": "도입 효과",
+      "content": [
+        { "metric": "시간 절약", "value": "70%", "description": "콘텐츠 제작 시간" },
+        { "metric": "비용 절감", "value": "50%", "description": "마케팅 운영 비용" },
+        { "metric": "생산성 향상", "value": "3배", "description": "콘텐츠 생산량" }
+      ],
+      "background_image_url": "/mock-data/slides/slide_005_bg.png"
+    },
+    {
+      "slide_number": 6,
+      "slide_type": "cta",
+      "title": "지금 시작하세요",
+      "subtitle": "무료 체험 신청",
+      "cta_button": {
+        "text": "무료로 시작하기",
+        "url": "https://sparklio.ai/signup"
+      },
+      "background_image_url": "/mock-data/slides/slide_006_bg.png"
+    }
+  ],
+  "style": {
+    "primary_color": "#4F46E5",
+    "secondary_color": "#10B981",
+    "font_family": "Pretendard",
+    "theme": "modern"
+  },
+  "export_formats": ["pptx", "pdf", "png"],
+  "download_url": "/api/v1/assets/presentations/pres_001/download"
+}

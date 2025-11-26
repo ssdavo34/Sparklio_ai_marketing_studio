@@ -1,0 +1,131 @@
+{
+  "campaign_id": "camp_demo_001",
+  "campaign_name": "AI 마케팅 솔루션 런칭 캠페인",
+  "status": "completed",
+  "created_at": "2025-11-26T10:00:00Z",
+  "meeting_summary": {
+    "title": "AI 마케팅 솔루션 제품 기획 회의",
+    "duration_minutes": 45,
+    "participants": ["김대표", "이마케팅", "박개발"],
+    "key_points": [
+      "AI 기반 마케팅 자동화 솔루션 출시",
+      "타겟: 중소기업 마케팅 담당자",
+      "핵심 기능: 콘텐츠 자동 생성, 성과 분석",
+      "출시 시기: 2025년 1분기"
+    ],
+    "core_message": "AI로 마케팅을 자동화하여 시간과 비용을 절약하세요"
+  },
+  "concepts": [
+    {
+      "concept_id": "concept_001",
+      "concept_name": "시간 절약 강조",
+      "concept_description": "바쁜 마케터의 일상을 AI가 대신해주는 스토리",
+      "target_audience": "시간이 부족한 중소기업 마케팅 담당자",
+      "key_message": "하루 3시간, AI가 대신 일합니다",
+      "tone_and_manner": "친근하고 공감가는",
+      "visual_style": "밝고 모던한 오피스 분위기",
+      "thumbnail_url": "/mock-data/thumbnails/concept_001.png",
+      "assets": {
+        "presentation": {
+          "id": "pres_001",
+          "status": "completed",
+          "preview_url": "/mock-data/previews/presentation_001.png"
+        },
+        "product_detail": {
+          "id": "pd_001",
+          "status": "completed",
+          "preview_url": "/mock-data/previews/product_detail_001.png"
+        },
+        "instagram_ads": {
+          "id": "insta_001",
+          "status": "completed",
+          "count": 3,
+          "preview_urls": [
+            "/mock-data/previews/instagram_001_1.png",
+            "/mock-data/previews/instagram_001_2.png",
+            "/mock-data/previews/instagram_001_3.png"
+          ]
+        },
+        "shorts_script": {
+          "id": "shorts_001",
+          "status": "completed",
+          "duration_seconds": 45
+        }
+      }
+    },
+    {
+      "concept_id": "concept_002",
+      "concept_name": "비용 절감 강조",
+      "concept_description": "마케팅 대행사 비용 없이 전문가 수준의 결과물",
+      "target_audience": "마케팅 예산이 제한된 스타트업",
+      "key_message": "대행사 비용의 1/10로 같은 결과를",
+      "tone_and_manner": "실용적이고 신뢰감 있는",
+      "visual_style": "심플하고 프로페셔널한",
+      "thumbnail_url": "/mock-data/thumbnails/concept_002.png",
+      "assets": {
+        "presentation": {
+          "id": "pres_002",
+          "status": "completed",
+          "preview_url": "/mock-data/previews/presentation_002.png"
+        },
+        "product_detail": {
+          "id": "pd_002",
+          "status": "completed",
+          "preview_url": "/mock-data/previews/product_detail_002.png"
+        },
+        "instagram_ads": {
+          "id": "insta_002",
+          "status": "completed",
+          "count": 3,
+          "preview_urls": [
+            "/mock-data/previews/instagram_002_1.png",
+            "/mock-data/previews/instagram_002_2.png",
+            "/mock-data/previews/instagram_002_3.png"
+          ]
+        },
+        "shorts_script": {
+          "id": "shorts_002",
+          "status": "completed",
+          "duration_seconds": 30
+        }
+      }
+    },
+    {
+      "concept_id": "concept_003",
+      "concept_name": "품질 강조",
+      "concept_description": "AI가 만들지만 사람보다 더 나은 퀄리티",
+      "target_audience": "품질에 민감한 브랜드 마케터",
+      "key_message": "AI가 만든 티 안나는 콘텐츠",
+      "tone_and_manner": "세련되고 고급스러운",
+      "visual_style": "하이엔드 브랜드 느낌",
+      "thumbnail_url": "/mock-data/thumbnails/concept_003.png",
+      "assets": {
+        "presentation": {
+          "id": "pres_003",
+          "status": "completed",
+          "preview_url": "/mock-data/previews/presentation_003.png"
+        },
+        "product_detail": {
+          "id": "pd_003",
+          "status": "completed",
+          "preview_url": "/mock-data/previews/product_detail_003.png"
+        },
+        "instagram_ads": {
+          "id": "insta_003",
+          "status": "completed",
+          "count": 3,
+          "preview_urls": [
+            "/mock-data/previews/instagram_003_1.png",
+            "/mock-data/previews/instagram_003_2.png",
+            "/mock-data/previews/instagram_003_3.png"
+          ]
+        },
+        "shorts_script": {
+          "id": "shorts_003",
+          "status": "completed",
+          "duration_seconds": 60
+        }
+      }
+    }
+  ]
+}
