@@ -73,8 +73,12 @@ class Campaign(Base):
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
 
-    # 상태
-    status = Column(SQLEnum(CampaignStatus), default=CampaignStatus.PENDING, nullable=False)
+    # 상태 - values_callable로 소문자 enum value 사용
+    status = Column(
+        SQLEnum(CampaignStatus, values_callable=lambda x: [e.value for e in x]),
+        default=CampaignStatus.PENDING,
+        nullable=False
+    )
     error_message = Column(Text, nullable=True)
 
     # 회의 요약 (from MeetingAgent)
@@ -181,9 +185,16 @@ class ConceptAsset(Base):
     # Foreign Keys
     concept_id = Column(UUID(as_uuid=True), ForeignKey('concepts.id', ondelete='CASCADE'), nullable=False)
 
-    # 에셋 정보
-    asset_type = Column(SQLEnum(AssetType), nullable=False)
-    status = Column(SQLEnum(AssetStatus), default=AssetStatus.PENDING, nullable=False)
+    # 에셋 정보 - values_callable로 소문자 enum value 사용
+    asset_type = Column(
+        SQLEnum(AssetType, values_callable=lambda x: [e.value for e in x]),
+        nullable=False
+    )
+    status = Column(
+        SQLEnum(AssetStatus, values_callable=lambda x: [e.value for e in x]),
+        default=AssetStatus.PENDING,
+        nullable=False
+    )
     error_message = Column(Text, nullable=True)
 
     # 에셋 제목
