@@ -17,6 +17,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useTabsStore } from '../../stores/useTabsStore';
 import { useCanvasStore } from '../../stores/useCanvasStore';
 import { useChatStore } from '../../stores/useChatStore';
+import { useCenterViewStore } from '../../stores/useCenterViewStore';
+import type { NextAction } from '@/types/demo';
 import { AGENT_INFO, TASK_INFO, TEXT_LLM_INFO, IMAGE_LLM_INFO, VIDEO_LLM_INFO } from '../../stores/types/llm';
 import type { AgentRole, TaskType, CostMode, TextLLMProvider, ImageLLMProvider, VideoLLMProvider } from '../../stores/types/llm';
 import { MessageSquare, Layers, Settings, ChevronDown, ChevronUp, Paperclip, X, FileText, FileSpreadsheet, Image as ImageIcon, Video, Music } from 'lucide-react';
@@ -121,12 +123,60 @@ function ChatTab() {
     setImageLLM,
     setVideoLLM,
   } = useChatStore();
+
+  // CenterView Store 연동
+  const {
+    currentView,
+    openConceptBoard,
+    openSlidesPreview,
+    openDetailPreview,
+    openInstagramPreview,
+    openShortsPreview,
+    backToCanvas,
+  } = useCenterViewStore();
+
   const [input, setInput] = useState('');
   const [isMounted, setIsMounted] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // NextAction 핸들러
+  const handleNextAction = (action: NextAction) => {
+    console.log('[ChatTab] NextAction:', action);
+
+    switch (action.action) {
+      case 'open_concept_board':
+        openConceptBoard(action.payload?.campaign_id);
+        break;
+      case 'open_slides':
+        if (action.payload?.concept_id && action.payload?.asset_id) {
+          openSlidesPreview(action.payload.concept_id, action.payload.asset_id);
+        }
+        break;
+      case 'open_detail':
+        if (action.payload?.concept_id && action.payload?.asset_id) {
+          openDetailPreview(action.payload.concept_id, action.payload.asset_id);
+        }
+        break;
+      case 'open_instagram':
+        if (action.payload?.concept_id && action.payload?.asset_id) {
+          openInstagramPreview(action.payload.concept_id, action.payload.asset_id);
+        }
+        break;
+      case 'open_shorts':
+        if (action.payload?.concept_id && action.payload?.asset_id) {
+          openShortsPreview(action.payload.concept_id, action.payload.asset_id);
+        }
+        break;
+      case 'back_to_concept_board':
+        openConceptBoard();
+        break;
+      default:
+        console.log('[ChatTab] Unknown action:', action.action);
+    }
+  };
 
   // Client-side mount check to prevent hydration errors
   useEffect(() => {
@@ -363,6 +413,76 @@ function ChatTab() {
             </div>
           </>
         )}
+      </div>
+
+      {/* DEMO: Quick View Switch Buttons */}
+      <div className="p-2 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-indigo-50">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-semibold text-purple-700">DEMO 뷰 전환</span>
+          <span className="text-xs text-gray-500">현재: {currentView}</span>
+        </div>
+        <div className="flex flex-wrap gap-1">
+          <button
+            onClick={() => backToCanvas()}
+            className={`px-2 py-1 text-xs rounded transition-colors ${
+              currentView === 'canvas'
+                ? 'bg-purple-600 text-white'
+                : 'bg-white text-gray-700 hover:bg-purple-100 border border-gray-200'
+            }`}
+          >
+            Canvas
+          </button>
+          <button
+            onClick={() => openConceptBoard()}
+            className={`px-2 py-1 text-xs rounded transition-colors ${
+              currentView === 'concept_board'
+                ? 'bg-purple-600 text-white'
+                : 'bg-white text-gray-700 hover:bg-purple-100 border border-gray-200'
+            }`}
+          >
+            Concept Board
+          </button>
+          <button
+            onClick={() => openSlidesPreview('concept-1', 'pres-1')}
+            className={`px-2 py-1 text-xs rounded transition-colors ${
+              currentView === 'slides_preview'
+                ? 'bg-purple-600 text-white'
+                : 'bg-white text-gray-700 hover:bg-purple-100 border border-gray-200'
+            }`}
+          >
+            Slides
+          </button>
+          <button
+            onClick={() => openDetailPreview('concept-1', 'detail-1')}
+            className={`px-2 py-1 text-xs rounded transition-colors ${
+              currentView === 'detail_preview'
+                ? 'bg-purple-600 text-white'
+                : 'bg-white text-gray-700 hover:bg-purple-100 border border-gray-200'
+            }`}
+          >
+            Detail
+          </button>
+          <button
+            onClick={() => openInstagramPreview('concept-1', 'insta-1')}
+            className={`px-2 py-1 text-xs rounded transition-colors ${
+              currentView === 'instagram_preview'
+                ? 'bg-purple-600 text-white'
+                : 'bg-white text-gray-700 hover:bg-purple-100 border border-gray-200'
+            }`}
+          >
+            Instagram
+          </button>
+          <button
+            onClick={() => openShortsPreview('concept-1', 'shorts-1')}
+            className={`px-2 py-1 text-xs rounded transition-colors ${
+              currentView === 'shorts_preview'
+                ? 'bg-purple-600 text-white'
+                : 'bg-white text-gray-700 hover:bg-purple-100 border border-gray-200'
+            }`}
+          >
+            Shorts
+          </button>
+        </div>
       </div>
 
       {/* Messages */}

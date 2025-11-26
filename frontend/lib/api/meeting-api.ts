@@ -99,6 +99,11 @@ export async function createMeetingFromFile(
 
 /**
  * URL로 Meeting 생성
+ *
+ * API 응답 형식:
+ * { meeting_id, status, message, transcription_started }
+ *
+ * Meeting 객체를 반환하기 위해 생성 후 상세 조회 실행
  */
 export async function createMeetingFromUrl(
   request: CreateMeetingFromUrlRequest
@@ -119,7 +124,17 @@ export async function createMeetingFromUrl(
     throw new Error(`Failed to create meeting from URL: ${response.statusText}`);
   }
 
-  return await response.json();
+  const result = await response.json();
+
+  // API가 { meeting_id, status, message } 형식으로 반환
+  // 전체 Meeting 객체를 가져오기 위해 상세 조회
+  if (result.meeting_id) {
+    const meeting = await getMeeting(result.meeting_id);
+    return meeting;
+  }
+
+  // 혹시 직접 Meeting 객체를 반환하는 경우 대비
+  return result;
 }
 
 /**

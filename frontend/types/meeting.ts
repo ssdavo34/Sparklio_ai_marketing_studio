@@ -39,15 +39,23 @@ export type MeetingSourceType = 'upload' | 'youtube' | 'zoom' | 'gmeet' | 'teams
 export interface Meeting {
   id: string;
   title: string;
-  source_type: MeetingSourceType;
+  description?: string | null;
+  source_type?: MeetingSourceType;
   source_url?: string | null;
   source_metadata?: Record<string, any> | null;
+  meeting_metadata?: Record<string, any> | null;
   file_path?: string | null;
+  file_url?: string | null;
+  file_size?: number | null;
   file_size_bytes?: number | null;
+  mime_type?: string | null;
   duration_seconds?: number | null;
   status: MeetingStatus;
+  error_message?: string | null;
+  analysis_result?: MeetingAnalysisResult | null;
   created_at: string;
   updated_at: string;
+  deleted_at?: string | null;
 }
 
 // Transcript Segment

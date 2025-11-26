@@ -1,24 +1,29 @@
 /**
- * Canvas Studio v3.1 - Main Page
+ * Canvas Studio v3.2 - Main Page (DEMO Day)
  *
  * Polotno-based editor with Sparklio custom UI
  * One-page application for all work (brief, generation, editing)
  *
+ * DEMO Day: CenterViewSwitch로 다양한 뷰 지원
+ * - canvas (기본 Polotno)
+ * - concept_board (Concept Board)
+ * - slides_preview, detail_preview, instagram_preview, shorts_preview
+ *
  * @author C팀 (Frontend Team)
- * @version 3.1
- * @date 2025-11-24
+ * @version 3.2
+ * @date 2025-11-26
  */
 
 'use client';
 
 import { useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import dynamic from 'next/dynamic';
 import { StudioLayout } from '@/components/canvas-studio/layout/StudioLayout';
 import { TopToolbar } from '@/components/canvas-studio/layout/TopToolbar';
 import { ActivityBar } from '@/components/canvas-studio/layout/ActivityBar';
 import { LeftPanel } from '@/components/canvas-studio/panels/left/LeftPanel';
 import { RightDock } from '@/components/canvas-studio/panels/right/RightDock';
+import { CenterViewSwitch } from '@/components/canvas-studio/views/CenterViewSwitch';
 import {
   useWorkspaceStore,
   useProjectStore,
@@ -29,11 +34,6 @@ import { getMockProjects } from '@/lib/api/project-api';
 import { getMockBrief } from '@/lib/api/brief-api';
 import { getMockBrandKit } from '@/lib/api/brand-api';
 import { getMockWorkspaces } from '@/lib/api/workspace-api';
-
-const PolotnoWorkspace = dynamic(
-  () => import('@/components/canvas-studio/polotno/PolotnoWorkspace').then((mod) => mod.PolotnoWorkspace),
-  { ssr: false }
-);
 
 const POLOTNO_API_KEY = 'ng2ylHnHO2NscxqyUEWy';
 
@@ -96,7 +96,7 @@ export default function CanvasStudioV3Page() {
       topToolbar={<TopToolbar />}
       activityBar={<ActivityBar />}
       leftPanel={<LeftPanel />}
-      canvas={<PolotnoWorkspace apiKey={POLOTNO_API_KEY} />}
+      canvas={<CenterViewSwitch polotnoApiKey={POLOTNO_API_KEY} />}
       rightDock={<RightDock />}
     />
   );

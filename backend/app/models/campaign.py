@@ -102,7 +102,7 @@ class Campaign(Base):
     task_id = Column(String(100), nullable=True, unique=True, index=True)
 
     # 메타데이터
-    metadata = Column(JSONB, nullable=True)
+    meta_info = Column(JSONB, nullable=True)
 
     # Timestamps
     created_at = Column(TIMESTAMP, server_default=func.now(), nullable=False)
@@ -152,7 +152,7 @@ class Concept(Base):
     is_selected = Column(Boolean, default=False, nullable=False)
 
     # 메타데이터 (LLM 출력 원본 등)
-    metadata = Column(JSONB, nullable=True)
+    meta_info = Column(JSONB, nullable=True)
 
     # Timestamps
     created_at = Column(TIMESTAMP, server_default=func.now(), nullable=False)
@@ -216,7 +216,7 @@ class ConceptAsset(Base):
     # - shorts_script: { duration_seconds: 45 }
 
     # 메타데이터
-    metadata = Column(JSONB, nullable=True)
+    meta_info = Column(JSONB, nullable=True)
 
     # Timestamps
     created_at = Column(TIMESTAMP, server_default=func.now(), nullable=False)

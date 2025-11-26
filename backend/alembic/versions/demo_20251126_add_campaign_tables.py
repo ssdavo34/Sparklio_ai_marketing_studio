@@ -55,7 +55,7 @@ def upgrade() -> None:
         sa.Column('meeting_summary', JSONB, nullable=True),
         sa.Column('campaign_brief', JSONB, nullable=True),
         sa.Column('task_id', sa.String(100), nullable=True, unique=True, index=True),
-        sa.Column('metadata', JSONB, nullable=True),
+        sa.Column('meta_info', JSONB, nullable=True),
         sa.Column('created_at', sa.TIMESTAMP, server_default=sa.func.now(), nullable=False),
         sa.Column('updated_at', sa.TIMESTAMP, server_default=sa.func.now(), onupdate=sa.func.now(), nullable=False),
         sa.Column('deleted_at', sa.TIMESTAMP, nullable=True),
@@ -75,7 +75,7 @@ def upgrade() -> None:
         sa.Column('thumbnail_url', sa.Text, nullable=True),
         sa.Column('order', sa.Integer, default=0, nullable=False),
         sa.Column('is_selected', sa.Boolean, default=False, nullable=False),
-        sa.Column('metadata', JSONB, nullable=True),
+        sa.Column('meta_info', JSONB, nullable=True),
         sa.Column('created_at', sa.TIMESTAMP, server_default=sa.func.now(), nullable=False),
         sa.Column('updated_at', sa.TIMESTAMP, server_default=sa.func.now(), onupdate=sa.func.now(), nullable=False),
     )
@@ -94,7 +94,7 @@ def upgrade() -> None:
         sa.Column('preview_url', sa.Text, nullable=True),
         sa.Column('download_url', sa.Text, nullable=True),
         sa.Column('extra_info', JSONB, nullable=True),
-        sa.Column('metadata', JSONB, nullable=True),
+        sa.Column('meta_info', JSONB, nullable=True),
         sa.Column('created_at', sa.TIMESTAMP, server_default=sa.func.now(), nullable=False),
         sa.Column('updated_at', sa.TIMESTAMP, server_default=sa.func.now(), onupdate=sa.func.now(), nullable=False),
     )

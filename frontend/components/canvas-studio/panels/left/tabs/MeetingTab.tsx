@@ -777,7 +777,17 @@ export function MeetingTab() {
                         ? 'border-purple-500 bg-purple-50'
                         : 'border-gray-200 hover:border-purple-300 hover:bg-gray-50'
                   }`}
-                  onClick={() => isSelectMode ? toggleSelectForDelete(meeting.id, { stopPropagation: () => {} } as React.MouseEvent) : setSelectedMeeting(meeting)}
+                  onClick={() => {
+                    if (isSelectMode) {
+                      toggleSelectForDelete(meeting.id, { stopPropagation: () => {} } as React.MouseEvent);
+                    } else {
+                      setSelectedMeeting(meeting);
+                      // 분석 결과가 있으면 로드
+                      if (meeting.analysis_result) {
+                        setAnalysisResult(meeting.analysis_result);
+                      }
+                    }
+                  }}
                 >
                   <div className="flex items-start justify-between gap-2">
                     {/* 선택 모드일 때 체크박스 표시 */}
@@ -940,7 +950,7 @@ export function MeetingTab() {
         )}
 
         {/* Analysis Result */}
-        {analysisResult && selectedMeeting?.status === 'analyzed' && (
+        {analysisResult && (selectedMeeting?.status === 'analyzed' || selectedMeeting?.status === 'ready' || selectedMeeting?.analysis_result) && (
           <div className="mt-6 p-4 bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-200 rounded-lg">
             <h3 className="text-sm font-semibold text-purple-900 mb-3">
               📊 Analysis Result

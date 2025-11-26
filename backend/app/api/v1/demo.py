@@ -438,7 +438,7 @@ async def run_demo_pipeline(
                 tone_and_manner=concept_data.get("tone_and_manner", ""),
                 visual_style=concept_data.get("visual_style", ""),
                 order=i,
-                metadata={
+                meta_info={
                     "color_palette": concept_data.get("color_palette", []),
                     "keywords": concept_data.get("keywords", [])
                 }

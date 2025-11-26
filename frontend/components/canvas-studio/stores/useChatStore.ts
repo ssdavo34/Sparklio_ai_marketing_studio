@@ -21,6 +21,7 @@ import { sendChatMessage, generateImage, gatewayClient } from '@/lib/llm-gateway
 import { useCanvasStore } from './useCanvasStore';
 import { getAdLayout, selectBestLayout, type AdLayoutType } from '../utils/ad-layouts';
 import { detectErrorType, createUserFriendlyError, type ErrorType } from '../components/ErrorMessage';
+import { useGeneratedAssetsStore } from './useGeneratedAssetsStore';
 
 // ============================================================================
 // Helper Functions - Canvas 요소 추가
@@ -344,9 +345,89 @@ async function parseAndAddToCanvas(responseText: string, userMessage?: string) {
       // 텍스트 요소 추가 (레이아웃 기반 위치 및 스타일)
       // ========================================
 
+      // optimized_product_info 구조 지원 (B팀 API 응답 형식)
+      let headline = parsed.headline || parsed.post;
+      let subheadline = parsed.subheadline;
+      let body = parsed.body;
+      let cta = parsed.cta;
+      let hashtags = parsed.hashtags;
+
+      // 다양한 AI 응답 구조 지원
+      // 구조 1: optimized_product_info 객체
+      if (parsed.optimized_product_info) {
+        const info = parsed.optimized_product_info;
+        console.log('[parseAndAddToCanvas] 📦 Found optimized_product_info structure');
+
+        if (info.headline_tagline_options && info.headline_tagline_options.length > 0) {
+          headline = info.headline_tagline_options[0];
+        }
+        if (info.product_name) {
+          subheadline = info.product_name;
+        }
+        if (info.marketing_brief?.summary) {
+          body = info.marketing_brief.summary;
+        }
+        cta = cta || '자세히 보기';
+        if (info.social_media_content?.instagram_post) {
+          const hashtagMatch = info.social_media_content.instagram_post.match(/#\S+/g);
+          if (hashtagMatch) {
+            hashtags = hashtagMatch.slice(0, 5);
+          }
+        }
+      }
+
+      // 구조 2: optimized_product_title 직접 속성 (실제 API 응답)
+      if (parsed.optimized_product_title) {
+        console.log('[parseAndAddToCanvas] 📦 Found optimized_product_title structure');
+        headline = parsed.optimized_product_title;
+      }
+
+      if (parsed.product_description && !body) {
+        body = parsed.product_description;
+      }
+
+      // social_media_content 배열에서 해시태그 추출
+      if (parsed.social_media_content && Array.isArray(parsed.social_media_content)) {
+        console.log('[parseAndAddToCanvas] 📦 Found social_media_content array:', parsed.social_media_content.length);
+        const instagramPost = parsed.social_media_content.find((item: any) => item.platform === '인스타그램');
+        if (instagramPost?.content) {
+          const hashtagMatch = instagramPost.content.match(/#\S+/g);
+          if (hashtagMatch) {
+            hashtags = hashtagMatch.slice(0, 5);
+          }
+        }
+      }
+
+      // marketing_brief에서 추가 정보 추출
+      if (parsed.marketing_brief) {
+        if (parsed.marketing_brief.summary && !body) {
+          body = parsed.marketing_brief.summary;
+        }
+        if (parsed.marketing_brief.target_audience && !subheadline) {
+          subheadline = `타깃: ${parsed.marketing_brief.target_audience}`;
+        }
+      }
+
+      // unique_selling_points에서 서브헤드라인
+      if (parsed.unique_selling_points && Array.isArray(parsed.unique_selling_points) && parsed.unique_selling_points.length > 0) {
+        if (!subheadline) {
+          subheadline = parsed.unique_selling_points[0];
+        }
+      }
+
+      // 기본값 설정
+      cta = cta || '자세히 보기';
+
+      console.log('[parseAndAddToCanvas] 📝 Final extracted data:', {
+        headline: headline?.substring(0, 30),
+        subheadline: subheadline?.substring(0, 30),
+        body: body?.substring(0, 30),
+        hasHashtags: !!hashtags
+      });
+
       // Headline
-      if (parsed.headline || parsed.post) {
-        const headlineText = parsed.headline || parsed.post;
+      if (headline) {
+        const headlineText = headline;
         console.log('[parseAndAddToCanvas] 📝 Adding headline:', headlineText);
         activePage.addElement({
           type: 'text',
@@ -364,8 +445,8 @@ async function parseAndAddToCanvas(responseText: string, userMessage?: string) {
       }
 
       // Subheadline
-      if (parsed.subheadline) {
-        console.log('[parseAndAddToCanvas] 📝 Adding subheadline:', parsed.subheadline);
+      if (subheadline) {
+        console.log('[parseAndAddToCanvas] 📝 Adding subheadline:', subheadline);
         activePage.addElement({
           type: 'text',
           x: layout.subheadline.x,
@@ -374,15 +455,15 @@ async function parseAndAddToCanvas(responseText: string, userMessage?: string) {
           height: layout.subheadline.height,
           fontSize: layout.subheadline.fontSize,
           fontFamily: 'Noto Sans KR',
-          text: parsed.subheadline,
+          text: subheadline,
           fill: '#F3F4F6',
           align: layout.subheadline.align,
         });
       }
 
       // Body
-      if (parsed.body && layout.body) {
-        console.log('[parseAndAddToCanvas] 📝 Adding body:', parsed.body.substring(0, 50) + '...');
+      if (body && layout.body) {
+        console.log('[parseAndAddToCanvas] 📝 Adding body:', body.substring(0, 50) + '...');
         activePage.addElement({
           type: 'text',
           x: layout.body.x,
@@ -391,7 +472,7 @@ async function parseAndAddToCanvas(responseText: string, userMessage?: string) {
           height: layout.body.height,
           fontSize: layout.body.fontSize,
           fontFamily: 'Noto Sans KR',
-          text: parsed.body,
+          text: body,
           fill: '#FFFFFF',
           align: layout.body.align,
         });
@@ -416,11 +497,11 @@ async function parseAndAddToCanvas(responseText: string, userMessage?: string) {
       }
 
       // Hashtags (SNS 포맷)
-      if (parsed.hashtags && layout.subheadline) {
-        console.log('[parseAndAddToCanvas] #️⃣ Adding hashtags:', parsed.hashtags);
-        const hashtagText = Array.isArray(parsed.hashtags)
-          ? parsed.hashtags.join(' ')
-          : parsed.hashtags;
+      if (hashtags && layout.subheadline) {
+        console.log('[parseAndAddToCanvas] #️⃣ Adding hashtags:', hashtags);
+        const hashtagText = Array.isArray(hashtags)
+          ? hashtags.join(' ')
+          : hashtags;
         activePage.addElement({
           type: 'text',
           x: layout.subheadline.x,
@@ -439,8 +520,8 @@ async function parseAndAddToCanvas(responseText: string, userMessage?: string) {
       // ========================================
       // CTA Button (프로페셔널한 스타일)
       // ========================================
-      if (parsed.cta) {
-        console.log('[parseAndAddToCanvas] 🎯 Adding CTA:', parsed.cta);
+      if (cta) {
+        console.log('[parseAndAddToCanvas] 🎯 Adding CTA:', cta);
 
         const ctaStyle = layout.cta.buttonStyle;
         let borderRadius = 0;
@@ -486,7 +567,7 @@ async function parseAndAddToCanvas(responseText: string, userMessage?: string) {
           height: layout.cta.fontSize + 10,
           fontSize: layout.cta.fontSize,
           fontFamily: 'Noto Sans KR',
-          text: parsed.cta,
+          text: cta,
           fill: '#6366F1',
           fontWeight: 'bold',
           align: 'center',
@@ -858,6 +939,14 @@ export const useChatStore = create<ChatState>()(
                 await parseAndAddToCanvas(response.content, content);
               } catch (err) {
                 console.error('[sendMessage] Failed to add to canvas:', err);
+              }
+
+              // AI 응답을 GeneratedAssetsStore에 저장 (좌측 패널 프리뷰용)
+              console.log('[sendMessage] Storing generated assets...');
+              try {
+                useGeneratedAssetsStore.getState().parseAndStoreFromAIResponse(response.content, content);
+              } catch (err) {
+                console.error('[sendMessage] Failed to store generated assets:', err);
               }
             } else {
               throw new Error('No response from AI');

@@ -24,7 +24,8 @@ export type LeftPanelTab =
   | 'upload'
   | 'meeting'
   | 'photos'
-  | 'brandkit';
+  | 'brandkit'
+  | 'assets';
 
 export interface LeftPanelState {
   activeTab: LeftPanelTab;

@@ -13,7 +13,7 @@
 'use client';
 
 import { useLeftPanelStore, type LeftPanelTab } from '../stores/useLeftPanelStore';
-import { FileText, Plus, Type, Upload, Image as ImageIcon, Palette, Settings, HelpCircle, FolderOpen, Mic } from 'lucide-react';
+import { FileText, Plus, Type, Upload, Image as ImageIcon, Palette, Settings, HelpCircle, FolderOpen, Mic, Sparkles } from 'lucide-react';
 
 interface Tool {
   id: LeftPanelTab;
@@ -28,6 +28,7 @@ const TOOLS: Tool[] = [
   { id: 'text', label: 'Text', Icon: Type },
   { id: 'upload', label: 'Upload', Icon: Upload },
   { id: 'meeting', label: 'Meeting AI', Icon: Mic },
+  { id: 'assets', label: 'Generated Assets', Icon: Sparkles },
   { id: 'photos', label: 'Photos', Icon: ImageIcon },
   { id: 'brandkit', label: 'Brand Kit', Icon: Palette },
 ];

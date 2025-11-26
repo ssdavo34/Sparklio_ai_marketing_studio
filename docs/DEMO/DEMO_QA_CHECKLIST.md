@@ -1,12 +1,29 @@
 # Demo QA Checklist
 
-**문서 버전**: v1.0
-**작성일**: 2025-11-25
-**작성자**: A팀 (백엔드/문서 총괄)
+**문서 버전**: v2.0
+**작성일**: 2025-11-26 (업데이트)
+**작성자**: A팀 (QA/문서 총괄)
 **목적**: 발표 직전 점검 체크리스트
 
 **상위 문서**: [SPARKLIO_DEMO_V1_PRD.md](./SPARKLIO_DEMO_V1_PRD.md)
-**관련 문서**: [SPARKLIO_DEMO_V1_STORY_AND_FLOW.md](./SPARKLIO_DEMO_V1_STORY_AND_FLOW.md)
+**관련 문서**:
+- [SPARKLIO_DEMO_V1_STORY_AND_FLOW.md](./SPARKLIO_DEMO_V1_STORY_AND_FLOW.md)
+- [DEMO_SCENARIO_SCRIPT.md](./DEMO_SCENARIO_SCRIPT.md)
+- [DEMO_DAY_MASTER_CHECKLIST.md](./DEMO_DAY_MASTER_CHECKLIST.md)
+
+---
+
+## 0. 기술 스택 확정 (2025-11-26 업데이트)
+
+| 영역 | 기술 | 비용 | 상태 |
+|------|------|------|------|
+| **LLM** | Gemini 2.0 Flash | 무료 (15 RPM, 100만 토큰/일) | ✅ 확정 |
+| **이미지 생성** | Nanobanana API | 무료 티어 | ✅ 확정 |
+| **TTS** | Edge TTS | 무료 (무제한) | ✅ 확정 |
+| **BGM** | 사전 다운로드 (Pixabay/FreePD) | 무료 | ✅ 확정 |
+| **STT** | Whisper (로컬) | 로컬 | ✅ 기존 유지 |
+
+> **참고**: 기존 Ollama/Llama 3.2 → Gemini 2.0 Flash로 변경됨
 
 ---
 
@@ -55,26 +72,44 @@
 
 ---
 
-### 1.2 RTX Desktop (100.123.51.6)
+### 1.2 RTX Desktop (100.120.180.42 - Tailscale)
+
+> **참고**: 학원 환경에서는 100.123.51.6 대신 Tailscale IP 사용
 
 **Whisper STT**:
 - [ ] Whisper 서버 실행 중
 - [ ] API 테스트
   ```bash
-  curl http://100.123.51.6:8001/health
+  curl http://100.120.180.42:9000/health
   ```
 
-**Ollama**:
-- [ ] Ollama 서버 실행 중
-- [ ] Llama 3.2 모델 로드 확인
+**Ollama** (선택적 - Gemini로 대체됨):
+- [ ] (Optional) Ollama 서버 실행 중
+- [ ] (Optional) qwen2.5:14b 모델 로드 확인
   ```bash
-  curl http://100.123.51.6:11434/api/tags
+  curl http://100.120.180.42:11434/api/tags
   ```
 
-**ComfyUI** (선택적):
-- [ ] ComfyUI 서버 실행 중
-- [ ] Web UI 접속 가능 (`http://100.123.51.6:8188`)
-- [ ] SDXL 또는 Flux 모델 로드 확인
+**ComfyUI** (선택적 - Nanobanana로 대체됨):
+- [ ] (Optional) ComfyUI 서버 실행 중
+- [ ] (Optional) Web UI 접속 가능
+
+### 1.3 외부 API (신규)
+
+**Gemini API**:
+- [ ] API 키 설정 확인 (환경변수)
+- [ ] Rate Limit 확인 (15 RPM, 100만 토큰/일)
+- [ ] 테스트 호출 성공
+
+**Nanobanana API**:
+- [ ] API 키 설정 확인
+- [ ] 무료 티어 제한 확인
+- [ ] 테스트 이미지 생성 성공
+
+**Edge TTS**:
+- [ ] edge-tts 패키지 설치 확인
+- [ ] 테스트 음성 생성 성공
+- [ ] 한국어 음성 (ko-KR-SunHiNeural) 확인
 
 ---
 
@@ -438,7 +473,55 @@ curl http://100.123.51.5:8000/api/v1/demo/concept-board/{campaign_id}
 
 ---
 
+---
+
+## 9. Mock 데이터 검증 (2025-11-26 추가)
+
+### 9.1 Mock 데이터 위치
+
+```
+frontend/public/mock-data/
+├── concept-board-sample.json     ✅ 검증 완료
+├── presentation-sample.json      ✅ 검증 완료
+├── product-detail-sample.json    ✅ 검증 완료
+├── instagram-ads-sample.json     ✅ 검증 완료
+└── shorts-script-sample.json     ✅ 검증 완료
+```
+
+### 9.2 검증 결과 (2025-11-26)
+
+| 파일 | 필드 완전성 | 한글 깨짐 | 상태 |
+|------|------------|----------|------|
+| concept-board-sample.json | ✅ 3개 콘셉트, assets 링크 완전 | ✅ 없음 | PASS |
+| presentation-sample.json | ✅ 6장 슬라이드, style 정보 | ✅ 없음 | PASS |
+| product-detail-sample.json | ✅ 8개 섹션, pricing 포함 | ✅ 없음 | PASS |
+| instagram-ads-sample.json | ✅ 3종 광고, carousel 4장 | ✅ 없음 | PASS |
+| shorts-script-sample.json | ✅ 8개 씬, audio 설정 | ✅ 없음 | PASS |
+
+---
+
+## 10. Demo API 상태 (2025-11-26 추가)
+
+### 10.1 신규 Demo API (B팀 구현 필요)
+
+| API | 상태 | 테스트 결과 |
+|-----|------|------------|
+| `POST /api/v1/demo/meeting-to-campaign` | ❌ 미구현 | 404 Not Found |
+| `GET /api/v1/tasks/{id}/stream` (SSE) | ❌ 미구현 | 404 Not Found |
+| `GET /api/v1/demo/concept-board/{id}` | ❌ 미구현 | 404 Not Found |
+
+### 10.2 기존 API (정상 작동)
+
+| API | 상태 | 테스트 결과 |
+|-----|------|------------|
+| `GET /health` | ✅ 작동 | healthy |
+| `POST /api/v1/meetings/from-url` | ✅ 작동 | meeting_id 반환 |
+| `POST /api/v1/agents/strategist/run` | ✅ 작동 | campaign_brief 생성 |
+| `POST /api/v1/agents/reviewer/run` | ✅ 작동 | ad_copy_quality_check |
+
+---
+
 **문서 상태**: ✅ 완성
 **최종 점검**: 발표 1시간 전
-**버전**: v1.0
-**최종 수정**: 2025-11-25
+**버전**: v2.0
+**최종 수정**: 2025-11-26

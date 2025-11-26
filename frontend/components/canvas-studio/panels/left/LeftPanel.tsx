@@ -24,6 +24,7 @@ import { UploadTab } from './tabs/UploadTab';
 import { MeetingTab } from './tabs/MeetingTab';
 import { PhotosTab } from './tabs/PhotosTab';
 import { BrandKitTab } from './tabs/BrandKitTab';
+import { GeneratedAssetsTab } from './tabs/GeneratedAssetsTab';
 
 export function LeftPanel() {
   const activeTab = useLeftPanelStore((state) => state.activeTab);
@@ -40,6 +41,7 @@ export function LeftPanel() {
         {activeTab === 'meeting' && <MeetingTab />}
         {activeTab === 'photos' && <PhotosTab />}
         {activeTab === 'brandkit' && <BrandKitTab />}
+        {activeTab === 'assets' && <GeneratedAssetsTab />}
       </div>
     </div>
   );
