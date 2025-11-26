@@ -154,6 +154,9 @@ class MeetingURLPipeline:
                     )
 
                     # Whisper transcript 저장
+                    # 수정 (2025-11-26):
+                    # - elapsed_seconds → latency_ms 직접 사용
+                    # - segments: Pydantic 모델 → dict 변환 (JSONB 호환)
                     whisper_transcript = MeetingTranscript(
                         meeting_id=meeting_id,
                         source_type=TranscriptSourceType.WHISPER,
@@ -161,12 +164,12 @@ class MeetingURLPipeline:
                         backend=TranscriptBackend(transcription_result.backend),
                         model=transcription_result.model,
                         transcript_text=transcription_result.text,
-                        segments=transcription_result.segments,
+                        segments=[seg.model_dump() for seg in transcription_result.segments],
                         language=transcription_result.language,
                         is_primary=False,  # 일단 False (primary 선택 로직에서 결정)
                         quality_score=0.0,  # 계산 전
                         confidence=transcription_result.confidence,
-                        latency_ms=int(transcription_result.elapsed_seconds * 1000)
+                        latency_ms=transcription_result.latency_ms
                     )
 
                     db.add(whisper_transcript)
