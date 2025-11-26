@@ -60,17 +60,32 @@
 
 ---
 
-## 🐛 발견된 이슈
+## 🐛 발견된 이슈 (심각)
 
-### 1. Pages 탭 데이터 바인딩 문제
-- **증상**: ConceptBoard 뷰인데 Pages 탭에 "콘텐츠가 없습니다" 표시
-- **추정 원인**:
-  - `useCenterViewStore`의 `currentView`와 `useGeneratedAssetsStore`의 `conceptBoardData` 동기화 이슈
-  - 또는 Pages 탭의 `useEffect` 의존성 배열 문제
-- **해결 방안**: 다음 세션에서 콘솔 로그로 데이터 흐름 확인 필요
+### 🔴 문제 1: Chat 내용과 ConceptBoard 내용 완전 불일치
+- **증상**:
+  - Chat에서 "아이패드 m4" 관련 마케팅 콘텐츠 생성됨
+  - ConceptBoard에는 "시간 절약 강조", "비용 절감 강조", "품질 강조" 표시
+  - **두 내용이 완전히 다름!**
+- **원인**: LLM API 응답 데이터가 ConceptBoard에 제대로 반영되지 않음
+- **해결 필요**: ChatPanel → useGeneratedAssetsStore → ConceptBoardView 데이터 흐름 전체 점검
 
-### 2. localStorage 캐시 문제
-- **증상**: 이전 생성 데이터가 캐시되어 새로운 차별화된 컨셉이 표시되지 않음
+### 🔴 문제 2: ConceptBoard 뷰 구조 오류
+- **현재 상태**: 중앙 캔버스에 3개 컨셉 카드가 모두 표시됨
+- **올바른 상태**:
+  - 좌측 Pages 탭: 3개 컨셉 목록 (썸네일 형태)
+  - 중앙 캔버스: 선택된 1개 컨셉만 상세 표시
+- **해결 필요**: ConceptBoardView는 목록 뷰가 아닌 "선택된 컨셉의 상세 뷰"여야 함
+
+### 🔴 문제 3: Store 데이터 불일치
+- **현재 상태**:
+  - `ChatPanel` → `useCenterViewStore.setConceptBoardData()` (저장)
+  - `PagesTab` → `useGeneratedAssetsStore.conceptBoardData` (읽기)
+  - **서로 다른 Store를 사용하여 데이터 공유 안 됨!**
+- **해결 필요**: 동일한 Store 사용하거나 양쪽 동기화
+
+### 🟡 문제 4: localStorage 캐시 문제
+- **증상**: 이전 생성 데이터가 캐시되어 새로운 데이터 표시 안 됨
 - **해결**: `localStorage.removeItem('GeneratedAssetsStore')` 후 새로고침
 
 ---

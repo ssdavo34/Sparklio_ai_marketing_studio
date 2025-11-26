@@ -18,27 +18,42 @@
 
 ## 📋 내일 작업 목록 (우선순위 순)
 
-### 🔴 우선순위 1 (긴급) - 예상 1시간
+### 🔴 우선순위 1 (긴급 - 핵심 버그) - 예상 2시간
 
-#### 1-1. Pages 탭 데이터 바인딩 디버깅
-- **목표**: ConceptBoard 뷰에서 Pages 탭에 컨셉 목록이 표시되지 않는 문제 해결
-- **작업 내용**:
-  - 브라우저 콘솔에서 `[PagesTab] Current view:` 로그 확인
-  - `conceptBoardData` 상태 확인 (null 여부)
-  - `useGeneratedAssetsStore` → `useCenterViewStore` 데이터 동기화 확인
-- **확인 파일**: `PagesTab.tsx` 라인 48-70
-- **예상 소요**: 30분
+#### 1-1. Chat → ConceptBoard 데이터 흐름 완전 수정
 
-#### 1-2. localStorage 캐시 초기화 및 테스트
-- **목표**: 이전 캐시 데이터로 인한 문제 해결
-- **작업 내용**:
-  ```javascript
-  // 브라우저 콘솔에서 실행
-  localStorage.removeItem('GeneratedAssetsStore')
-  ```
-  - 새로고침 후 새 프롬프트로 컨셉 생성
-  - 3개 컨셉이 서로 다른 내용인지 확인
-- **예상 소요**: 30분
+**문제**: Chat에서 생성된 "아이패드 m4" 데이터가 ConceptBoard에 반영되지 않고, 전혀 다른 내용("시간 절약 강조" 등) 표시됨
+
+**원인 분석**:
+- ChatPanel에서 LLM 응답을 `useCenterViewStore.setConceptBoardData()`로 저장
+- PagesTab에서 `useGeneratedAssetsStore.conceptBoardData`를 읽음
+- **서로 다른 Store 사용!**
+
+**해결 방안**:
+- PagesTab.tsx에서 `useCenterViewStore.conceptBoardData`를 읽도록 수정
+- 또는 ChatPanel에서 양쪽 Store에 모두 저장
+
+**확인 파일**:
+- `ChatPanel.tsx` 라인 446: `useCenterViewStore.getState().setConceptBoardData(converted)`
+- `PagesTab.tsx` 라인 27: `useGeneratedAssetsStore.conceptBoardData`
+
+**예상 소요**: 1시간
+
+#### 1-2. ConceptBoard 뷰 구조 변경
+
+**문제**: 중앙 캔버스에 3개 컨셉 카드가 모두 표시됨
+
+**올바른 구조**:
+- 좌측 Pages 탭: 3개 컨셉 목록 (썸네일/카드)
+- 중앙 캔버스: 선택된 1개 컨셉만 상세 표시
+
+**해결 방안**:
+- ConceptBoardView.tsx를 "선택된 컨셉 상세 뷰"로 변경
+- 또는 새로운 ConceptDetailView 컴포넌트 생성
+
+**확인 파일**: `ConceptBoardView.tsx`
+
+**예상 소요**: 1시간
 
 ---
 
