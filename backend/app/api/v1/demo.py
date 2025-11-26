@@ -444,6 +444,7 @@ async def run_demo_pipeline(
                 }
             )
             db.add(concept)
+            db.flush()  # concept.id 생성을 위해 flush
 
             # 각 컨셉에 대해 빈 Asset 레코드 생성
             for asset_type in AssetType:
