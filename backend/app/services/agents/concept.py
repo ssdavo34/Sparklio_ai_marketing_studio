@@ -109,8 +109,8 @@ class ConceptAgent(AgentBase):
                 task="generate_concepts",
                 payload={"prompt": prompt},
                 mode="json",
+                override_model="gemini-2.0-flash",
                 options={
-                    "model": "gemini-2.0-flash",
                     "temperature": 0.8,  # 창의성 중요
                     "max_tokens": 3000
                 }

@@ -116,8 +116,8 @@ class ShortsScriptAgent(AgentBase):
                 task="generate_shorts_script",
                 payload={"prompt": prompt},
                 mode="json",
+                override_model="gemini-2.0-flash",
                 options={
-                    "model": "gemini-2.0-flash",
                     "temperature": 0.7,
                     "max_tokens": 4000
                 }
