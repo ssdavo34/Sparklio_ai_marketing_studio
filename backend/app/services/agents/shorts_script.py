@@ -114,12 +114,12 @@ class ShortsScriptAgent(AgentBase):
             llm_response = await self.llm_gateway.generate(
                 role=self.name,
                 task="generate_shorts_script",
-                prompt=prompt,
+                payload={"prompt": prompt},
+                mode="json",
                 options={
                     "model": "gemini-2.0-flash",
                     "temperature": 0.7,
-                    "max_tokens": 4000,
-                    "mode": "json"
+                    "max_tokens": 4000
                 }
             )
         except Exception as e:

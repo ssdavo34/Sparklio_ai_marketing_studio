@@ -107,12 +107,12 @@ class ConceptAgent(AgentBase):
             llm_response = await self.llm_gateway.generate(
                 role=self.name,
                 task="generate_concepts",
-                prompt=prompt,
+                payload={"prompt": prompt},
+                mode="json",
                 options={
                     "model": "gemini-2.0-flash",
                     "temperature": 0.8,  # 창의성 중요
-                    "max_tokens": 3000,
-                    "mode": "json"
+                    "max_tokens": 3000
                 }
             )
         except Exception as e:
