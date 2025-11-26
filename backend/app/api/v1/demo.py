@@ -527,3 +527,252 @@ def _build_shorts_info(asset: Optional[ConceptAsset]) -> Optional[ShortsScriptIn
         status=DemoAssetStatus(asset.status.value),
         duration_seconds=asset.extra_info.get("duration_seconds", 45) if asset.extra_info else 45
     )
+
+
+# =============================================================================
+# Shorts Video Generation API
+# =============================================================================
+
+@router.post("/demo/generate-shorts/{concept_id}")
+async def generate_shorts_video(
+    concept_id: str,
+    background_tasks: BackgroundTasks,
+    target_duration: int = Query(default=45, ge=15, le=60, description="목표 영상 길이 (초)"),
+    db: Session = Depends(get_db)
+):
+    """
+    숏폼 영상 생성 트리거
+
+    컨셉 기반으로 숏폼 영상 생성 파이프라인 실행:
+    1. ShortsScriptAgent: 씬별 스크립트 생성
+    2. VisualPromptAgent: 이미지 프롬프트 생성
+    3. Nanobanana: 이미지 생성
+    4. EdgeTTS: 나레이션 생성
+    5. ffmpeg: 영상 조립
+
+    Args:
+        concept_id: 컨셉 ID
+        target_duration: 목표 영상 길이 (15-60초)
+
+    Returns:
+        task_id, status
+    """
+    # Concept 조회
+    try:
+        concept_uuid = uuid.UUID(concept_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid concept_id format")
+
+    concept = db.query(Concept).filter(Concept.id == concept_uuid).first()
+    if not concept:
+        raise HTTPException(status_code=404, detail=f"Concept not found: {concept_id}")
+
+    # Campaign 조회
+    campaign = db.query(Campaign).filter(Campaign.id == concept.campaign_id).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+    # Shorts Asset 조회 또는 생성
+    shorts_asset = db.query(ConceptAsset).filter(
+        ConceptAsset.concept_id == concept_uuid,
+        ConceptAsset.asset_type == AssetType.SHORTS_SCRIPT
+    ).first()
+
+    if not shorts_asset:
+        shorts_asset = ConceptAsset(
+            concept_id=concept_uuid,
+            asset_type=AssetType.SHORTS_SCRIPT,
+            status=AssetStatus.PENDING,
+            title=f"{concept.name} - Shorts Video"
+        )
+        db.add(shorts_asset)
+        db.commit()
+        db.refresh(shorts_asset)
+
+    # 이미 생성 중이면 에러
+    if shorts_asset.status == AssetStatus.GENERATING:
+        raise HTTPException(status_code=409, detail="Shorts video is already being generated")
+
+    # Task ID 생성
+    task_id = f"shorts_{uuid.uuid4().hex[:12]}"
+
+    # 상태 업데이트
+    shorts_asset.status = AssetStatus.GENERATING
+    shorts_asset.extra_info = {
+        "task_id": task_id,
+        "target_duration": target_duration
+    }
+    db.commit()
+
+    logger.info(f"[Demo] Starting shorts generation for concept {concept_id}, task_id={task_id}")
+
+    # Background Task 실행
+    background_tasks.add_task(
+        run_shorts_generation_pipeline,
+        concept_id=str(concept.id),
+        asset_id=str(shorts_asset.id),
+        task_id=task_id,
+        target_duration=target_duration,
+        concept_data={
+            "concept_name": concept.name,
+            "concept_description": concept.description,
+            "target_audience": concept.target_audience,
+            "key_message": concept.key_message,
+            "tone_and_manner": concept.tone_and_manner,
+            "visual_style": concept.visual_style
+        },
+        product_name=campaign.name
+    )
+
+    return {
+        "task_id": task_id,
+        "asset_id": str(shorts_asset.id),
+        "status": "generating",
+        "message": f"숏폼 영상 생성이 시작되었습니다. (목표: {target_duration}초)"
+    }
+
+
+@router.get("/demo/shorts-status/{task_id}")
+async def get_shorts_generation_status(
+    task_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    숏폼 영상 생성 상태 조회
+
+    Args:
+        task_id: Task ID
+
+    Returns:
+        생성 상태 및 진행률
+    """
+    # Asset 조회 (task_id로)
+    shorts_asset = db.query(ConceptAsset).filter(
+        ConceptAsset.extra_info["task_id"].astext == task_id
+    ).first()
+
+    if not shorts_asset:
+        raise HTTPException(status_code=404, detail=f"Task not found: {task_id}")
+
+    extra_info = shorts_asset.extra_info or {}
+
+    return {
+        "task_id": task_id,
+        "asset_id": str(shorts_asset.id),
+        "status": shorts_asset.status.value,
+        "progress": extra_info.get("progress", 0),
+        "current_step": extra_info.get("current_step", ""),
+        "message": extra_info.get("message", ""),
+        "video_url": shorts_asset.download_url,
+        "preview_url": shorts_asset.preview_url,
+        "duration_seconds": extra_info.get("duration_seconds"),
+        "error_message": shorts_asset.error_message
+    }
+
+
+async def run_shorts_generation_pipeline(
+    concept_id: str,
+    asset_id: str,
+    task_id: str,
+    target_duration: int,
+    concept_data: dict,
+    product_name: str
+):
+    """
+    숏폼 영상 생성 파이프라인 실행 (Background Task)
+
+    Args:
+        concept_id: 컨셉 ID
+        asset_id: Asset ID
+        task_id: Task ID
+        target_duration: 목표 영상 길이
+        concept_data: 컨셉 데이터
+        product_name: 제품명
+    """
+    from app.core.database import SessionLocal
+    from app.services.shorts_video_generator import get_shorts_video_generator, GenerationProgress
+
+    db = SessionLocal()
+
+    try:
+        logger.info(f"[Shorts Pipeline] Starting for concept {concept_id}")
+
+        # Asset 조회
+        shorts_asset = db.query(ConceptAsset).filter(
+            ConceptAsset.id == uuid.UUID(asset_id)
+        ).first()
+
+        if not shorts_asset:
+            logger.error(f"Asset not found: {asset_id}")
+            return
+
+        # Progress callback 정의
+        async def progress_callback(progress: GenerationProgress):
+            """진행 상황 업데이트"""
+            shorts_asset.extra_info = {
+                **(shorts_asset.extra_info or {}),
+                "task_id": task_id,
+                "progress": progress.progress,
+                "current_step": progress.step,
+                "message": progress.message
+            }
+            db.commit()
+            logger.info(f"[Shorts Pipeline] {progress.step}: {progress.progress}% - {progress.message}")
+
+        # ShortsVideoGenerator 실행
+        generator = get_shorts_video_generator()
+
+        result = await generator.generate(
+            concept=concept_data,
+            product_name=product_name,
+            key_features=concept_data.get("keywords", []),
+            target_duration=target_duration,
+            progress_callback=progress_callback
+        )
+
+        # 결과 저장
+        if result.success:
+            shorts_asset.status = AssetStatus.COMPLETED
+            shorts_asset.download_url = result.video_path
+            shorts_asset.content = result.script
+            shorts_asset.extra_info = {
+                **(shorts_asset.extra_info or {}),
+                "task_id": task_id,
+                "progress": 100,
+                "current_step": "complete",
+                "message": "영상 생성 완료",
+                "duration_seconds": result.duration_seconds,
+                "image_count": len(result.images),
+                "tts_count": len(result.tts_files)
+            }
+            logger.info(f"[Shorts Pipeline] Completed: {result.video_path}")
+        else:
+            shorts_asset.status = AssetStatus.FAILED
+            shorts_asset.error_message = result.error_message
+            shorts_asset.extra_info = {
+                **(shorts_asset.extra_info or {}),
+                "task_id": task_id,
+                "progress": 0,
+                "current_step": "error",
+                "message": result.error_message
+            }
+            logger.error(f"[Shorts Pipeline] Failed: {result.error_message}")
+
+        db.commit()
+
+    except Exception as e:
+        logger.error(f"[Shorts Pipeline] Error: {e}", exc_info=True)
+        if shorts_asset:
+            shorts_asset.status = AssetStatus.FAILED
+            shorts_asset.error_message = str(e)
+            shorts_asset.extra_info = {
+                **(shorts_asset.extra_info or {}),
+                "task_id": task_id,
+                "progress": 0,
+                "current_step": "error",
+                "message": str(e)
+            }
+            db.commit()
+
+    finally:
+        db.close()
