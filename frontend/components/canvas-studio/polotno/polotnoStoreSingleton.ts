@@ -29,6 +29,16 @@ export function getOrCreatePolotnoStore(apiKey: string): any {
     showCredit: true, // Free version requirement
   });
 
+  // Register custom fonts (Pretendard)
+  if (typeof window !== 'undefined' && (window as any).FontFace) {
+    // Ensure Pretendard font is available for Polotno
+    document.fonts.ready.then(() => {
+      console.log('[PolotnoStoreSingleton] Fonts loaded and ready');
+    }).catch((err) => {
+      console.warn('[PolotnoStoreSingleton] Font loading warning:', err);
+    });
+  }
+
   isInitialized = true;
   return polotnoStoreInstance;
 }

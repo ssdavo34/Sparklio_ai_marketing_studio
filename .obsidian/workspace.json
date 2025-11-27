@@ -20,8 +20,21 @@
               "icon": "lucide-file",
               "title": "팀별 작업 전략"
             }
+          },
+          {
+            "id": "2a6450f63c85201a",
+            "type": "leaf",
+            "state": {
+              "type": "release-notes",
+              "state": {
+                "currentVersion": "1.10.6"
+              },
+              "icon": "lucide-book-up",
+              "title": "Release Notes 1.10.6"
+            }
           }
-        ]
+        ],
+        "currentTab": 1
       }
     ],
     "direction": "vertical"
@@ -183,44 +196,44 @@
       "bases:Create new base": false
     }
   },
-  "active": "c04df540f65218b2",
+  "active": "2a6450f63c85201a",
   "lastOpenFiles": [
+    "docs/DAILY_SUMMARY_2025-11-27.md",
+    "docs/DAILY_SUMMARY_2025-11-27.md.tmp.37832.1764235746578",
+    "docs/B_TEAM_DAILY_REPORT_2025-11-27.md",
+    "docs/B_TEAM_DAILY_REPORT_2025-11-27.md.tmp.62716.1764235743206",
+    "IMPLEMENTATION_COMPLETE.md",
+    "frontend/components/canvas-studio/ConceptThumbnailCard.tsx",
+    "frontend/lib/utils/uploadThumbnail.ts",
+    "SYSTEM_REDESIGN_REPRESENTATIVE_PAGE.md",
+    "ERROR_FIXES.md",
+    "frontend/components/canvas-studio/stores/useChatStore.ts.tmp.28348.1764233427592",
+    "frontend/components/canvas-studio/panels/left/tabs/PagesTab.tsx.tmp.28348.1764233032177",
+    "frontend/components/canvas-studio/panels/left/tabs/PagesTab.tsx.tmp.28348.1764232992523",
+    "frontend/components/canvas-studio/panels/left/tabs/PagesTab.tsx.tmp.28348.1764232965330",
+    "frontend/components/canvas-studio/stores/useChatStore.ts.tmp.28348.1764232912733",
+    "frontend/components/canvas-studio/stores/useChatStore.ts.tmp.28348.1764232894989",
+    "docs/UPGRADE_PRINCIPLES.md",
+    "docs/C_TEAM_PHASE1_COMPLETION_REPORT.md",
+    "docs/C_TEAM_PRIORITY_TODOS_WITH_CONFLICT_ANALYSIS.md",
+    "docs/C_TEAM_PARALLEL_WORK_PLAN.md",
+    "docs/CONCEPT_SPEC.md",
+    "docs/CONCEPT_AGENT_V2_UPGRADE_PLAN.md",
+    "docs/C_TEAM_TO_B_TEAM_REQUEST_2025-11-27.md",
+    "docs/C_TEAM_CONCEPT_QUALITY_ANALYSIS_2025-11-27.md",
+    "docs/B_TEAM_DAILY_BACKEND_REPORT_2025-11-27.md",
+    "docs/A_TEAM_DAILY_QA_REPORT_2025-11-27.md",
     "docs/WORK_PLANS/NEXT_DAY/2025-11-27_Team_C_Plan.md",
-    "docs/WORK_PLANS/NEXT_DAY/2025-11-27_Team_C_Plan.md.tmp.13080.1764149858711",
     "docs/DAILY_SUMMARY_2025-11-26.md",
-    "docs/DAILY_SUMMARY_2025-11-26.md.tmp.41600.1764149849974",
     "docs/B_TEAM_HANDOVER_2025-11-26.md",
-    "docs/B_TEAM_HANDOVER_2025-11-26.md.tmp.41600.1764149817979",
     "docs/WORK_REPORTS/2025-11-26_Team_C_Report.md",
-    "docs/WORK_REPORTS/2025-11-26_Team_C_Report.md.tmp.13080.1764149811552",
     "docs/B_TEAM_DAILY_BACKEND_REPORT_2025-11-26.md",
-    "docs/B_TEAM_DAILY_BACKEND_REPORT_2025-11-26.md.tmp.41600.1764149773627",
-    "frontend/components/canvas-studio/panels/left/tabs/PagesTab.tsx.tmp.13080.1764149474635",
-    "frontend/components/canvas-studio/panels/left/tabs/PagesTab.tsx.tmp.13080.1764149459936",
-    "frontend/components/canvas-studio/panels/left/tabs/PagesTab.tsx.tmp.13080.1764149437587",
-    "backend/app/api/v1/sed0rporZ",
-    "frontend/components/canvas-studio/panels/left/tabs/PagesTab.tsx.tmp.13080.1764147903236",
     "docs/DEMO/INTEGRATION_TEST_REPORT_2025-11-26.md",
     "docs/DEMO/B_TEAM_REQUEST_TO_C_TEAM_SHORTS_VIDEO_2025-11-26.md",
     "docs/DEMO/TEST_YOUTUBE_URLS.md",
     "docs/DEMO/DEMO_FALLBACK_PLAN.md",
     "docs/DEMO/DEMO_SCENARIO_SCRIPT.md",
     "docs/DEMO/B_TEAM_TODO_LIST_2025-11-26.md",
-    "docs/DEMO/B_TEAM_REPORT_TO_A_TEAM_2025-11-26.md",
-    "docs/DEMO/DEMO_DAY_MASTER_CHECKLIST_2025-11-26.md",
-    "docs/DEMO/C_TEAM_IMPLEMENTATION_TODO_2025-11-26.md",
-    "docs/DEMO/A_TEAM_DEMO_PREPARATION_GUIDE_2025-11-26.md",
-    "docs/DEMO/B_TEAM_REVIEW_OF_C_TEAM_REPORT_2025-11-26.md",
-    "docs/DEMO/DEMO_TEAM_COLLABORATION_REPORT_2025-11-26.md",
-    "docs/A_TEAM_DAILY_QA_REPORT_2025-11-26.md",
-    "docs/DEMO/팀별 작업 전략.md",
-    "docs/B_TEAM_RESPONSE_TO_C_TEAM_2025-11-26.md",
-    "docs/DEMO/SPARKLIO_DEMO_V1_STORY_AND_FLOW.md",
-    "docs/C_TEAM_TO_B_TEAM_REQUEST_2025-11-26.md",
-    "docs/C_TEAM_HANDOVER_2025-11-25.md",
-    "docs/B_TEAM_DAILY_BACKEND_REPORT_2025-11-25.md",
-    "docs/HANDOVER_2025-11-25_B_TEAM.md",
-    "docs/CLAUDE_SESSION_QUICK_START.md",
     "frontend/node_modules/@icons/material/svg/zip-box.svg",
     "frontend/node_modules/@icons/material/svg/youtube-tv.svg",
     "frontend/node_modules/@icons/material/svg/youtube-play.svg",

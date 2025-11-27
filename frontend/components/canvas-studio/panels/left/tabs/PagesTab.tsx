@@ -15,6 +15,11 @@ interface PageItem {
   type: 'concept' | 'slide' | 'detail_section' | 'instagram' | 'shorts_scene' | 'polotno';
   data?: any;
   thumbnail?: string;
+  polotnoPage?: any; // Polotno 페이지 참조 (썸네일 포함)
+  // ✅ Polotno 페이지 전용 속성
+  thumbnailUrl?: string;
+  width?: number;
+  height?: number;
 }
 
 export function PagesTab() {
@@ -134,15 +139,23 @@ export function PagesTab() {
 
     switch (currentView) {
       case 'concept_board':
-        // ConceptBoard: 컨셉들을 페이지로 표시
-        if (conceptBoardData?.concepts) {
-          newPages = conceptBoardData.concepts.map((concept, idx) => ({
-            id: concept.concept_id,
-            title: `컨셉 ${idx + 1}`,
-            subtitle: concept.concept_name,
-            type: 'concept' as const,
-            data: concept,
-          }));
+        // ConceptBoard: 컨셉들을 Polotno 페이지와 매핑하여 표시
+        if (conceptBoardData?.concepts && polotnoStore?.pages) {
+          newPages = conceptBoardData.concepts.map((concept, idx) => {
+            // Polotno 페이지 찾기 (custom.conceptId로 매칭)
+            const polotnoPage = polotnoStore.pages.find(
+              (p: any) => p.custom?.conceptId === concept.concept_id
+            );
+
+            return {
+              id: concept.concept_id,
+              title: `컨셉 ${idx + 1}`,
+              subtitle: concept.concept_name,
+              type: 'concept' as const,
+              data: concept,
+              polotnoPage, // Polotno 페이지 참조 추가
+            };
+          });
           // 첫 번째 컨셉 자동 선택
           if (newPages.length > 0 && !selectedConceptId) {
             setConceptId(newPages[0].id);
@@ -241,6 +254,10 @@ export function PagesTab() {
         subtitle: `${page.width} × ${page.height}`,
         type: 'polotno' as const,
         data: page,
+        // ✅ 상태 변경 감지를 위해 썸네일과 크기를 직접 추출
+        thumbnailUrl: page.custom?.thumbnailDataUrl,
+        width: page.width,
+        height: page.height,
       })) || [];
       setPages(pages);
       setSelectedPageId(store.activePage?.id || pages[0]?.id || null);
@@ -250,7 +267,8 @@ export function PagesTab() {
 
     // 변경 감지
     const unsubscribe = store.on?.('change', updatePolotnoPages);
-    const pollInterval = setInterval(updatePolotnoPages, 1000);
+    // 폴링 간격 단축 (1000ms -> 500ms)
+    const pollInterval = setInterval(updatePolotnoPages, 500);
 
     return () => {
       if (unsubscribe) unsubscribe();
@@ -383,50 +401,60 @@ export function PagesTab() {
                     : 'border-gray-200 hover:border-purple-300'}
                 `}
               >
-                {/* 컨셉 타입: 비주얼 프리뷰 카드 */}
+                {/* 컨셉 타입: 실제 Polotno 썸네일 또는 비주얼 프리뷰 카드 */}
                 {page.type === 'concept' && page.data && (
                   <div className="relative">
-                    {/* 미니 프리뷰 카드 */}
-                    <div
-                      className="aspect-[4/3] p-3 flex flex-col justify-between"
-                      style={{
-                        background: `linear-gradient(135deg, ${
-                          index === 0 ? '#8B5CF6, #6366F1' :
-                          index === 1 ? '#EC4899, #F472B6' :
-                          '#F59E0B, #FBBF24'
-                        })`
-                      }}
-                    >
-                      {/* 헤드라인 */}
-                      <div>
-                        <p className="text-white text-xs font-bold line-clamp-2 drop-shadow-sm">
-                          {page.data.headline || page.subtitle}
-                        </p>
-                        {page.data.subheadline && (
-                          <p className="text-white/80 text-[10px] mt-1 line-clamp-1">
-                            {page.data.subheadline}
+                    {/* 썸네일 이미지 영역 */}
+                    {page.polotnoPage?.custom?.thumbnailDataUrl ? (
+                      // ✅ Polotno 썸네일이 있으면 실제 이미지 표시
+                      <div className="aspect-[16/9] bg-gray-100">
+                        <img
+                          src={page.polotnoPage.custom.thumbnailDataUrl}
+                          alt={page.subtitle}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    ) : (
+                      // ❌ 썸네일이 없으면 그라디언트 카드 (fallback)
+                      <div
+                        className="aspect-[4/3] p-3 flex flex-col justify-between"
+                        style={{
+                          background: `linear-gradient(135deg, ${index === 0 ? '#8B5CF6, #6366F1' :
+                            index === 1 ? '#EC4899, #F472B6' :
+                              '#F59E0B, #FBBF24'
+                            })`
+                        }}
+                      >
+                        {/* 헤드라인 */}
+                        <div>
+                          <p className="text-white text-xs font-bold line-clamp-2 drop-shadow-sm">
+                            {page.data.key_message || page.subtitle}
                           </p>
+                          {page.data.concept_description && (
+                            <p className="text-white/80 text-[10px] mt-1 line-clamp-2">
+                              {page.data.concept_description}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* 타겟 오디언스 미리보기 */}
+                        {page.data.target_audience && (
+                          <div className="mt-2">
+                            <span className="inline-block px-2 py-0.5 bg-white/90 text-gray-800 text-[9px] font-medium rounded">
+                              👥 {page.data.target_audience}
+                            </span>
+                          </div>
                         )}
                       </div>
-
-                      {/* CTA 버튼 미리보기 */}
-                      {page.data.cta && (
-                        <div className="mt-2">
-                          <span className="inline-block px-2 py-0.5 bg-white/90 text-gray-800 text-[9px] font-medium rounded">
-                            {page.data.cta}
-                          </span>
-                        </div>
-                      )}
-                    </div>
+                    )}
 
                     {/* 하단 정보 */}
                     <div className="p-2 bg-white">
                       <div className="flex items-center gap-1.5">
-                        <span className={`w-2 h-2 rounded-full ${
-                          index === 0 ? 'bg-purple-500' :
+                        <span className={`w-2 h-2 rounded-full ${index === 0 ? 'bg-purple-500' :
                           index === 1 ? 'bg-pink-500' :
-                          'bg-amber-500'
-                        }`} />
+                            'bg-amber-500'
+                          }`} />
                         <span className="text-xs font-medium text-gray-700">
                           {page.title}
                         </span>
@@ -550,23 +578,23 @@ export function PagesTab() {
                 {page.type === 'polotno' && (
                   <div className="relative">
                     {/* 썸네일 이미지 영역 */}
-                    <div className="aspect-[4/3] bg-gray-100 flex items-center justify-center overflow-hidden">
+                    <div className="bg-gray-100 flex items-center justify-center overflow-hidden relative" style={{ aspectRatio: page.width && page.height ? `${page.width}/${page.height}` : 'auto' }}>
                       {loadingThumbnails.has(page.id) ? (
                         // 로딩 중
-                        <div className="flex flex-col items-center gap-2 text-gray-400">
+                        <div className="flex flex-col items-center gap-2 text-gray-400 p-4">
                           <Loader2 className="w-6 h-6 animate-spin" />
                           <span className="text-[10px]">생성 중...</span>
                         </div>
-                      ) : thumbnails[page.id] ? (
-                        // 실제 썸네일 이미지
+                      ) : (thumbnails[page.id] || page.thumbnailUrl) ? (
+                        // 실제 썸네일 이미지 (state 또는 custom 속성)
                         <img
-                          src={thumbnails[page.id]}
+                          src={thumbnails[page.id] || page.thumbnailUrl}
                           alt={page.title}
                           className="w-full h-full object-contain"
                         />
                       ) : (
                         // 플레이스홀더
-                        <div className="flex flex-col items-center gap-2 text-gray-300">
+                        <div className="flex flex-col items-center gap-2 text-gray-300 p-4">
                           <FileText className="w-8 h-8" />
                           <span className="text-[10px]">미리보기 없음</span>
                         </div>

@@ -38,6 +38,7 @@ export function PolotnoWorkspace({ apiKey }: PolotnoWorkspaceProps) {
 
   // Client-side mount check
   useEffect(() => {
+    console.log('[PolotnoWorkspace] Component v3.3 mounted (Sizing fix applied)');
     setIsMounted(true);
   }, []);
 
@@ -90,19 +91,21 @@ export function PolotnoWorkspace({ apiKey }: PolotnoWorkspaceProps) {
   }
 
   return (
-    <div className="h-full w-full">
-      <PolotnoContainer className="h-full">
-        <WorkspaceWrap>
-          <Workspace
-            store={storeRef.current}
-            components={{
-              // Disable context menu
-              ContextMenu: () => null,
-            }}
-          />
-          <ZoomButtons store={storeRef.current} />
-        </WorkspaceWrap>
-      </PolotnoContainer>
+    <div className="h-full w-full relative flex flex-col" style={{ minHeight: '500px' }}>
+      <div style={{ position: 'absolute', inset: 0 }}>
+        <PolotnoContainer style={{ width: '100%', height: '100%' }}>
+          <WorkspaceWrap>
+            <Workspace
+              store={storeRef.current}
+              components={{
+                // Disable context menu
+                ContextMenu: () => null,
+              }}
+            />
+            <ZoomButtons store={storeRef.current} />
+          </WorkspaceWrap>
+        </PolotnoContainer>
+      </div>
     </div>
   );
 }

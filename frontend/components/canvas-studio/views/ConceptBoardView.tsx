@@ -586,35 +586,48 @@ export function ConceptBoardView() {
             </p>
           </div>
 
-          {/* 카드 그리드 */}
-          <div className="flex flex-wrap gap-5">
-            {displayData.concepts.map((concept) => {
+          {/* 선택된 컨셉 단독 표시 */}
+          <div className="flex justify-center">
+            {(() => {
+              // 선택된 컨셉 찾기 (없으면 첫 번째 컨셉)
+              const selectedConcept = displayData.concepts.find(
+                c => c.concept_id === selectedConceptId
+              ) || displayData.concepts[0];
+
+              if (!selectedConcept) {
+                return (
+                  <div className="text-center py-12 text-gray-400">
+                    선택된 컨셉이 없습니다.
+                  </div>
+                );
+              }
+
               // 생성된 컨셉에서 GeneratedConcept 형태로 변환
               const generatedConcept = generatedConceptBoard?.concepts.find(
-                c => c.concept_id === concept.concept_id
+                c => c.concept_id === selectedConcept.concept_id
               ) || {
-                concept_id: concept.concept_id,
-                concept_name: concept.concept_name,
-                description: concept.concept_description,
-                headline: concept.key_message,
-                target_audience: concept.target_audience,
-                tone: concept.tone_and_manner,
+                concept_id: selectedConcept.concept_id,
+                concept_name: selectedConcept.concept_name,
+                description: selectedConcept.concept_description,
+                headline: selectedConcept.key_message,
+                target_audience: selectedConcept.target_audience,
+                tone: selectedConcept.tone_and_manner,
               };
 
               return (
                 <ConceptCard
-                  key={concept.concept_id}
-                  concept={concept}
-                  isSelected={selectedConceptId === concept.concept_id}
-                  onSelect={() => setConceptId(concept.concept_id)}
+                  key={selectedConcept.concept_id}
+                  concept={selectedConcept}
+                  isSelected={true}
+                  onSelect={() => {}}
                   onOpenSlides={async () => {
                     // 데이터가 없으면 먼저 생성
                     if (!slidesData) {
                       await generateSlidesFromConcept(generatedConcept);
                     }
                     openSlidesPreview(
-                      concept.concept_id,
-                      concept.assets.presentation.id
+                      selectedConcept.concept_id,
+                      selectedConcept.assets.presentation.id
                     );
                   }}
                   onOpenDetail={async () => {
@@ -622,8 +635,8 @@ export function ConceptBoardView() {
                       await generateDetailFromConcept(generatedConcept);
                     }
                     openDetailPreview(
-                      concept.concept_id,
-                      concept.assets.product_detail.id
+                      selectedConcept.concept_id,
+                      selectedConcept.assets.product_detail.id
                     );
                   }}
                   onOpenInstagram={async () => {
@@ -631,8 +644,8 @@ export function ConceptBoardView() {
                       await generateInstagramFromConcept(generatedConcept);
                     }
                     openInstagramPreview(
-                      concept.concept_id,
-                      concept.assets.instagram_ads.id
+                      selectedConcept.concept_id,
+                      selectedConcept.assets.instagram_ads.id
                     );
                   }}
                   onOpenShorts={async () => {
@@ -640,19 +653,19 @@ export function ConceptBoardView() {
                       await generateShortsFromConcept(generatedConcept);
                     }
                     openShortsPreview(
-                      concept.concept_id,
-                      concept.assets.shorts_script.id
+                      selectedConcept.concept_id,
+                      selectedConcept.assets.shorts_script.id
                     );
                   }}
-                  onGenerateShorts={() => startGeneration(concept.concept_id)}
-                  shortsGenerationState={getGenerationState(concept.concept_id)}
+                  onGenerateShorts={() => startGeneration(selectedConcept.concept_id)}
+                  shortsGenerationState={getGenerationState(selectedConcept.concept_id)}
                   isGeneratingSlides={isGeneratingSlides}
                   isGeneratingDetail={isGeneratingDetail}
                   isGeneratingInstagram={isGeneratingInstagram}
                   isGeneratingShorts={isGeneratingShorts}
                 />
               );
-            })}
+            })()}
           </div>
 
           {/* 하단 안내 */}

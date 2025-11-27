@@ -24,6 +24,8 @@ import { detectErrorType, createUserFriendlyError, type ErrorType } from '../com
 import { useGeneratedAssetsStore } from './useGeneratedAssetsStore';
 import { useCenterViewStore } from './useCenterViewStore';
 import { getPolotnoStore } from '../polotno/polotnoStoreSingleton';
+import { createProductionPagesFromConcepts } from '@/lib/utils/conceptToPolotnoPage';
+import { generateThumbnailForPage } from '@/lib/utils/thumbnail';
 
 // ============================================================================
 // Helper Functions - Canvas 요소 추가
@@ -899,10 +901,11 @@ export const useChatStore = create<ChatState>()(
 
           try {
             // 🆕 전략적 키워드 감지 → ConceptAgent v2.0 호출
-            const conceptKeywords = ['캠페인', '홍보', '컨셉', '마케팅', '광고', '전략', '런칭', '프로모션'];
+            const conceptKeywords = ['캠페인', '홍보', '컨셉', '마케팅', '광고', '전략', '런칭', '프로모션', '브랜딩', '기획'];
             const shouldUseConceptAgent = conceptKeywords.some(keyword => content.includes(keyword));
 
-            if (shouldUseConceptAgent && chatConfig.role === 'strategist') {
+            // 전략적 키워드 감지 시 role에 상관없이 ConceptAgent 호출
+            if (shouldUseConceptAgent) {
               console.log('[sendMessage] 🎯 ConceptAgent v2.0 호출 (전략적 키워드 감지)');
 
               // ConceptAgent 호출
@@ -957,6 +960,65 @@ export const useChatStore = create<ChatState>()(
               // CenterView에 ConceptBoard 데이터 설정 및 뷰 전환
               useCenterViewStore.getState().setConceptBoardData(conceptBoardData);
               useCenterViewStore.getState().setView('concept_board');
+
+              // 🔥 FIX: PagesTab이 읽는 useGeneratedAssetsStore에도 동기화
+              const generatedConceptData = {
+                id: conceptBoardData.campaign_id,
+                campaign_name: conceptBoardData.campaign_name,
+                concepts: conceptBoardData.concepts.map(c => ({
+                  concept_id: c.concept_id,
+                  concept_name: c.key_message || c.concept_description || `컨셉 ${c.concept_id}`,
+                  description: c.concept_description || '',
+                  headline: c.key_message || '',
+                  subheadline: c.target_audience || '',
+                  cta: '자세히 보기',
+                  target_audience: c.target_audience || '',
+                  tone: c.brand_role || '',
+                })),
+                createdAt: new Date(),
+                sourceMessage: content,
+              };
+              useGeneratedAssetsStore.getState().setConceptBoardData(generatedConceptData);
+              console.log('[sendMessage] ✅ ConceptBoard 데이터 동기화 완료 (CenterView + GeneratedAssets)');
+
+              // 🖼️ Polotno 페이지 생성 + 썸네일 자동 생성
+              const polotnoStore = getPolotnoStore() || useCanvasStore.getState().polotnoStore;
+              if (polotnoStore) {
+                console.log('[sendMessage] 📄 Polotno 페이지 생성 시작...');
+
+                try {
+                  // 각 컨셉을 실제 생산물 페이지로 변환 (슬라이드 포맷)
+                  // ✅ 신규: 실제 1920×1080 슬라이드 페이지
+                  // ❌ 기존: 1080×1080 가상 컨셉 요약 페이지
+                  const createdPages = createProductionPagesFromConcepts(
+                    polotnoStore,
+                    conceptBoardData.concepts,
+                    'slide_16_9'  // 실제 슬라이드 포맷
+                  );
+
+                  console.log(`[sendMessage] ✅ ${createdPages.length}개 Polotno 페이지 생성 완료`);
+
+                  // 각 페이지에 대해 썸네일 생성 (비동기로 순차 처리)
+                  for (const page of createdPages) {
+                    try {
+                      await generateThumbnailForPage(polotnoStore, page.id, {
+                        pixelRatio: 0.2,
+                        quality: 0.7,
+                        mimeType: 'image/jpeg'
+                      });
+                      console.log(`[sendMessage] 🖼️ 썸네일 생성 완료: ${page.id}`);
+                    } catch (thumbErr) {
+                      console.error(`[sendMessage] ❌ 썸네일 생성 실패 (${page.id}):`, thumbErr);
+                    }
+                  }
+
+                  console.log('[sendMessage] ✅ 모든 썸네일 생성 완료');
+                } catch (pageErr) {
+                  console.error('[sendMessage] ❌ Polotno 페이지 생성 실패:', pageErr);
+                }
+              } else {
+                console.warn('[sendMessage] ⚠️ Polotno store를 찾을 수 없어 페이지 생성을 건너뜁니다');
+              }
 
               // AI 응답 메시지 추가
               const responseMessage = `✅ **${conceptResponse.concepts.length}개의 전략적 마케팅 컨셉을 생성했습니다!**\n\n${conceptResponse.reasoning || ''}\n\n중앙 화면의 Concept Board에서 각 컨셉의 상세 내용을 확인하세요.`;
