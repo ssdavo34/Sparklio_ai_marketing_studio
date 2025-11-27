@@ -3,12 +3,14 @@ Google Gemini Provider (Gemini 2.0 Flash)
 
 작성일: 2025-11-17
 수정일: 2025-11-18 (generate() 시그니처 수정)
+수정일: 2025-11-27 (Safety 설정 추가 및 에러 핸들링 개선)
 """
 import json
 import logging
 from typing import Dict, Any, Optional
 from datetime import datetime
 import google.generativeai as genai
+from google.generativeai.types import HarmCategory, HarmBlockThreshold
 
 from .base import LLMProvider, LLMProviderOutput, LLMProviderResponse, ProviderError
 
@@ -92,14 +94,45 @@ class GeminiProvider(LLMProvider):
             if mode == "json":
                 gen_config.response_mime_type = "application/json"
 
+            # Safety 설정 (마케팅 콘텐츠용으로 완화)
+            safety_settings = {
+                HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+                HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+                HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+                HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+            }
+
             model = genai.GenerativeModel(
                 model_name=model_name,
-                generation_config=gen_config
+                generation_config=gen_config,
+                safety_settings=safety_settings
             )
 
             # 생성
             response = model.generate_content(prompt)
-            content = response.text
+
+            # Safety 필터 확인
+            if response.candidates and response.candidates[0].finish_reason.name == "SAFETY":
+                safety_ratings = response.candidates[0].safety_ratings if response.candidates[0].safety_ratings else []
+                logger.warning(f"[Gemini] Content blocked by safety filter: {safety_ratings}")
+                raise ProviderError(
+                    message="Content blocked by Gemini safety filter. Please modify the prompt.",
+                    provider=self.vendor,
+                    details={"safety_ratings": str(safety_ratings), "finish_reason": "SAFETY"}
+                )
+
+            # 응답 텍스트 추출 (finish_reason이 정상인지 확인)
+            try:
+                content = response.text
+            except ValueError as e:
+                # finish_reason이 STOP이 아닌 경우 상세 정보 로깅
+                finish_reason = response.candidates[0].finish_reason.name if response.candidates else "UNKNOWN"
+                logger.error(f"[Gemini] Response error - finish_reason: {finish_reason}")
+                raise ProviderError(
+                    message=f"Gemini response incomplete (finish_reason: {finish_reason})",
+                    provider=self.vendor,
+                    details={"finish_reason": finish_reason}
+                )
 
             # Usage 정보
             try:
