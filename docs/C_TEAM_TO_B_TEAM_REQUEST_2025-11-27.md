@@ -1,10 +1,22 @@
-# C팀 → B팀 협조 요청서
+# C팀 → B팀 협조 요청서 v2.0
 
 **작성일**: 2025-11-27 (목요일)
 **작성팀**: C팀 (Frontend)
 **수신팀**: B팀 (Backend)
 **우선순위**: P0 (긴급)
-**참조 문서**: [C_TEAM_CONCEPT_QUALITY_ANALYSIS_2025-11-27.md](./C_TEAM_CONCEPT_QUALITY_ANALYSIS_2025-11-27.md)
+**참조 문서**:
+- [C_TEAM_CONCEPT_QUALITY_ANALYSIS_2025-11-27.md](./C_TEAM_CONCEPT_QUALITY_ANALYSIS_2025-11-27.md)
+- [CONCEPT_SPEC.md](./CONCEPT_SPEC.md) ⭐ **새로 추가**
+- [CONCEPT_AGENT_V2_UPGRADE_PLAN.md](./CONCEPT_AGENT_V2_UPGRADE_PLAN.md) ⭐ **새로 추가**
+
+---
+
+## 🆕 업데이트 내역 (v2.0)
+
+**2025-11-27 오후 업데이트**:
+1. ✅ **CONCEPT_SPEC.md 추가** - Sparklio Concept System v1 스펙 정의
+2. ✅ **CONCEPT_AGENT_V2_UPGRADE_PLAN.md 추가** - ConceptAgent 고도화 계획
+3. ✅ **요청 내용 확장** - 단순 엔드포인트 추가 → **ConceptV1 스키마 전체 구현**
 
 ---
 
