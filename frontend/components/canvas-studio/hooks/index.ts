@@ -8,3 +8,4 @@
  */
 
 export * from './useCanvasEngine';
+export * from './useConceptGenerate';
