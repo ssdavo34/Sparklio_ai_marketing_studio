@@ -86,6 +86,49 @@ function ConceptCard({
         </p>
       </div>
 
+      {/* 🆕 ConceptV1 고도화 필드 - Audience Insight */}
+      {concept.audience_insight && (
+        <div className="bg-amber-50 border border-amber-100 rounded-lg p-3 mb-4">
+          <p className="text-xs font-medium text-amber-900 mb-1">💡 Audience Insight</p>
+          <p className="text-sm text-amber-900 italic">
+            "{concept.audience_insight}"
+          </p>
+        </div>
+      )}
+
+      {/* 🆕 ConceptV1 고도화 필드 - Core Promise & Brand Role */}
+      {(concept.core_promise || concept.brand_role) && (
+        <div className="space-y-2 mb-4">
+          {concept.core_promise && (
+            <div className="bg-purple-50 border border-purple-100 rounded-lg p-3">
+              <p className="text-xs font-medium text-purple-900 mb-1">🎯 Core Promise</p>
+              <p className="text-sm text-purple-900 font-medium">{concept.core_promise}</p>
+            </div>
+          )}
+          {concept.brand_role && (
+            <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-3">
+              <p className="text-xs font-medium text-indigo-900 mb-1">🏢 Brand Role</p>
+              <p className="text-sm text-indigo-900">{concept.brand_role}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 🆕 ConceptV1 고도화 필드 - Reason to Believe */}
+      {concept.reason_to_believe && concept.reason_to_believe.length > 0 && (
+        <div className="bg-green-50 border border-green-100 rounded-lg p-3 mb-4">
+          <p className="text-xs font-medium text-green-900 mb-2">✅ Reason to Believe</p>
+          <ul className="space-y-1">
+            {concept.reason_to_believe.map((reason, idx) => (
+              <li key={idx} className="text-xs text-green-900 flex items-start gap-1.5">
+                <span className="text-green-600">•</span>
+                <span>{reason}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* 타깃 & 톤앤매너 */}
       <div className="space-y-2 mb-4">
         <div className="flex items-start gap-2">
@@ -100,6 +143,24 @@ function ConceptCard({
           <span className="text-xs text-gray-500 w-16 shrink-0">비주얼</span>
           <span className="text-sm text-gray-700">{concept.visual_style}</span>
         </div>
+        {/* 🆕 Visual World HEX Colors */}
+        {concept.visual_world?.hex_colors && concept.visual_world.hex_colors.length > 0 && (
+          <div className="flex items-start gap-2">
+            <span className="text-xs text-gray-500 w-16 shrink-0">컬러</span>
+            <div className="flex gap-1.5 flex-wrap">
+              {concept.visual_world.hex_colors.map((hex, idx) => (
+                <div key={idx} className="flex items-center gap-1">
+                  <div
+                    className="w-5 h-5 rounded border border-gray-200"
+                    style={{ backgroundColor: hex }}
+                    title={hex}
+                  />
+                  <span className="text-xs font-mono text-gray-600">{hex}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 산출물 버튼 */}

@@ -23,6 +23,7 @@ export interface MeetingSummaryData {
 }
 
 export interface ConceptData {
+  // 기존 필드 (Legacy 호환)
   concept_id: string;
   concept_name: string;
   concept_description: string;
@@ -32,6 +33,18 @@ export interface ConceptData {
   visual_style: string;
   thumbnail_url?: string;
   assets: ConceptAssets;
+
+  // 🆕 ConceptV1 고도화 필드 (optional - Backend ConceptAgent v2.0 응답 시 포함)
+  // CONCEPT_SPEC.md 기준
+  audience_insight?: string; // 고객의 심리/상황 인사이트
+  core_promise?: string; // 핵심 약속
+  brand_role?: string; // 브랜드 역할
+  reason_to_believe?: string[]; // 믿음을 주는 근거 (스펙/데이터/증거)
+  creative_device?: string; // 크리에이티브 장치
+  hook_patterns?: string[]; // 후크 패턴
+  visual_world?: VisualWorld; // 비주얼 세계관
+  channel_strategy?: ChannelStrategy; // 채널별 전략
+  guardrails?: Guardrails; // 필수 준수 사항
 }
 
 export interface ConceptAssets {
@@ -273,6 +286,41 @@ export type CenterViewType =
   | 'detail_preview'   // Product Detail 미리보기
   | 'instagram_preview' // Instagram Ads 미리보기
   | 'shorts_preview';  // Shorts Script 미리보기
+
+// ============================================
+// ConceptV1 고도화 타입 (Backend ConceptAgent v2.0)
+// ============================================
+
+/**
+ * 비주얼 세계관
+ * Backend: app/services/agents/concept.py - VisualWorld
+ */
+export interface VisualWorld {
+  color_palette: string; // 색상 설명 (예: "밤+네온")
+  photo_style: string; // 사진 스타일
+  layout_motifs: string[]; // 레이아웃 모티프
+  hex_colors: string[]; // HEX 코드 3-5개
+}
+
+/**
+ * 채널별 전략
+ * Backend: app/services/agents/concept.py - ChannelStrategy
+ */
+export interface ChannelStrategy {
+  shorts?: string; // Shorts 적용 전략 (15-60초)
+  instagram_news?: string; // Instagram 뉴스 광고 전략
+  product_detail?: string; // 상품 상세 페이지 전략
+  presentation?: string; // 프레젠테이션 전략
+}
+
+/**
+ * 가드레일 (필수 준수 사항)
+ * Backend: app/services/agents/concept.py - Guardrails
+ */
+export interface Guardrails {
+  avoid_claims: string[]; // 피해야 할 표현
+  must_include: string[]; // 반드시 포함할 메시지
+}
 
 // ============================================
 // Chat NextAction 타입
