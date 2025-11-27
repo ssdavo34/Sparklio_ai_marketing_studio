@@ -119,7 +119,7 @@ class ShortsScriptAgent(AgentBase):
                 override_model="gemini-2.0-flash",
                 options={
                     "temperature": 0.7,
-                    "max_tokens": 4000
+                    "max_tokens": 8000  # 증가: Shorts Script JSON이 길 수 있음
                 }
             )
         except Exception as e:
