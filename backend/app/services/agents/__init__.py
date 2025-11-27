@@ -36,7 +36,14 @@ from .performance_analyzer import PerformanceAnalyzerAgent, create_performance_a
 from .self_learning import SelfLearningAgent, create_self_learning_agent
 from .error_handler import ErrorHandlerAgent, create_error_handler_agent
 from .logger import LoggerAgent, create_logger_agent
-from .concept import ConceptAgent, get_concept_agent
+from .concept import (
+    ConceptAgent, get_concept_agent,
+    # ConceptV1 스키마 (CONCEPT_SPEC.md 기준)
+    ConceptV1, ConceptV1Output,
+    VisualWorld, ChannelStrategy, Guardrails, ConceptMeta,
+    # Legacy 스키마 (하위 호환)
+    ConceptOutput, ConceptAgentOutput
+)
 from .shorts_script import ShortsScriptAgent, get_shorts_script_agent
 from .visual_prompt import VisualPromptAgent, get_visual_prompt_agent
 from .presentation import PresentationAgent, get_presentation_agent
@@ -108,5 +115,15 @@ __all__ = [
     "get_visual_prompt_agent",
     "get_presentation_agent",
     "get_product_detail_agent",
-    "get_instagram_ads_agent"
+    "get_instagram_ads_agent",
+    # ConceptV1 스키마 (CONCEPT_SPEC.md 기준)
+    "ConceptV1",
+    "ConceptV1Output",
+    "VisualWorld",
+    "ChannelStrategy",
+    "Guardrails",
+    "ConceptMeta",
+    # Legacy 스키마 (하위 호환)
+    "ConceptOutput",
+    "ConceptAgentOutput"
 ]

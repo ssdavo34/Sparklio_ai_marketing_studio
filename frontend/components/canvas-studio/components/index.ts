@@ -10,4 +10,5 @@
 export * from './LayersPanel';
 export * from './ContextMenu';
 export * from './InspectorPanel';
+export * from './ConceptV1Card';
 // export * from './ChatPanel'; // DEPRECATED: Use RightDock ChatTab instead (in panels/right/RightDock.tsx)
