@@ -229,7 +229,31 @@ api_router.include_router(concepts_router)
 - [ ] API 테스트 (Postman / curl)
 - [ ] C팀에 완료 알림
 
+### Mac mini 배포 방법
+
+```bash
+# 1. Mac mini SSH 접속
+ssh woosun@100.123.51.5
+
+# 2. 프로젝트 경로 이동
+cd ~/sparklio_ai_marketing_studio
+
+# 3. Git Pull (최신 코드 동기화)
+git pull origin main  # 또는 작업 브랜치
+
+# 4. Backend 재시작 (Docker)
+cd docker/mac-mini
+export PATH=$PATH:/usr/local/bin
+docker compose restart backend
+
+# 5. 로그 확인
+docker logs sparklio-backend --tail 50 -f
+# Ctrl+C로 종료
+```
+
 ### 테스트 방법
+
+**로컬 Windows (K: 드라이브)에서 테스트**:
 
 ```bash
 # 1. Health Check
@@ -248,6 +272,22 @@ curl -X POST http://100.123.51.5:8000/api/v1/concepts/from-prompt \
 # - concepts 배열에 3개 항목
 # - 각 concept에 concept_name, target_audience, key_message 등 포함
 # - color_palette는 HEX 코드 배열
+```
+
+**또는 Mac mini에서 직접 테스트**:
+
+```bash
+# SSH 접속 후
+ssh woosun@100.123.51.5
+
+# localhost로 테스트 (더 빠름)
+curl -X POST http://localhost:8000/api/v1/concepts/from-prompt \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "AI 마케팅 자동화 도구를 홍보하고 싶어요",
+    "concept_count": 3,
+    "brand_context": "Sparklio AI"
+  }'
 ```
 
 ---
