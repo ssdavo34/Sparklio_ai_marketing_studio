@@ -172,7 +172,7 @@ class PresentationAgent(AgentBase):
         )
 
     def _build_prompt(self, input_data: PresentationInput) -> str:
-        """프롬프트 생성"""
+        """프롬프트 생성 (ConceptV1 지원)"""
         concept = input_data.concept
 
         presentation_type_desc = {
@@ -187,6 +187,46 @@ class PresentationAgent(AgentBase):
             "일반 프레젠테이션"
         )
 
+        # ConceptV1 전략 필드 추출
+        audience_insight = concept.get('audience_insight', '')
+        core_promise = concept.get('core_promise', '')
+        brand_role = concept.get('brand_role', '')
+        reason_to_believe = concept.get('reason_to_believe', [])
+        creative_device = concept.get('creative_device', '')
+        channel_strategy = concept.get('channel_strategy', {})
+        guardrails = concept.get('guardrails', {})
+        visual_world = concept.get('visual_world', {})
+
+        # 프레젠테이션 채널 전략 (ConceptV1)
+        presentation_strategy = channel_strategy.get('presentation', '') if isinstance(channel_strategy, dict) else ''
+
+        # RTB 텍스트
+        rtb_text = ""
+        if reason_to_believe:
+            rtb_text = f"- 믿을 수 있는 이유 (RTB): {', '.join(reason_to_believe)}"
+
+        # 가드레일
+        avoid_claims = guardrails.get('avoid_claims', []) if isinstance(guardrails, dict) else []
+        must_include = guardrails.get('must_include', []) if isinstance(guardrails, dict) else []
+        guardrails_text = ""
+        if avoid_claims:
+            guardrails_text += f"\n- 피해야 할 표현: {', '.join(avoid_claims)}"
+        if must_include:
+            guardrails_text += f"\n- 반드시 포함할 요소: {', '.join(must_include)}"
+
+        # 비주얼 세계관
+        visual_world_text = ""
+        if isinstance(visual_world, dict) and visual_world:
+            color_palette = visual_world.get('color_palette', '')
+            photo_style = visual_world.get('photo_style', '')
+            hex_colors = visual_world.get('hex_colors', [])
+            if color_palette:
+                visual_world_text += f"\n- 컬러 팔레트: {color_palette}"
+            if photo_style:
+                visual_world_text += f"\n- 포토 스타일: {photo_style}"
+            if hex_colors:
+                visual_world_text += f"\n- HEX 컬러: {', '.join(hex_colors)}"
+
         speaker_notes_instruction = ""
         if input_data.include_speaker_notes:
             speaker_notes_instruction = """
@@ -197,13 +237,24 @@ class PresentationAgent(AgentBase):
 ## 제품/서비스
 - 이름: {input_data.product_name}
 
-## 마케팅 컨셉
+## 마케팅 컨셉 (기본)
 - 컨셉명: {concept.get('concept_name', '')}
 - 설명: {concept.get('concept_description', '')}
 - 타겟: {concept.get('target_audience', '')}
 - 핵심 메시지: {concept.get('key_message', '')}
 - 톤앤매너: {concept.get('tone_and_manner', '')}
 - 비주얼 스타일: {concept.get('visual_style', '')}
+
+## 전략적 인사이트 (ConceptV1)
+- 타겟 인사이트: {audience_insight}
+- 핵심 약속 (Core Promise): {core_promise}
+- 브랜드 역할: {brand_role}
+{rtb_text}
+- 크리에이티브 디바이스: {creative_device}
+- 프레젠테이션 채널 전략: {presentation_strategy}
+{guardrails_text}
+
+## 비주얼 세계관{visual_world_text}
 
 ## 프레젠테이션 구조 가이드
 
