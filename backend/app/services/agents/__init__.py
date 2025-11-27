@@ -39,6 +39,9 @@ from .logger import LoggerAgent, create_logger_agent
 from .concept import ConceptAgent, get_concept_agent
 from .shorts_script import ShortsScriptAgent, get_shorts_script_agent
 from .visual_prompt import VisualPromptAgent, get_visual_prompt_agent
+from .presentation import PresentationAgent, get_presentation_agent
+from .product_detail import ProductDetailAgent, get_product_detail_agent
+from .instagram_ads import InstagramAdsAgent, get_instagram_ads_agent
 
 __all__ = [
     # Base classes
@@ -97,7 +100,13 @@ __all__ = [
     "ConceptAgent",
     "ShortsScriptAgent",
     "VisualPromptAgent",
+    "PresentationAgent",
+    "ProductDetailAgent",
+    "InstagramAdsAgent",
     "get_concept_agent",
     "get_shorts_script_agent",
-    "get_visual_prompt_agent"
+    "get_visual_prompt_agent",
+    "get_presentation_agent",
+    "get_product_detail_agent",
+    "get_instagram_ads_agent"
 ]

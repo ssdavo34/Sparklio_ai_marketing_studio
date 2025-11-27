@@ -499,20 +499,32 @@ async def run_demo_pipeline(
 # Helper Functions
 # =============================================================================
 
-async def _generate_shorts_scripts_for_concepts(
+async def _generate_all_assets_for_concepts(
     db: Session,
     campaign_id: str,
     product_name: str
 ):
     """
-    각 컨셉에 대해 ShortsScriptAgent로 스크립트 생성
+    각 컨셉에 대해 모든 에이전트로 에셋 생성
+
+    에이전트 목록:
+    - ShortsScriptAgent: 숏폼 영상 스크립트
+    - PresentationAgent: 프레젠테이션 구조
+    - ProductDetailAgent: 제품 상세 페이지
+    - InstagramAdsAgent: 인스타그램 광고
 
     Args:
         db: Database session
         campaign_id: Campaign ID
         product_name: 제품/서비스명
     """
-    from app.services.agents import get_shorts_script_agent, AgentRequest
+    from app.services.agents import (
+        get_shorts_script_agent,
+        get_presentation_agent,
+        get_product_detail_agent,
+        get_instagram_ads_agent,
+        AgentRequest
+    )
 
     # 컨셉 조회
     concepts = db.query(Concept).filter(
@@ -523,61 +535,224 @@ async def _generate_shorts_scripts_for_concepts(
         logger.warning(f"[Asset Generation] No concepts found for campaign {campaign_id}")
         return
 
+    # 에이전트 인스턴스 생성
     shorts_agent = get_shorts_script_agent()
+    presentation_agent = get_presentation_agent()
+    product_detail_agent = get_product_detail_agent()
+    instagram_ads_agent = get_instagram_ads_agent()
 
     for concept in concepts:
-        # Shorts Asset 조회
-        shorts_asset = db.query(ConceptAsset).filter(
-            ConceptAsset.concept_id == concept.id,
-            ConceptAsset.asset_type == AssetType.SHORTS_SCRIPT
-        ).first()
+        # 공통 컨셉 데이터
+        concept_data = {
+            "concept_name": concept.name,
+            "concept_description": concept.description,
+            "target_audience": concept.target_audience,
+            "key_message": concept.key_message,
+            "tone_and_manner": concept.tone_and_manner,
+            "visual_style": concept.visual_style,
+            "keywords": concept.meta_info.get("keywords", []) if concept.meta_info else [],
+            "color_palette": concept.meta_info.get("color_palette", []) if concept.meta_info else []
+        }
 
-        if not shorts_asset:
-            logger.warning(f"[Asset Generation] No shorts asset found for concept {concept.id}")
-            continue
+        # 1. Shorts Script 생성
+        await _generate_shorts_script(db, concept, concept_data, product_name, shorts_agent)
 
-        try:
-            # ShortsScriptAgent 실행
-            shorts_request = AgentRequest(
-                task="generate_shorts_script",
-                payload={
-                    "concept": {
-                        "concept_name": concept.name,
-                        "concept_description": concept.description,
-                        "target_audience": concept.target_audience,
-                        "key_message": concept.key_message,
-                        "tone_and_manner": concept.tone_and_manner,
-                        "visual_style": concept.visual_style,
-                        "keywords": concept.meta_info.get("keywords", []) if concept.meta_info else []
-                    },
-                    "product_name": product_name,
-                    "target_duration": 45
-                }
-            )
+        # 2. Presentation 생성
+        await _generate_presentation(db, concept, concept_data, product_name, presentation_agent)
 
-            shorts_response = await shorts_agent.execute(shorts_request)
+        # 3. Product Detail 생성
+        await _generate_product_detail(db, concept, concept_data, product_name, product_detail_agent)
 
-            # 결과 저장
-            script_data = shorts_response.outputs[0].value
-            shorts_asset.status = AssetStatus.COMPLETED
-            shorts_asset.content = script_data
-            shorts_asset.extra_info = {
-                "duration_seconds": script_data.get("total_duration", 45),
-                "scene_count": len(script_data.get("scenes", [])),
-                "generated_at": datetime.utcnow().isoformat()
+        # 4. Instagram Ads 생성
+        await _generate_instagram_ads(db, concept, concept_data, product_name, instagram_ads_agent)
+
+
+async def _generate_shorts_script(db, concept, concept_data, product_name, agent):
+    """숏폼 스크립트 생성"""
+    from app.services.agents import AgentRequest
+
+    asset = db.query(ConceptAsset).filter(
+        ConceptAsset.concept_id == concept.id,
+        ConceptAsset.asset_type == AssetType.SHORTS_SCRIPT
+    ).first()
+
+    if not asset:
+        logger.warning(f"[Asset Generation] No shorts asset for concept {concept.id}")
+        return
+
+    try:
+        request = AgentRequest(
+            task="generate_shorts_script",
+            payload={
+                "concept": concept_data,
+                "product_name": product_name,
+                "target_duration": 45
             }
-            db.commit()
+        )
+        response = await agent.execute(request)
+        result = response.outputs[0].value
 
-            logger.info(
-                f"[Asset Generation] Shorts script generated for concept {concept.id}: "
-                f"{script_data.get('total_duration', 45)}s, {len(script_data.get('scenes', []))} scenes"
-            )
+        asset.status = AssetStatus.COMPLETED
+        asset.content = result
+        asset.extra_info = {
+            "duration_seconds": result.get("total_duration", 45),
+            "scene_count": len(result.get("scenes", [])),
+            "generated_at": datetime.utcnow().isoformat()
+        }
+        db.commit()
+        logger.info(f"[Asset] Shorts script completed for concept {concept.id}")
 
-        except Exception as e:
-            logger.error(f"[Asset Generation] Failed to generate shorts for concept {concept.id}: {e}")
-            shorts_asset.status = AssetStatus.FAILED
-            shorts_asset.error_message = str(e)
-            db.commit()
+    except Exception as e:
+        logger.error(f"[Asset] Shorts script failed for concept {concept.id}: {e}")
+        asset.status = AssetStatus.FAILED
+        asset.error_message = str(e)
+        db.commit()
+
+
+async def _generate_presentation(db, concept, concept_data, product_name, agent):
+    """프레젠테이션 생성"""
+    from app.services.agents import AgentRequest
+
+    asset = db.query(ConceptAsset).filter(
+        ConceptAsset.concept_id == concept.id,
+        ConceptAsset.asset_type == AssetType.PRESENTATION
+    ).first()
+
+    if not asset:
+        logger.warning(f"[Asset Generation] No presentation asset for concept {concept.id}")
+        return
+
+    try:
+        request = AgentRequest(
+            task="generate_presentation",
+            payload={
+                "concept": concept_data,
+                "product_name": product_name,
+                "presentation_type": "pitch",
+                "slide_count": 8,
+                "include_speaker_notes": True
+            }
+        )
+        response = await agent.execute(request)
+        result = response.outputs[0].value
+
+        asset.status = AssetStatus.COMPLETED
+        asset.content = result
+        asset.extra_info = {
+            "slide_count": len(result.get("slides", [])),
+            "duration_minutes": result.get("estimated_duration_minutes", 15),
+            "generated_at": datetime.utcnow().isoformat()
+        }
+        db.commit()
+        logger.info(f"[Asset] Presentation completed for concept {concept.id}: {len(result.get('slides', []))} slides")
+
+    except Exception as e:
+        logger.error(f"[Asset] Presentation failed for concept {concept.id}: {e}")
+        asset.status = AssetStatus.FAILED
+        asset.error_message = str(e)
+        db.commit()
+
+
+async def _generate_product_detail(db, concept, concept_data, product_name, agent):
+    """제품 상세 페이지 생성"""
+    from app.services.agents import AgentRequest
+
+    asset = db.query(ConceptAsset).filter(
+        ConceptAsset.concept_id == concept.id,
+        ConceptAsset.asset_type == AssetType.PRODUCT_DETAIL
+    ).first()
+
+    if not asset:
+        logger.warning(f"[Asset Generation] No product detail asset for concept {concept.id}")
+        return
+
+    try:
+        request = AgentRequest(
+            task="generate_product_detail",
+            payload={
+                "concept": concept_data,
+                "product_name": product_name,
+                "product_category": "서비스",
+                "page_type": "landing",
+                "include_faq": True,
+                "include_testimonials": True
+            }
+        )
+        response = await agent.execute(request)
+        result = response.outputs[0].value
+
+        asset.status = AssetStatus.COMPLETED
+        asset.content = result
+        asset.extra_info = {
+            "section_count": len(result.get("sections", [])),
+            "faq_count": len(result.get("faq", [])),
+            "generated_at": datetime.utcnow().isoformat()
+        }
+        db.commit()
+        logger.info(f"[Asset] Product detail completed for concept {concept.id}")
+
+    except Exception as e:
+        logger.error(f"[Asset] Product detail failed for concept {concept.id}: {e}")
+        asset.status = AssetStatus.FAILED
+        asset.error_message = str(e)
+        db.commit()
+
+
+async def _generate_instagram_ads(db, concept, concept_data, product_name, agent):
+    """인스타그램 광고 생성"""
+    from app.services.agents import AgentRequest
+
+    asset = db.query(ConceptAsset).filter(
+        ConceptAsset.concept_id == concept.id,
+        ConceptAsset.asset_type == AssetType.INSTAGRAM_ADS
+    ).first()
+
+    if not asset:
+        logger.warning(f"[Asset Generation] No instagram ads asset for concept {concept.id}")
+        return
+
+    try:
+        request = AgentRequest(
+            task="generate_instagram_ads",
+            payload={
+                "concept": concept_data,
+                "product_name": product_name,
+                "campaign_goal": "engagement",
+                "ad_count": 4,
+                "include_reels": True,
+                "include_story": True
+            }
+        )
+        response = await agent.execute(request)
+        result = response.outputs[0].value
+
+        asset.status = AssetStatus.COMPLETED
+        asset.content = result
+        asset.extra_info = {
+            "ad_count": len(result.get("ads", [])),
+            "hashtag_count": len(result.get("hashtag_strategy", {}).get("primary", [])),
+            "generated_at": datetime.utcnow().isoformat()
+        }
+        db.commit()
+        logger.info(f"[Asset] Instagram ads completed for concept {concept.id}: {len(result.get('ads', []))} ads")
+
+    except Exception as e:
+        logger.error(f"[Asset] Instagram ads failed for concept {concept.id}: {e}")
+        asset.status = AssetStatus.FAILED
+        asset.error_message = str(e)
+        db.commit()
+
+
+# Legacy function for backward compatibility
+async def _generate_shorts_scripts_for_concepts(
+    db: Session,
+    campaign_id: str,
+    product_name: str
+):
+    """
+    레거시 함수 - 모든 에셋 생성으로 리다이렉트
+    """
+    await _generate_all_assets_for_concepts(db, campaign_id, product_name)
 
 
 def _build_asset_info(asset: Optional[ConceptAsset]) -> Optional[AssetInfo]:
