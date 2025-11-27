@@ -22,3 +22,6 @@ export * from './asset';
 
 // Meeting AI
 export * from './meeting';
+
+// Concept System v1
+export * from './concept';
