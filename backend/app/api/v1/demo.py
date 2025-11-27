@@ -467,13 +467,16 @@ async def run_demo_pipeline(
             campaign.status = CampaignStatus.ASSET_GENERATING
             db.commit()
 
-            # TODO: Asset 생성 로직 (P1)
-            # - PresentationAgent
-            # - ProductDetailAgent
-            # - InstagramAdsAgent
-            # - ShortsScriptAgent (이미 구현됨)
-
-            await asyncio.sleep(2)  # Demo용 딜레이
+            # ShortsScriptAgent로 각 컨셉별 스크립트 생성
+            try:
+                await _generate_shorts_scripts_for_concepts(
+                    db=db,
+                    campaign_id=campaign_id,
+                    product_name=campaign.name
+                )
+            except Exception as e:
+                logger.warning(f"[Demo Pipeline] Shorts script generation failed: {e}")
+                # Asset 생성 실패해도 파이프라인은 계속 진행
 
         # 4. 상태 업데이트: COMPLETED
         campaign.status = CampaignStatus.COMPLETED
@@ -495,6 +498,87 @@ async def run_demo_pipeline(
 # =============================================================================
 # Helper Functions
 # =============================================================================
+
+async def _generate_shorts_scripts_for_concepts(
+    db: Session,
+    campaign_id: str,
+    product_name: str
+):
+    """
+    각 컨셉에 대해 ShortsScriptAgent로 스크립트 생성
+
+    Args:
+        db: Database session
+        campaign_id: Campaign ID
+        product_name: 제품/서비스명
+    """
+    from app.services.agents import get_shorts_script_agent, AgentRequest
+
+    # 컨셉 조회
+    concepts = db.query(Concept).filter(
+        Concept.campaign_id == uuid.UUID(campaign_id)
+    ).all()
+
+    if not concepts:
+        logger.warning(f"[Asset Generation] No concepts found for campaign {campaign_id}")
+        return
+
+    shorts_agent = get_shorts_script_agent()
+
+    for concept in concepts:
+        # Shorts Asset 조회
+        shorts_asset = db.query(ConceptAsset).filter(
+            ConceptAsset.concept_id == concept.id,
+            ConceptAsset.asset_type == AssetType.SHORTS_SCRIPT
+        ).first()
+
+        if not shorts_asset:
+            logger.warning(f"[Asset Generation] No shorts asset found for concept {concept.id}")
+            continue
+
+        try:
+            # ShortsScriptAgent 실행
+            shorts_request = AgentRequest(
+                task="generate_shorts_script",
+                payload={
+                    "concept": {
+                        "concept_name": concept.name,
+                        "concept_description": concept.description,
+                        "target_audience": concept.target_audience,
+                        "key_message": concept.key_message,
+                        "tone_and_manner": concept.tone_and_manner,
+                        "visual_style": concept.visual_style,
+                        "keywords": concept.meta_info.get("keywords", []) if concept.meta_info else []
+                    },
+                    "product_name": product_name,
+                    "target_duration": 45
+                }
+            )
+
+            shorts_response = await shorts_agent.execute(shorts_request)
+
+            # 결과 저장
+            script_data = shorts_response.outputs[0].value
+            shorts_asset.status = AssetStatus.COMPLETED
+            shorts_asset.content = script_data
+            shorts_asset.extra_info = {
+                "duration_seconds": script_data.get("total_duration", 45),
+                "scene_count": len(script_data.get("scenes", [])),
+                "generated_at": datetime.utcnow().isoformat()
+            }
+            db.commit()
+
+            logger.info(
+                f"[Asset Generation] Shorts script generated for concept {concept.id}: "
+                f"{script_data.get('total_duration', 45)}s, {len(script_data.get('scenes', []))} scenes"
+            )
+
+        except Exception as e:
+            logger.error(f"[Asset Generation] Failed to generate shorts for concept {concept.id}: {e}")
+            shorts_asset.status = AssetStatus.FAILED
+            shorts_asset.error_message = str(e)
+            db.commit()
+
 
 def _build_asset_info(asset: Optional[ConceptAsset]) -> Optional[AssetInfo]:
     """Asset 정보 빌드"""
