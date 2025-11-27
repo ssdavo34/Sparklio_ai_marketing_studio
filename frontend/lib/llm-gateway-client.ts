@@ -304,6 +304,48 @@ export async function generateImage(params: {
   return imageOutput?.value || '';
 }
 
+/**
+ * Generate marketing concepts using ConceptAgent v2.0
+ * Backend: /api/v1/concepts/from-prompt
+ *
+ * @param params.prompt - 사용자 입력 주제/요청
+ * @param params.conceptCount - 생성할 컨셉 수 (기본 3개)
+ * @param params.brandContext - 브랜드 컨텍스트 (선택)
+ * @returns ConceptV1 응답 (concepts + reasoning)
+ */
+export async function generateConcepts(params: {
+  prompt: string;
+  conceptCount?: number;
+  brandContext?: string;
+}): Promise<{
+  concepts: any[]; // ConceptV1[]
+  reasoning?: string;
+}> {
+  const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://100.123.51.5:8000';
+
+  const response = await fetch(
+    `${BACKEND_URL}/api/v1/concepts/from-prompt`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prompt: params.prompt,
+        concept_count: params.conceptCount || 3,
+        brand_context: params.brandContext,
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({
+      detail: `HTTP error! status: ${response.status}`,
+    }));
+    throw new Error(error.detail || 'Concept generation failed');
+  }
+
+  return await response.json();
+}
+
 // Export client class and default instance
 export { defaultClient as gatewayClient };
 export default LLMClient;

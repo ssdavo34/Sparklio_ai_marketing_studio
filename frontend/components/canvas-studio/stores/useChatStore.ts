@@ -17,7 +17,7 @@ import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import type { AgentRole, TaskType, ChatConfig, CostMode, TextLLMProvider, ImageLLMProvider, VideoLLMProvider } from './types/llm';
 import { DEFAULT_CHAT_CONFIG } from './types/llm';
-import { sendChatMessage, generateImage, gatewayClient } from '@/lib/llm-gateway-client';
+import { sendChatMessage, generateImage, gatewayClient, generateConcepts } from '@/lib/llm-gateway-client';
 import { useCanvasStore } from './useCanvasStore';
 import { getAdLayout, selectBestLayout, type AdLayoutType } from '../utils/ad-layouts';
 import { detectErrorType, createUserFriendlyError, type ErrorType } from '../components/ErrorMessage';
@@ -898,6 +898,75 @@ export const useChatStore = create<ChatState>()(
           setError(null);
 
           try {
+            // 🆕 전략적 키워드 감지 → ConceptAgent v2.0 호출
+            const conceptKeywords = ['캠페인', '홍보', '컨셉', '마케팅', '광고', '전략', '런칭', '프로모션'];
+            const shouldUseConceptAgent = conceptKeywords.some(keyword => content.includes(keyword));
+
+            if (shouldUseConceptAgent && chatConfig.role === 'strategist') {
+              console.log('[sendMessage] 🎯 ConceptAgent v2.0 호출 (전략적 키워드 감지)');
+
+              // ConceptAgent 호출
+              const conceptResponse = await generateConcepts({
+                prompt: content,
+                conceptCount: 3,
+              });
+
+              console.log('[sendMessage] ✅ ConceptAgent 응답:', conceptResponse);
+
+              // ConceptV1 데이터를 ConceptBoardData 형식으로 변환
+              const conceptBoardData = {
+                campaign_id: `campaign-${Date.now()}`,
+                campaign_name: content.substring(0, 50),
+                status: 'completed' as const,
+                created_at: new Date().toISOString(),
+                meeting_summary: {
+                  title: content,
+                  duration_minutes: 0,
+                  participants: [],
+                  key_points: [],
+                  core_message: conceptResponse.reasoning || '',
+                },
+                concepts: conceptResponse.concepts.map((c: any, idx: number) => ({
+                  concept_id: c.id || `concept-${Date.now()}-${idx}`,
+                  concept_name: c.name,
+                  concept_description: c.topic || '',
+                  target_audience: c.target_audience || '',
+                  key_message: c.core_promise || c.key_message || '',
+                  tone_and_manner: c.tone_and_manner || '',
+                  visual_style: c.visual_world?.photo_style || '',
+                  thumbnail_url: undefined,
+                  // 🆕 ConceptV1 고도화 필드
+                  audience_insight: c.audience_insight,
+                  core_promise: c.core_promise,
+                  brand_role: c.brand_role,
+                  reason_to_believe: c.reason_to_believe,
+                  creative_device: c.creative_device,
+                  hook_patterns: c.hook_patterns,
+                  visual_world: c.visual_world,
+                  channel_strategy: c.channel_strategy,
+                  guardrails: c.guardrails,
+                  assets: {
+                    presentation: { id: `pres-${c.id}`, status: 'pending' as const },
+                    product_detail: { id: `detail-${c.id}`, status: 'pending' as const },
+                    instagram_ads: { id: `insta-${c.id}`, status: 'pending' as const, count: 0 },
+                    shorts_script: { id: `shorts-${c.id}`, status: 'pending' as const, duration_seconds: 0 },
+                  },
+                })),
+              };
+
+              // CenterView에 ConceptBoard 데이터 설정 및 뷰 전환
+              useCenterViewStore.getState().setConceptBoardData(conceptBoardData);
+              useCenterViewStore.getState().setView('concept_board');
+
+              // AI 응답 메시지 추가
+              const responseMessage = `✅ **${conceptResponse.concepts.length}개의 전략적 마케팅 컨셉을 생성했습니다!**\n\n${conceptResponse.reasoning || ''}\n\n중앙 화면의 Concept Board에서 각 컨셉의 상세 내용을 확인하세요.`;
+              addMessage('assistant', responseMessage, undefined, 'concept', 'generate_concepts');
+
+              setLoading(false);
+              return;
+            }
+
+            // 기존 플로우: 일반 Chat Agent 호출
             // Prepare message history (last 10 messages for context)
             const messageHistory = messages
               .slice(-10)
