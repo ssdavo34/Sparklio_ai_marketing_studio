@@ -14,7 +14,7 @@
 
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   Palette,
   Upload,
@@ -29,11 +29,15 @@ import {
 } from 'lucide-react';
 import { useWorkspaceStore } from '../../../stores';
 import {
-  getMockBrandDocuments,
-  getMockBrandDNA,
+  uploadBrandDocument,
+  crawlBrandUrl,
+  listBrandDocuments,
+  deleteBrandDocument,
+  analyzeBrand,
   type BrandDocument,
   type BrandDNA,
 } from '@/lib/api/brand-api';
+import { toast } from '@/components/ui/Toast';
 
 export function BrandKitTab() {
   // 임시로 workspace에서 브랜드 ID 가져오기
@@ -49,12 +53,22 @@ export function BrandKitTab() {
   const [showDNAResult, setShowDNAResult] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Load documents (개발용 Mock 데이터)
-  const loadDocuments = () => {
+  // Load documents on mount
+  useEffect(() => {
     if (!brandId) return;
-    const mockDocs = getMockBrandDocuments(brandId);
-    setDocuments(mockDocs.documents);
-  };
+
+    const loadDocuments = async () => {
+      try {
+        const result = await listBrandDocuments(brandId);
+        setDocuments(result.documents);
+      } catch (error) {
+        console.error('Failed to load documents:', error);
+        // Don't show error toast on mount - just log it
+      }
+    };
+
+    loadDocuments();
+  }, [brandId]);
 
   // 파일 업로드
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -63,27 +77,15 @@ export function BrandKitTab() {
 
     setUploading(true);
     try {
-      // 실제 API 호출 (현재는 주석 처리하고 Mock 사용)
-      // const doc = await uploadBrandDocument(brandId, file);
+      // 실제 API 호출
+      const documentType = file.type.includes('pdf') ? 'pdf' : 'image';
+      const doc = await uploadBrandDocument(brandId, file, file.name, documentType);
 
-      // Mock 응답
-      const mockDoc: BrandDocument = {
-        id: `doc-${Date.now()}`,
-        brand_id: brandId,
-        title: file.name,
-        document_type: file.type.includes('pdf') ? 'pdf' : 'image',
-        file_size: file.size,
-        mime_type: file.type,
-        processed: 'completed',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-
-      setDocuments((prev) => [...prev, mockDoc]);
-      alert(`✅ "${file.name}" 업로드 완료!`);
+      setDocuments((prev) => [...prev, doc]);
+      toast.success(`"${file.name}" 업로드 완료! 자동으로 임베딩이 생성됩니다.`);
     } catch (error) {
       console.error('Upload failed:', error);
-      alert(`❌ 업로드 실패: ${error}`);
+      toast.error(`업로드 실패: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setUploading(false);
       if (fileInputRef.current) {
@@ -98,29 +100,16 @@ export function BrandKitTab() {
 
     setCrawling(true);
     try {
-      // 실제 API 호출 (현재는 주석 처리하고 Mock 사용)
-      // const doc = await crawlBrandUrl(brandId, urlInput);
+      // 실제 API 호출
+      const doc = await crawlBrandUrl(brandId, urlInput);
 
-      // Mock 응답
-      const mockDoc: BrandDocument = {
-        id: `doc-${Date.now()}`,
-        brand_id: brandId,
-        title: `크롤링: ${urlInput}`,
-        document_type: 'url',
-        source_url: urlInput,
-        extracted_text: 'URL에서 추출된 텍스트...',
-        processed: 'completed',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-
-      setDocuments((prev) => [...prev, mockDoc]);
+      setDocuments((prev) => [...prev, doc]);
       setUrlInput('');
       setShowUrlForm(false);
-      alert(`✅ URL 크롤링 완료!`);
+      toast.success('URL 크롤링 완료! 자동으로 임베딩이 생성됩니다.');
     } catch (error) {
       console.error('Crawling failed:', error);
-      alert(`❌ 크롤링 실패: ${error}`);
+      toast.error(`크롤링 실패: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setCrawling(false);
     }
@@ -131,24 +120,21 @@ export function BrandKitTab() {
     if (!brandId) return;
 
     if (documents.length === 0) {
-      alert('⚠️ 먼저 브랜드 문서를 업로드해주세요.');
+      toast.warning('먼저 브랜드 문서를 업로드해주세요.');
       return;
     }
 
     setAnalyzing(true);
     try {
-      // 실제 API 호출 (현재는 주석 처리하고 Mock 사용)
-      // const dna = await analyzeBrand(brandId);
+      // 실제 API 호출
+      const dna = await analyzeBrand(brandId);
 
-      // Mock 응답
-      const mockDNA = getMockBrandDNA();
-
-      setBrandDNA(mockDNA);
+      setBrandDNA(dna);
       setShowDNAResult(true);
-      alert(`✅ Brand DNA 분석 완료! (신뢰도: ${(mockDNA.confidence_score * 100).toFixed(0)}%)`);
+      toast.success(`Brand DNA 분석 완료! (신뢰도: ${(dna.confidence_score * 100).toFixed(0)}%)`);
     } catch (error) {
       console.error('Analysis failed:', error);
-      alert(`❌ 분석 실패: ${error}`);
+      toast.error(`분석 실패: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setAnalyzing(false);
     }
@@ -159,14 +145,14 @@ export function BrandKitTab() {
     if (!confirm('정말 삭제하시겠습니까?')) return;
 
     try {
-      // 실제 API 호출 (현재는 주석 처리)
-      // await deleteBrandDocument(brandId, docId);
+      // 실제 API 호출
+      await deleteBrandDocument(brandId, docId);
 
       setDocuments((prev) => prev.filter((d) => d.id !== docId));
-      alert('✅ 문서 삭제 완료');
+      toast.success('문서 삭제 완료');
     } catch (error) {
       console.error('Delete failed:', error);
-      alert(`❌ 삭제 실패: ${error}`);
+      toast.error(`삭제 실패: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
 
