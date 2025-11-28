@@ -23,6 +23,7 @@ import type { CanvasTemplate, PlatformType } from '@/types/canvas-templates';
 import { getDefaultTemplate, getTemplateById } from '@/types/canvas-templates';
 import type { ColorTheme, ThemeType } from '@/types/color-themes';
 import { getDefaultTheme, getThemeById, generateGradientSVG } from '@/types/color-themes';
+import type { StoreType } from 'polotno/model/store';
 
 // ============================================================================
 // 상태 인터페이스
@@ -46,7 +47,7 @@ export interface CanvasState {
   showGuidelines: boolean;
 
   // Polotno Store Instance (v3.1에서 Fabric.js → Polotno로 변경)
-  polotnoStore: any | null; // polotno Store
+  polotnoStore: StoreType | null; // polotno Store
 
   // Canvas Template
   currentTemplate: CanvasTemplate;
@@ -69,7 +70,7 @@ export interface CanvasState {
 
   toggleGuidelines: () => void;
 
-  setPolotnoStore: (store: any) => void;
+  setPolotnoStore: (store: StoreType) => void;
 
   setTemplate: (templateId: PlatformType) => void;
   resizeCanvas: (width: number, height: number) => void;
@@ -323,15 +324,17 @@ export const useCanvasStore = create<CanvasState>()(
           // 기존 배경 요소 제거
           backgroundElements.forEach((el: any) => el.remove());
 
-          // 새 배경 추가
-          const svgContent = generateGradientSVG(theme, activePage.width, activePage.height);
+          // 새 배경 추가 (width/height가 숫자인 경우만)
+          const pageWidth = typeof activePage.width === 'number' ? activePage.width : 1080;
+          const pageHeight = typeof activePage.height === 'number' ? activePage.height : 1920;
+          const svgContent = generateGradientSVG(theme, pageWidth, pageHeight);
 
           activePage.addElement({
             type: 'svg',
             x: 0,
             y: 0,
-            width: activePage.width,
-            height: activePage.height,
+            width: pageWidth,
+            height: pageHeight,
             src: `data:image/svg+xml;base64,${btoa(svgContent)}`,
             selectable: false,
             alwaysOnTop: false,

@@ -4,20 +4,21 @@
  * Polotno Store를 싱글톤으로 관리하여 뷰 전환 시에도 상태가 유지되도록 함
  *
  * @author C팀 (Frontend Team)
- * @version 1.0
- * @date 2025-11-26
+ * @version 1.1
+ * @date 2025-11-28
  */
 
 import { createStore } from 'polotno/model/store';
+import type { StoreType } from 'polotno/model/store';
 
 // 모듈 레벨 싱글톤 인스턴스
-let polotnoStoreInstance: any = null;
+let polotnoStoreInstance: StoreType | null = null;
 let isInitialized = false;
 
 /**
  * Polotno Store 싱글톤 가져오기 또는 생성
  */
-export function getOrCreatePolotnoStore(apiKey: string): any {
+export function getOrCreatePolotnoStore(apiKey: string): StoreType {
   // 이미 초기화된 경우 재사용
   if (polotnoStoreInstance && isInitialized) {
     console.log('[PolotnoStoreSingleton] Reusing existing store');
@@ -69,7 +70,7 @@ export function getOrCreatePolotnoStore(apiKey: string): any {
 /**
  * 현재 Polotno Store 인스턴스 가져오기 (안전성 검증 포함)
  */
-export function getPolotnoStore(): any | null {
+export function getPolotnoStore(): StoreType | null {
   if (!isInitialized || !polotnoStoreInstance) {
     console.warn('[PolotnoStoreSingleton] Store not initialized. Call getOrCreatePolotnoStore() first.');
     return null;
@@ -137,9 +138,12 @@ export function resetPolotnoStore(width: number = 1080, height: number = 1920): 
   }
 
   try {
-    // 모든 페이지 삭제
-    while (polotnoStoreInstance.pages.length > 0) {
-      polotnoStoreInstance.pages[0].remove();
+    // 모든 페이지 ID 수집
+    const pageIds = polotnoStoreInstance.pages.map((page) => page.id);
+
+    // 페이지 삭제 (Polotno는 deletePages 메서드 사용)
+    if (pageIds.length > 0) {
+      polotnoStoreInstance.deletePages(pageIds);
     }
 
     // 새 빈 페이지 추가
@@ -159,7 +163,7 @@ export function resetPolotnoStore(width: number = 1080, height: number = 1920): 
 /**
  * Polotno Store 강제 재초기화 (에러 복구용)
  */
-export function forceReinitializeStore(apiKey: string): any {
+export function forceReinitializeStore(apiKey: string): StoreType {
   console.warn('[PolotnoStoreSingleton] Force reinitializing store...');
 
   // 기존 인스턴스 정리
