@@ -25,16 +25,46 @@
             "id": "2a6450f63c85201a",
             "type": "leaf",
             "state": {
-              "type": "release-notes",
+              "type": "markdown",
               "state": {
-                "currentVersion": "1.10.6"
+                "file": "docs/AGENT_QUALITY_ROLLOUT_PLAN_2025-11.md",
+                "mode": "source",
+                "source": false
               },
-              "icon": "lucide-book-up",
-              "title": "Release Notes 1.10.6"
+              "icon": "lucide-file",
+              "title": "AGENT_QUALITY_ROLLOUT_PLAN_2025-11"
+            }
+          },
+          {
+            "id": "6285c935c6b05b2e",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "docs/AGENT_IO_SCHEMA_CATALOG.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "AGENT_IO_SCHEMA_CATALOG"
+            }
+          },
+          {
+            "id": "9e6ff4bb5b89f4b8",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "docs/AGENT_QUALITY_ROLLOUT_PLAN_2025-11.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "AGENT_QUALITY_ROLLOUT_PLAN_2025-11"
             }
           }
         ],
-        "currentTab": 1
+        "currentTab": 3
       }
     ],
     "direction": "vertical"
@@ -196,44 +226,44 @@
       "bases:Create new base": false
     }
   },
-  "active": "2a6450f63c85201a",
+  "active": "9e6ff4bb5b89f4b8",
   "lastOpenFiles": [
+    "frontend/docs/C_TEAM_DAILY_FRONTEND_REPORT_2025-11-28_END.md",
+    "frontend/docs/C_TEAM_DAILY_FRONTEND_REPORT_2025-11-28_END.md.tmp.14284.1764321976138",
+    "docs/B_TEAM_DAILY_BACKEND_REPORT_2025-11-28_FINAL.md",
+    "docs/B_TEAM_DAILY_BACKEND_REPORT_2025-11-28_FINAL.md.tmp.72192.1764321797915",
+    "docs/SESSION_HANDOVER.md.tmp.72192.1764321725842",
+    "docs/SESSION_HANDOVER.md.tmp.72192.1764321697918",
+    "docs/SESSION_HANDOVER.md.tmp.72192.1764321680789",
+    "docs/SESSION_HANDOVER.md.tmp.72192.1764321664869",
+    "frontend/docs/BACKEND_CORS_ISSUE_2025-11-28.md",
+    "frontend/docs/BACKEND_CORS_ISSUE_2025-11-28.md.tmp.14284.1764321405002",
+    "docs/SESSION_HANDOVER.md",
+    "frontend/components/canvas-studio/panels/right/RightDock.tsx.tmp.14284.1764321204907",
+    "CLAUDE.md.tmp.72192.1764320738355",
+    "CLAUDE.md.tmp.72192.1764320538602",
+    "frontend/docs/BROWSER_TEST_GUIDE_VISION_AGENT.md",
+    "frontend/docs/FRONTEND_UI_INTEGRATION_TEST_RESULTS.md",
+    "frontend/docs/BACKEND_BUG_REPORT_2025-11-28.md",
+    "frontend/docs/INTEGRATION_TEST_GUIDE.md",
+    "frontend/docs/VISION_AGENT_INTEGRATION_COMPLETE.md",
+    "frontend/docs/C_TEAM_DAILY_FRONTEND_REPORT_2025-11-28.md",
+    "frontend/docs/SERVICE_GENERATION_FLOW.md",
+    "frontend/docs/IMAGE_GENERATION_SETUP.md",
+    "docs/B_TEAM_AGENT_UPGRADE_PLAN.md",
+    "docs/AGENT_IO_SCHEMA_CATALOG.md",
+    "docs/AGENT_QUALITY_ROLLOUT_PLAN_2025-11.md",
+    "docs/FILE_UPLOAD_API_GUIDE.md",
+    "docs/B_TEAM_RESPONSE_TO_C_TEAM_2025-11-28_PM.md",
     "docs/DAILY_SUMMARY_2025-11-27.md",
-    "docs/DAILY_SUMMARY_2025-11-27.md.tmp.37832.1764235746578",
     "docs/B_TEAM_DAILY_REPORT_2025-11-27.md",
-    "docs/B_TEAM_DAILY_REPORT_2025-11-27.md.tmp.62716.1764235743206",
     "IMPLEMENTATION_COMPLETE.md",
-    "frontend/components/canvas-studio/ConceptThumbnailCard.tsx",
-    "frontend/lib/utils/uploadThumbnail.ts",
     "SYSTEM_REDESIGN_REPRESENTATIVE_PAGE.md",
     "ERROR_FIXES.md",
-    "frontend/components/canvas-studio/stores/useChatStore.ts.tmp.28348.1764233427592",
-    "frontend/components/canvas-studio/panels/left/tabs/PagesTab.tsx.tmp.28348.1764233032177",
-    "frontend/components/canvas-studio/panels/left/tabs/PagesTab.tsx.tmp.28348.1764232992523",
-    "frontend/components/canvas-studio/panels/left/tabs/PagesTab.tsx.tmp.28348.1764232965330",
-    "frontend/components/canvas-studio/stores/useChatStore.ts.tmp.28348.1764232912733",
-    "frontend/components/canvas-studio/stores/useChatStore.ts.tmp.28348.1764232894989",
     "docs/UPGRADE_PRINCIPLES.md",
     "docs/C_TEAM_PHASE1_COMPLETION_REPORT.md",
     "docs/C_TEAM_PRIORITY_TODOS_WITH_CONFLICT_ANALYSIS.md",
     "docs/C_TEAM_PARALLEL_WORK_PLAN.md",
-    "docs/CONCEPT_SPEC.md",
-    "docs/CONCEPT_AGENT_V2_UPGRADE_PLAN.md",
-    "docs/C_TEAM_TO_B_TEAM_REQUEST_2025-11-27.md",
-    "docs/C_TEAM_CONCEPT_QUALITY_ANALYSIS_2025-11-27.md",
-    "docs/B_TEAM_DAILY_BACKEND_REPORT_2025-11-27.md",
-    "docs/A_TEAM_DAILY_QA_REPORT_2025-11-27.md",
-    "docs/WORK_PLANS/NEXT_DAY/2025-11-27_Team_C_Plan.md",
-    "docs/DAILY_SUMMARY_2025-11-26.md",
-    "docs/B_TEAM_HANDOVER_2025-11-26.md",
-    "docs/WORK_REPORTS/2025-11-26_Team_C_Report.md",
-    "docs/B_TEAM_DAILY_BACKEND_REPORT_2025-11-26.md",
-    "docs/DEMO/INTEGRATION_TEST_REPORT_2025-11-26.md",
-    "docs/DEMO/B_TEAM_REQUEST_TO_C_TEAM_SHORTS_VIDEO_2025-11-26.md",
-    "docs/DEMO/TEST_YOUTUBE_URLS.md",
-    "docs/DEMO/DEMO_FALLBACK_PLAN.md",
-    "docs/DEMO/DEMO_SCENARIO_SCRIPT.md",
-    "docs/DEMO/B_TEAM_TODO_LIST_2025-11-26.md",
     "frontend/node_modules/@icons/material/svg/zip-box.svg",
     "frontend/node_modules/@icons/material/svg/youtube-tv.svg",
     "frontend/node_modules/@icons/material/svg/youtube-play.svg",

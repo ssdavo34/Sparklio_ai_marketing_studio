@@ -177,7 +177,9 @@ async def prometheus_middleware(request: Request, call_next):
 # 명시적인 origin 목록 필요
 ALLOWED_ORIGINS = [
     "http://localhost:3000",           # Frontend 로컬 개발
+    "http://localhost:3001",           # Frontend 로컬 개발 (대체 포트)
     "http://127.0.0.1:3000",           # Frontend 로컬 (127.0.0.1)
+    "http://127.0.0.1:3001",           # Frontend 로컬 (127.0.0.1, 대체 포트)
     "http://100.101.68.23:3000",       # Frontend Tailscale IP
     "http://100.123.51.5:3000",        # Mac mini
     "http://192.168.0.101:3000",       # Laptop 로컬 IP
