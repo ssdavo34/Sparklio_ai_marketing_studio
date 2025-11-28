@@ -213,3 +213,89 @@ GET /api/v1/concepts/health
 
 **작성 완료**: 2025-11-28 (금요일) 12:10
 **B팀 담당**: Claude (Backend)
+
+---
+
+## 오후 추가 작업 (15:00 업데이트)
+
+### 6. [P1] Unsplash API 완전 배포 ✅
+
+| 항목 | 상태 | 설명 |
+|------|------|------|
+| Settings 추가 | ✅ | `config.py`에 `UNSPLASH_ACCESS_KEY` |
+| Mac mini .env | ✅ | API 키 직접 추가 |
+| docker-compose | ✅ | 환경변수 전달 설정 |
+| 테스트 | ✅ | 10,000+ 검색 결과 확인 |
+
+**커밋**: `2d6c9ce` - feat: Settings에 UNSPLASH_ACCESS_KEY 추가
+
+### 7. Mac mini Anthropic API 키 추가 ✅
+
+기존에 빈 값으로 설정되어 있던 `ANTHROPIC_API_KEY`를 실제 키로 업데이트
+
+### 8. 팀 작업 자동화 시스템 ✅
+
+| 파일 | 용도 |
+|------|------|
+| `CLAUDE.md` | 모든 Claude 세션의 규칙 파일 |
+| `scripts/b-team-start.bat` | B팀 작업 시작 |
+| `scripts/b-team-end.bat` | B팀 작업 종료 |
+| `scripts/c-team-start.bat` | C팀 작업 시작 |
+| `scripts/c-team-end.bat` | C팀 작업 종료 |
+| `scripts/deploy-to-macmini.bat` | Mac mini 배포 |
+| `scripts/HANDOVER_TEMPLATE.md` | 인수인계 문서 템플릿 |
+
+**커밋**: `cfb4c8d` - feat: 팀 작업 자동화 스크립트 및 규칙 파일 추가
+
+### 9. C팀 지원 문서 작성 ✅
+
+| 문서 | 용도 |
+|------|------|
+| `B_TEAM_RESPONSE_TO_C_TEAM_2025-11-28_PM.md` | Vector DB, Unsplash 완료 알림 |
+| `FILE_UPLOAD_API_GUIDE.md` | File Upload API 연동 가이드 |
+
+---
+
+## 오후 커밋 이력
+
+| 시간 | 커밋 | 설명 |
+|------|------|------|
+| 12:30 | `cfb4c8d` | 팀 자동화 스크립트 추가 |
+| 15:02 | `2d6c9ce` | UNSPLASH_ACCESS_KEY 추가 |
+
+---
+
+## Mac mini API 상태 (15:10 확인)
+
+```bash
+# 백엔드
+curl http://100.123.51.5:8000/health
+{"status":"healthy","services":{"api":"ok","database":"ok","storage":"ok"}}
+
+# Vector DB
+curl http://100.123.51.5:8000/api/v1/embeddings/health
+{"status":"ok","service":"embeddings-api","storage":"pgvector","dimensions":1536}
+
+# Unsplash
+curl http://100.123.51.5:8000/api/v1/unsplash/health
+{"status":"ok","service":"unsplash-proxy","api_configured":true}
+```
+
+---
+
+## 오늘 전체 완료 요약
+
+| 우선순위 | 작업 | 상태 |
+|---------|------|------|
+| P0 | CORS 설정, Document API 문서화 | ✅ |
+| P1 | Concepts API 확인 | ✅ |
+| P1 | Unsplash API 프록시 + 배포 | ✅ |
+| P2 | Asset Agent 확인 | ✅ |
+| P3 | Vector DB (pgvector) 연동 | ✅ |
+| P3 | Brand Identity Canvas v2.0 | ✅ |
+| - | 팀 자동화 시스템 | ✅ |
+| - | Mac mini API 키 정리 | ✅ |
+
+---
+
+**최종 업데이트**: 2025-11-28 15:20
