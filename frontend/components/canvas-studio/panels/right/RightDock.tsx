@@ -24,8 +24,10 @@ import { useConceptGenerate, type ConceptOutput } from '../../../../hooks/useCon
 import type { NextAction } from '@/types/demo';
 import { AGENT_INFO, TASK_INFO, TEXT_LLM_INFO, IMAGE_LLM_INFO, VIDEO_LLM_INFO } from '../../stores/types/llm';
 import type { AgentRole, TaskType, CostMode, TextLLMProvider, ImageLLMProvider, VideoLLMProvider } from '../../stores/types/llm';
-import { MessageSquare, Layers, Settings, ChevronDown, ChevronUp, Paperclip, X, FileText, FileSpreadsheet, Image as ImageIcon, Video, Music } from 'lucide-react';
+import { MessageSquare, Layers, Settings, ChevronDown, ChevronUp, Paperclip, X, FileText, FileSpreadsheet, Image as ImageIcon, Video, Music, RefreshCw, Search } from 'lucide-react';
 import { ErrorMessage } from '../../components/ErrorMessage';
+import { getImageMetadata, canRegenerate, isNanoBananaImage, isUnsplashImage } from '@/lib/canvas/image-metadata';
+import type { ImageMetadata } from '@/lib/canvas/image-metadata';
 
 type UploadedFile = {
   id: string;
@@ -718,6 +720,9 @@ Campaign Ideas: ${meetingAnalysis.campaign_ideas.join(', ')}
 
 // Inspector Tab Component
 function InspectorTab({ element }: { element: any }) {
+  const [showUnsplashModal, setShowUnsplashModal] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+
   if (!element) {
     return (
       <div className="p-4 text-center text-gray-400">
@@ -728,6 +733,42 @@ function InspectorTab({ element }: { element: any }) {
     );
   }
 
+  // Get image metadata if this is an image element
+  const imageMetadata: ImageMetadata | undefined = element.type === 'image' ? getImageMetadata(element) : undefined;
+  const canRegenerateImage = canRegenerate(imageMetadata);
+  const isAIImage = isNanoBananaImage(imageMetadata);
+  const isUnsplash = isUnsplashImage(imageMetadata);
+
+  const handleRegenerateImage = async () => {
+    if (!canRegenerateImage || !imageMetadata) return;
+
+    setIsRegenerating(true);
+    try {
+      // TODO: Call Nano Banana API to regenerate
+      console.log('[Inspector] Regenerate image:', {
+        prompt: imageMetadata.originalPrompt,
+        style: imageMetadata.style,
+        previousSeed: imageMetadata.seed,
+      });
+
+      // Placeholder: After API call, update element with new image
+      // element.set({ src: newImageUrl, custom: newMetadata });
+
+      alert('이미지 재생성 기능이 곧 추가됩니다!');
+    } catch (error) {
+      console.error('[Inspector] Regeneration failed:', error);
+      alert('이미지 재생성 실패');
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
+
+  const handleSearchUnsplash = () => {
+    // TODO: Open Unsplash search modal
+    setShowUnsplashModal(true);
+    alert('Unsplash 검색 모달이 곧 추가됩니다!');
+  };
+
   return (
     <div className="p-4 space-y-4">
       {/* Element Name */}
@@ -737,6 +778,93 @@ function InspectorTab({ element }: { element: any }) {
           {element.name || element.type}
         </div>
       </div>
+
+      {/* Image Editing Section (only for image elements) */}
+      {element.type === 'image' && (
+        <div className="border border-purple-200 rounded-lg p-3 bg-purple-50">
+          <div className="flex items-center gap-2 mb-3">
+            <ImageIcon className="w-4 h-4 text-purple-600" />
+            <h4 className="text-sm font-semibold text-purple-900">이미지 편집</h4>
+          </div>
+
+          {/* Image Metadata Info */}
+          {imageMetadata && (
+            <div className="mb-3 p-2 bg-white rounded text-xs space-y-1">
+              <div className="flex justify-between">
+                <span className="text-gray-600">소스:</span>
+                <span className="font-medium text-gray-900">
+                  {imageMetadata.source === 'nano_banana' && '🤖 AI 생성'}
+                  {imageMetadata.source === 'unsplash' && '📷 Unsplash'}
+                  {imageMetadata.source === 'upload' && '📁 업로드'}
+                  {imageMetadata.source === 'placeholder' && '🖼️ 플레이스홀더'}
+                </span>
+              </div>
+              {imageMetadata.originalPrompt && (
+                <div>
+                  <span className="text-gray-600">프롬프트:</span>
+                  <p className="text-gray-900 mt-0.5 line-clamp-2">
+                    {imageMetadata.originalPrompt}
+                  </p>
+                </div>
+              )}
+              {imageMetadata.style && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">스타일:</span>
+                  <span className="font-medium text-gray-900">{imageMetadata.style}</span>
+                </div>
+              )}
+              {imageMetadata.regenerationCount !== undefined && imageMetadata.regenerationCount > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">재생성 횟수:</span>
+                  <span className="font-medium text-gray-900">{imageMetadata.regenerationCount}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="space-y-2">
+            {/* Regenerate with Nano Banana */}
+            {canRegenerateImage && (
+              <button
+                onClick={handleRegenerateImage}
+                disabled={isRegenerating}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+              >
+                <RefreshCw className={`w-4 h-4 ${isRegenerating ? 'animate-spin' : ''}`} />
+                {isRegenerating ? '재생성 중...' : 'AI 이미지 재생성'}
+              </button>
+            )}
+
+            {/* Search Unsplash */}
+            <button
+              onClick={handleSearchUnsplash}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+            >
+              <Search className="w-4 h-4" />
+              Unsplash 검색
+            </button>
+
+            {/* Upload Image */}
+            <button
+              onClick={() => alert('파일 업로드 기능이 곧 추가됩니다!')}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+            >
+              <ImageIcon className="w-4 h-4" />
+              이미지 업로드
+            </button>
+          </div>
+
+          {/* Unsplash Attribution */}
+          {isUnsplash && imageMetadata?.unsplashAttribution && (
+            <div className="mt-3 p-2 bg-white rounded text-xs text-gray-600">
+              <p>
+                Photo by <span className="font-medium">{imageMetadata.unsplashAttribution.photographerName}</span> on Unsplash
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Position */}
       <div>
