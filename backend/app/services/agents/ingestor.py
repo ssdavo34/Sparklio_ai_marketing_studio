@@ -138,6 +138,35 @@ class VectorSearchRequest(BaseModel):
     content_type: Optional[str] = Field(None, description="콘텐츠 타입 필터")
     threshold: float = Field(default=0.7, description="유사도 임계값")
 
+
+class AutoEmbedRequest(BaseModel):
+    """자동 임베딩 생성 및 저장 요청 (텍스트만 제공)"""
+    brand_id: str = Field(..., description="브랜드 ID (UUID)")
+    content_text: str = Field(..., description="임베딩할 텍스트")
+    content_type: str = Field(default="document", description="콘텐츠 타입")
+    source: Optional[str] = Field(None, description="출처")
+    title: Optional[str] = Field(None, description="제목")
+    metadata: Optional[Dict[str, Any]] = Field(None, description="메타데이터")
+
+
+class AutoSearchRequest(BaseModel):
+    """자동 임베딩 기반 검색 요청 (쿼리 텍스트만 제공)"""
+    brand_id: str = Field(..., description="브랜드 ID (UUID)")
+    query_text: str = Field(..., description="검색 쿼리 텍스트")
+    top_k: int = Field(default=5, description="상위 k개 결과")
+    content_type: Optional[str] = Field(None, description="콘텐츠 타입 필터")
+    threshold: float = Field(default=0.7, description="유사도 임계값")
+
+
+class BulkEmbedRequest(BaseModel):
+    """대량 임베딩 요청"""
+    brand_id: str = Field(..., description="브랜드 ID (UUID)")
+    documents: List[Dict[str, Any]] = Field(
+        ...,
+        description="문서 목록 [{content_text, content_type?, source?, title?}]"
+    )
+
+
 # ==================== Output Schemas ====================
 
 class IngestResult(BaseModel):
@@ -237,6 +266,13 @@ class IngestorAgent(AgentBase):
                 result = await self._search_vector(request.payload)
             elif task == "vector_stats":
                 result = await self._get_vector_stats(request.payload)
+            # 자동 임베딩 태스크 (OpenAI 임베딩 자동 생성)
+            elif task == "auto_embed":
+                result = await self._auto_embed(request.payload)
+            elif task == "auto_search":
+                result = await self._auto_search(request.payload)
+            elif task == "bulk_embed":
+                result = await self._bulk_embed(request.payload)
             else:
                 raise AgentError(f"Unknown task: {request.task}")
 
@@ -698,6 +734,219 @@ class IngestorAgent(AgentBase):
             return {
                 "success": False,
                 "error": str(e)
+            }
+        finally:
+            db.close()
+
+    # ==================== Auto Embedding Methods ====================
+
+    async def _generate_embedding(self, text: str) -> List[float]:
+        """
+        OpenAI API를 사용하여 텍스트 임베딩 생성
+
+        Args:
+            text: 임베딩할 텍스트
+
+        Returns:
+            1536차원 임베딩 벡터
+        """
+        import openai
+        from app.core.config import settings
+
+        client = openai.AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+
+        response = await client.embeddings.create(
+            model="text-embedding-3-small",
+            input=text,
+            encoding_format="float"
+        )
+
+        return response.data[0].embedding
+
+    async def _auto_embed(
+        self, payload: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        텍스트 자동 임베딩 및 저장
+
+        텍스트만 제공하면 OpenAI API로 임베딩을 생성하고 Vector DB에 저장
+        """
+        from uuid import UUID
+        from app.core.database import SessionLocal
+        from app.services.vector_db import get_vector_db_service
+
+        input_data = AutoEmbedRequest(**payload)
+        start_time = datetime.now()
+
+        try:
+            # 1. 임베딩 생성
+            logger.info(f"[IngestorAgent] Generating embedding for text: {input_data.content_text[:50]}...")
+            embedding = await self._generate_embedding(input_data.content_text)
+
+            # 2. Vector DB에 저장
+            db = SessionLocal()
+            try:
+                service = get_vector_db_service(db)
+                result = await service.store_brand_embedding(
+                    brand_id=UUID(input_data.brand_id),
+                    content_text=input_data.content_text,
+                    embedding=embedding,
+                    content_type=input_data.content_type,
+                    source=input_data.source,
+                    title=input_data.title,
+                    metadata=input_data.metadata
+                )
+
+                duration = (datetime.now() - start_time).total_seconds()
+                self.stats["total_ingested"] += 1
+
+                return {
+                    "success": True,
+                    "id": str(result.id),
+                    "content_hash": result.content_hash[:16] + "...",
+                    "embedding_dimensions": len(embedding),
+                    "duration": duration
+                }
+
+            finally:
+                db.close()
+
+        except Exception as e:
+            logger.error(f"[IngestorAgent] Auto embed failed: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "duration": (datetime.now() - start_time).total_seconds()
+            }
+
+    async def _auto_search(
+        self, payload: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        텍스트 기반 자동 유사도 검색
+
+        쿼리 텍스트만 제공하면 임베딩을 생성하고 유사 콘텐츠 검색
+        """
+        from uuid import UUID
+        from app.core.database import SessionLocal
+        from app.services.vector_db import get_vector_db_service
+
+        input_data = AutoSearchRequest(**payload)
+        start_time = datetime.now()
+
+        try:
+            # 1. 쿼리 임베딩 생성
+            logger.info(f"[IngestorAgent] Generating query embedding: {input_data.query_text[:50]}...")
+            query_embedding = await self._generate_embedding(input_data.query_text)
+
+            # 2. Vector DB 검색
+            db = SessionLocal()
+            try:
+                service = get_vector_db_service(db)
+                results = await service.search_brand_embeddings(
+                    brand_id=UUID(input_data.brand_id),
+                    query_embedding=query_embedding,
+                    top_k=input_data.top_k,
+                    content_type=input_data.content_type,
+                    threshold=input_data.threshold
+                )
+
+                duration = (datetime.now() - start_time).total_seconds()
+
+                return {
+                    "success": True,
+                    "results": results,
+                    "count": len(results),
+                    "duration": duration
+                }
+
+            finally:
+                db.close()
+
+        except Exception as e:
+            logger.error(f"[IngestorAgent] Auto search failed: {e}")
+            return {
+                "success": False,
+                "results": [],
+                "count": 0,
+                "error": str(e),
+                "duration": (datetime.now() - start_time).total_seconds()
+            }
+
+    async def _bulk_embed(
+        self, payload: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        대량 문서 임베딩 및 저장
+
+        여러 문서를 한 번에 임베딩하고 저장
+        """
+        from uuid import UUID
+        from app.core.database import SessionLocal
+        from app.services.vector_db import get_vector_db_service
+
+        input_data = BulkEmbedRequest(**payload)
+        start_time = datetime.now()
+
+        results = []
+        success_count = 0
+        fail_count = 0
+
+        db = SessionLocal()
+        try:
+            service = get_vector_db_service(db)
+
+            for doc in input_data.documents:
+                try:
+                    content_text = doc.get("content_text", "")
+                    if not content_text:
+                        fail_count += 1
+                        results.append({"success": False, "error": "Empty content"})
+                        continue
+
+                    # 임베딩 생성
+                    embedding = await self._generate_embedding(content_text)
+
+                    # 저장
+                    result = await service.store_brand_embedding(
+                        brand_id=UUID(input_data.brand_id),
+                        content_text=content_text,
+                        embedding=embedding,
+                        content_type=doc.get("content_type", "document"),
+                        source=doc.get("source"),
+                        title=doc.get("title"),
+                        metadata=doc.get("metadata")
+                    )
+
+                    success_count += 1
+                    results.append({
+                        "success": True,
+                        "id": str(result.id),
+                        "content_hash": result.content_hash[:16] + "..."
+                    })
+
+                except Exception as e:
+                    fail_count += 1
+                    results.append({"success": False, "error": str(e)})
+
+            duration = (datetime.now() - start_time).total_seconds()
+            self.stats["total_ingested"] += success_count
+
+            return {
+                "success": fail_count == 0,
+                "total": len(input_data.documents),
+                "success_count": success_count,
+                "fail_count": fail_count,
+                "results": results,
+                "duration": duration
+            }
+
+        except Exception as e:
+            logger.error(f"[IngestorAgent] Bulk embed failed: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "duration": (datetime.now() - start_time).total_seconds()
             }
         finally:
             db.close()

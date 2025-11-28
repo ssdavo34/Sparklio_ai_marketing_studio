@@ -189,6 +189,116 @@ async def delete_brand_embeddings(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# =============================================================================
+# Auto Embedding Endpoints (OpenAI 임베딩 자동 생성)
+# =============================================================================
+
+class AutoEmbedRequest(BaseModel):
+    """자동 임베딩 요청 (텍스트만 제공)"""
+    brand_id: UUID
+    content_text: str = Field(..., min_length=1, max_length=50000)
+    content_type: str = Field(default="document")
+    source: Optional[str] = None
+    title: Optional[str] = None
+    metadata: Optional[dict] = None
+
+
+class AutoSearchRequest(BaseModel):
+    """자동 검색 요청 (쿼리 텍스트만 제공)"""
+    brand_id: UUID
+    query_text: str = Field(..., min_length=1, max_length=5000)
+    top_k: int = Field(default=5, ge=1, le=50)
+    content_type: Optional[str] = None
+    threshold: float = Field(default=0.7, ge=0.0, le=1.0)
+
+
+@router.post("/auto-embed", response_model=dict)
+async def auto_embed(
+    request: AutoEmbedRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    텍스트 자동 임베딩 및 저장
+
+    텍스트만 제공하면 OpenAI API로 임베딩을 생성하고 저장합니다.
+
+    Args:
+        request: 자동 임베딩 요청
+
+    Returns:
+        저장된 임베딩 정보
+    """
+    from app.services.agents.ingestor import create_ingestor_agent
+    from app.services.agents.base import AgentRequest
+
+    try:
+        agent = create_ingestor_agent()
+        result = await agent.process(AgentRequest(
+            task="auto_embed",
+            payload={
+                "brand_id": str(request.brand_id),
+                "content_text": request.content_text,
+                "content_type": request.content_type,
+                "source": request.source,
+                "title": request.title,
+                "metadata": request.metadata
+            }
+        ))
+        return result.result
+    except Exception as e:
+        logger.error(f"[Embeddings API] Auto embed failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/auto-search", response_model=SearchResponse)
+async def auto_search(
+    request: AutoSearchRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    텍스트 기반 자동 유사도 검색
+
+    쿼리 텍스트만 제공하면 임베딩을 생성하고 유사 콘텐츠를 검색합니다.
+
+    Args:
+        request: 자동 검색 요청
+
+    Returns:
+        유사 콘텐츠 목록
+    """
+    from app.services.agents.ingestor import create_ingestor_agent
+    from app.services.agents.base import AgentRequest
+
+    try:
+        agent = create_ingestor_agent()
+        result = await agent.process(AgentRequest(
+            task="auto_search",
+            payload={
+                "brand_id": str(request.brand_id),
+                "query_text": request.query_text,
+                "top_k": request.top_k,
+                "content_type": request.content_type,
+                "threshold": request.threshold
+            }
+        ))
+
+        if result.result.get("success"):
+            return SearchResponse(
+                results=[EmbeddingResult(**r) for r in result.result.get("results", [])],
+                count=result.result.get("count", 0)
+            )
+        else:
+            raise HTTPException(
+                status_code=500,
+                detail=result.result.get("error", "Search failed")
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[Embeddings API] Auto search failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/health")
 async def health():
     """Vector DB 헬스체크"""
@@ -196,5 +306,6 @@ async def health():
         "status": "ok",
         "service": "embeddings-api",
         "storage": "pgvector",
-        "dimensions": 1536
+        "dimensions": 1536,
+        "features": ["store", "search", "auto-embed", "auto-search"]
     }
