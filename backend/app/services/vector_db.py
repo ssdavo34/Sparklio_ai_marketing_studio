@@ -98,7 +98,7 @@ class VectorDBService:
             title=title,
             chunk_index=chunk_index,
             token_count=token_count,
-            metadata=metadata or {}
+            extra_data=metadata or {}
         )
 
         self.db.add(brand_embedding)
@@ -235,7 +235,7 @@ class VectorDBService:
             audience_insight=audience_insight,
             core_promise=core_promise,
             embedding=embedding,
-            metadata=metadata or {}
+            extra_data=metadata or {}
         )
 
         self.db.add(concept_embedding)
@@ -351,7 +351,7 @@ class VectorDBService:
                 chunk_hash=chunk_hash,
                 embedding=embedding,
                 token_count=token_count,
-                metadata=metadata or {}
+                extra_data=metadata or {}
             )
             self.db.add(chunk)
             stored_count += 1

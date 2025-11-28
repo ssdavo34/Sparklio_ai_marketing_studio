@@ -41,8 +41,8 @@ class BrandEmbedding(Base):
     chunk_index = Column(Integer, default=0)  # 청크 인덱스 (긴 문서 분할 시)
     token_count = Column(Integer, nullable=True)  # 토큰 수
 
-    # 추가 메타데이터
-    metadata = Column(JSONB, default={})
+    # 추가 메타데이터 (metadata는 SQLAlchemy 예약어)
+    extra_data = Column(JSONB, default={})
 
     # 타임스탬프
     created_at = Column(TIMESTAMP, server_default=func.now())
@@ -80,8 +80,8 @@ class ConceptEmbedding(Base):
     # 임베딩 벡터 (컨셉 전체 텍스트 기반)
     embedding = Column(Vector(1536), nullable=False)
 
-    # 메타데이터
-    metadata = Column(JSONB, default={})
+    # 메타데이터 (metadata는 SQLAlchemy 예약어)
+    extra_data = Column(JSONB, default={})
 
     # 타임스탬프
     created_at = Column(TIMESTAMP, server_default=func.now())
@@ -117,11 +117,11 @@ class DocumentChunk(Base):
     # 임베딩
     embedding = Column(Vector(1536), nullable=False)
 
-    # 메타데이터
+    # 메타데이터 (metadata는 SQLAlchemy 예약어)
     start_char = Column(Integer, nullable=True)  # 원본 문서에서 시작 위치
     end_char = Column(Integer, nullable=True)  # 원본 문서에서 끝 위치
     token_count = Column(Integer, nullable=True)
-    metadata = Column(JSONB, default={})
+    extra_data = Column(JSONB, default={})
 
     # 타임스탬프
     created_at = Column(TIMESTAMP, server_default=func.now())
