@@ -131,17 +131,18 @@ class VectorDBService:
         """
         # pgvector 코사인 유사도 검색 쿼리
         # 1 - (embedding <=> query) 를 사용하여 유사도 계산
+        # Note: PostgreSQL :: 형변환은 SQLAlchemy bindparam과 충돌하므로 CAST 사용
         embedding_str = f"[{','.join(map(str, query_embedding))}]"
 
         if content_type:
             query = text("""
-                SELECT id, content_text, title, source, content_type, metadata,
-                       1 - (embedding <=> :query_embedding::vector) as similarity
+                SELECT id, content_text, title, source, content_type, extra_data as metadata,
+                       1 - (embedding <=> CAST(:query_embedding AS vector)) as similarity
                 FROM brand_embeddings
-                WHERE brand_id = :brand_id
+                WHERE brand_id = CAST(:brand_id AS uuid)
                   AND content_type = :content_type
-                  AND 1 - (embedding <=> :query_embedding::vector) >= :threshold
-                ORDER BY embedding <=> :query_embedding::vector
+                  AND 1 - (embedding <=> CAST(:query_embedding AS vector)) >= :threshold
+                ORDER BY embedding <=> CAST(:query_embedding AS vector)
                 LIMIT :top_k
             """)
             result = self.db.execute(query, {
@@ -153,12 +154,12 @@ class VectorDBService:
             })
         else:
             query = text("""
-                SELECT id, content_text, title, source, content_type, metadata,
-                       1 - (embedding <=> :query_embedding::vector) as similarity
+                SELECT id, content_text, title, source, content_type, extra_data as metadata,
+                       1 - (embedding <=> CAST(:query_embedding AS vector)) as similarity
                 FROM brand_embeddings
-                WHERE brand_id = :brand_id
-                  AND 1 - (embedding <=> :query_embedding::vector) >= :threshold
-                ORDER BY embedding <=> :query_embedding::vector
+                WHERE brand_id = CAST(:brand_id AS uuid)
+                  AND 1 - (embedding <=> CAST(:query_embedding AS vector)) >= :threshold
+                ORDER BY embedding <=> CAST(:query_embedding AS vector)
                 LIMIT :top_k
             """)
             result = self.db.execute(query, {
@@ -268,12 +269,12 @@ class VectorDBService:
 
         if brand_id:
             query = text("""
-                SELECT concept_id, concept_name, audience_insight, core_promise, metadata,
-                       1 - (embedding <=> :query_embedding::vector) as similarity
+                SELECT concept_id, concept_name, audience_insight, core_promise, extra_data as metadata,
+                       1 - (embedding <=> CAST(:query_embedding AS vector)) as similarity
                 FROM concept_embeddings
-                WHERE brand_id = :brand_id
-                  AND 1 - (embedding <=> :query_embedding::vector) >= :threshold
-                ORDER BY embedding <=> :query_embedding::vector
+                WHERE brand_id = CAST(:brand_id AS uuid)
+                  AND 1 - (embedding <=> CAST(:query_embedding AS vector)) >= :threshold
+                ORDER BY embedding <=> CAST(:query_embedding AS vector)
                 LIMIT :top_k
             """)
             result = self.db.execute(query, {
@@ -284,11 +285,11 @@ class VectorDBService:
             })
         else:
             query = text("""
-                SELECT concept_id, concept_name, audience_insight, core_promise, metadata,
-                       1 - (embedding <=> :query_embedding::vector) as similarity
+                SELECT concept_id, concept_name, audience_insight, core_promise, extra_data as metadata,
+                       1 - (embedding <=> CAST(:query_embedding AS vector)) as similarity
                 FROM concept_embeddings
-                WHERE 1 - (embedding <=> :query_embedding::vector) >= :threshold
-                ORDER BY embedding <=> :query_embedding::vector
+                WHERE 1 - (embedding <=> CAST(:query_embedding AS vector)) >= :threshold
+                ORDER BY embedding <=> CAST(:query_embedding AS vector)
                 LIMIT :top_k
             """)
             result = self.db.execute(query, {
@@ -384,7 +385,7 @@ class VectorDBService:
         embedding_str = f"[{','.join(map(str, query_embedding))}]"
 
         # 동적 필터 조건 생성
-        conditions = ["1 - (embedding <=> :query_embedding::vector) >= :threshold"]
+        conditions = ["1 - (embedding <=> CAST(:query_embedding AS vector)) >= :threshold"]
         params = {
             "query_embedding": embedding_str,
             "threshold": threshold,
@@ -392,21 +393,21 @@ class VectorDBService:
         }
 
         if document_id:
-            conditions.append("document_id = :document_id")
+            conditions.append("document_id = CAST(:document_id AS uuid)")
             params["document_id"] = str(document_id)
 
         if brand_id:
-            conditions.append("brand_id = :brand_id")
+            conditions.append("brand_id = CAST(:brand_id AS uuid)")
             params["brand_id"] = str(brand_id)
 
         where_clause = " AND ".join(conditions)
 
         query = text(f"""
-            SELECT id, document_id, chunk_text, chunk_index, metadata,
-                   1 - (embedding <=> :query_embedding::vector) as similarity
+            SELECT id, document_id, chunk_text, chunk_index, extra_data as metadata,
+                   1 - (embedding <=> CAST(:query_embedding AS vector)) as similarity
             FROM document_chunks
             WHERE {where_clause}
-            ORDER BY embedding <=> :query_embedding::vector
+            ORDER BY embedding <=> CAST(:query_embedding AS vector)
             LIMIT :top_k
         """)
 
