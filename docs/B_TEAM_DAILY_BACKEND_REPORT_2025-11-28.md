@@ -90,30 +90,70 @@ GET /api/v1/concepts/health
 
 ---
 
-## 미완료 작업 (이번 주 내)
+### 4. [P3] IngestorAgent Vector DB (pgvector) 연동 ✅
 
-### [P3] IngestorAgent Vector DB (Qdrant) 연동
+**변경사항**: Qdrant 대신 pgvector 사용 (별도 인프라 불필요)
 
-**현재 상태**: Mock 스토리지 (메모리)
-**필요 작업**:
-1. Qdrant 클라이언트 설정
-2. 임베딩 생성 로직 연동 (EmbedderAgent)
-3. Brand 학습 데이터 벡터 저장
-4. RAGAgent에서 벡터 검색 연동
+**구현 내용**:
 
-**예상 시간**: 6시간
-**완료 예정일**: 12/02 (월)
+1. ✅ pgvector 모델 정의 (`models/embedding.py`)
+   - BrandEmbedding, ConceptEmbedding, DocumentChunk
+   - Vector(1536) - OpenAI embeddings 호환
 
-### [P3] Brand Identity Canvas v2.0 템플릿 개선
+2. ✅ VectorDBService 구현 (`services/vector_db.py`)
+   - store_brand_embedding / search_brand_embeddings
+   - store_concept_embedding / search_similar_concepts
+   - store_document_chunks / search_document_chunks
 
-**현재 상태**: 기본 템플릿만 존재
-**필요 작업**:
-1. 10개 이상 레이아웃 템플릿 추가
-2. 컬러 팔레트 자동 생성 품질 향상
-3. 폰트 조합 추천 로직 개선
+3. ✅ IngestorAgent 연동 (`services/agents/ingestor.py`)
+   - `store_vector` task 추가
+   - `search_vector` task 추가
+   - `vector_stats` task 추가
 
-**예상 시간**: 5시간
-**완료 예정일**: 12/02 (월)
+4. ✅ REST API 엔드포인트 (`api/v1/endpoints/embeddings.py`)
+   - `POST /api/v1/embeddings/store`
+   - `POST /api/v1/embeddings/search`
+   - `GET /api/v1/embeddings/stats`
+   - `DELETE /api/v1/embeddings/brand/{brand_id}`
+
+5. ✅ Alembic 마이그레이션 (`alembic/versions/2025_11_28_vector_db_tables.py`)
+   - IVFFlat 인덱스 생성
+
+**커밋**: `a634a4c`
+
+---
+
+### 5. [P3] Brand Identity Canvas v2.0 템플릿 추가 ✅
+
+**구현 내용**:
+
+1. ✅ 10가지 스타일의 Brand Identity Canvas 템플릿
+   - Minimal, Premium, Startup, Luxury, Tech
+   - Lifestyle, F&B, Fashion, Eco, Creative
+
+2. ✅ 각 템플릿 5-7페이지 구성
+   - 표지, 브랜드 에센스, 타겟 고객, 비주얼 아이덴티티
+   - 컬러 & 타이포그래피, 브랜드 보이스, 요약
+
+3. ✅ 10개 컬러 팔레트 정의
+   - Modern Blue, Warm Coral, Nature Green, Luxury Gold
+   - Tech Purple, Soft Pastel, Bold Contrast, Ocean Breeze
+   - Sunset Gradient, Minimal Gray
+
+4. ✅ TemplateService 연동
+
+**파일**:
+
+- `backend/app/services/editor/brand_identity_templates.py` (신규)
+- `backend/app/services/editor/template_service.py` (수정)
+
+**커밋**: `f287928`
+
+---
+
+## 미완료 작업
+
+없음 - P3까지 모두 완료
 
 ---
 
@@ -134,6 +174,8 @@ GET /api/v1/concepts/health
 |------|------|------|
 | 10:16 | `2a6f754` | CORS 설정 수정 |
 | 10:22 | `c4ff9af` | C팀 회신 문서 작성 |
+| 11:30 | `a634a4c` | Vector DB (pgvector) 연동 구현 |
+| 12:00 | `f287928` | Brand Identity Canvas v2.0 템플릿 추가 |
 
 ---
 
@@ -155,15 +197,19 @@ GET /api/v1/concepts/health
 
 ## 내일 작업 계획 (11/29 토요일)
 
-1. **IngestorAgent Vector DB 연동 시작**
-   - Qdrant Docker 컨테이너 설정
-   - 클라이언트 연동 코드 작성
+1. **Vector DB 마이그레이션 적용**
+   - Mac mini에서 alembic upgrade 실행
+   - pgvector 확장 활성화 확인
 
-2. **Brand Identity Canvas v2.0**
-   - 템플릿 구조 설계
-   - 컬러 팔레트 알고리즘 개선
+2. **Vector DB 기능 테스트**
+   - 임베딩 저장/검색 API 테스트
+   - IngestorAgent store_vector/search_vector 테스트
+
+3. **Brand Identity Canvas 추가 개선** (선택)
+   - 폰트 조합 추천 로직 개선
+   - 템플릿 미리보기 썸네일 생성
 
 ---
 
-**작성 완료**: 2025-11-28 (금요일) 10:30
+**작성 완료**: 2025-11-28 (금요일) 12:10
 **B팀 담당**: Claude (Backend)
