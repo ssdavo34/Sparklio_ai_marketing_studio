@@ -88,6 +88,9 @@ class Settings(BaseSettings):
     )
     gemini_timeout: int = Field(60, env="GEMINI_TIMEOUT")
 
+    # Unsplash API (C팀 Photos Tab 지원)
+    unsplash_access_key: str = Field("", env="UNSPLASH_ACCESS_KEY")
+
 
 
     # AI Workers - Media (ComfyUI) - 소문자 필드명 사용
@@ -201,6 +204,11 @@ class Settings(BaseSettings):
     @property
     def GEMINI_TIMEOUT(self) -> int:
         return self.gemini_timeout
+
+    # Unsplash 대문자 속성
+    @property
+    def UNSPLASH_ACCESS_KEY(self) -> str:
+        return self.unsplash_access_key
 
 
 
