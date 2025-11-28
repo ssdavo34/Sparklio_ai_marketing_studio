@@ -26,9 +26,10 @@ import { AGENT_INFO, TASK_INFO, TEXT_LLM_INFO, IMAGE_LLM_INFO, VIDEO_LLM_INFO } 
 import type { AgentRole, TaskType, CostMode, TextLLMProvider, ImageLLMProvider, VideoLLMProvider } from '../../stores/types/llm';
 import { MessageSquare, Layers, Settings, ChevronDown, ChevronUp, Paperclip, X, FileText, FileSpreadsheet, Image as ImageIcon, Video, Music, RefreshCw, Search } from 'lucide-react';
 import { ErrorMessage } from '../../components/ErrorMessage';
-import { getImageMetadata, canRegenerate, isNanoBananaImage, isUnsplashImage, updateImageSource } from '@/lib/canvas/image-metadata';
+import { getImageMetadata, canRegenerate, isNanoBananaImage, isUnsplashImage, updateImageSource, incrementRegenerationCount } from '@/lib/canvas/image-metadata';
 import type { ImageMetadata } from '@/lib/canvas/image-metadata';
 import { UnsplashSearchModal } from '../../modals/UnsplashSearchModal';
+import { regenerateImage, getNanoBananaErrorMessage } from '@/lib/api/nano-banana-api';
 
 type UploadedFile = {
   id: string;
@@ -741,24 +742,49 @@ function InspectorTab({ element }: { element: any }) {
   const isUnsplash = isUnsplashImage(imageMetadata);
 
   const handleRegenerateImage = async () => {
-    if (!canRegenerateImage || !imageMetadata) return;
+    if (!canRegenerateImage || !imageMetadata || !imageMetadata.originalPrompt) return;
 
     setIsRegenerating(true);
     try {
-      // TODO: Call Nano Banana API to regenerate
-      console.log('[Inspector] Regenerate image:', {
+      console.log('[Inspector] Regenerating image:', {
         prompt: imageMetadata.originalPrompt,
         style: imageMetadata.style,
         previousSeed: imageMetadata.seed,
       });
 
-      // Placeholder: After API call, update element with new image
-      // element.set({ src: newImageUrl, custom: newMetadata });
+      // Nano Banana API 호출
+      const response = await regenerateImage(
+        imageMetadata.originalPrompt,
+        imageMetadata.style as any,
+        imageMetadata.seed
+      );
 
-      alert('이미지 재생성 기능이 곧 추가됩니다!');
-    } catch (error) {
+      if (!response.success || !response.images || response.images.length === 0) {
+        throw new Error(response.error || '이미지 생성 실패');
+      }
+
+      // 첫 번째 생성된 이미지 사용
+      const newImageUrl = response.images[0];
+
+      // 메타데이터 업데이트 (재생성 횟수 증가, 새 seed 저장)
+      const updatedMetadata = incrementRegenerationCount({
+        ...imageMetadata,
+        seed: response.seed,
+        updatedAt: new Date().toISOString(),
+      });
+
+      // 이미지 소스와 메타데이터 업데이트
+      updateImageSource(element, newImageUrl, updatedMetadata);
+
+      console.log('[Inspector] Image regenerated successfully:', {
+        url: newImageUrl,
+        seed: response.seed,
+        count: updatedMetadata.regenerationCount,
+      });
+    } catch (error: any) {
       console.error('[Inspector] Regeneration failed:', error);
-      alert('이미지 재생성 실패');
+      const errorMessage = getNanoBananaErrorMessage(error);
+      alert(`이미지 재생성 실패: ${errorMessage}`);
     } finally {
       setIsRegenerating(false);
     }
