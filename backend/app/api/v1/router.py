@@ -9,6 +9,7 @@ from app.api.v1.endpoints import (
     meetings,  # Meeting AI API (P0-2)
     generators,  # Multi-Channel Generators API (P1)
     embeddings,  # Vector DB API (P3 - 2025-11-28)
+    unsplash,  # Unsplash API Proxy (C팀 지원 - 2025-11-28)
 )
 # agents (legacy) - Deprecated, import 에러로 주석 처리
 
@@ -142,4 +143,11 @@ api_router.include_router(
     embeddings.router,
     prefix="/embeddings",
     tags=["Vector DB"]
+)
+
+# Unsplash API Proxy (C팀 Photos Tab 지원 - 2025-11-28)
+api_router.include_router(
+    unsplash.router,
+    prefix="/unsplash",
+    tags=["External APIs"]
 )
