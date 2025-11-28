@@ -9,6 +9,9 @@ Ingestor Agent - 데이터 저장 및 관리 전문 에이전트
 3. S3 파일 업로드
 4. 배치 저장 처리
 5. 트랜잭션 관리
+6. [NEW] Vector DB (pgvector) 임베딩 저장 및 검색
+
+업데이트: 2025-11-28 - Vector DB 연동 추가
 """
 
 import json
@@ -34,6 +37,7 @@ class StorageDestination(str, Enum):
     S3 = "s3"
     ELASTICSEARCH = "elasticsearch"
     MONGODB = "mongodb"
+    VECTOR_DB = "vector_db"  # pgvector 기반 Vector DB
 
 class DataType(str, Enum):
     """데이터 타입"""
@@ -111,6 +115,28 @@ class DeleteRequest(BaseModel):
     destination: StorageDestination = Field(..., description="삭제 대상")
     conditions: Dict[str, Any] = Field(..., description="삭제 조건")
     soft_delete: bool = Field(default=True, description="소프트 삭제 여부")
+
+
+# ==================== Vector DB Schemas ====================
+
+class VectorStoreRequest(BaseModel):
+    """Vector DB 저장 요청"""
+    brand_id: str = Field(..., description="브랜드 ID (UUID)")
+    content_text: str = Field(..., description="저장할 텍스트")
+    embedding: List[float] = Field(..., description="임베딩 벡터 (1536차원)")
+    content_type: str = Field(default="document", description="콘텐츠 타입")
+    source: Optional[str] = Field(None, description="출처")
+    title: Optional[str] = Field(None, description="제목")
+    metadata: Optional[Dict[str, Any]] = Field(None, description="메타데이터")
+
+
+class VectorSearchRequest(BaseModel):
+    """Vector DB 검색 요청"""
+    brand_id: str = Field(..., description="브랜드 ID (UUID)")
+    query_embedding: List[float] = Field(..., description="쿼리 임베딩 벡터")
+    top_k: int = Field(default=5, description="상위 k개 결과")
+    content_type: Optional[str] = Field(None, description="콘텐츠 타입 필터")
+    threshold: float = Field(default=0.7, description="유사도 임계값")
 
 # ==================== Output Schemas ====================
 
@@ -204,6 +230,13 @@ class IngestorAgent(AgentBase):
                 result = await self._query_data(request.payload)
             elif task == "delete_data":
                 result = await self._delete_data(request.payload)
+            # Vector DB 태스크 (pgvector)
+            elif task == "store_vector":
+                result = await self._store_vector(request.payload)
+            elif task == "search_vector":
+                result = await self._search_vector(request.payload)
+            elif task == "vector_stats":
+                result = await self._get_vector_stats(request.payload)
             else:
                 raise AgentError(f"Unknown task: {request.task}")
 
@@ -543,6 +576,132 @@ class IngestorAgent(AgentBase):
                 duration=duration
             ).dict()
 
+    # ==================== Vector DB Methods (pgvector) ====================
+
+    async def _store_vector(
+        self, payload: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Vector DB에 임베딩 저장
+
+        VectorDBService를 사용하여 pgvector에 브랜드 학습 데이터 저장
+        """
+        from uuid import UUID
+        from app.core.database import SessionLocal
+        from app.services.vector_db import get_vector_db_service
+
+        input_data = VectorStoreRequest(**payload)
+        start_time = datetime.now()
+
+        db = SessionLocal()
+        try:
+            service = get_vector_db_service(db)
+            result = await service.store_brand_embedding(
+                brand_id=UUID(input_data.brand_id),
+                content_text=input_data.content_text,
+                embedding=input_data.embedding,
+                content_type=input_data.content_type,
+                source=input_data.source,
+                title=input_data.title,
+                metadata=input_data.metadata
+            )
+
+            duration = (datetime.now() - start_time).total_seconds()
+            self.stats["total_ingested"] += 1
+
+            return {
+                "success": True,
+                "id": str(result.id),
+                "content_hash": result.content_hash[:16] + "...",
+                "duration": duration
+            }
+
+        except Exception as e:
+            logger.error(f"[IngestorAgent] Vector store failed: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "duration": (datetime.now() - start_time).total_seconds()
+            }
+        finally:
+            db.close()
+
+    async def _search_vector(
+        self, payload: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Vector DB에서 유사도 검색
+
+        VectorDBService를 사용하여 pgvector에서 유사 콘텐츠 검색
+        """
+        from uuid import UUID
+        from app.core.database import SessionLocal
+        from app.services.vector_db import get_vector_db_service
+
+        input_data = VectorSearchRequest(**payload)
+        start_time = datetime.now()
+
+        db = SessionLocal()
+        try:
+            service = get_vector_db_service(db)
+            results = await service.search_brand_embeddings(
+                brand_id=UUID(input_data.brand_id),
+                query_embedding=input_data.query_embedding,
+                top_k=input_data.top_k,
+                content_type=input_data.content_type,
+                threshold=input_data.threshold
+            )
+
+            duration = (datetime.now() - start_time).total_seconds()
+
+            return {
+                "success": True,
+                "results": results,
+                "count": len(results),
+                "duration": duration
+            }
+
+        except Exception as e:
+            logger.error(f"[IngestorAgent] Vector search failed: {e}")
+            return {
+                "success": False,
+                "results": [],
+                "count": 0,
+                "error": str(e),
+                "duration": (datetime.now() - start_time).total_seconds()
+            }
+        finally:
+            db.close()
+
+    async def _get_vector_stats(
+        self, payload: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Vector DB 통계 조회"""
+        from uuid import UUID
+        from app.core.database import SessionLocal
+        from app.services.vector_db import get_vector_db_service
+
+        brand_id = payload.get("brand_id")
+
+        db = SessionLocal()
+        try:
+            service = get_vector_db_service(db)
+            stats = service.get_stats(
+                UUID(brand_id) if brand_id else None
+            )
+            return {
+                "success": True,
+                "stats": stats
+            }
+        except Exception as e:
+            logger.error(f"[IngestorAgent] Vector stats failed: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+        finally:
+            db.close()
+
     # ==================== Helper Methods ====================
 
     def _generate_id(self, data: Dict[str, Any]) -> str:
@@ -564,7 +723,8 @@ class IngestorAgent(AgentBase):
                 "file_upload": True,
                 "query": True,
                 "soft_delete": True,
-                "transaction": True
+                "transaction": True,
+                "vector_db": True,  # pgvector 연동
             },
             "stats": self.stats,
             "storage_status": {

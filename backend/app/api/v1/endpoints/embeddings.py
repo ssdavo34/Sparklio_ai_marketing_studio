@@ -1,0 +1,200 @@
+"""
+Embeddings API - Vector DB 엔드포인트
+
+브랜드 학습 데이터, 컨셉, 문서의 임베딩 저장 및 검색 API
+
+작성일: 2025-11-28
+작성자: B팀 (Backend)
+"""
+
+import logging
+from typing import List, Optional
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
+
+from app.core.database import get_db
+from app.services.vector_db import get_vector_db_service
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter()
+
+
+# =============================================================================
+# Request/Response Schemas
+# =============================================================================
+
+class StoreEmbeddingRequest(BaseModel):
+    """임베딩 저장 요청"""
+    brand_id: UUID
+    content_text: str = Field(..., min_length=1, max_length=50000)
+    embedding: List[float] = Field(..., min_items=1536, max_items=1536)
+    content_type: str = Field(default="document")
+    source: Optional[str] = None
+    title: Optional[str] = None
+    metadata: Optional[dict] = None
+
+
+class SearchEmbeddingRequest(BaseModel):
+    """임베딩 검색 요청"""
+    brand_id: UUID
+    query_embedding: List[float] = Field(..., min_items=1536, max_items=1536)
+    top_k: int = Field(default=5, ge=1, le=50)
+    content_type: Optional[str] = None
+    threshold: float = Field(default=0.7, ge=0.0, le=1.0)
+
+
+class EmbeddingResult(BaseModel):
+    """임베딩 검색 결과"""
+    id: str
+    content_text: str
+    title: Optional[str]
+    source: Optional[str]
+    content_type: str
+    similarity: float
+    metadata: Optional[dict]
+
+
+class SearchResponse(BaseModel):
+    """검색 응답"""
+    results: List[EmbeddingResult]
+    count: int
+
+
+class StatsResponse(BaseModel):
+    """통계 응답"""
+    brand_embeddings: int
+    concept_embeddings: int
+    document_chunks: int
+    total: int
+
+
+# =============================================================================
+# API Endpoints
+# =============================================================================
+
+@router.post("/store", response_model=dict)
+async def store_embedding(
+    request: StoreEmbeddingRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    브랜드 학습 데이터 임베딩 저장
+
+    Args:
+        request: 임베딩 저장 요청
+
+    Returns:
+        저장된 임베딩 ID
+    """
+    try:
+        service = get_vector_db_service(db)
+        result = await service.store_brand_embedding(
+            brand_id=request.brand_id,
+            content_text=request.content_text,
+            embedding=request.embedding,
+            content_type=request.content_type,
+            source=request.source,
+            title=request.title,
+            metadata=request.metadata
+        )
+        return {
+            "id": str(result.id),
+            "status": "stored",
+            "content_hash": result.content_hash[:16] + "..."
+        }
+    except Exception as e:
+        logger.error(f"[Embeddings API] Store failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/search", response_model=SearchResponse)
+async def search_embeddings(
+    request: SearchEmbeddingRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    브랜드 임베딩 유사도 검색
+
+    Args:
+        request: 검색 요청
+
+    Returns:
+        유사 콘텐츠 목록
+    """
+    try:
+        service = get_vector_db_service(db)
+        results = await service.search_brand_embeddings(
+            brand_id=request.brand_id,
+            query_embedding=request.query_embedding,
+            top_k=request.top_k,
+            content_type=request.content_type,
+            threshold=request.threshold
+        )
+        return SearchResponse(
+            results=[EmbeddingResult(**r) for r in results],
+            count=len(results)
+        )
+    except Exception as e:
+        logger.error(f"[Embeddings API] Search failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/stats", response_model=StatsResponse)
+async def get_stats(
+    brand_id: Optional[UUID] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """
+    Vector DB 통계 조회
+
+    Args:
+        brand_id: 브랜드 ID (선택)
+
+    Returns:
+        통계 정보
+    """
+    try:
+        service = get_vector_db_service(db)
+        stats = service.get_stats(brand_id)
+        return StatsResponse(**stats)
+    except Exception as e:
+        logger.error(f"[Embeddings API] Stats failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/brand/{brand_id}")
+async def delete_brand_embeddings(
+    brand_id: UUID,
+    db: Session = Depends(get_db)
+):
+    """
+    브랜드 임베딩 삭제
+
+    Args:
+        brand_id: 브랜드 ID
+
+    Returns:
+        삭제된 레코드 수
+    """
+    try:
+        service = get_vector_db_service(db)
+        deleted = service.delete_brand_embeddings(brand_id)
+        return {"deleted": deleted, "brand_id": str(brand_id)}
+    except Exception as e:
+        logger.error(f"[Embeddings API] Delete failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/health")
+async def health():
+    """Vector DB 헬스체크"""
+    return {
+        "status": "ok",
+        "service": "embeddings-api",
+        "storage": "pgvector",
+        "dimensions": 1536
+    }

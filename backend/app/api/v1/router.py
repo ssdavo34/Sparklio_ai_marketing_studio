@@ -7,7 +7,8 @@ from app.api.v1.endpoints import (
     sparklio_editor,  # Sparklio Editor API 추가
     workflows,  # Workflow Orchestration API 추가
     meetings,  # Meeting AI API (P0-2)
-    generators  # Multi-Channel Generators API (P1)
+    generators,  # Multi-Channel Generators API (P1)
+    embeddings,  # Vector DB API (P3 - 2025-11-28)
 )
 # agents (legacy) - Deprecated, import 에러로 주석 처리
 
@@ -135,3 +136,10 @@ api_router.include_router(assets_demo.router, prefix="", tags=["Demo Assets"])
 
 # Concepts API v2.0 (ConceptV1 - CONCEPT_SPEC.md 기준)
 api_router.include_router(concepts.router, prefix="", tags=["Concepts"])
+
+# Vector DB API (pgvector - P3 2025-11-28)
+api_router.include_router(
+    embeddings.router,
+    prefix="/embeddings",
+    tags=["Vector DB"]
+)

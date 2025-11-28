@@ -7,6 +7,7 @@ from app.models.agent_log import AgentLog, RouterLog
 from app.models.document import Document, Template, GenerationJob
 from app.models.meeting import Meeting, MeetingTranscript, MeetingStatus
 from app.models.campaign import Campaign, Concept, ConceptAsset, CampaignStatus, AssetType, AssetStatus
+from app.models.embedding import BrandEmbedding, ConceptEmbedding, DocumentChunk
 
 __all__ = [
     "GeneratedAsset",
@@ -31,4 +32,8 @@ __all__ = [
     "CampaignStatus",
     "AssetType",
     "AssetStatus",
+    # Vector DB (pgvector)
+    "BrandEmbedding",
+    "ConceptEmbedding",
+    "DocumentChunk",
 ]
