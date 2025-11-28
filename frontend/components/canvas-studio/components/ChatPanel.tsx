@@ -18,7 +18,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { ChevronDown, ChevronUp, Paperclip, X, FileText, FileSpreadsheet, Image as ImageIcon, Video, Music } from 'lucide-react';
+import { ChevronDown, ChevronUp, Paperclip, X, FileText, FileSpreadsheet, Image as ImageIcon, Video, Music, Sparkles, Search } from 'lucide-react';
 import type { GenerateKind } from '@/lib/api/types';
 import { useGenerate } from '../hooks/useGenerate';
 import { useConceptGenerate } from '../../../hooks/useConceptGenerate';
@@ -27,6 +27,9 @@ import { getPolotnoStore } from '../polotno/polotnoStoreSingleton';
 import { useCanvasStore } from '../stores/useCanvasStore';
 import { useGeneratedAssetsStore } from '../stores/useGeneratedAssetsStore';
 import { useCenterViewStore } from '../stores/useCenterViewStore';
+import { useWorkspaceStore } from '../stores';
+import { searchBrandContext, searchSimilarConcepts, type EmbeddingSearchResult } from '@/lib/api/vector-db-api';
+import { toast } from '@/components/ui/Toast';
 
 type UploadedFile = {
   id: string;
@@ -314,6 +317,8 @@ export function ChatPanel() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const currentTheme = useCanvasStore((state) => state.currentTheme);
   const applyThemeToCanvas = useCanvasStore((state) => state.applyThemeToCanvas);
+  const { currentWorkspace } = useWorkspaceStore();
+  const brandId = currentWorkspace?.id || 'default-brand';
 
   // Form State
   const [mode, setMode] = useState<'copy' | 'concept'>('copy');
@@ -322,6 +327,11 @@ export function ChatPanel() {
   const [lastResponse, setLastResponse] = useState<any>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(true);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+
+  // Brand Context Search State
+  const [useBrandContext, setUseBrandContext] = useState(true); // 기본값 ON
+  const [brandContextResults, setBrandContextResults] = useState<EmbeddingSearchResult[]>([]);
+  const [isSearchingContext, setIsSearchingContext] = useState(false);
 
   // File Upload Handlers
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -367,6 +377,43 @@ export function ChatPanel() {
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   };
 
+  // Brand Context Search
+  const searchAndEnrichPrompt = async (originalPrompt: string): Promise<string> => {
+    if (!useBrandContext || !brandId) {
+      return originalPrompt;
+    }
+
+    setIsSearchingContext(true);
+    try {
+      // 브랜드 컨텍스트 검색
+      const results = await searchBrandContext(brandId, originalPrompt, 3);
+      setBrandContextResults(results);
+
+      if (results.length === 0) {
+        console.log('[ChatPanel] No brand context found');
+        return originalPrompt;
+      }
+
+      // 검색 결과를 프롬프트에 추가
+      const contextText = results
+        .map((r, idx) => `[브랜드 컨텍스트 ${idx + 1}] (유사도: ${(r.similarity * 100).toFixed(0)}%)\n${r.text}`)
+        .join('\n\n');
+
+      const enrichedPrompt = `${originalPrompt}\n\n--- 브랜드 가이드라인 ---\n${contextText}`;
+
+      console.log('[ChatPanel] Enriched prompt with', results.length, 'brand context items');
+      toast.success(`${results.length}개의 브랜드 컨텍스트를 찾았습니다`);
+
+      return enrichedPrompt;
+    } catch (error) {
+      console.error('[ChatPanel] Brand context search failed:', error);
+      toast.error('브랜드 컨텍스트 검색 실패');
+      return originalPrompt;
+    } finally {
+      setIsSearchingContext(false);
+    }
+  };
+
   // Submit Handler
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -386,11 +433,14 @@ export function ChatPanel() {
     clearError();
 
     try {
-      console.log('[ChatPanel] Generating:', { mode, kind, prompt, files: uploadedFiles.length });
+      // 브랜드 컨텍스트 검색 및 프롬프트 강화
+      const enrichedPrompt = await searchAndEnrichPrompt(prompt);
+
+      console.log('[ChatPanel] Generating:', { mode, kind, prompt: enrichedPrompt, files: uploadedFiles.length });
 
       if (mode === 'concept') {
         // Concept Generation Mode
-        const response = await generateConcepts(prompt, 3);
+        const response = await generateConcepts(enrichedPrompt, 3);
         console.log('[ChatPanel] Concept Response:', response);
 
         // Store in GeneratedAssetsStore (ConceptBoardData)
@@ -450,7 +500,7 @@ export function ChatPanel() {
         // Existing Copy Generation Mode
         // TODO: 파일이 있으면 multipart/form-data로 전송
         // 지금은 기존 방식으로만 처리
-        const response = await generate(kind, prompt);
+        const response = await generate(kind, enrichedPrompt);
 
         console.log('[ChatPanel] Generate response:', response);
 
@@ -629,6 +679,45 @@ export function ChatPanel() {
                     <option value="brand_kit">브랜드킷</option>
                     <option value="presentation">프레젠테이션</option>
                   </select>
+                </div>
+              )}
+
+              {/* Brand Context 자동 추가 토글 */}
+              <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg border border-purple-200">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-purple-600" />
+                  <div>
+                    <p className="text-xs font-medium text-purple-900">브랜드 컨텍스트 자동 추가</p>
+                    <p className="text-xs text-purple-700">브랜드 문서에서 관련 내용을 찾아 프롬프트에 추가합니다</p>
+                  </div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={useBrandContext}
+                    onChange={(e) => setUseBrandContext(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                </label>
+              </div>
+
+              {/* 브랜드 컨텍스트 검색 결과 표시 */}
+              {brandContextResults.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-xs font-medium text-green-700">
+                    <Search className="w-3 h-3" />
+                    <span>찾은 브랜드 컨텍스트 ({brandContextResults.length}개)</span>
+                  </div>
+                  {brandContextResults.map((result, idx) => (
+                    <div key={result.id} className="p-2 bg-green-50 border border-green-200 rounded text-xs">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-medium text-green-900">컨텍스트 {idx + 1}</span>
+                        <span className="text-green-700">유사도: {(result.similarity * 100).toFixed(0)}%</span>
+                      </div>
+                      <p className="text-green-800 line-clamp-2">{result.text}</p>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
