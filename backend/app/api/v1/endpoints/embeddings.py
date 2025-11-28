@@ -233,7 +233,7 @@ async def auto_embed(
 
     try:
         agent = create_ingestor_agent()
-        result = await agent.process(AgentRequest(
+        response = await agent.execute(AgentRequest(
             task="auto_embed",
             payload={
                 "brand_id": str(request.brand_id),
@@ -244,7 +244,10 @@ async def auto_embed(
                 "metadata": request.metadata
             }
         ))
-        return result.result
+        # AgentResponse의 outputs에서 결과 추출
+        if response.outputs and len(response.outputs) > 0:
+            return response.outputs[0].value
+        return {"error": "No output from agent"}
     except Exception as e:
         logger.error(f"[Embeddings API] Auto embed failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -271,7 +274,7 @@ async def auto_search(
 
     try:
         agent = create_ingestor_agent()
-        result = await agent.process(AgentRequest(
+        response = await agent.execute(AgentRequest(
             task="auto_search",
             payload={
                 "brand_id": str(request.brand_id),
@@ -282,16 +285,20 @@ async def auto_search(
             }
         ))
 
-        if result.result.get("success"):
-            return SearchResponse(
-                results=[EmbeddingResult(**r) for r in result.result.get("results", [])],
-                count=result.result.get("count", 0)
-            )
-        else:
-            raise HTTPException(
-                status_code=500,
-                detail=result.result.get("error", "Search failed")
-            )
+        # AgentResponse의 outputs에서 결과 추출
+        if response.outputs and len(response.outputs) > 0:
+            result = response.outputs[0].value
+            if result.get("success"):
+                return SearchResponse(
+                    results=[EmbeddingResult(**r) for r in result.get("results", [])],
+                    count=result.get("count", 0)
+                )
+            else:
+                raise HTTPException(
+                    status_code=500,
+                    detail=result.get("error", "Search failed")
+                )
+        raise HTTPException(status_code=500, detail="No output from agent")
     except HTTPException:
         raise
     except Exception as e:
