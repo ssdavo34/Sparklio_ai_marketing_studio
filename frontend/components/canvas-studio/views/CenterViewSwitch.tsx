@@ -4,6 +4,7 @@ import React from 'react';
 import dynamic from 'next/dynamic';
 import { useCenterViewStore } from '../stores/useCenterViewStore';
 import { ConceptBoardView } from './ConceptBoardView';
+import { ImageGenerationPanel } from '../components/ImageGenerationPanel';
 
 // Polotno는 SSR 비활성화 필요
 const PolotnoWorkspace = dynamic(
@@ -64,21 +65,26 @@ export function CenterViewSwitch({ polotnoApiKey }: CenterViewSwitchProps) {
   const isCanvasView = currentView === 'canvas';
 
   return (
-    <div className="relative h-full w-full">
+    <div className="relative h-full w-full flex flex-col">
       {/* Canvas는 항상 렌더링, hidden으로 상태 유지 */}
       <div
-        className={`absolute inset-0 ${isCanvasView ? 'block' : 'hidden'}`}
+        className={`flex-1 relative ${isCanvasView ? 'block' : 'hidden'}`}
         style={{ zIndex: isCanvasView ? 1 : 0 }}
       >
-        <PolotnoWorkspace apiKey={polotnoApiKey} />
+        <div className="absolute inset-0">
+          <PolotnoWorkspace apiKey={polotnoApiKey} />
+        </div>
       </div>
 
       {/* 다른 뷰들은 조건부 렌더링 */}
       {!isCanvasView && (
-        <div className="absolute inset-0" style={{ zIndex: 1 }}>
+        <div className="flex-1 relative" style={{ zIndex: 1 }}>
           {renderOtherView()}
         </div>
       )}
+
+      {/* Image Generation Panel (Canvas 뷰에서만 표시) */}
+      {isCanvasView && <ImageGenerationPanel />}
     </div>
   );
 }
