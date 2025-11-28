@@ -1,4 +1,4 @@
-# 세션 인수인계 (2025-11-29 00:30 기준)
+# 세션 인수인계 (2025-11-29 01:00 기준)
 
 > **다음 Claude는 이 파일과 CLAUDE.md를 먼저 읽으세요**
 
@@ -7,8 +7,8 @@
 ## 현재 상태
 
 - **브랜치**: `feature/editor-migration-polotno`
-- **최신 커밋**: `ec1c113` - Agent 고도화 (Copywriter, Strategist, Designer)
-- **Mac Mini 배포**: ✅ 완료 (2025-11-29 00:25 KST)
+- **최신 커밋**: `5a37024` - Agent 고도화 (VisionGenerator, VideoBuilder)
+- **Mac Mini 배포**: 진행 중
 - **서버 상태**: ✅ healthy
 
 ---
@@ -36,11 +36,11 @@
 |----------|-----------|--------------|------|
 | ConceptAgent | ✅ | ✅ | 완료 (11/28) |
 | ReviewerAgent | ✅ | ✅ | 완료 (11/28) |
-| CopywriterAgent | ✅ | ✅ | **완료 (11/29)** |
-| StrategistAgent | ✅ | ✅ | **완료 (11/29)** |
-| DesignerAgent | ✅ | ✅ | **완료 (11/29)** |
-| VisionGeneratorAgent | ✅ | - | 대기 |
-| VideoBuilderAgent | ✅ | - | 대기 |
+| CopywriterAgent | ✅ | ✅ | 완료 (11/29) |
+| StrategistAgent | ✅ | ✅ | 완료 (11/29) |
+| DesignerAgent | ✅ | ✅ | 완료 (11/29) |
+| VisionGeneratorAgent | ✅ | ✅ | **완료 (11/29)** |
+| VideoBuilderAgent | ✅ | ✅ | **완료 (11/29)** |
 
 ---
 
@@ -49,13 +49,13 @@
 | 이슈 | 상태 | 비고 |
 |------|------|------|
 | Unsplash API 키 없음 | ⚠️ 미해결 | backend/.env에 추가 필요 |
-| Anthropic API 키 Mac Mini 누락 | ⚠️ 미해결 | 컨테이너 환경변수 추가 필요 |
+| Anthropic API 키 Mac Mini | ✅ 해결됨 | 컨테이너에 설정 확인됨 (11/29) |
 
 ---
 
 ## 다음 작업 우선순위
 
-1. **[P1]** 나머지 에이전트 Plan-Act-Reflect 적용 (VisionGenerator, VideoBuilder)
+1. **[P1]** 에이전트 고도화 완료 ✅ (7/7 에이전트)
 2. **[P2]** Video Pipeline 통합 테스트
 3. **[P2]** Unsplash API 키 설정
 
@@ -94,4 +94,4 @@ ssh woosun@100.123.51.5 "/usr/local/bin/docker logs sparklio-backend --tail 100"
 
 ---
 
-**마지막 업데이트**: 2025-11-29 00:30 by B팀
+**마지막 업데이트**: 2025-11-29 01:00 by B팀
