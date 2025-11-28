@@ -87,6 +87,7 @@ export async function createMeetingFromFile(
   const response = await fetch(`${API_BASE}/api/v1/meetings`, {
     method: 'POST',
     body: formData,
+    credentials: 'include',
     // Don't set Content-Type header - browser will set it with boundary for FormData
   });
 
@@ -113,6 +114,7 @@ export async function createMeetingFromUrl(
     headers: {
       'Content-Type': 'application/json',
     },
+    credentials: 'include',
     body: JSON.stringify({
       url: request.url,
       title: request.title,
@@ -149,6 +151,7 @@ export async function transcribeMeeting(
     headers: {
       'Content-Type': 'application/json',
     },
+    credentials: 'include',
     body: JSON.stringify(request || {}),
   });
 
@@ -168,6 +171,7 @@ export async function analyzeMeeting(meetingId: string): Promise<AnalyzeResponse
     headers: {
       'Content-Type': 'application/json',
     },
+    credentials: 'include',
     body: JSON.stringify({}),
   });
 
@@ -187,6 +191,7 @@ export async function meetingToBrief(meetingId: string): Promise<ToBriefResponse
     headers: {
       'Content-Type': 'application/json',
     },
+    credentials: 'include',
     body: JSON.stringify({}),
   });
 
@@ -206,6 +211,7 @@ export async function listMeetings(): Promise<Meeting[]> {
     headers: {
       'Content-Type': 'application/json',
     },
+    credentials: 'include',
   });
 
   if (!response.ok) {
@@ -226,6 +232,7 @@ export async function getMeeting(meetingId: string): Promise<Meeting> {
     headers: {
       'Content-Type': 'application/json',
     },
+    credentials: 'include',
   });
 
   if (!response.ok) {
@@ -244,6 +251,7 @@ export async function deleteMeeting(meetingId: string): Promise<void> {
     headers: {
       'Content-Type': 'application/json',
     },
+    credentials: 'include',
   });
 
   if (!response.ok) {
