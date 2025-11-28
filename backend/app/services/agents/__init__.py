@@ -12,7 +12,11 @@ from .base import (
     AgentRequest,
     AgentResponse,
     AgentOutput,
-    AgentError
+    AgentError,
+    # 에이전트 고도화 클래스 (2025-11-28 추가)
+    AgentGoal,
+    SelfReview,
+    ExecutionPlan
 )
 
 from .copywriter import CopywriterAgent, get_copywriter_agent
@@ -50,6 +54,16 @@ from .presentation import PresentationAgent, get_presentation_agent
 from .product_detail import ProductDetailAgent, get_product_detail_agent
 from .instagram_ads import InstagramAdsAgent, get_instagram_ads_agent
 
+# Video Pipeline Agents (2025-11-28 추가)
+from .vision_generator import VisionGeneratorAgent, get_vision_generator_agent
+from .video_builder import VideoBuilder, get_video_builder
+from .storyboard_builder import StoryboardBuilderAgent, get_storyboard_builder_agent
+from .video_director import VideoDirectorAgent, get_video_director_agent
+from .video_reviewer import VideoReviewerAgent, get_video_reviewer_agent
+
+# Brand Learning Agent (2025-11-28 추가)
+from .brand_model_updater import BrandModelUpdaterAgent, get_brand_model_updater_agent
+
 __all__ = [
     # Base classes
     "AgentBase",
@@ -57,6 +71,10 @@ __all__ = [
     "AgentResponse",
     "AgentOutput",
     "AgentError",
+    # 에이전트 고도화 클래스 (2025-11-28 추가)
+    "AgentGoal",
+    "SelfReview",
+    "ExecutionPlan",
 
     # Agent classes
     "CopywriterAgent",
@@ -125,5 +143,19 @@ __all__ = [
     "ConceptMeta",
     # Legacy 스키마 (하위 호환)
     "ConceptOutput",
-    "ConceptAgentOutput"
+    "ConceptAgentOutput",
+    # Video Pipeline Agents (2025-11-28 추가)
+    "VisionGeneratorAgent",
+    "get_vision_generator_agent",
+    "VideoBuilder",
+    "get_video_builder",
+    "StoryboardBuilderAgent",
+    "get_storyboard_builder_agent",
+    "VideoDirectorAgent",
+    "get_video_director_agent",
+    "VideoReviewerAgent",
+    "get_video_reviewer_agent",
+    # Brand Learning Agent (2025-11-28 추가)
+    "BrandModelUpdaterAgent",
+    "get_brand_model_updater_agent"
 ]

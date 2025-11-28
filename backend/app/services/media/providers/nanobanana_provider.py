@@ -105,23 +105,58 @@ class NanoBananaProvider(MediaProvider):
             # Gemini는 이미지를 response.parts에 반환
             for part in response.parts:
                 if part.inline_data is not None:
-                    # 공식 문서 방식: part.as_image() 사용
-                    pil_image = part.as_image()
+                    # inline_data에서 직접 bytes 추출
+                    inline_data = part.inline_data
 
-                    # PIL Image를 bytes로 변환
-                    img_buffer = BytesIO()
-                    pil_image.save(img_buffer, format='PNG')
-                    img_bytes = img_buffer.getvalue()
+                    # mime_type과 data 추출
+                    mime_type = getattr(inline_data, 'mime_type', 'image/png')
+                    img_bytes = getattr(inline_data, 'data', None)
+
+                    if img_bytes is None:
+                        # fallback: as_image() 사용
+                        try:
+                            pil_image = part.as_image()
+                            img_buffer = BytesIO()
+                            # PIL Image.save: format은 위치 인자로 전달
+                            pil_image.save(img_buffer, 'PNG')
+                            img_bytes = img_buffer.getvalue()
+                            width = pil_image.width
+                            height = pil_image.height
+                        except Exception as e:
+                            logger.warning(
+                                f"[NanoBanana] as_image() failed: {e}"
+                            )
+                            continue
+                    else:
+                        # bytes에서 PIL Image로 변환하여 크기 확인
+                        try:
+                            pil_image = Image.open(BytesIO(img_bytes))
+                            width = pil_image.width
+                            height = pil_image.height
+                        except Exception:
+                            width = 0
+                            height = 0
 
                     # Base64로 인코딩
-                    img_data = base64.b64encode(img_bytes).decode('utf-8')
+                    if isinstance(img_bytes, bytes):
+                        img_data = base64.b64encode(img_bytes).decode('utf-8')
+                    else:
+                        # bytes가 아닌 경우 (예: memoryview)
+                        img_data = base64.b64encode(bytes(img_bytes)).decode('utf-8')
+
+                    # 포맷 결정
+                    img_format = "png"
+                    if "jpeg" in mime_type or "jpg" in mime_type:
+                        img_format = "jpeg"
+                    elif "webp" in mime_type:
+                        img_format = "webp"
 
                     outputs.append(MediaProviderOutput(
                         type="image",
-                        format="png",
+                        format=img_format,
                         data=img_data,
-                        width=pil_image.width,
-                        height=pil_image.height
+                        width=width,
+                        height=height
                     ))
 
             if not outputs:

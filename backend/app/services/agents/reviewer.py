@@ -1,44 +1,86 @@
 """
-ReviewerAgent Implementation
+ReviewerAgent Implementation (v3.0)
 
 광고 카피 품질 검토 및 피드백 제공 Agent
+Plan-Act-Reflect 패턴 적용 + ConceptV1.guardrails 검증 통합
 
 작성일: 2025-11-23
+수정일: 2025-11-28
 작성자: B팀 (Backend)
-참조: B_TEAM_NEXT_STEPS_2025-11-23.md
+참조: B_TEAM_NEXT_STEPS_2025-11-23.md, AGENTS_SPEC.md
 """
 
+import json
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
-from app.services.agents.base import AgentBase, AgentError, AgentRequest, AgentResponse, AgentOutput
-from app.services.llm.gateway import LLMGateway
+from app.services.agents.base import (
+    AgentBase, AgentError, AgentRequest, AgentResponse, AgentOutput,
+    AgentGoal, SelfReview, ExecutionPlan
+)
 from app.services.validation.output_validator import OutputValidator
 from app.schemas.reviewer import AdCopyReviewInputV1, AdCopyReviewOutputV1
 
 logger = logging.getLogger(__name__)
 
 
+# =============================================================================
+# Guardrails Schema (ConceptV1 호환)
+# =============================================================================
+
+class GuardrailsConfig:
+    """ConceptV1.guardrails 설정 래퍼"""
+
+    def __init__(self, guardrails: Optional[Dict[str, Any]] = None):
+        self.raw = guardrails or {}
+        self.avoid_claims: List[str] = self.raw.get("avoid_claims", [])
+        self.must_include: List[str] = self.raw.get("must_include", [])
+        self.forbidden_words: List[str] = self.raw.get("forbidden_words", [])
+        self.legal_disclaimers: List[str] = self.raw.get("legal_disclaimers", [])
+        self.regulatory_notes: str = self.raw.get("regulatory_notes", "")
+
+    def is_empty(self) -> bool:
+        """guardrails가 비어있는지 확인"""
+        return not any([
+            self.avoid_claims,
+            self.must_include,
+            self.forbidden_words,
+            self.legal_disclaimers,
+            self.regulatory_notes
+        ])
+
+
 class ReviewerAgent(AgentBase):
     """
-    ReviewerAgent: 광고 카피 품질 검토 전문 Agent
+    ReviewerAgent: 광고 카피 품질 검토 전문 Agent (v3.0)
 
     Role:
     - Copywriter/Strategist 출력을 입력받아 품질 검토
     - 다차원 점수 평가 (overall, tone_match, clarity, persuasiveness, brand_alignment)
     - 정성 평가 (strengths, weaknesses, improvement_suggestions)
     - 리스크 플래그 및 승인 판정
+    - **NEW** ConceptV1.guardrails 기반 자동 검증
 
     Features:
+    - Plan-Act-Reflect 패턴 적용
+    - ConceptV1.guardrails 통합 (avoid_claims, must_include, forbidden_words)
     - Retry Logic (최대 3회, temperature 0.2 → 0.3 → 0.4)
     - 4-Stage Validation Pipeline 통합
     - Structured Quality Logging
     - 엄격 모드 지원 (strict_mode: 90% 이상 필요)
+
+    v3.0 Changes:
+    - guardrails 필드 지원: concept.guardrails 전달 시 자동 검증
+    - _validate_guardrails(): avoid_claims, must_include 위반 검출
+    - _plan(): 검토 전략 수립
+    - _reflect(): 검토 결과 자기 평가
+    - execute_v3(): Plan-Act-Reflect 루프 실행
     """
 
     def __init__(self, llm_gateway=None):
         super().__init__(llm_gateway=llm_gateway)
         self.task_instructions = self._build_task_instructions()
+        self.guardrails: Optional[GuardrailsConfig] = None
 
     @property
     def name(self) -> str:
@@ -162,11 +204,18 @@ class ReviewerAgent(AgentBase):
         # Input validation
         if request.task == "ad_copy_quality_check":
             try:
-                validated_input = AdCopyReviewInputV1(**request.payload)
+                # 입력값 검증 (side effect로 validation)
+                AdCopyReviewInputV1(**request.payload)
             except Exception as e:
-                raise AgentError(f"Input validation failed: {str(e)}", agent=self.name)
+                raise AgentError(
+                    f"Input validation failed: {str(e)}",
+                    agent=self.name
+                )
         else:
-            raise AgentError(f"Unknown task: {request.task}", agent=self.name)
+            raise AgentError(
+                f"Unknown task: {request.task}",
+                agent=self.name
+            )
 
         # Task instruction 가져오기
         task_config = self.task_instructions.get(request.task)
@@ -213,7 +262,6 @@ class ReviewerAgent(AgentBase):
                 # Parse output
                 output_data = llm_response.output.value
                 if isinstance(output_data, str):
-                    import json
                     output_data = json.loads(output_data)
 
                 # Pydantic validation
@@ -314,6 +362,223 @@ class ReviewerAgent(AgentBase):
 
         # 여기까지 도달하면 안 됨 (모든 retry 실패)
         raise AgentError(f"ReviewerAgent failed after {max_retries} attempts", agent=self.name)
+
+    # =========================================================================
+    # Plan-Act-Reflect Pattern Methods (v3.0)
+    # =========================================================================
+
+    async def _plan(self, request: AgentRequest) -> ExecutionPlan:
+        """
+        리뷰 전략 수립
+
+        guardrails 유무에 따라 검토 포인트 결정
+        """
+        payload = request.payload or {}
+        concept = payload.get("concept", {})
+        guardrails_data = payload.get("guardrails") or concept.get("guardrails", {})
+
+        # guardrails 설정
+        self.guardrails = GuardrailsConfig(guardrails_data)
+
+        # 검토 포인트 계획
+        review_points = [
+            "톤앤매너 일치도 평가",
+            "명확성 및 설득력 분석",
+            "브랜드 정렬도 검토",
+            "리스크 플래그 식별"
+        ]
+
+        # guardrails가 있으면 추가 검토 포인트
+        if not self.guardrails.is_empty():
+            if self.guardrails.avoid_claims:
+                review_points.append(f"avoid_claims 검증: {len(self.guardrails.avoid_claims)}개 금지 표현")
+            if self.guardrails.must_include:
+                review_points.append(f"must_include 검증: {len(self.guardrails.must_include)}개 필수 포함")
+            if self.guardrails.forbidden_words:
+                review_points.append(f"forbidden_words 검증: {len(self.guardrails.forbidden_words)}개 금지어")
+
+        return ExecutionPlan(
+            steps=review_points,
+            estimated_llm_calls=1,
+            tools_needed=["llm_gateway"],
+            reasoning=f"카피 리뷰 수행. guardrails 적용: {not self.guardrails.is_empty()}"
+        )
+
+    async def _reflect(self, request: AgentRequest, response: AgentResponse) -> SelfReview:
+        """
+        리뷰 결과 자기 평가
+
+        - guardrails 위반 여부 재검증
+        - 리뷰 일관성 확인
+        """
+        output = response.outputs[0].value if response.outputs else {}
+
+        issues = []
+        suggestions = []
+        guardrails_violations = []
+
+        # 1. 기본 품질 검증
+        overall_score = output.get("overall_score", 0)
+        approval_status = output.get("approval_status", "unknown")
+        risk_flags = output.get("risk_flags", [])
+
+        # 2. guardrails 위반 검증 (카피 텍스트에서)
+        copy_data = request.payload.get("original_copy", {})
+        all_copy_text = self._extract_all_text(copy_data)
+
+        if self.guardrails and not self.guardrails.is_empty():
+            violations = self._validate_guardrails(all_copy_text)
+            guardrails_violations.extend(violations)
+
+            if violations:
+                issues.append(f"Guardrails 위반 {len(violations)}건 발견")
+                # 위반이 있는데 risk_flags에 반영 안 됐으면 문제
+                if not any("guardrail" in rf.lower() for rf in risk_flags):
+                    suggestions.append("risk_flags에 guardrails 위반 사항 명시 필요")
+
+        # 3. 점수-판정 일관성 검증
+        if overall_score >= 7.0 and approval_status == "rejected":
+            issues.append(f"점수({overall_score})와 판정({approval_status}) 불일치")
+        if overall_score < 4.0 and approval_status == "approved":
+            issues.append(f"낮은 점수({overall_score})인데 approved 판정은 부적절")
+
+        # 4. 리스크 반영 검증
+        if risk_flags and overall_score > 6.0:
+            issues.append("리스크 플래그가 있는데 점수가 높음 - 재검토 필요")
+
+        # 5. 종합 점수 계산
+        base_score = min(10.0, overall_score)
+        penalty = len(issues) * 0.5 + len(guardrails_violations) * 1.0
+        final_score = max(0.0, base_score - penalty)
+
+        passed = len(issues) == 0 and len(guardrails_violations) == 0
+        retry_needed = len(guardrails_violations) > 0 or len(issues) > 2
+
+        return SelfReview(
+            passed=passed,
+            score=final_score,
+            issues=issues,
+            suggestions=suggestions,
+            retry_recommended=retry_needed,
+            iteration=1,
+            guardrails_violations=guardrails_violations
+        )
+
+    def _validate_guardrails(self, text: str) -> List[str]:
+        """
+        텍스트에서 guardrails 위반 검출
+
+        Args:
+            text: 검증할 전체 카피 텍스트
+
+        Returns:
+            위반 사항 리스트
+        """
+        violations = []
+        text_lower = text.lower()
+
+        if not self.guardrails:
+            return violations
+
+        # 1. avoid_claims 검증
+        for claim in self.guardrails.avoid_claims:
+            claim_lower = claim.lower()
+            if claim_lower in text_lower:
+                violations.append(f"avoid_claims 위반: '{claim}' 포함됨")
+
+        # 2. forbidden_words 검증
+        for word in self.guardrails.forbidden_words:
+            word_lower = word.lower()
+            if word_lower in text_lower:
+                violations.append(f"forbidden_word 위반: '{word}' 포함됨")
+
+        # 3. must_include 검증
+        for required in self.guardrails.must_include:
+            required_lower = required.lower()
+            if required_lower not in text_lower:
+                violations.append(f"must_include 누락: '{required}' 미포함")
+
+        return violations
+
+    def _extract_all_text(self, copy_data: Dict[str, Any]) -> str:
+        """카피 데이터에서 모든 텍스트 추출"""
+        parts = []
+
+        # 주요 필드
+        for field in ["headline", "subheadline", "body", "cta"]:
+            if field in copy_data:
+                parts.append(str(copy_data[field]))
+
+        # bullets (리스트)
+        if "bullets" in copy_data:
+            bullets = copy_data["bullets"]
+            if isinstance(bullets, list):
+                parts.extend([str(b) for b in bullets])
+
+        # 기타 텍스트 필드
+        for key, value in copy_data.items():
+            if key not in ["headline", "subheadline", "body", "cta", "bullets"]:
+                if isinstance(value, str):
+                    parts.append(value)
+
+        return " ".join(parts)
+
+    async def execute_v3(self, request: AgentRequest) -> AgentResponse:
+        """
+        Plan-Act-Reflect 패턴으로 리뷰 실행 (v3.0)
+
+        guardrails가 있을 경우 자동으로 위반 검증 수행
+        """
+        # Goal 설정
+        if not request.goal:
+            request.goal = AgentGoal(
+                primary_objective="광고 카피 품질 검토 및 guardrails 준수 확인",
+                success_criteria=[
+                    "모든 점수 항목 평가 완료",
+                    "guardrails 위반 여부 검증",
+                    "리스크 플래그 식별",
+                    "승인 판정 제공"
+                ],
+                constraints=["과대광고 검출 필수", "브랜드 톤 일치 확인"],
+                quality_threshold=7.0,
+                max_iterations=2
+            )
+
+        return await self.execute_with_reflection(request)
+
+    def _build_guardrails_instruction(self) -> str:
+        """guardrails 기반 추가 instruction 생성"""
+        if not self.guardrails or self.guardrails.is_empty():
+            return ""
+
+        parts = ["\n\n## ConceptV1 Guardrails 검증 (CRITICAL)\n"]
+
+        if self.guardrails.avoid_claims:
+            parts.append("**반드시 금지해야 할 표현 (avoid_claims):**")
+            for claim in self.guardrails.avoid_claims:
+                parts.append(f"  - ❌ \"{claim}\"")
+            parts.append("→ 위 표현이 포함되어 있으면 risk_flags에 명시하고 overall_score를 4.0 이하로 평가\n")
+
+        if self.guardrails.must_include:
+            parts.append("**반드시 포함해야 할 요소 (must_include):**")
+            for item in self.guardrails.must_include:
+                parts.append(f"  - ✓ \"{item}\"")
+            parts.append("→ 위 요소가 누락되면 weaknesses에 기록하고 needs_revision 판정\n")
+
+        if self.guardrails.forbidden_words:
+            parts.append("**금지어 (forbidden_words):**")
+            parts.append(f"  - {', '.join(self.guardrails.forbidden_words)}")
+            parts.append("→ 금지어 포함 시 risk_flags에 명시\n")
+
+        if self.guardrails.legal_disclaimers:
+            parts.append("**법적 면책 조항 확인:**")
+            for disclaimer in self.guardrails.legal_disclaimers:
+                parts.append(f"  - {disclaimer}")
+
+        if self.guardrails.regulatory_notes:
+            parts.append(f"**규제 참고 사항:** {self.guardrails.regulatory_notes}")
+
+        return "\n".join(parts)
 
 
 # Factory function

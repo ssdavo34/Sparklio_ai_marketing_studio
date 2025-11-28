@@ -20,7 +20,16 @@ from typing import Dict, Any, Optional, List
 from pydantic import BaseModel, Field
 from datetime import datetime
 
-from app.services.agents.base import AgentBase, AgentRequest, AgentResponse, AgentOutput, AgentError
+from app.services.agents.base import (
+    AgentBase,
+    AgentRequest,
+    AgentResponse,
+    AgentOutput,
+    AgentError,
+    AgentGoal,
+    SelfReview,
+    ExecutionPlan
+)
 
 logger = logging.getLogger(__name__)
 
@@ -158,7 +167,7 @@ class ConceptAgentOutput(BaseModel):
 
 class ConceptAgent(AgentBase):
     """
-    Concept Agent v2.0 (CONCEPT_SPEC.md 기준)
+    Concept Agent v3.0 (Plan-Act-Reflect 패턴 적용)
 
     회의 요약과 브리프를 분석하여 전략적 마케팅 컨셉(ConceptV1)을 생성합니다.
 
@@ -172,11 +181,145 @@ class ConceptAgent(AgentBase):
     - Visual World (비주얼 세계관)
     - Channel Strategy (채널 전략)
     - Guardrails (가드레일)
+
+    v3.0 고도화:
+    - Plan: 컨셉 생성 전략 수립
+    - Act: LLM 호출하여 컨셉 생성
+    - Reflect: 자기 검수 (일관성, 가드레일 준수 확인)
     """
 
     @property
     def name(self) -> str:
         return "concept"
+
+    # ========================================================================
+    # Plan-Act-Reflect 오버라이드
+    # ========================================================================
+
+    async def _plan(self, request: AgentRequest) -> ExecutionPlan:
+        """
+        컨셉 생성 전략 계획
+
+        접근 방식을 결정:
+        - 감성적 접근 vs 이성적 접근
+        - 타겟 고객 분석
+        - 채널별 중점 사항
+        """
+        plan_id = f"concept_plan_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+
+        goal = request.goal
+        payload = request.payload
+        concept_count = payload.get("concept_count", 3)
+
+        # 전략 접근 방식 결정
+        approaches = []
+        if concept_count >= 1:
+            approaches.append("감성적/라이프스타일 강조")
+        if concept_count >= 2:
+            approaches.append("이성적/효과/근거 강조")
+        if concept_count >= 3:
+            approaches.append("혁신적/차별화 강조")
+
+        steps = [
+            {"step": 1, "action": "입력 분석", "status": "pending"},
+            {"step": 2, "action": "인사이트 도출", "status": "pending"},
+            {"step": 3, "action": "컨셉 생성", "status": "pending"},
+            {"step": 4, "action": "일관성 검증", "status": "pending"},
+            {"step": 5, "action": "가드레일 검증", "status": "pending"}
+        ]
+
+        return ExecutionPlan(
+            plan_id=plan_id,
+            steps=steps,
+            approach=f"{concept_count}개 컨셉 생성: {', '.join(approaches)}",
+            estimated_quality=7.5,
+            risks=["LLM 일관성 부족", "가드레일 위반 가능성"]
+        )
+
+    async def _reflect(
+        self,
+        result: Any,
+        request: AgentRequest,
+        iteration: int = 1
+    ) -> SelfReview:
+        """
+        컨셉 자기 검수
+
+        검증 항목:
+        1. 전략적 일관성: audience_insight → core_promise → creative_device
+        2. 가드레일 준수: avoid_claims, must_include
+        3. 완성도: 필수 필드 모두 채워졌는지
+        """
+        issues = []
+        suggestions = []
+        guardrails_violations = []
+
+        # 결과가 dict인 경우 (ConceptV1Output)
+        if isinstance(result, dict):
+            concepts = result.get("concepts", [])
+
+            for i, concept in enumerate(concepts):
+                # 1. 필수 필드 검증
+                required = [
+                    "audience_insight", "core_promise", "brand_role",
+                    "creative_device", "hook_patterns"
+                ]
+                for field in required:
+                    if not concept.get(field):
+                        issues.append(f"컨셉 {i+1}: {field} 누락")
+
+                # 2. 가드레일 검증
+                guardrails = concept.get("guardrails", {})
+                avoid_claims = guardrails.get("avoid_claims", [])
+                must_include = guardrails.get("must_include", [])
+
+                # 모든 텍스트 필드에서 avoid_claims 검사
+                text_fields = [
+                    concept.get("core_promise", ""),
+                    concept.get("creative_device", ""),
+                    *concept.get("hook_patterns", [])
+                ]
+                combined_text = " ".join(str(t) for t in text_fields).lower()
+
+                for claim in avoid_claims:
+                    if claim.lower() in combined_text:
+                        guardrails_violations.append(
+                            f"컨셉 {i+1}: 금지 표현 '{claim}' 발견"
+                        )
+
+                # 3. 일관성 검증 (LLM 사용)
+                # - 간단한 규칙 기반 검증만 수행 (빠른 처리)
+                insight = concept.get("audience_insight", "")
+                promise = concept.get("core_promise", "")
+
+                if insight and promise:
+                    # 인사이트와 약속이 관련있는지 간단 체크
+                    if len(set(insight.split()) & set(promise.split())) == 0:
+                        suggestions.append(
+                            f"컨셉 {i+1}: insight와 promise 연결 강화 필요"
+                        )
+
+        # 점수 계산
+        base_score = 8.0
+        base_score -= len(issues) * 0.5
+        base_score -= len(guardrails_violations) * 1.5
+        base_score -= len(suggestions) * 0.2
+        score = max(0.0, min(10.0, base_score))
+
+        # 통과 여부
+        goal = request.goal
+        threshold = goal.quality_threshold if goal else 7.0
+        passed = score >= threshold and len(guardrails_violations) == 0
+
+        return SelfReview(
+            passed=passed,
+            score=score,
+            issues=issues,
+            suggestions=suggestions,
+            retry_recommended=not passed and iteration < 2,
+            iteration=iteration,
+            guardrails_violations=guardrails_violations
+        )
 
     async def execute(self, request: AgentRequest) -> AgentResponse:
         """
@@ -656,10 +799,42 @@ class ConceptAgent(AgentBase):
         )
 
 
+    async def execute_v3(self, request: AgentRequest) -> AgentResponse:
+        """
+        Plan-Act-Reflect 패턴으로 컨셉 생성 (v3.0)
+
+        자기 검수를 통해 품질 보장:
+        1. 가드레일 준수 확인
+        2. 전략적 일관성 검증
+        3. 필요시 재생성
+
+        Args:
+            request: AgentRequest (goal 포함 권장)
+
+        Returns:
+            AgentResponse: 검수 통과된 컨셉
+        """
+        # Goal이 없으면 기본 Goal 생성
+        if not request.goal:
+            request.goal = AgentGoal(
+                primary_objective="전략적 마케팅 컨셉 생성",
+                success_criteria=[
+                    "audience_insight 포함",
+                    "core_promise 포함",
+                    "guardrails 준수"
+                ],
+                quality_threshold=7.0,
+                max_iterations=2
+            )
+
+        # Plan-Act-Reflect 실행
+        return await self.execute_with_reflection(request)
+
+
 # =============================================================================
 # Factory Function
 # =============================================================================
 
 def get_concept_agent(llm_gateway=None) -> ConceptAgent:
-    """ConceptAgent v2.0 인스턴스 반환"""
+    """ConceptAgent v3.0 인스턴스 반환"""
     return ConceptAgent(llm_gateway=llm_gateway)
