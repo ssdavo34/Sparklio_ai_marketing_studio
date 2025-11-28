@@ -38,11 +38,16 @@ import {
   type BrandDNA,
 } from '@/lib/api/brand-api';
 import { toast } from '@/components/ui/Toast';
+import { useCanvasStore } from '../../../stores/useCanvasStore';
+import { addBrandIdentityToCanvas } from '@/lib/canvas/brandIdentityTemplate';
 
 export function BrandKitTab() {
   // 임시로 workspace에서 브랜드 ID 가져오기
   const { currentWorkspace } = useWorkspaceStore();
   const brandId = currentWorkspace?.id || 'default-brand';
+  const polotnoStore = useCanvasStore((state) => state.polotnoStore);
+  const currentTemplate = useCanvasStore((state) => state.currentTemplate);
+
   const [documents, setDocuments] = useState<BrandDocument[]>([]);
   const [brandDNA, setBrandDNA] = useState<BrandDNA | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -153,6 +158,32 @@ export function BrandKitTab() {
     } catch (error) {
       console.error('Delete failed:', error);
       toast.error(`삭제 실패: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
+  // Brand DNA → Canvas 내보내기
+  const handleSendToCanvas = () => {
+    if (!polotnoStore || !brandDNA) {
+      toast.error('Canvas가 준비되지 않았거나 Brand DNA가 없습니다.');
+      return;
+    }
+
+    if (!currentTemplate) {
+      toast.error('템플릿 정보가 없습니다.');
+      return;
+    }
+
+    try {
+      addBrandIdentityToCanvas(
+        polotnoStore,
+        brandDNA,
+        currentTemplate.width,
+        currentTemplate.height
+      );
+      toast.success('Brand Identity Canvas가 생성되었습니다!');
+    } catch (error) {
+      console.error('Failed to create canvas:', error);
+      toast.error(`Canvas 생성 실패: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
 
@@ -335,6 +366,15 @@ export function BrandKitTab() {
 
               <p className="text-xs text-purple-600 italic">{brandDNA.analysis_notes}</p>
             </div>
+
+            {/* Canvas로 내보내기 버튼 */}
+            <button
+              onClick={handleSendToCanvas}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-medium rounded-lg transition-colors"
+            >
+              <Sparkles className="w-4 h-4" />
+              Canvas로 내보내기
+            </button>
           </div>
         )}
 
