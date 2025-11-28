@@ -1,8 +1,12 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { Edit } from 'lucide-react';
 import { useCenterViewStore } from '../stores/useCenterViewStore';
 import { useGeneratedAssetsStore } from '../stores/useGeneratedAssetsStore';
+import { useCanvasStore } from '../stores/useCanvasStore';
+import { addShortsScriptToCanvas } from '@/lib/canvas/shortsTemplate';
+import { toast } from '@/components/ui/Toast';
 import type { ShortsScriptData } from '@/types/demo';
 
 // 통합 씬 타입
@@ -40,8 +44,9 @@ interface ShortsViewData {
 }
 
 export function ShortsPreviewView() {
-  const { selectedConcept, backToConceptBoard, backToCanvas } = useCenterViewStore();
+  const { selectedConcept, backToConceptBoard, backToCanvas, setView } = useCenterViewStore();
   const generatedShortsData = useGeneratedAssetsStore((state) => state.shortsData);
+  const polotnoStore = useCanvasStore((state) => state.polotnoStore);
   const [mockData, setMockData] = useState<ShortsScriptData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeScene, setActiveScene] = useState(0);
@@ -113,6 +118,33 @@ export function ShortsPreviewView() {
         }
       : null;
 
+  // Canvas로 변환 핸들러
+  const handleEditInCanvas = () => {
+    if (!polotnoStore) {
+      toast.error('Canvas가 준비되지 않았습니다');
+      return;
+    }
+
+    if (!shortsData || !shortsData.scenes || shortsData.scenes.length === 0) {
+      toast.error('쇼츠 스크립트 데이터가 없습니다');
+      return;
+    }
+
+    try {
+      // Shorts Script를 Canvas에 추가 (타입 호환을 위해 as any 사용)
+      addShortsScriptToCanvas(polotnoStore, shortsData as any);
+
+      // Canvas 뷰로 전환
+      setView('canvas');
+
+      const totalScenes = shortsData.scenes.length + 2; // Hook + Scenes + CTA
+      toast.success(`${totalScenes}개 씬이 Canvas에 추가되었습니다 (Hook, ${shortsData.scenes.length}개 씬, CTA)`);
+    } catch (error: any) {
+      console.error('[ShortsPreview] Canvas 변환 실패:', error);
+      toast.error('Canvas 변환 실패: ' + (error?.message || '알 수 없는 오류'));
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="h-full flex items-center justify-center bg-gray-100">
@@ -158,20 +190,29 @@ export function ShortsPreviewView() {
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2 text-sm text-gray-500">
-          {shortsData.video_specs && (
-            <>
-              <span>⏱️ {shortsData.video_specs.duration_seconds}초</span>
-              <span className="text-gray-300">|</span>
-            </>
-          )}
-          {shortsData.total_duration && (
-            <>
-              <span>⏱️ {shortsData.total_duration}</span>
-              <span className="text-gray-300">|</span>
-            </>
-          )}
-          <span>{shortsData.scenes.length}개 씬</span>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleEditInCanvas}
+            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2 text-sm font-medium transition-colors"
+          >
+            <Edit className="w-4 h-4" />
+            Canvas에서 편집
+          </button>
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            {shortsData.video_specs && (
+              <>
+                <span>⏱️ {shortsData.video_specs.duration_seconds}초</span>
+                <span className="text-gray-300">|</span>
+              </>
+            )}
+            {shortsData.total_duration && (
+              <>
+                <span>⏱️ {shortsData.total_duration}</span>
+                <span className="text-gray-300">|</span>
+              </>
+            )}
+            <span>{shortsData.scenes.length}개 씬</span>
+          </div>
         </div>
       </div>
 

@@ -1,8 +1,12 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { Edit } from 'lucide-react';
 import { useCenterViewStore } from '../stores/useCenterViewStore';
 import { useGeneratedAssetsStore } from '../stores/useGeneratedAssetsStore';
+import { useCanvasStore } from '../stores/useCanvasStore';
+import { addProductDetailToCanvas } from '@/lib/canvas/productDetailTemplate';
+import { toast } from '@/components/ui/Toast';
 
 // 통합 타입
 interface DetailSection {
@@ -18,8 +22,9 @@ interface DetailData {
 }
 
 export function DetailPreviewView() {
-  const { selectedConcept, backToConceptBoard, backToCanvas } = useCenterViewStore();
+  const { selectedConcept, backToConceptBoard, backToCanvas, setView } = useCenterViewStore();
   const generatedDetailData = useGeneratedAssetsStore((state) => state.detailData);
+  const polotnoStore = useCanvasStore((state) => state.polotnoStore);
   const [mockData, setMockData] = useState<DetailData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -60,6 +65,32 @@ export function DetailPreviewView() {
         sections: generatedDetailData.sections,
       }
     : mockData;
+
+  // Canvas로 변환 핸들러
+  const handleEditInCanvas = () => {
+    if (!polotnoStore) {
+      toast.error('Canvas가 준비되지 않았습니다');
+      return;
+    }
+
+    if (!detailData || !detailData.sections || detailData.sections.length === 0) {
+      toast.error('상세페이지 데이터가 없습니다');
+      return;
+    }
+
+    try {
+      // Product Detail을 Canvas에 추가 (타입 호환을 위해 as any 사용)
+      addProductDetailToCanvas(polotnoStore, detailData as any);
+
+      // Canvas 뷰로 전환
+      setView('canvas');
+
+      toast.success(`${detailData.sections.length}개 섹션이 Canvas에 추가되었습니다`);
+    } catch (error: any) {
+      console.error('[DetailPreview] Canvas 변환 실패:', error);
+      toast.error('Canvas 변환 실패: ' + (error?.message || '알 수 없는 오류'));
+    }
+  };
 
   if (isLoading) {
     return (
@@ -104,7 +135,16 @@ export function DetailPreviewView() {
             </span>
           )}
         </div>
-        <span className="text-sm text-gray-500">{detailData.sections.length}개 섹션</span>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleEditInCanvas}
+            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2 text-sm font-medium transition-colors"
+          >
+            <Edit className="w-4 h-4" />
+            Canvas에서 편집
+          </button>
+          <span className="text-sm text-gray-500">{detailData.sections.length}개 섹션</span>
+        </div>
       </div>
 
       {/* 콘셉트 컨텍스트 */}

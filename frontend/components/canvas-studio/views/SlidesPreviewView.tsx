@@ -1,8 +1,12 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { Edit } from 'lucide-react';
 import { useCenterViewStore } from '../stores/useCenterViewStore';
 import { useGeneratedAssetsStore } from '../stores/useGeneratedAssetsStore';
+import { useCanvasStore } from '../stores/useCanvasStore';
+import { addSlidesToCanvas } from '@/lib/canvas/slidesTemplate';
+import { toast } from '@/components/ui/Toast';
 import type { PresentationData } from '@/types/demo';
 
 // 통합 슬라이드 타입
@@ -24,8 +28,9 @@ interface PresentationViewData {
 }
 
 export function SlidesPreviewView() {
-  const { selectedConcept, backToConceptBoard, backToCanvas } = useCenterViewStore();
+  const { selectedConcept, backToConceptBoard, backToCanvas, setView } = useCenterViewStore();
   const generatedSlidesData = useGeneratedAssetsStore((state) => state.slidesData);
+  const polotnoStore = useCanvasStore((state) => state.polotnoStore);
   const [mockData, setMockData] = useState<PresentationData | null>(null);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -111,6 +116,41 @@ export function SlidesPreviewView() {
   const slide = presentationData.slides[currentSlide];
   const totalSlides = presentationData.slides.length;
 
+  // Canvas로 변환 핸들러
+  const handleEditInCanvas = () => {
+    if (!polotnoStore) {
+      toast.error('Canvas가 준비되지 않았습니다');
+      return;
+    }
+
+    if (!presentationData) {
+      toast.error('프레젠테이션 데이터가 없습니다');
+      return;
+    }
+
+    try {
+      // Slides를 Canvas에 추가
+      const slides = presentationData.slides.map((s) => ({
+        id: s.id,
+        title: s.title,
+        content: typeof s.content === 'string' ? s.content : '',
+        bullets: s.bullets,
+        subtitle: s.subtitle,
+        speakerNotes: s.speakerNotes,
+      }));
+
+      addSlidesToCanvas(polotnoStore, slides);
+
+      // Canvas 뷰로 전환
+      setView('canvas');
+
+      toast.success(`${slides.length}개 슬라이드가 Canvas에 추가되었습니다`);
+    } catch (error: any) {
+      console.error('[SlidesPreview] Canvas 변환 실패:', error);
+      toast.error('Canvas 변환 실패: ' + (error?.message || '알 수 없는 오류'));
+    }
+  };
+
   return (
     <div className="h-full flex flex-col bg-gray-100">
       {/* 헤더 */}
@@ -130,7 +170,14 @@ export function SlidesPreviewView() {
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleEditInCanvas}
+            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2 text-sm font-medium transition-colors"
+          >
+            <Edit className="w-4 h-4" />
+            Canvas에서 편집
+          </button>
           <span className="text-sm text-gray-500">
             {currentSlide + 1} / {totalSlides}
           </span>
