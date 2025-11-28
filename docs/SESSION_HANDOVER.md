@@ -48,7 +48,7 @@
 
 | 이슈 | 상태 | 비고 |
 |------|------|------|
-| Unsplash API 키 없음 | ⚠️ 미해결 | backend/.env에 추가 필요 |
+| Unsplash API 키 | ✅ 해결됨 | backend/.env + Mac Mini 설정 완료 |
 | Anthropic API 키 Mac Mini | ✅ 해결됨 | 컨테이너에 설정 확인됨 (11/29) |
 
 ---
