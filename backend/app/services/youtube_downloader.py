@@ -68,8 +68,7 @@ class YouTubeDownloader:
                 "--sub-lang", language,      # 언어 지정
                 "--sub-format", "json3",     # JSON 포맷 (타임스탬프 포함)
                 "--output", "%(id)s.%(ext)s",  # 파일명 포맷
-                "--js-runtimes", "node",     # Node.js를 JS 런타임으로 사용
-                "--extractor-args", "youtube:player_client=default",  # YouTube extraction 최적화
+                "--js-runtimes", "node",     # Node.js를 JS 런타임으로 사용 (yt-dlp-ejs 필요)
                 url
             ]
 
@@ -153,8 +152,7 @@ class YouTubeDownloader:
                 self.yt_dlp_path,
                 "--format", "bestaudio",  # 오디오만
                 "--output", output_path,
-                "--js-runtimes", "node",  # Node.js를 JS 런타임으로 사용
-                "--extractor-args", "youtube:player_client=default",  # YouTube extraction 최적화
+                "--js-runtimes", "node",  # Node.js를 JS 런타임으로 사용 (yt-dlp-ejs 필요)
                 url
             ]
 

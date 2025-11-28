@@ -17,7 +17,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     postgresql-client \
     ffmpeg \
     nodejs \
-    && rm -rf /var/lib/apt/lists/*
+    npm \
+    && rm -rf /var/lib/apt/lists/* \
+    && npm install -g n && n stable
 
 # Python 의존성 설치
 COPY requirements.txt .
