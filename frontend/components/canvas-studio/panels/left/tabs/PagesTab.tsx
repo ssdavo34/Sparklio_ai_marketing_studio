@@ -46,6 +46,7 @@ export function PagesTab() {
   const [polotnoPages, setPolotnoPages] = useState<any[]>([]);
   const [thumbnails, setThumbnails] = useState<Record<string, string>>({});
   const [loadingThumbnails, setLoadingThumbnails] = useState<Set<string>>(new Set());
+  const [draggedPageId, setDraggedPageId] = useState<string | null>(null);
   const thumbnailGenerationRef = useRef<boolean>(false);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -300,6 +301,70 @@ export function PagesTab() {
     setTimeout(() => {
       applyThemeToCanvas(currentTheme);
     }, 100);
+  };
+
+  // 페이지 복제
+  const handleDuplicatePage = (pageId: string, event: React.MouseEvent) => {
+    event.stopPropagation();
+    if (currentView !== 'canvas' || !polotnoStore) return;
+
+    const page = polotnoStore.pages.find((p: any) => p.id === pageId);
+    if (!page) return;
+
+    // Polotno의 toJSON으로 페이지 복제
+    const pageData = page.toJSON();
+    polotnoStore.addPage(pageData);
+  };
+
+  // 페이지 삭제
+  const handleDeletePage = (pageId: string, event: React.MouseEvent) => {
+    event.stopPropagation();
+    if (currentView !== 'canvas' || !polotnoStore) return;
+
+    if (polotnoStore.pages.length <= 1) {
+      alert('마지막 페이지는 삭제할 수 없습니다.');
+      return;
+    }
+
+    if (!confirm('이 페이지를 삭제하시겠습니까?')) return;
+
+    const page = polotnoStore.pages.find((p: any) => p.id === pageId);
+    if (page) {
+      page.remove();
+    }
+  };
+
+  // Drag & Drop 핸들러
+  const handleDragStart = (pageId: string, event: React.DragEvent) => {
+    if (currentView !== 'canvas') return;
+    setDraggedPageId(pageId);
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', pageId);
+  };
+
+  const handleDragOver = (event: React.DragEvent) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (targetPageId: string, event: React.DragEvent) => {
+    event.preventDefault();
+    if (currentView !== 'canvas' || !polotnoStore || !draggedPageId) return;
+
+    const draggedPage = polotnoStore.pages.find((p: any) => p.id === draggedPageId);
+    const targetPage = polotnoStore.pages.find((p: any) => p.id === targetPageId);
+
+    if (draggedPage && targetPage && draggedPage !== targetPage) {
+      // Polotno의 moveTo 메서드로 페이지 순서 변경
+      const targetIndex = polotnoStore.pages.indexOf(targetPage);
+      draggedPage.moveTo(targetIndex);
+    }
+
+    setDraggedPageId(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedPageId(null);
   };
 
   // 타입별 아이콘
@@ -576,7 +641,18 @@ export function PagesTab() {
 
                 {/* Polotno 캔버스 페이지: 실제 썸네일 표시 */}
                 {page.type === 'polotno' && (
-                  <div className="relative">
+                  <div
+                    className="relative"
+                    draggable={currentView === 'canvas'}
+                    onDragStart={(e) => handleDragStart(page.id, e)}
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(page.id, e)}
+                    onDragEnd={handleDragEnd}
+                    style={{
+                      opacity: draggedPageId === page.id ? 0.5 : 1,
+                      cursor: currentView === 'canvas' ? 'move' : 'pointer',
+                    }}
+                  >
                     {/* 썸네일 이미지 영역 */}
                     <div className="bg-gray-100 flex items-center justify-center overflow-hidden relative" style={{ aspectRatio: page.width && page.height ? `${page.width}/${page.height}` : 'auto' }}>
                       {loadingThumbnails.has(page.id) ? (
@@ -620,18 +696,36 @@ export function PagesTab() {
                       </div>
                     )}
 
-                    {/* 호버 시 새로고침 버튼 */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        thumbnailGenerationRef.current = false;
-                        generateAllThumbnails();
-                      }}
-                      className="absolute bottom-10 right-1 p-1 bg-white/80 hover:bg-white rounded opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
-                      title="썸네일 새로고침"
-                    >
-                      <RefreshCw className="w-3 h-3 text-gray-600" />
-                    </button>
+                    {/* 호버 시 액션 버튼들 */}
+                    <div className="absolute bottom-10 right-1 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={(e) => handleDuplicatePage(page.id, e)}
+                        className="p-1 bg-white/90 hover:bg-white rounded shadow-sm"
+                        title="페이지 복제"
+                      >
+                        <Copy className="w-3 h-3 text-gray-600" />
+                      </button>
+                      {polotnoStore?.pages?.length > 1 && (
+                        <button
+                          onClick={(e) => handleDeletePage(page.id, e)}
+                          className="p-1 bg-white/90 hover:bg-white rounded shadow-sm"
+                          title="페이지 삭제"
+                        >
+                          <Trash2 className="w-3 h-3 text-red-600" />
+                        </button>
+                      )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          thumbnailGenerationRef.current = false;
+                          generateAllThumbnails();
+                        }}
+                        className="p-1 bg-white/90 hover:bg-white rounded shadow-sm"
+                        title="썸네일 새로고침"
+                      >
+                        <RefreshCw className="w-3 h-3 text-gray-600" />
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
