@@ -22,6 +22,10 @@ from app.schemas.sparklio_document import (
     SparklioElement,
     ElementProps
 )
+from app.services.editor.brand_identity_templates import (
+    get_all_brand_identity_templates,
+    get_color_palettes
+)
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +37,10 @@ class TemplateService:
         self.db = db
         # 하드코딩된 템플릿 (실제로는 DB나 파일에서 로드)
         self.templates = self._load_default_templates()
+        # Brand Identity Canvas v2.0 템플릿 추가
+        self.templates.extend(get_all_brand_identity_templates())
+        # 컬러 팔레트
+        self.color_palettes = get_color_palettes()
 
     async def list_templates(
         self,
