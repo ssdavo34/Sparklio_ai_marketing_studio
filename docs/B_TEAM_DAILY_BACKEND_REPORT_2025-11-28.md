@@ -298,4 +298,87 @@ curl http://100.123.51.5:8000/api/v1/unsplash/health
 
 ---
 
-**최종 업데이트**: 2025-11-28 15:20
+## 저녁 추가 작업 (16:30 업데이트)
+
+### 10. [P1] YouTube 10% 멈춤 이슈 해결 ✅
+
+**문제**: YouTube URL 처리 시 10%에서 멈추는 현상
+
+**원인**: yt-dlp에서 JavaScript 런타임 미인식
+- "No supported JavaScript runtime could be found" 경고
+- YouTube SABR 스트리밍 강제 적용으로 포맷 누락
+
+**해결**:
+1. `yt-dlp-ejs>=0.1.0` 플러그인 추가 (requirements.txt)
+2. Dockerfile에 npm 및 Node.js stable 설치 추가
+3. `--extractor-args` 옵션 제거 (JS 런타임 사용 시 불필요)
+
+**테스트 결과**:
+```
+[jsc:node] Solving JS challenges using node
+[info] dQw4w9WgXcQ: Downloading 1 format(s): 251
+```
+
+**커밋**: `0fc2dd3`
+
+### 11. [P2] Alembic 마이그레이션 문제 해결 ✅
+
+**문제**: DATABASE_URL의 % 문자가 configparser에서 interpolation 에러 발생
+
+**해결**: `env.py`에서 `%` → `%%` 이스케이프 처리
+```python
+db_url = settings.DATABASE_URL.replace("%", "%%")
+config.set_main_option("sqlalchemy.url", db_url)
+```
+
+**커밋**: `b6f3ca0`
+
+### 12. [P2] Vector DB 실제 데이터 테스트 ✅
+
+**문제**: SQLAlchemy `text()` 쿼리에서 PostgreSQL `::` 형변환 문법이 bindparam과 충돌
+
+**해결**: `::vector` → `CAST(:param AS vector)` 변경
+
+**테스트 결과**:
+```bash
+# 임베딩 저장
+curl -X POST /api/v1/embeddings/auto-embed
+{"success":true,"id":"8321b4b5-...","embedding_dimensions":1536}
+
+# 유사도 검색
+curl -X POST /api/v1/embeddings/auto-search
+{"results":[{"content_text":"...혁신적인...","similarity":0.55}],"count":1}
+```
+
+**커밋**: `27440ab`, `28b6f14`
+
+### 13. [P3] Gemini API 동작 확인 ✅
+
+```python
+>>> model.generate_content("Say just one word: OK")
+"OK"
+```
+
+---
+
+## 저녁 커밋 이력
+
+| 시간 | 커밋 | 설명 |
+|------|------|------|
+| 16:08 | `0fc2dd3` | YouTube 다운로드 이슈 해결 (yt-dlp-ejs) |
+| 16:10 | `b6f3ca0` | Alembic env.py % 이스케이프 처리 |
+| 16:16 | `28b6f14` | Embeddings API agent.execute() 호출 수정 |
+| 16:25 | `27440ab` | Vector DB 검색 쿼리 CAST 사용 |
+
+---
+
+## 미해결 이슈 현황
+
+| 이슈 | 상태 | 비고 |
+|------|------|------|
+| YouTube 10% 멈춤 | ✅ 해결 | yt-dlp-ejs 플러그인 추가 |
+| Thumbnail 시각적 불일치 | ⚠️ C팀 확인 필요 | Canvas와 썸네일 간 차이 |
+
+---
+
+**최종 업데이트**: 2025-11-28 16:30
