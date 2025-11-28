@@ -4,15 +4,19 @@ Designer Agent
 비주얼 콘텐츠 생성 전문 Agent
 
 작성일: 2025-11-16
+수정일: 2025-11-29 - execute_v3() 메서드 추가 (Plan-Act-Reflect 패턴)
 작성자: B팀 (Backend)
-문서: ARCH-003, SPEC-002
+문서: ARCH-003, SPEC-002, B_TEAM_AGENT_UPGRADE_PLAN.md
 """
 
 import logging
 from typing import Dict, Any, Optional
 from datetime import datetime
 
-from .base import AgentBase, AgentRequest, AgentResponse, AgentError
+from .base import (
+    AgentBase, AgentRequest, AgentResponse, AgentError,
+    AgentGoal, SelfReview, ExecutionPlan
+)
 
 logger = logging.getLogger(__name__)
 
@@ -357,6 +361,84 @@ class DesignerAgent(AgentBase):
             ))
 
         return outputs
+
+
+    # ========================================================================
+    # Plan-Act-Reflect 패턴 (v3.0)
+    # ========================================================================
+
+    async def execute_v3(self, request: AgentRequest) -> AgentResponse:
+        """
+        Designer Agent v3.0 - Plan-Act-Reflect 패턴 적용
+
+        기존 execute()를 래핑하여 목표 기반 자기 검수를 수행합니다.
+
+        Args:
+            request: Agent 요청 (goal 필드 권장)
+
+        Returns:
+            AgentResponse: 품질 검수를 통과한 이미지
+        """
+        logger.info(f"[{self.name}] execute_v3 called (Plan-Act-Reflect)")
+
+        # Goal이 없으면 기본 Goal 생성
+        if not request.goal:
+            request.goal = AgentGoal(
+                primary_objective=f"{request.task} 작업에 최적화된 비주얼 생성",
+                success_criteria=[
+                    "브랜드 톤앤매너 일관성",
+                    "해상도 및 품질 요구사항 충족",
+                    "구도 및 레이아웃 적절성"
+                ],
+                quality_threshold=7.0,
+                max_iterations=2
+            )
+
+        # Plan-Act-Reflect 실행
+        return await self.execute_with_reflection(request)
+
+    async def _plan(self, request: AgentRequest) -> ExecutionPlan:
+        """
+        Designer 전용 Plan 단계
+
+        Args:
+            request: Agent 요청
+
+        Returns:
+            ExecutionPlan
+        """
+        plan_id = f"designer_plan_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+        goal = request.goal
+
+        # 작업별 접근 방식 결정
+        approach_map = {
+            "product_image": "제품 특성 분석 → 프롬프트 최적화 → 이미지 생성 → 품질 검수",
+            "brand_logo": "브랜드 아이덴티티 분석 → 심볼 컨셉 → 로고 생성",
+            "sns_thumbnail": "플랫폼 사양 확인 → 시선 집중 구도 → 썸네일 생성",
+            "ad_banner": "광고 목적 분석 → CTA 배치 → 배너 생성",
+            "illustration": "스타일 정의 → 구도 설계 → 일러스트 생성"
+        }
+
+        approach = approach_map.get(request.task, "표준 비주얼 생성 프로세스")
+
+        steps = [
+            {"step": 1, "action": "입력 분석 및 스타일 가이드 확인", "status": "pending"},
+            {"step": 2, "action": "프롬프트 구성 (LLM 개선 선택)", "status": "pending"},
+            {"step": 3, "action": "Media Gateway 이미지 생성", "status": "pending"},
+            {"step": 4, "action": "자기 검수 (Self-Review)", "status": "pending"}
+        ]
+
+        risks = ["프롬프트 해석 오류", "스타일 불일치"]
+        if request.options and request.options.get("enhance_prompt"):
+            risks.append("LLM 프롬프트 개선 실패 가능성")
+
+        return ExecutionPlan(
+            plan_id=plan_id,
+            steps=steps,
+            approach=approach,
+            estimated_quality=7.5,
+            risks=risks
+        )
 
 
 # ============================================================================

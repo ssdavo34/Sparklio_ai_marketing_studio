@@ -4,15 +4,19 @@ Copywriter Agent
 텍스트 콘텐츠 생성 전문 Agent
 
 작성일: 2025-11-16
+수정일: 2025-11-29 - execute_v3() 메서드 추가 (Plan-Act-Reflect 패턴)
 작성자: B팀 (Backend)
-문서: ARCH-003, SPEC-002
+문서: ARCH-003, SPEC-002, B_TEAM_AGENT_UPGRADE_PLAN.md
 """
 
 import logging
 from typing import Dict, Any, Optional
 from datetime import datetime
 
-from .base import AgentBase, AgentRequest, AgentResponse, AgentError
+from .base import (
+    AgentBase, AgentRequest, AgentResponse, AgentError,
+    AgentGoal, SelfReview, ExecutionPlan
+)
 from app.services.llm import LLMProviderOutput
 from app.services.validation import OutputValidator
 
@@ -514,6 +518,102 @@ class CopywriterAgent(AgentBase):
             ))
 
         return outputs
+
+
+    # ========================================================================
+    # Plan-Act-Reflect 패턴 (v3.0)
+    # ========================================================================
+
+    async def execute_v3(self, request: AgentRequest) -> AgentResponse:
+        """
+        Copywriter Agent v3.0 - Plan-Act-Reflect 패턴 적용
+
+        기존 execute()를 래핑하여 목표 기반 자기 검수를 수행합니다.
+
+        Args:
+            request: Agent 요청 (goal 필드 권장)
+
+        Returns:
+            AgentResponse: 품질 검수를 통과한 카피
+
+        Example:
+            response = await agent.execute_v3(AgentRequest(
+                task="product_detail",
+                payload={"product_name": "무선 이어폰", ...},
+                goal=AgentGoal(
+                    primary_objective="제품의 핵심 USP를 효과적으로 전달하는 카피 작성",
+                    success_criteria=["USP 포함", "CTA 포함", "타겟 언어 사용"],
+                    constraints=["최상급 표현 금지", "경쟁사 언급 금지"],
+                    quality_threshold=7.0
+                ),
+                context={"guardrails": {"avoid_claims": ["최고", "1위"]}}
+            ))
+        """
+        logger.info(f"[{self.name}] execute_v3 called (Plan-Act-Reflect)")
+
+        # Goal이 없으면 기본 Goal 생성
+        if not request.goal:
+            request.goal = AgentGoal(
+                primary_objective=f"{request.task} 작업에 최적화된 카피 생성",
+                success_criteria=[
+                    "핵심 메시지 전달",
+                    "톤앤매너 일관성",
+                    "문법/맞춤법 정확성"
+                ],
+                quality_threshold=7.0,
+                max_iterations=2
+            )
+
+        # Plan-Act-Reflect 실행 (base.py의 execute_with_reflection 사용)
+        return await self.execute_with_reflection(request)
+
+    async def _plan(self, request: AgentRequest) -> ExecutionPlan:
+        """
+        Copywriter 전용 Plan 단계
+
+        Args:
+            request: Agent 요청
+
+        Returns:
+            ExecutionPlan
+        """
+        plan_id = f"copywriter_plan_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+        goal = request.goal
+
+        # 작업별 접근 방식 결정
+        approach_map = {
+            "product_detail": "USP 분석 → 타겟 인사이트 추출 → 구조화된 카피 생성",
+            "sns": "플랫폼 특성 분석 → 임팩트 문구 생성 → 해시태그 최적화",
+            "ad_copy": "AIDA 모델 적용 → 헤드라인/바디/CTA 구성",
+            "headline": "다양한 관점 (임팩트/혜택/질문) → 3개 버전 생성",
+            "brand_message": "브랜드 가치 분석 → 핵심 메시지 도출"
+        }
+
+        approach = approach_map.get(request.task, "표준 카피 생성 프로세스")
+
+        steps = [
+            {"step": 1, "action": "입력 분석 및 컨텍스트 파악", "status": "pending"},
+            {"step": 2, "action": "프롬프트 구성", "status": "pending"},
+            {"step": 3, "action": "LLM 카피 생성", "status": "pending"},
+            {"step": 4, "action": "품질 검증 (Validation)", "status": "pending"},
+            {"step": 5, "action": "자기 검수 (Self-Review)", "status": "pending"}
+        ]
+
+        risks = []
+        if goal and goal.constraints:
+            risks.append(f"제약 조건 위반 가능성: {len(goal.constraints)}개 조건")
+
+        context = request.context or {}
+        if context.get("guardrails", {}).get("avoid_claims"):
+            risks.append("Guardrails 위반 가능성 (금지 표현 체크 필요)")
+
+        return ExecutionPlan(
+            plan_id=plan_id,
+            steps=steps,
+            approach=approach,
+            estimated_quality=7.5,
+            risks=risks
+        )
 
 
 # ============================================================================

@@ -4,15 +4,19 @@ Strategist Agent
 마케팅 전략 수립 전문 Agent
 
 작성일: 2025-11-16
+수정일: 2025-11-29 - execute_v3() 메서드 추가 (Plan-Act-Reflect 패턴)
 작성자: B팀 (Backend)
-문서: ARCH-003, SPEC-002
+문서: ARCH-003, SPEC-002, B_TEAM_AGENT_UPGRADE_PLAN.md
 """
 
 import logging
 from typing import Dict, Any
 from datetime import datetime
 
-from .base import AgentBase, AgentRequest, AgentResponse, AgentError
+from .base import (
+    AgentBase, AgentRequest, AgentResponse, AgentError,
+    AgentGoal, SelfReview, ExecutionPlan
+)
 from app.services.llm import LLMProviderOutput
 from app.services.validation import OutputValidator
 
@@ -474,6 +478,85 @@ class StrategistAgent(AgentBase):
             ))
 
         return outputs
+
+
+    # ========================================================================
+    # Plan-Act-Reflect 패턴 (v3.0)
+    # ========================================================================
+
+    async def execute_v3(self, request: AgentRequest) -> AgentResponse:
+        """
+        Strategist Agent v3.0 - Plan-Act-Reflect 패턴 적용
+
+        기존 execute()를 래핑하여 목표 기반 자기 검수를 수행합니다.
+
+        Args:
+            request: Agent 요청 (goal 필드 권장)
+
+        Returns:
+            AgentResponse: 품질 검수를 통과한 전략 문서
+        """
+        logger.info(f"[{self.name}] execute_v3 called (Plan-Act-Reflect)")
+
+        # Goal이 없으면 기본 Goal 생성
+        if not request.goal:
+            request.goal = AgentGoal(
+                primary_objective=f"{request.task} 작업에 최적화된 마케팅 전략 수립",
+                success_criteria=[
+                    "실행 가능한 전략 제시",
+                    "측정 가능한 KPI 포함",
+                    "타겟 인사이트 반영"
+                ],
+                quality_threshold=7.0,
+                max_iterations=2
+            )
+
+        # Plan-Act-Reflect 실행
+        return await self.execute_with_reflection(request)
+
+    async def _plan(self, request: AgentRequest) -> ExecutionPlan:
+        """
+        Strategist 전용 Plan 단계
+
+        Args:
+            request: Agent 요청
+
+        Returns:
+            ExecutionPlan
+        """
+        plan_id = f"strategist_plan_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+        goal = request.goal
+
+        # 작업별 접근 방식 결정
+        approach_map = {
+            "campaign_strategy": "시장 분석 → 타겟 정의 → 전략 기둥 수립 → 채널 전략 → KPI 설정",
+            "brand_kit": "브랜드 DNA 분석 → 포지셔닝 정의 → 톤앤매너 설정",
+            "target_analysis": "인구통계 분석 → 심리그래픽 분석 → 페르소나 구체화",
+            "positioning": "시장 분석 → 경쟁사 분석 → 차별화 전략 수립",
+            "content_strategy": "콘텐츠 기둥 정의 → 채널별 전략 → 퍼블리싱 계획"
+        }
+
+        approach = approach_map.get(request.task, "표준 전략 수립 프로세스")
+
+        steps = [
+            {"step": 1, "action": "입력 분석 및 시장 컨텍스트 파악", "status": "pending"},
+            {"step": 2, "action": "전략 프레임워크 선택", "status": "pending"},
+            {"step": 3, "action": "LLM 전략 생성", "status": "pending"},
+            {"step": 4, "action": "품질 검증 (Validation)", "status": "pending"},
+            {"step": 5, "action": "자기 검수 (Self-Review)", "status": "pending"}
+        ]
+
+        risks = ["전략의 실행 가능성 부족", "KPI 측정 방법 불명확"]
+        if goal and goal.constraints:
+            risks.append(f"제약 조건 위반 가능성: {len(goal.constraints)}개 조건")
+
+        return ExecutionPlan(
+            plan_id=plan_id,
+            steps=steps,
+            approach=approach,
+            estimated_quality=7.5,
+            risks=risks
+        )
 
 
 # ============================================================================
