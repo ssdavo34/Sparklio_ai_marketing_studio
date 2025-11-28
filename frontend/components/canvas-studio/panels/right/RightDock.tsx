@@ -26,8 +26,9 @@ import { AGENT_INFO, TASK_INFO, TEXT_LLM_INFO, IMAGE_LLM_INFO, VIDEO_LLM_INFO } 
 import type { AgentRole, TaskType, CostMode, TextLLMProvider, ImageLLMProvider, VideoLLMProvider } from '../../stores/types/llm';
 import { MessageSquare, Layers, Settings, ChevronDown, ChevronUp, Paperclip, X, FileText, FileSpreadsheet, Image as ImageIcon, Video, Music, RefreshCw, Search } from 'lucide-react';
 import { ErrorMessage } from '../../components/ErrorMessage';
-import { getImageMetadata, canRegenerate, isNanoBananaImage, isUnsplashImage } from '@/lib/canvas/image-metadata';
+import { getImageMetadata, canRegenerate, isNanoBananaImage, isUnsplashImage, updateImageSource } from '@/lib/canvas/image-metadata';
 import type { ImageMetadata } from '@/lib/canvas/image-metadata';
+import { UnsplashSearchModal } from '../../modals/UnsplashSearchModal';
 
 type UploadedFile = {
   id: string;
@@ -764,9 +765,19 @@ function InspectorTab({ element }: { element: any }) {
   };
 
   const handleSearchUnsplash = () => {
-    // TODO: Open Unsplash search modal
     setShowUnsplashModal(true);
-    alert('Unsplash 검색 모달이 곧 추가됩니다!');
+  };
+
+  const handleUnsplashSelect = (imageUrl: string, metadata: ImageMetadata) => {
+    if (!element) return;
+
+    // 이미지 소스와 메타데이터 업데이트
+    updateImageSource(element, imageUrl, metadata);
+
+    console.log('[Inspector] Unsplash image selected:', {
+      url: imageUrl,
+      photographer: metadata.unsplashAttribution?.photographerName,
+    });
   };
 
   return (
@@ -976,6 +987,14 @@ function InspectorTab({ element }: { element: any }) {
           </div>
         </>
       )}
+
+      {/* Unsplash Search Modal */}
+      <UnsplashSearchModal
+        isOpen={showUnsplashModal}
+        onClose={() => setShowUnsplashModal(false)}
+        onSelect={handleUnsplashSelect}
+        initialQuery={imageMetadata?.originalPrompt || ''}
+      />
     </div>
   );
 }
