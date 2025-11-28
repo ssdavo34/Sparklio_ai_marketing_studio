@@ -3,6 +3,7 @@
 import { useRef, useState, useEffect } from 'react';
 import { Upload, X, Video, Sparkles, Loader2, FileAudio, Clock, Download, Radio, Trash2, StopCircle, CheckSquare, Square } from 'lucide-react';
 import { useCanvasStore } from '../../../stores/useCanvasStore';
+import { useMeetingStore } from '../../../stores/useMeetingStore';
 import type { Meeting, MeetingAnalysisResult, MeetingStatus } from '@/types/meeting';
 import {
   createMeetingFromFile,
@@ -84,6 +85,7 @@ export function MeetingTab() {
   const [selectedForDelete, setSelectedForDelete] = useState<Set<string>>(new Set());
   const [isSelectMode, setIsSelectMode] = useState(false);
   const polotnoStore = useCanvasStore((state) => state.polotnoStore);
+  const setGlobalAnalysis = useMeetingStore((state) => state.setAnalysisResult);
 
   // Load meetings on mount
   useEffect(() => {
@@ -311,6 +313,7 @@ export function MeetingTab() {
       const analyzeResponse = await analyzeMeeting(meeting.id);
 
       setAnalysisResult(analyzeResponse.analysis);
+      setGlobalAnalysis(analyzeResponse.analysis);
 
       // Update meeting status to analyzed
       setMeetings((prev) =>
@@ -493,6 +496,7 @@ export function MeetingTab() {
       if (selectedMeeting?.id === meeting.id) {
         setSelectedMeeting(null);
         setAnalysisResult(null);
+        setGlobalAnalysis(null);
       }
 
       // 폴링 중이면 폴링 중지
@@ -585,6 +589,7 @@ export function MeetingTab() {
     if (selectedMeeting && successIds.includes(selectedMeeting.id)) {
       setSelectedMeeting(null);
       setAnalysisResult(null);
+      setGlobalAnalysis(null);
     }
 
     // 폴링 중인 meeting이 삭제되었으면 폴링 중지
@@ -770,21 +775,21 @@ export function MeetingTab() {
               {meetings.filter((m) => m && m.id).map((meeting, index) => (
                 <div
                   key={meeting.id || `meeting-fallback-${index}`}
-                  className={`p-3 border rounded-lg transition-colors cursor-pointer ${
-                    selectedForDelete.has(meeting.id)
+                  className={`p-3 border rounded-lg transition-colors cursor-pointer ${selectedForDelete.has(meeting.id)
                       ? 'border-red-300 bg-red-50'
                       : selectedMeeting?.id === meeting.id
                         ? 'border-purple-500 bg-purple-50'
                         : 'border-gray-200 hover:border-purple-300 hover:bg-gray-50'
-                  }`}
+                    }`}
                   onClick={() => {
                     if (isSelectMode) {
-                      toggleSelectForDelete(meeting.id, { stopPropagation: () => {} } as React.MouseEvent);
+                      toggleSelectForDelete(meeting.id, { stopPropagation: () => { } } as React.MouseEvent);
                     } else {
                       setSelectedMeeting(meeting);
                       // 분석 결과가 있으면 로드
                       if (meeting.analysis_result) {
                         setAnalysisResult(meeting.analysis_result);
+                        setGlobalAnalysis(meeting.analysis_result);
                       }
                     }
                   }}

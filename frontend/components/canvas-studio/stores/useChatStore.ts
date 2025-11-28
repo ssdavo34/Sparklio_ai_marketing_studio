@@ -19,6 +19,7 @@ import type { AgentRole, TaskType, ChatConfig, CostMode, TextLLMProvider, ImageL
 import { DEFAULT_CHAT_CONFIG } from './types/llm';
 import { sendChatMessage, generateImage, gatewayClient, generateConcepts } from '@/lib/llm-gateway-client';
 import { useCanvasStore } from './useCanvasStore';
+import { useBrandStore } from './useBrandStore';
 import { getAdLayout, selectBestLayout, type AdLayoutType } from '../utils/ad-layouts';
 import { detectErrorType, createUserFriendlyError, type ErrorType } from '../components/ErrorMessage';
 import { useGeneratedAssetsStore } from './useGeneratedAssetsStore';
@@ -267,9 +268,13 @@ async function parseAndAddToCanvas(responseText: string, userMessage?: string) {
           console.log('[parseAndAddToCanvas] 🎨 Generating product image for:', productName);
 
           // 이미지 프롬프트를 한국어 제품명으로 더 정확하게
+          // 브랜드 스토어에서 현재 브랜드 ID 가져오기
+          const { brandKit } = useBrandStore.getState();
+          const currentBrandId = brandKit?.brand_id || undefined;
+
           const imageUrl = await generateImage({
             prompt: `${productName} 제품 사진, 전문 상업 광고용, 고품질, 스튜디오 조명, 깨끗한 배경, 상품 디테일 강조`,
-            brandId: undefined, // TODO: 브랜드 ID 연동
+            brandId: currentBrandId,
           });
 
           if (imageUrl) {

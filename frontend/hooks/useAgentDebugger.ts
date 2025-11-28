@@ -238,7 +238,7 @@ export function useAgentDebugger(
  * Agent 호출을 자동으로 로깅하는 래퍼
  */
 export async function withAgentLogging<T>(
-  debugger: UseAgentDebuggerReturn,
+  agentDebugger: UseAgentDebuggerReturn,
   agentName: string,
   input: string,
   fn: () => Promise<T>,
@@ -248,7 +248,7 @@ export async function withAgentLogging<T>(
     extractValidation?: (result: T) => any;
   }
 ): Promise<T> {
-  const logId = debugger.startLog(agentName, input, options?.meta);
+  const logId = agentDebugger.startLog(agentName, input, options?.meta);
 
   try {
     const result = await fn();
@@ -256,7 +256,7 @@ export async function withAgentLogging<T>(
     // Raw output 추출
     if (options?.extractRawOutput) {
       const rawOutput = options.extractRawOutput(result);
-      debugger.updateLog(logId, { rawOutput });
+      agentDebugger.updateLog(logId, { rawOutput });
     }
 
     // Validation 추출
@@ -264,11 +264,11 @@ export async function withAgentLogging<T>(
       ? options.extractValidation(result)
       : undefined;
 
-    debugger.completeLog(logId, result, validationResult);
+    agentDebugger.completeLog(logId, result, validationResult);
 
     return result;
   } catch (error: any) {
-    debugger.failLog(logId, {
+    agentDebugger.failLog(logId, {
       message: error.message || 'Unknown error',
       stack: error.stack,
       code: error.code,

@@ -51,7 +51,7 @@ export class AutoSaveManager {
     this.options = {
       enabled: options.enabled ?? true,
       delay: options.delay ?? 2000,
-      onSave: options.onSave ?? (() => {}),
+      onSave: options.onSave ?? (() => { }),
       onConflict: options.onConflict ?? ((local) => local),
     };
 
@@ -274,7 +274,7 @@ export class AutoSaveManager {
 // React Hook
 // ============================================================================
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 export interface UseAutoSaveReturn {
   saveState: SaveState;
@@ -398,15 +398,18 @@ export const SaveStateIndicator: React.FC<SaveStateIndicatorProps> = ({ state, c
   if (!indicator.text) return null;
 
   return (
-    <div className={`flex items-center gap-2 text-sm ${indicator.color} ${className}`}>
-      <span>{indicator.icon}</span>
-      <span>{indicator.text}</span>
-      {state.lastSaved && (
-        <span className="text-xs text-slate-400">
-          ({formatRelativeTime(state.lastSaved)})
-        </span>
-      )}
-    </div>
+    <div className= {`flex items-center gap-2 text-sm ${indicator.color} ${className}`
+}>
+  <span>{ indicator.icon } </span>
+  < span > { indicator.text } </span>
+{
+  state.lastSaved && (
+    <span className="text-xs text-slate-400" >
+      ({ formatRelativeTime(state.lastSaved) })
+      </span>
+      )
+}
+</div>
   );
 };
 

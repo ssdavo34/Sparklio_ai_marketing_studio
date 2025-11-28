@@ -18,35 +18,62 @@ let isInitialized = false;
  * Polotno Store 싱글톤 가져오기 또는 생성
  */
 export function getOrCreatePolotnoStore(apiKey: string): any {
+  // 이미 초기화된 경우 재사용
   if (polotnoStoreInstance && isInitialized) {
     console.log('[PolotnoStoreSingleton] Reusing existing store');
     return polotnoStoreInstance;
   }
 
-  console.log('[PolotnoStoreSingleton] Creating new store');
-  polotnoStoreInstance = createStore({
-    key: apiKey,
-    showCredit: true, // Free version requirement
-  });
-
-  // Register custom fonts (Pretendard)
-  if (typeof window !== 'undefined' && (window as any).FontFace) {
-    // Ensure Pretendard font is available for Polotno
-    document.fonts.ready.then(() => {
-      console.log('[PolotnoStoreSingleton] Fonts loaded and ready');
-    }).catch((err) => {
-      console.warn('[PolotnoStoreSingleton] Font loading warning:', err);
-    });
+  // 안전성 검증: apiKey 필수
+  if (!apiKey || typeof apiKey !== 'string') {
+    console.error('[PolotnoStoreSingleton] Invalid API key provided');
+    throw new Error('Polotno API key is required');
   }
 
-  isInitialized = true;
-  return polotnoStoreInstance;
+  try {
+    console.log('[PolotnoStoreSingleton] Creating new store');
+    polotnoStoreInstance = createStore({
+      key: apiKey,
+      showCredit: true, // Free version requirement
+    });
+
+    // Store 생성 검증
+    if (!polotnoStoreInstance) {
+      throw new Error('Failed to create Polotno store');
+    }
+
+    // Register custom fonts (Pretendard)
+    if (typeof window !== 'undefined' && (window as any).FontFace) {
+      // Ensure Pretendard font is available for Polotno
+      document.fonts.ready
+        .then(() => {
+          console.log('[PolotnoStoreSingleton] Fonts loaded and ready');
+        })
+        .catch((err) => {
+          console.warn('[PolotnoStoreSingleton] Font loading warning:', err);
+        });
+    }
+
+    isInitialized = true;
+    console.log('[PolotnoStoreSingleton] Store created successfully');
+    return polotnoStoreInstance;
+  } catch (error) {
+    console.error('[PolotnoStoreSingleton] Failed to create store:', error);
+    // 실패 시 상태 리셋
+    polotnoStoreInstance = null;
+    isInitialized = false;
+    throw error;
+  }
 }
 
 /**
- * 현재 Polotno Store 인스턴스 가져오기
+ * 현재 Polotno Store 인스턴스 가져오기 (안전성 검증 포함)
  */
 export function getPolotnoStore(): any | null {
+  if (!isInitialized || !polotnoStoreInstance) {
+    console.warn('[PolotnoStoreSingleton] Store not initialized. Call getOrCreatePolotnoStore() first.');
+    return null;
+  }
   return polotnoStoreInstance;
 }
 
@@ -61,34 +88,84 @@ export function isPolotnoStoreInitialized(): boolean {
  * Polotno Store 상태를 JSON으로 내보내기 (디버깅/저장용)
  */
 export function exportStoreState(): any | null {
-  if (!polotnoStoreInstance) return null;
-  return polotnoStoreInstance.toJSON();
+  if (!polotnoStoreInstance) {
+    console.warn('[PolotnoStoreSingleton] Cannot export: store not initialized');
+    return null;
+  }
+
+  try {
+    const state = polotnoStoreInstance.toJSON();
+    console.log('[PolotnoStoreSingleton] State exported successfully');
+    return state;
+  } catch (error) {
+    console.error('[PolotnoStoreSingleton] Failed to export state:', error);
+    return null;
+  }
 }
 
 /**
  * JSON에서 Polotno Store 상태 복원
  */
-export function restoreStoreState(json: any): void {
-  if (!polotnoStoreInstance || !json) return;
-  polotnoStoreInstance.loadJSON(json);
+export function restoreStoreState(json: any): boolean {
+  if (!polotnoStoreInstance) {
+    console.error('[PolotnoStoreSingleton] Cannot restore: store not initialized');
+    return false;
+  }
+
+  if (!json) {
+    console.warn('[PolotnoStoreSingleton] Cannot restore: no data provided');
+    return false;
+  }
+
+  try {
+    polotnoStoreInstance.loadJSON(json);
+    console.log('[PolotnoStoreSingleton] State restored successfully');
+    return true;
+  } catch (error) {
+    console.error('[PolotnoStoreSingleton] Failed to restore state:', error);
+    return false;
+  }
 }
 
 /**
  * Polotno Store 리셋 (새 프로젝트 시작 시)
  */
-export function resetPolotnoStore(width: number = 1080, height: number = 1920): void {
-  if (!polotnoStoreInstance) return;
-
-  // 모든 페이지 삭제
-  while (polotnoStoreInstance.pages.length > 0) {
-    polotnoStoreInstance.pages[0].remove();
+export function resetPolotnoStore(width: number = 1080, height: number = 1920): boolean {
+  if (!polotnoStoreInstance) {
+    console.error('[PolotnoStoreSingleton] Cannot reset: store not initialized');
+    return false;
   }
 
-  // 새 빈 페이지 추가
-  polotnoStoreInstance.addPage({
-    width,
-    height,
-  });
+  try {
+    // 모든 페이지 삭제
+    while (polotnoStoreInstance.pages.length > 0) {
+      polotnoStoreInstance.pages[0].remove();
+    }
 
-  console.log('[PolotnoStoreSingleton] Store reset with new page');
+    // 새 빈 페이지 추가
+    polotnoStoreInstance.addPage({
+      width,
+      height,
+    });
+
+    console.log('[PolotnoStoreSingleton] Store reset with new page');
+    return true;
+  } catch (error) {
+    console.error('[PolotnoStoreSingleton] Failed to reset store:', error);
+    return false;
+  }
+}
+
+/**
+ * Polotno Store 강제 재초기화 (에러 복구용)
+ */
+export function forceReinitializeStore(apiKey: string): any {
+  console.warn('[PolotnoStoreSingleton] Force reinitializing store...');
+
+  // 기존 인스턴스 정리
+  polotnoStoreInstance = null;
+  isInitialized = false;
+
+  // 새로 생성
+  return getOrCreatePolotnoStore(apiKey);
 }

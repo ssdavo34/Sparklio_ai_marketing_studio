@@ -19,6 +19,8 @@ import { useCanvasStore } from '../../stores/useCanvasStore';
 import { useChatStore } from '../../stores/useChatStore';
 import { useCenterViewStore } from '../../stores/useCenterViewStore';
 import { useGeneratedAssetsStore } from '../../stores/useGeneratedAssetsStore';
+import { useMeetingStore } from '../../stores/useMeetingStore';
+import { useConceptGenerate, type ConceptOutput } from '../../../../hooks/useConceptGenerate';
 import type { NextAction } from '@/types/demo';
 import { AGENT_INFO, TASK_INFO, TEXT_LLM_INFO, IMAGE_LLM_INFO, VIDEO_LLM_INFO } from '../../stores/types/llm';
 import type { AgentRole, TaskType, CostMode, TextLLMProvider, ImageLLMProvider, VideoLLMProvider } from '../../stores/types/llm';
@@ -60,33 +62,30 @@ export function RightDock() {
       <div className="flex border-b border-gray-200 bg-gray-50">
         <button
           onClick={() => setActiveTab('chat')}
-          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors ${
-            activeTab === 'chat'
-              ? 'border-b-2 border-purple-600 text-purple-600 bg-white'
-              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-          }`}
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors ${activeTab === 'chat'
+            ? 'border-b-2 border-purple-600 text-purple-600 bg-white'
+            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+            }`}
         >
           <MessageSquare className="w-4 h-4" />
           Chat
         </button>
         <button
           onClick={() => setActiveTab('inspector')}
-          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors ${
-            activeTab === 'inspector'
-              ? 'border-b-2 border-purple-600 text-purple-600 bg-white'
-              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-          }`}
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors ${activeTab === 'inspector'
+            ? 'border-b-2 border-purple-600 text-purple-600 bg-white'
+            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+            }`}
         >
           <Settings className="w-4 h-4" />
           Inspector
         </button>
         <button
           onClick={() => setActiveTab('layers')}
-          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors ${
-            activeTab === 'layers'
-              ? 'border-b-2 border-purple-600 text-purple-600 bg-white'
-              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-          }`}
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors ${activeTab === 'layers'
+            ? 'border-b-2 border-purple-600 text-purple-600 bg-white'
+            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+            }`}
         >
           <Layers className="w-4 h-4" />
           Layers
@@ -107,7 +106,7 @@ export function RightDock() {
 function ChatTab() {
   const {
     messages,
-    isLoading,
+    isLoading: isChatLoading,
     error,
     errorType,
     errorDetails,
@@ -116,6 +115,7 @@ function ChatTab() {
     retryLastMessage,
     clearError,
     clearMessages,
+    addMessage,
     chatConfig,
     setRole,
     setTask,
@@ -124,6 +124,12 @@ function ChatTab() {
     setImageLLM,
     setVideoLLM,
   } = useChatStore();
+
+  const { generateConcepts, isLoading: isConceptLoading } = useConceptGenerate();
+  const isLoading = isChatLoading || isConceptLoading;
+
+  // Meeting Store - 회의 분석 결과 가져오기
+  const { currentMeeting, analysisResult: meetingAnalysis } = useMeetingStore();
 
   // CenterView Store 연동
   const {
@@ -142,46 +148,12 @@ function ChatTab() {
 
   const [input, setInput] = useState('');
   const [isMounted, setIsMounted] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(true);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [mode, setMode] = useState<'chat' | 'concept'>('chat');
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // NextAction 핸들러
-  const handleNextAction = (action: NextAction) => {
-    console.log('[ChatTab] NextAction:', action);
-
-    switch (action.action) {
-      case 'open_concept_board':
-        openConceptBoard(action.payload?.campaign_id);
-        break;
-      case 'open_slides':
-        if (action.payload?.concept_id && action.payload?.asset_id) {
-          openSlidesPreview(action.payload.concept_id, action.payload.asset_id);
-        }
-        break;
-      case 'open_detail':
-        if (action.payload?.concept_id && action.payload?.asset_id) {
-          openDetailPreview(action.payload.concept_id, action.payload.asset_id);
-        }
-        break;
-      case 'open_instagram':
-        if (action.payload?.concept_id && action.payload?.asset_id) {
-          openInstagramPreview(action.payload.concept_id, action.payload.asset_id);
-        }
-        break;
-      case 'open_shorts':
-        if (action.payload?.concept_id && action.payload?.asset_id) {
-          openShortsPreview(action.payload.concept_id, action.payload.asset_id);
-        }
-        break;
-      case 'back_to_concept_board':
-        openConceptBoard();
-        break;
-      default:
-        console.log('[ChatTab] Unknown action:', action.action);
-    }
-  };
 
   // Client-side mount check to prevent hydration errors
   useEffect(() => {
@@ -254,10 +226,97 @@ function ChatTab() {
       // 향후 파일을 API로 전송하는 로직 추가
     }
 
-    if (chatConfig.task === 'image_generate') {
-      await generateImageFromPrompt(message);
+    if (mode === 'concept') {
+      // Concept Generation Mode
+      try {
+        // Add user message manually since we are bypassing sendMessage
+        addMessage(
+          'user',
+          message,
+          undefined,
+          undefined,
+          undefined,
+          undefined
+        );
+
+        // Meeting Analysis Context 통합
+        let context = '';
+        if (meetingAnalysis && currentMeeting) {
+          context = `
+[Meeting Analysis Context]
+Title: ${currentMeeting.title}
+Summary: ${meetingAnalysis.summary}
+Agenda: ${meetingAnalysis.agenda.join(', ')}
+Decisions: ${meetingAnalysis.decisions.join(', ')}
+Campaign Ideas: ${meetingAnalysis.campaign_ideas.join(', ')}
+`;
+        }
+
+        const response = await generateConcepts(message, 3, context);
+
+        // Store in GeneratedAssetsStore (ConceptBoardData)
+        const conceptBoardData = {
+          campaign_id: `campaign-${Date.now()}`,
+          campaign_name: message.length > 20 ? message.substring(0, 20) + '...' : message,
+          status: 'completed' as const,
+          created_at: new Date().toISOString(),
+          meeting_summary: {
+            title: currentMeeting?.title || 'User Request',
+            duration_minutes: 0,
+            participants: [],
+            key_points: meetingAnalysis?.agenda || [message],
+            core_message: meetingAnalysis?.summary || message,
+          },
+          concepts: response.concepts.map((c: ConceptOutput, idx: number) => ({
+            concept_id: `concept-${Date.now()}-${idx}`,
+            concept_name: c.concept_name,
+            concept_description: c.concept_description,
+            target_audience: c.target_audience,
+            key_message: c.key_message,
+            tone_and_manner: c.tone_and_manner,
+            visual_style: c.visual_style,
+            color_palette: c.color_palette,
+            assets: {
+              presentation: { id: `pres-${idx}`, status: 'pending' as const },
+              product_detail: { id: `detail-${idx}`, status: 'pending' as const },
+              instagram_ads: { id: `insta-${idx}`, status: 'pending' as const, count: 0 },
+              shorts_script: { id: `shorts-${idx}`, status: 'pending' as const, duration_seconds: 0 },
+            },
+          })),
+        };
+
+        // Update CenterViewStore
+        useCenterViewStore.getState().setConceptBoardData(conceptBoardData);
+
+        // Open ConceptBoard View
+        useCenterViewStore.getState().openConceptBoard(conceptBoardData.campaign_id);
+
+        // Select first concept
+        if (conceptBoardData.concepts.length > 0) {
+          useCenterViewStore.getState().setConceptId(conceptBoardData.concepts[0].concept_id);
+          useCenterViewStore.getState().setSelectedConcept(conceptBoardData.concepts[0]);
+        }
+
+        // Add assistant message
+        addMessage(
+          'assistant',
+          `✅ 컨셉 생성이 완료되었습니다.\n\n${response.reasoning}`,
+          undefined,
+          'ConceptAgent',
+          'generate_concepts',
+          undefined
+        );
+
+      } catch (err: any) {
+        addMessage('assistant', `❌ 컨셉 생성 실패: ${err.message}`, undefined, undefined, undefined, undefined);
+      }
     } else {
-      await sendMessage(message);
+      // Normal Chat Mode
+      if (chatConfig.task === 'image_generate') {
+        await generateImageFromPrompt(message);
+      } else {
+        await sendMessage(message);
+      }
     }
 
     // 전송 후 파일 초기화
@@ -302,120 +361,129 @@ function ChatTab() {
           </div>
         </div>
 
+        {/* Meeting Context Indicator */}
+        {meetingAnalysis && currentMeeting && (
+          <div className="mb-2 px-2 py-1.5 bg-blue-50 border border-blue-100 rounded flex items-center gap-2">
+            <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-blue-700 truncate">
+                회의 분석 컨텍스트 활성화
+              </p>
+              <p className="text-[10px] text-blue-500 truncate">
+                {currentMeeting.title}
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Settings Section (Collapsible) */}
         {isSettingsOpen && (
           <>
-            {/* Agent Role Selector */}
-            <div className="mb-2">
+            {/* Mode Selector */}
+            <div className="mb-3">
               <label className="text-xs font-semibold text-gray-700 uppercase mb-1 block">
-                에이전트 역할
+                모드 선택
               </label>
-              <select
-                value={chatConfig.role}
-                onChange={(e) => setRole(e.target.value as AgentRole)}
-                className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
-              >
-                {Object.entries(AGENT_INFO).map(([key, info]) => (
-                  <option key={key} value={key}>
-                    {info.name} - {info.description}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Task Selector - 모든 작업 유형 표시 */}
-            <div className="mb-2">
-              <label className="text-xs font-semibold text-gray-700 uppercase mb-1 block">
-                작업 유형
-              </label>
-              <select
-                value={chatConfig.task}
-                onChange={(e) => setTask(e.target.value as TaskType)}
-                className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
-              >
-                {Object.entries(TASK_INFO).map(([taskId, taskInfo]) => (
-                  <option key={taskId} value={taskId}>
-                    {taskInfo.name} - {taskInfo.description}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Cost Mode Selector */}
-            <div className="flex gap-2 mb-2">
-              {(['fast', 'balanced', 'quality'] as CostMode[]).map((mode) => (
+              <div className="flex gap-2 p-1 bg-gray-100 rounded-lg">
                 <button
-                  key={mode}
-                  onClick={() => setCostMode(mode)}
-                  className={`flex-1 px-2 py-1.5 text-xs font-medium rounded transition-colors ${
-                    chatConfig.costMode === mode
-                      ? 'bg-purple-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
+                  onClick={() => setMode('chat')}
+                  className={`flex-1 py-1.5 px-3 text-xs font-medium rounded-md transition-colors ${mode === 'chat'
+                      ? 'bg-white text-purple-600 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                    }`}
                 >
-                  {mode === 'fast' && '⚡ 빠름'}
-                  {mode === 'balanced' && '⚖️ 균형'}
-                  {mode === 'quality' && '✨ 품질'}
+                  자유 대화
                 </button>
-              ))}
-            </div>
-
-            {/* LLM Provider Selectors */}
-            <div className="space-y-2 pt-2 border-t border-gray-200">
-              {/* Text LLM Selector */}
-              <div>
-                <label className="text-xs font-semibold text-gray-700 uppercase mb-1 block">
-                  텍스트 LLM
-                </label>
-                <select
-                  value={chatConfig.textLLM || 'auto'}
-                  onChange={(e) => setTextLLM(e.target.value as TextLLMProvider)}
-                  className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
+                <button
+                  onClick={() => setMode('concept')}
+                  className={`flex-1 py-1.5 px-3 text-xs font-medium rounded-md transition-colors ${mode === 'concept'
+                      ? 'bg-white text-purple-600 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                    }`}
                 >
-                  {Object.entries(TEXT_LLM_INFO).map(([key, info]) => (
-                    <option key={key} value={key}>
-                      {info.name} - {info.description}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Image LLM Selector */}
-              <div>
-                <label className="text-xs font-semibold text-gray-700 uppercase mb-1 block">
-                  이미지 생성 LLM
-                </label>
-                <select
-                  value={chatConfig.imageLLM || 'auto'}
-                  onChange={(e) => setImageLLM(e.target.value as ImageLLMProvider)}
-                  className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
-                >
-                  {Object.entries(IMAGE_LLM_INFO).map(([key, info]) => (
-                    <option key={key} value={key}>
-                      {info.name} - {info.description}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Video LLM Selector */}
-              <div>
-                <label className="text-xs font-semibold text-gray-700 uppercase mb-1 block">
-                  동영상 생성 LLM
-                </label>
-                <select
-                  value={chatConfig.videoLLM || 'auto'}
-                  onChange={(e) => setVideoLLM(e.target.value as VideoLLMProvider)}
-                  className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
-                >
-                  {Object.entries(VIDEO_LLM_INFO).map(([key, info]) => (
-                    <option key={key} value={key}>
-                      {info.name} - {info.description}
-                    </option>
-                  ))}
-                </select>
+                  컨셉 도출
+                </button>
               </div>
             </div>
+
+            {mode === 'chat' && (
+              <>
+                {/* Agent Role Selector */}
+                <div className="mb-2">
+                  <label className="text-xs font-semibold text-gray-700 uppercase mb-1 block">
+                    에이전트 역할
+                  </label>
+                  <select
+                    value={chatConfig.role}
+                    onChange={(e) => setRole(e.target.value as AgentRole)}
+                    className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  >
+                    {Object.entries(AGENT_INFO).map(([key, info]) => (
+                      <option key={key} value={key}>
+                        {info.name} - {info.description}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Task Selector */}
+                <div className="mb-2">
+                  <label className="text-xs font-semibold text-gray-700 uppercase mb-1 block">
+                    작업 유형
+                  </label>
+                  <select
+                    value={chatConfig.task}
+                    onChange={(e) => setTask(e.target.value as TaskType)}
+                    className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  >
+                    {Object.entries(TASK_INFO).map(([taskId, taskInfo]) => (
+                      <option key={taskId} value={taskId}>
+                        {taskInfo.name} - {taskInfo.description}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Cost Mode Selector */}
+                <div className="flex gap-2 mb-2">
+                  {(['fast', 'balanced', 'quality'] as CostMode[]).map((mode) => (
+                    <button
+                      key={mode}
+                      onClick={() => setCostMode(mode)}
+                      className={`flex-1 px-2 py-1.5 text-xs font-medium rounded transition-colors ${chatConfig.costMode === mode
+                          ? 'bg-purple-600 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                    >
+                      {mode === 'fast' && '⚡ 빠름'}
+                      {mode === 'balanced' && '⚖️ 균형'}
+                      {mode === 'quality' && '✨ 품질'}
+                    </button>
+                  ))}
+                </div>
+
+                {/* LLM Provider Selectors */}
+                <div className="space-y-2 pt-2 border-t border-gray-200">
+                  {/* Text LLM Selector */}
+                  <div>
+                    <label className="text-xs font-semibold text-gray-700 uppercase mb-1 block">
+                      텍스트 LLM
+                    </label>
+                    <select
+                      value={chatConfig.textLLM || 'auto'}
+                      onChange={(e) => setTextLLM(e.target.value as TextLLMProvider)}
+                      className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    >
+                      {Object.entries(TEXT_LLM_INFO).map(([key, info]) => (
+                        <option key={key} value={key}>
+                          {info.name} - {info.description}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </>
+            )}
           </>
         )}
       </div>
@@ -429,61 +497,55 @@ function ChatTab() {
         <div className="flex flex-wrap gap-1">
           <button
             onClick={() => backToCanvas()}
-            className={`px-2 py-1 text-xs rounded transition-colors ${
-              currentView === 'canvas'
+            className={`px-2 py-1 text-xs rounded transition-colors ${currentView === 'canvas'
                 ? 'bg-purple-600 text-white'
                 : 'bg-white text-gray-700 hover:bg-purple-100 border border-gray-200'
-            }`}
+              }`}
           >
             Canvas
           </button>
           <button
             onClick={() => openConceptBoard()}
-            className={`px-2 py-1 text-xs rounded transition-colors ${
-              currentView === 'concept_board'
+            className={`px-2 py-1 text-xs rounded transition-colors ${currentView === 'concept_board'
                 ? 'bg-purple-600 text-white'
                 : 'bg-white text-gray-700 hover:bg-purple-100 border border-gray-200'
-            }`}
+              }`}
           >
             Concept Board
           </button>
           <button
             onClick={() => openSlidesPreview(firstConceptId, 'pres-1')}
-            className={`px-2 py-1 text-xs rounded transition-colors ${
-              currentView === 'slides_preview'
+            className={`px-2 py-1 text-xs rounded transition-colors ${currentView === 'slides_preview'
                 ? 'bg-purple-600 text-white'
                 : 'bg-white text-gray-700 hover:bg-purple-100 border border-gray-200'
-            }`}
+              }`}
           >
             Slides
           </button>
           <button
             onClick={() => openDetailPreview(firstConceptId, 'detail-1')}
-            className={`px-2 py-1 text-xs rounded transition-colors ${
-              currentView === 'detail_preview'
+            className={`px-2 py-1 text-xs rounded transition-colors ${currentView === 'detail_preview'
                 ? 'bg-purple-600 text-white'
                 : 'bg-white text-gray-700 hover:bg-purple-100 border border-gray-200'
-            }`}
+              }`}
           >
             Detail
           </button>
           <button
             onClick={() => openInstagramPreview(firstConceptId, 'insta-1')}
-            className={`px-2 py-1 text-xs rounded transition-colors ${
-              currentView === 'instagram_preview'
+            className={`px-2 py-1 text-xs rounded transition-colors ${currentView === 'instagram_preview'
                 ? 'bg-purple-600 text-white'
                 : 'bg-white text-gray-700 hover:bg-purple-100 border border-gray-200'
-            }`}
+              }`}
           >
             Instagram
           </button>
           <button
             onClick={() => openShortsPreview(firstConceptId, 'shorts-1')}
-            className={`px-2 py-1 text-xs rounded transition-colors ${
-              currentView === 'shorts_preview'
+            className={`px-2 py-1 text-xs rounded transition-colors ${currentView === 'shorts_preview'
                 ? 'bg-purple-600 text-white'
                 : 'bg-white text-gray-700 hover:bg-purple-100 border border-gray-200'
-            }`}
+              }`}
           >
             Shorts
           </button>
@@ -498,11 +560,10 @@ function ChatTab() {
             className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             <div
-              className={`max-w-[80%] rounded-lg px-3 py-2 ${
-                message.role === 'user'
+              className={`max-w-[80%] rounded-lg px-3 py-2 ${message.role === 'user'
                   ? 'bg-purple-600 text-white'
                   : 'bg-gray-100 text-gray-900'
-              }`}
+                }`}
             >
               <p className="text-sm whitespace-pre-wrap">{message.content}</p>
               {message.imageUrl && (
@@ -516,9 +577,8 @@ function ChatTab() {
               )}
               {isMounted && (
                 <div
-                  className={`text-xs mt-1 flex items-center gap-2 ${
-                    message.role === 'user' ? 'text-purple-200' : 'text-gray-500'
-                  }`}
+                  className={`text-xs mt-1 flex items-center gap-2 ${message.role === 'user' ? 'text-purple-200' : 'text-gray-500'
+                    }`}
                 >
                   <span>
                     {new Date(message.timestamp).toLocaleTimeString([], {
@@ -614,9 +674,11 @@ function ChatTab() {
                 }
               }}
               placeholder={
-                chatConfig.task === 'image_generate'
-                  ? 'Describe the image you want to generate...'
-                  : 'Type a message... (Shift + Enter for new line)'
+                mode === 'concept'
+                  ? '어떤 마케팅 컨셉을 원하시나요? (예: 20대 여성을 위한 립스틱)'
+                  : chatConfig.task === 'image_generate'
+                    ? 'Describe the image you want to generate...'
+                    : 'Type a message... (Shift + Enter for new line)'
               }
               className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
               rows={2}
@@ -636,7 +698,7 @@ function ChatTab() {
             disabled={(!input.trim() && uploadedFiles.length === 0) || isLoading}
             className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            {chatConfig.task === 'image_generate' ? 'Generate' : uploadedFiles.length > 0 ? `Send (${uploadedFiles.length})` : 'Send'}
+            {mode === 'concept' ? '컨셉 도출' : chatConfig.task === 'image_generate' ? 'Generate' : uploadedFiles.length > 0 ? `Send (${uploadedFiles.length})` : 'Send'}
           </button>
         </form>
 
@@ -857,9 +919,8 @@ function LayersTab() {
               <div
                 key={element.id}
                 onClick={() => polotnoStore?.selectElements([element.id])}
-                className={`px-3 py-2 hover:bg-gray-100 rounded cursor-pointer text-sm flex items-center justify-between ${
-                  isSelected ? 'bg-purple-50 border border-purple-300' : ''
-                }`}
+                className={`px-3 py-2 hover:bg-gray-100 rounded cursor-pointer text-sm flex items-center justify-between ${isSelected ? 'bg-purple-50 border border-purple-300' : ''
+                  }`}
               >
                 <span className="font-medium">{element.name || element.type}</span>
                 <div className="flex items-center gap-1">

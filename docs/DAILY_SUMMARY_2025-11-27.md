@@ -21,7 +21,11 @@
 - 다음 작업: Asset 생성 로직 구현 (P2)
 
 ### C팀 (Frontend)
-- (보고 없음)
+- ✅ **Concept Generation Hook 구현** (`useConceptGenerate`)
+- ✅ **ChatPanel 모드 토글 추가** (카피라이팅 vs 컨셉 도출)
+- ✅ **ConceptBoard 연동 완료** (Backend API 연결)
+- ✅ **Meeting Context Integration to Chat** (`RightDock`)
+  - See `docs/TESTING_GUIDE_MEETING_CONTEXT.md` for verification steps.
 
 ---
 
@@ -53,8 +57,9 @@
 - [ ] Gemini Rate Limit 모니터링 로직 추가
 
 ### C팀
-- [ ] Concept Board UI 연동 테스트
-- [ ] SSE 이벤트 렌더링 확인
+### C팀
+- [x] Concept Board UI 연동 테스트 (완료)
+- [ ] E2E 전체 플로우 검증 (A팀과 협력)
 
 ---
 

@@ -21,6 +21,7 @@ import { useState, useRef } from 'react';
 import { ChevronDown, ChevronUp, Paperclip, X, FileText, FileSpreadsheet, Image as ImageIcon, Video, Music } from 'lucide-react';
 import type { GenerateKind } from '@/lib/api/types';
 import { useGenerate } from '../hooks/useGenerate';
+import { useConceptGenerate } from '../../../hooks/useConceptGenerate';
 import { AIResponseRenderer } from './AIResponseRenderer';
 import { getPolotnoStore } from '../polotno/polotnoStoreSingleton';
 import { useCanvasStore } from '../stores/useCanvasStore';
@@ -154,11 +155,11 @@ function addGenerateResponseToPolotno(response: any) {
 
     // 제품 제목/헤드라인 추출
     const productTitle = data.product_title || data.optimized_product_title ||
-                         data.headline || data.title || '';
+      data.headline || data.title || '';
 
     // 제품 설명 추출
     const productDescription = data.product_description || data.optimized_description ||
-                               data.description || data.body || '';
+      data.description || data.body || '';
 
     // USP (Unique Selling Points) 추출
     const usps = data.unique_selling_points || data.usp || data.bullets || [];
@@ -304,12 +305,18 @@ function addGenerateResponseToPolotno(response: any) {
 }
 
 export function ChatPanel() {
-  const { generate, isLoading, error, clearError } = useGenerate();
+  const { generate, isLoading: isGenerateLoading, error: generateError, clearError } = useGenerate();
+  const { generateConcepts, isLoading: isConceptLoading, error: conceptError } = useConceptGenerate();
+
+  const isLoading = isGenerateLoading || isConceptLoading;
+  const error = generateError || conceptError;
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const currentTheme = useCanvasStore((state) => state.currentTheme);
   const applyThemeToCanvas = useCanvasStore((state) => state.applyThemeToCanvas);
 
   // Form State
+  const [mode, setMode] = useState<'copy' | 'concept'>('copy');
   const [kind, setKind] = useState<GenerateKind>('product_detail');
   const [prompt, setPrompt] = useState('');
   const [lastResponse, setLastResponse] = useState<any>(null);
@@ -379,87 +386,148 @@ export function ChatPanel() {
     clearError();
 
     try {
-      console.log('[ChatPanel] Generating:', { kind, prompt, files: uploadedFiles.length });
+      console.log('[ChatPanel] Generating:', { mode, kind, prompt, files: uploadedFiles.length });
 
-      // TODO: 파일이 있으면 multipart/form-data로 전송
-      // 지금은 기존 방식으로만 처리
-      const response = await generate(kind, prompt);
+      if (mode === 'concept') {
+        // Concept Generation Mode
+        const response = await generateConcepts(prompt, 3);
+        console.log('[ChatPanel] Concept Response:', response);
 
-      console.log('[ChatPanel] Generate response:', response);
-
-      // 응답 저장 (AIResponseRenderer에서 자동 감지)
-      setLastResponse(response);
-
-      // 현재 테마를 Canvas에 적용 (배경색 등)
-      if (applyThemeToCanvas) {
-        applyThemeToCanvas(currentTheme);
-      }
-
-      // Polotno Canvas에 결과 반영
-      const success = addGenerateResponseToPolotno(response);
-      if (success) {
-        console.log('[ChatPanel] ✅ Polotno canvas updated successfully');
-      } else {
-        console.warn('[ChatPanel] ⚠️ Failed to update Polotno canvas');
-      }
-
-      // GeneratedAssetsStore에 저장 (좌측 패널 프리뷰용)
-      try {
-        useGeneratedAssetsStore.getState().parseAndStoreFromAIResponse(
-          JSON.stringify(response.text || response),
-          prompt
-        );
-
-        // CenterViewStore에도 동기화 (Preview 뷰에서 사용)
-        // GeneratedConceptBoardData → ConceptBoardData 변환
-        const generatedAssets = useGeneratedAssetsStore.getState();
-        if (generatedAssets.conceptBoardData) {
-          const converted = {
-            campaign_id: generatedAssets.conceptBoardData.id,
-            campaign_name: generatedAssets.conceptBoardData.campaign_name,
-            status: 'completed' as const,
-            created_at: generatedAssets.conceptBoardData.createdAt.toISOString(),
-            meeting_summary: {
-              title: generatedAssets.conceptBoardData.campaign_name,
-              duration_minutes: 0,
-              participants: [],
-              key_points: [],
-              core_message: generatedAssets.conceptBoardData.sourceMessage || '',
+        // Store in GeneratedAssetsStore (ConceptBoardData)
+        const conceptBoardData = {
+          campaign_id: `campaign-${Date.now()}`,
+          campaign_name: prompt.length > 20 ? prompt.substring(0, 20) + '...' : prompt,
+          status: 'completed' as const,
+          created_at: new Date().toISOString(),
+          meeting_summary: {
+            title: 'User Request',
+            duration_minutes: 0,
+            participants: [],
+            key_points: [prompt],
+            core_message: prompt,
+          },
+          concepts: response.concepts.map((c, idx) => ({
+            concept_id: `concept-${Date.now()}-${idx}`,
+            concept_name: c.concept_name,
+            concept_description: c.concept_description,
+            target_audience: c.target_audience,
+            key_message: c.key_message,
+            tone_and_manner: c.tone_and_manner,
+            visual_style: c.visual_style,
+            color_palette: c.color_palette,
+            assets: {
+              presentation: { id: `pres-${idx}`, status: 'pending' as const },
+              product_detail: { id: `detail-${idx}`, status: 'pending' as const },
+              instagram_ads: { id: `insta-${idx}`, status: 'pending' as const, count: 0 },
+              shorts_script: { id: `shorts-${idx}`, status: 'pending' as const, duration_seconds: 0 },
             },
-            concepts: generatedAssets.conceptBoardData.concepts.map((c) => ({
-              concept_id: c.concept_id,
-              concept_name: c.concept_name,
-              concept_description: c.description,
-              target_audience: c.target_audience || '',
-              key_message: c.headline,
-              tone_and_manner: c.tone || '',
-              visual_style: '',
-              thumbnail_url: undefined,
-              assets: {
-                presentation: { id: `pres-${c.concept_id}`, status: 'pending' as const },
-                product_detail: { id: `detail-${c.concept_id}`, status: 'pending' as const },
-                instagram_ads: { id: `insta-${c.concept_id}`, status: 'pending' as const, count: 0 },
-                shorts_script: { id: `shorts-${c.concept_id}`, status: 'pending' as const, duration_seconds: 0 },
-              },
-            })),
-          };
-          useCenterViewStore.getState().setConceptBoardData(converted);
-          console.log('[ChatPanel] ✅ CenterViewStore synced with conceptBoardData');
+          })),
+        };
 
-          // 생성 완료 후 ConceptBoard 뷰로 자동 전환 + 첫 컨셉 자동 선택
-          console.log('[ChatPanel] 🚀 Opening ConceptBoard view...');
-          useCenterViewStore.getState().openConceptBoard(converted.campaign_id);
+        // Update CenterViewStore
+        useCenterViewStore.getState().setConceptBoardData(conceptBoardData);
 
-          // 첫 번째 컨셉 자동 선택
-          if (converted.concepts && converted.concepts.length > 0) {
-            const firstConcept = converted.concepts[0];
-            useCenterViewStore.getState().setConceptId(firstConcept.concept_id);
-            useCenterViewStore.getState().setSelectedConcept(firstConcept);
-            console.log('[ChatPanel] ✅ First concept auto-selected:', firstConcept.concept_id);
-          }
+        // Open ConceptBoard View
+        useCenterViewStore.getState().openConceptBoard(conceptBoardData.campaign_id);
+
+        // Select first concept
+        if (conceptBoardData.concepts.length > 0) {
+          useCenterViewStore.getState().setConceptId(conceptBoardData.concepts[0].concept_id);
+          useCenterViewStore.getState().setSelectedConcept(conceptBoardData.concepts[0]);
         }
-      } catch (storeError) {
-        console.warn('[ChatPanel] Failed to store in GeneratedAssetsStore:', storeError);
+
+        // Add success message to chat (as a fake response for now)
+        setLastResponse({
+          kind: 'concept_board',
+          text: {
+            headline: '컨셉 생성이 완료되었습니다',
+            body: response.reasoning,
+            bullets: response.concepts.map(c => c.concept_name)
+          }
+        });
+
+      } else {
+        // Existing Copy Generation Mode
+        // TODO: 파일이 있으면 multipart/form-data로 전송
+        // 지금은 기존 방식으로만 처리
+        const response = await generate(kind, prompt);
+
+        console.log('[ChatPanel] Generate response:', response);
+
+        // 응답 저장 (AIResponseRenderer에서 자동 감지)
+        setLastResponse(response);
+
+        // 현재 테마를 Canvas에 적용 (배경색 등)
+        if (applyThemeToCanvas) {
+          applyThemeToCanvas(currentTheme);
+        }
+
+        // Polotno Canvas에 결과 반영
+        const success = addGenerateResponseToPolotno(response);
+        if (success) {
+          console.log('[ChatPanel] ✅ Polotno canvas updated successfully');
+        } else {
+          console.warn('[ChatPanel] ⚠️ Failed to update Polotno canvas');
+        }
+
+        // GeneratedAssetsStore에 저장 (좌측 패널 프리뷰용)
+        try {
+          useGeneratedAssetsStore.getState().parseAndStoreFromAIResponse(
+            JSON.stringify(response.text || response),
+            prompt
+          );
+
+          // CenterViewStore에도 동기화 (Preview 뷰에서 사용)
+          // GeneratedConceptBoardData → ConceptBoardData 변환
+          const generatedAssets = useGeneratedAssetsStore.getState();
+          if (generatedAssets.conceptBoardData) {
+            const converted = {
+              campaign_id: generatedAssets.conceptBoardData.id,
+              campaign_name: generatedAssets.conceptBoardData.campaign_name,
+              status: 'completed' as const,
+              created_at: generatedAssets.conceptBoardData.createdAt.toISOString(),
+              meeting_summary: {
+                title: generatedAssets.conceptBoardData.campaign_name,
+                duration_minutes: 0,
+                participants: [],
+                key_points: [],
+                core_message: generatedAssets.conceptBoardData.sourceMessage || '',
+              },
+              concepts: generatedAssets.conceptBoardData.concepts.map((c) => ({
+                concept_id: c.concept_id,
+                concept_name: c.concept_name,
+                concept_description: c.description,
+                target_audience: c.target_audience || '',
+                key_message: c.headline,
+                tone_and_manner: c.tone || '',
+                visual_style: '',
+                thumbnail_url: undefined,
+                assets: {
+                  presentation: { id: `pres-${c.concept_id}`, status: 'pending' as const },
+                  product_detail: { id: `detail-${c.concept_id}`, status: 'pending' as const },
+                  instagram_ads: { id: `insta-${c.concept_id}`, status: 'pending' as const, count: 0 },
+                  shorts_script: { id: `shorts-${c.concept_id}`, status: 'pending' as const, duration_seconds: 0 },
+                },
+              })),
+            };
+            useCenterViewStore.getState().setConceptBoardData(converted);
+            console.log('[ChatPanel] ✅ CenterViewStore synced with conceptBoardData');
+
+            // 생성 완료 후 ConceptBoard 뷰로 자동 전환 + 첫 컨셉 자동 선택
+            console.log('[ChatPanel] 🚀 Opening ConceptBoard view...');
+            useCenterViewStore.getState().openConceptBoard(converted.campaign_id);
+
+            // 첫 번째 컨셉 자동 선택
+            if (converted.concepts && converted.concepts.length > 0) {
+              const firstConcept = converted.concepts[0];
+              useCenterViewStore.getState().setConceptId(firstConcept.concept_id);
+              useCenterViewStore.getState().setSelectedConcept(firstConcept);
+              console.log('[ChatPanel] ✅ First concept auto-selected:', firstConcept.concept_id);
+            }
+          }
+        } catch (storeError) {
+          console.warn('[ChatPanel] Failed to store in GeneratedAssetsStore:', storeError);
+        }
       }
 
       // 성공 시 초기화
@@ -511,27 +579,58 @@ export function ChatPanel() {
           {/* Settings Section (Collapsible) */}
           {isSettingsOpen && (
             <div className="space-y-4 pb-4 border-b border-neutral-200">
-              {/* Kind 선택 */}
+              {/* Mode 선택 */}
               <div>
-                <label
-                  htmlFor="kind"
-                  className="mb-2 block text-xs font-medium text-neutral-700"
-                >
-                  콘텐츠 타입
+                <label className="mb-2 block text-xs font-medium text-neutral-700">
+                  생성 모드
                 </label>
-                <select
-                  id="kind"
-                  value={kind}
-                  onChange={(e) => setKind(e.target.value as GenerateKind)}
-                  className="w-full rounded border border-neutral-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  disabled={isLoading}
-                >
-                  <option value="product_detail">상품 상세</option>
-                  <option value="sns">SNS 콘텐츠</option>
-                  <option value="brand_kit">브랜드킷</option>
-                  <option value="presentation">프레젠테이션</option>
-                </select>
+                <div className="flex gap-2 p-1 bg-neutral-100 rounded-lg">
+                  <button
+                    type="button"
+                    onClick={() => setMode('copy')}
+                    className={`flex-1 py-1.5 px-3 text-xs font-medium rounded-md transition-colors ${mode === 'copy'
+                        ? 'bg-white text-blue-600 shadow-sm'
+                        : 'text-neutral-500 hover:text-neutral-700'
+                      }`}
+                  >
+                    카피라이팅
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMode('concept')}
+                    className={`flex-1 py-1.5 px-3 text-xs font-medium rounded-md transition-colors ${mode === 'concept'
+                        ? 'bg-white text-blue-600 shadow-sm'
+                        : 'text-neutral-500 hover:text-neutral-700'
+                      }`}
+                  >
+                    컨셉 도출
+                  </button>
+                </div>
               </div>
+
+              {/* Kind 선택 (Copy 모드일 때만) */}
+              {mode === 'copy' && (
+                <div>
+                  <label
+                    htmlFor="kind"
+                    className="mb-2 block text-xs font-medium text-neutral-700"
+                  >
+                    콘텐츠 타입
+                  </label>
+                  <select
+                    id="kind"
+                    value={kind}
+                    onChange={(e) => setKind(e.target.value as GenerateKind)}
+                    className="w-full rounded border border-neutral-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    disabled={isLoading}
+                  >
+                    <option value="product_detail">상품 상세</option>
+                    <option value="sns">SNS 콘텐츠</option>
+                    <option value="brand_kit">브랜드킷</option>
+                    <option value="presentation">프레젠테이션</option>
+                  </select>
+                </div>
+              )}
             </div>
           )}
 
