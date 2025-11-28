@@ -173,12 +173,23 @@ async def prometheus_middleware(request: Request, call_next):
 
 
 # CORS middleware
+# allow_credentials=True 사용 시 allow_origins=["*"]는 브라우저에서 차단됨
+# 명시적인 origin 목록 필요
+ALLOWED_ORIGINS = [
+    "http://localhost:3000",           # Frontend 로컬 개발
+    "http://127.0.0.1:3000",           # Frontend 로컬 (127.0.0.1)
+    "http://100.101.68.23:3000",       # Frontend Tailscale IP
+    "http://100.123.51.5:3000",        # Mac mini
+    "http://192.168.0.101:3000",       # Laptop 로컬 IP
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure this properly in production
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],  # SSE 등 커스텀 헤더 노출
 )
 
 # Include API v1 router
