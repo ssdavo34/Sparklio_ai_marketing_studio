@@ -29,7 +29,7 @@ import { ErrorMessage } from '../../components/ErrorMessage';
 import { getImageMetadata, canRegenerate, isNanoBananaImage, isUnsplashImage, updateImageSource, incrementRegenerationCount } from '@/lib/canvas/image-metadata';
 import type { ImageMetadata } from '@/lib/canvas/image-metadata';
 import { UnsplashSearchModal } from '../../modals/UnsplashSearchModal';
-import { regenerateImage, getNanoBananaErrorMessage } from '@/lib/api/nano-banana-api';
+import { regenerateImageViaAgent, getVisionGeneratorErrorMessage } from '@/lib/api/vision-generator-api';
 
 type UploadedFile = {
   id: string;
@@ -722,6 +722,7 @@ Campaign Ideas: ${meetingAnalysis.campaign_ideas.join(', ')}
 
 // Inspector Tab Component
 function InspectorTab({ element }: { element: any }) {
+  const chatConfig = useChatStore((state) => state.chatConfig);
   const [showUnsplashModal, setShowUnsplashModal] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
 
@@ -746,44 +747,44 @@ function InspectorTab({ element }: { element: any }) {
 
     setIsRegenerating(true);
     try {
-      console.log('[Inspector] Regenerating image:', {
+      console.log('[Inspector] Regenerating image via Agent:', {
         prompt: imageMetadata.originalPrompt,
         style: imageMetadata.style,
         previousSeed: imageMetadata.seed,
+        provider: chatConfig.imageLLM || 'auto',
       });
 
-      // Nano Banana API 호출
-      const response = await regenerateImage(
+      // VisionGeneratorAgent 호출 (ChatConfig의 Image LLM Provider 사용)
+      const generatedImage = await regenerateImageViaAgent(
         imageMetadata.originalPrompt,
         imageMetadata.style as any,
-        imageMetadata.seed
+        imageMetadata.seed,
+        chatConfig.imageLLM || 'auto'
       );
 
-      if (!response.success || !response.images || response.images.length === 0) {
-        throw new Error(response.error || '이미지 생성 실패');
+      if (generatedImage.status !== 'completed' || !generatedImage.image_url) {
+        throw new Error(generatedImage.error || '이미지 생성 실패');
       }
-
-      // 첫 번째 생성된 이미지 사용
-      const newImageUrl = response.images[0];
 
       // 메타데이터 업데이트 (재생성 횟수 증가, 새 seed 저장)
       const updatedMetadata = incrementRegenerationCount({
         ...imageMetadata,
-        seed: response.seed,
+        seed: generatedImage.seed_used,
         updatedAt: new Date().toISOString(),
       });
 
       // 이미지 소스와 메타데이터 업데이트
-      updateImageSource(element, newImageUrl, updatedMetadata);
+      updateImageSource(element, generatedImage.image_url, updatedMetadata);
 
       console.log('[Inspector] Image regenerated successfully:', {
-        url: newImageUrl,
-        seed: response.seed,
+        url: generatedImage.image_url,
+        seed: generatedImage.seed_used,
         count: updatedMetadata.regenerationCount,
+        generationTime: generatedImage.generation_time,
       });
     } catch (error: any) {
       console.error('[Inspector] Regeneration failed:', error);
-      const errorMessage = getNanoBananaErrorMessage(error);
+      const errorMessage = getVisionGeneratorErrorMessage(error);
       alert(`이미지 재생성 실패: ${errorMessage}`);
     } finally {
       setIsRegenerating(false);

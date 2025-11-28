@@ -1,27 +1,42 @@
 /**
  * useImageGeneration Hook
  *
- * Canvas 이미지를 Nano Banana AI로 자동 생성하는 React Hook
- * - 여러 이미지를 배치로 생성
- * - 진행 상태 추적
- * - 에러 처리 및 재시도
+ * VisionGeneratorAgent를 통한 AI 이미지 생성 Hook
+ * - 백엔드 Agent 통합
+ * - 여러 Provider 지원 (Nano Banana, ComfyUI, DALL-E)
+ * - 자동 Provider 선택 또는 수동 선택
+ * - 배치 처리 및 진행 상태 추적
  *
  * @author C팀 (Frontend Team)
- * @version 1.0
+ * @version 2.0
  * @date 2025-11-28
  */
 
 'use client';
 
 import { useState, useCallback } from 'react';
-import { generateBatch, getNanoBananaErrorMessage } from '@/lib/api/nano-banana-api';
+import {
+  generateBatchImages,
+  generateSingleImage as generateSingleViaAgent,
+  getVisionGeneratorErrorMessage,
+} from '@/lib/api/vision-generator-api';
+import type {
+  ImageProvider,
+  SimpleImageGenerationRequest,
+  GeneratedImage,
+} from '@/lib/api/vision-generator-types';
+import type { ImageLLMProvider } from '@/components/canvas-studio/stores/types/llm';
 import { createNanoBananaMetadata, updateImageSource } from '@/lib/canvas/image-metadata';
-import type { NanoBananaGenerateParams } from '@/lib/api/nano-banana-types';
-import type { GeneratedImage } from '@/lib/api/nano-banana-types';
+
+// ============================================================================
+// Types
+// ============================================================================
 
 export interface ImageGenerationRequest {
   prompt: string;
-  style?: NanoBananaGenerateParams['style'];
+  style?: 'realistic' | 'illustration' | '3d' | 'anime';
+  aspectRatio?: '1:1' | '16:9' | '9:16' | '3:4';
+  seed?: number;
   element?: any; // Polotno element to update
   elementId?: string; // Alternative: element ID
 }
@@ -30,7 +45,15 @@ export interface ImageGenerationResult {
   success: boolean;
   imageUrl?: string;
   prompt: string;
+  seed?: number;
   error?: string;
+  generationTime?: number;
+}
+
+export interface UseImageGenerationOptions {
+  provider?: ImageLLMProvider; // UI LLM Provider (auto, nanobanana, comfyui, dalle, etc.)
+  brandId?: string;
+  maxConcurrent?: number;
 }
 
 export interface UseImageGenerationReturn {
@@ -38,20 +61,99 @@ export interface UseImageGenerationReturn {
   progress: number; // 0-100
   results: ImageGenerationResult[];
   error: string | null;
-  generateImages: (requests: ImageGenerationRequest[]) => Promise<void>;
-  generateSingleImage: (request: ImageGenerationRequest) => Promise<ImageGenerationResult>;
+  currentProvider: ImageProvider | null; // 실제 사용된 Provider
+  generateImages: (
+    requests: ImageGenerationRequest[],
+    options?: UseImageGenerationOptions
+  ) => Promise<void>;
+  generateSingleImage: (
+    request: ImageGenerationRequest,
+    options?: UseImageGenerationOptions
+  ) => Promise<ImageGenerationResult>;
   reset: () => void;
 }
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+/**
+ * UI LLM Provider를 Agent Provider로 변환
+ */
+function mapUIProviderToAgent(uiProvider?: ImageLLMProvider): ImageProvider {
+  if (!uiProvider || uiProvider === 'auto') return 'auto';
+
+  const mapping: Record<string, ImageProvider> = {
+    nanobanana: 'nanobanana',
+    'nano-banana': 'nanobanana',
+    comfyui: 'comfyui',
+    'comfy-ui': 'comfyui',
+    dalle: 'dalle',
+    'dall-e': 'dalle',
+    auto: 'auto',
+  };
+
+  return mapping[uiProvider] || 'auto';
+}
+
+/**
+ * GeneratedImage를 ImageGenerationResult로 변환
+ */
+function convertToResult(
+  generatedImage: GeneratedImage,
+  request: ImageGenerationRequest
+): ImageGenerationResult {
+  if (generatedImage.status === 'completed' && generatedImage.image_url) {
+    // Element 업데이트 (있는 경우)
+    if (request.element) {
+      const metadata = createNanoBananaMetadata(
+        request.prompt,
+        request.style || 'realistic',
+        generatedImage.seed_used
+      );
+
+      updateImageSource(request.element, generatedImage.image_url, metadata);
+    }
+
+    return {
+      success: true,
+      imageUrl: generatedImage.image_url,
+      prompt: request.prompt,
+      seed: generatedImage.seed_used,
+      generationTime: generatedImage.generation_time,
+    };
+  } else {
+    return {
+      success: false,
+      prompt: request.prompt,
+      error: generatedImage.error || '이미지 생성 실패',
+    };
+  }
+}
+
+// ============================================================================
+// Hook
+// ============================================================================
 
 /**
  * 이미지 생성 Hook
  *
  * @example
+ * // 자동 Provider 선택
  * const { isGenerating, progress, generateImages } = useImageGeneration();
+ * await generateImages([
+ *   { prompt: 'A sunset', style: 'realistic' },
+ *   { prompt: 'A mountain', style: 'realistic' },
+ * ], { provider: 'auto' });
  *
+ * @example
+ * // 특정 Provider 지정
+ * await generateImages([...], { provider: 'nanobanana' });
+ *
+ * @example
+ * // Canvas element와 함께 사용
  * await generateImages([
  *   { prompt: 'A sunset', element: imageElement1 },
- *   { prompt: 'A mountain', element: imageElement2 },
  * ]);
  */
 export function useImageGeneration(): UseImageGenerationReturn {
@@ -59,49 +161,50 @@ export function useImageGeneration(): UseImageGenerationReturn {
   const [progress, setProgress] = useState(0);
   const [results, setResults] = useState<ImageGenerationResult[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [currentProvider, setCurrentProvider] = useState<ImageProvider | null>(null);
 
   const reset = useCallback(() => {
     setIsGenerating(false);
     setProgress(0);
     setResults([]);
     setError(null);
+    setCurrentProvider(null);
   }, []);
 
   /**
    * 단일 이미지 생성
    */
   const generateSingleImage = useCallback(
-    async (request: ImageGenerationRequest): Promise<ImageGenerationResult> => {
+    async (
+      request: ImageGenerationRequest,
+      options?: UseImageGenerationOptions
+    ): Promise<ImageGenerationResult> => {
+      const provider = mapUIProviderToAgent(options?.provider);
+      setCurrentProvider(provider);
+
       try {
-        const response = await generateBatch(
-          [request.prompt],
-          request.style || 'realistic'
+        console.log('[useImageGeneration] Generating single image:', {
+          prompt: request.prompt.substring(0, 50) + '...',
+          style: request.style,
+          provider,
+        });
+
+        const simpleRequest: SimpleImageGenerationRequest = {
+          prompt: request.prompt,
+          style: request.style || 'realistic',
+          aspectRatio: request.aspectRatio || '1:1',
+          seed: request.seed,
+        };
+
+        const generatedImage = await generateSingleViaAgent(
+          simpleRequest,
+          provider,
+          options?.brandId
         );
 
-        if (response.length === 0) {
-          throw new Error('이미지 생성 실패');
-        }
-
-        const generatedImage = response[0];
-
-        // Element 업데이트 (있는 경우)
-        if (request.element) {
-          const metadata = createNanoBananaMetadata(
-            request.prompt,
-            request.style || 'realistic',
-            generatedImage.seed
-          );
-
-          updateImageSource(request.element, generatedImage.url, metadata);
-        }
-
-        return {
-          success: true,
-          imageUrl: generatedImage.url,
-          prompt: request.prompt,
-        };
+        return convertToResult(generatedImage, request);
       } catch (err: any) {
-        const errorMessage = getNanoBananaErrorMessage(err);
+        const errorMessage = getVisionGeneratorErrorMessage(err);
         console.error('[useImageGeneration] Single generation failed:', err);
 
         return {
@@ -118,30 +221,89 @@ export function useImageGeneration(): UseImageGenerationReturn {
    * 여러 이미지 배치 생성
    */
   const generateImages = useCallback(
-    async (requests: ImageGenerationRequest[]) => {
+    async (
+      requests: ImageGenerationRequest[],
+      options?: UseImageGenerationOptions
+    ) => {
       if (requests.length === 0) {
         console.warn('[useImageGeneration] No requests provided');
         return;
       }
 
+      const provider = mapUIProviderToAgent(options?.provider);
+
       setIsGenerating(true);
       setProgress(0);
       setResults([]);
       setError(null);
+      setCurrentProvider(provider);
 
-      const newResults: ImageGenerationResult[] = [];
       const totalRequests = requests.length;
 
+      console.log('[useImageGeneration] Starting batch generation:', {
+        count: totalRequests,
+        provider,
+        brandId: options?.brandId,
+      });
+
       try {
-        // 순차적으로 생성 (API rate limit 고려)
+        // VisionGeneratorAgent 배치 요청 생성
+        const simpleRequests: SimpleImageGenerationRequest[] = requests.map((req) => ({
+          prompt: req.prompt,
+          style: req.style || 'realistic',
+          aspectRatio: req.aspectRatio || '1:1',
+          seed: req.seed,
+        }));
+
+        // 배치 생성 시작
+        const generatedImages = await generateBatchImages(simpleRequests, provider, {
+          maxConcurrent: options?.maxConcurrent || 3,
+          brandId: options?.brandId,
+        });
+
+        // 결과 변환
+        const newResults: ImageGenerationResult[] = generatedImages.map((generatedImage, index) => {
+          const request = requests[index];
+          return convertToResult(generatedImage, request);
+        });
+
+        setResults(newResults);
+        setProgress(100);
+
+        // 실패 집계
+        const failedCount = newResults.filter((r) => !r.success).length;
+        const successCount = totalRequests - failedCount;
+
+        if (failedCount > 0) {
+          setError(
+            `${failedCount}/${totalRequests}개 이미지 생성 실패. 개별 편집에서 재시도하세요.`
+          );
+        }
+
+        console.log('[useImageGeneration] Batch complete:', {
+          total: totalRequests,
+          success: successCount,
+          failed: failedCount,
+          provider: currentProvider,
+        });
+      } catch (err: any) {
+        const errorMessage = getVisionGeneratorErrorMessage(err);
+        setError(`배치 생성 실패: ${errorMessage}`);
+        console.error('[useImageGeneration] Batch generation failed:', err);
+
+        // 부분 실패 처리: 순차적으로 재시도
+        console.log('[useImageGeneration] Falling back to sequential generation...');
+
+        const newResults: ImageGenerationResult[] = [];
+
         for (let i = 0; i < requests.length; i++) {
           const request = requests[i];
 
           console.log(
-            `[useImageGeneration] Generating ${i + 1}/${totalRequests}: "${request.prompt}"`
+            `[useImageGeneration] Generating ${i + 1}/${totalRequests}: "${request.prompt.substring(0, 30)}..."`
           );
 
-          const result = await generateSingleImage(request);
+          const result = await generateSingleImage(request, options);
           newResults.push(result);
 
           // 진행률 업데이트
@@ -157,26 +319,18 @@ export function useImageGeneration(): UseImageGenerationReturn {
           }
         }
 
-        // 모든 생성 완료
+        // 최종 실패 집계
         const failedCount = newResults.filter((r) => !r.success).length;
         if (failedCount > 0) {
           setError(
             `${failedCount}/${totalRequests}개 이미지 생성 실패. 개별 편집에서 재시도하세요.`
           );
         }
-
-        console.log(
-          `[useImageGeneration] Batch complete: ${totalRequests - failedCount}/${totalRequests} succeeded`
-        );
-      } catch (err: any) {
-        const errorMessage = getNanoBananaErrorMessage(err);
-        setError(`배치 생성 실패: ${errorMessage}`);
-        console.error('[useImageGeneration] Batch generation failed:', err);
       } finally {
         setIsGenerating(false);
       }
     },
-    [generateSingleImage]
+    [generateSingleImage, currentProvider]
   );
 
   return {
@@ -184,6 +338,7 @@ export function useImageGeneration(): UseImageGenerationReturn {
     progress,
     results,
     error,
+    currentProvider,
     generateImages,
     generateSingleImage,
     reset,

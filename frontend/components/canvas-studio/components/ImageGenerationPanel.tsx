@@ -2,26 +2,31 @@
  * Image Generation Panel
  *
  * Canvas의 플레이스홀더 이미지를 AI로 자동 생성하는 패널
+ * - VisionGeneratorAgent 백엔드 통합
+ * - LLM Provider 선택 지원 (auto, nanobanana, comfyui, dalle)
  * - 현재 페이지의 이미지 플레이스홀더 감지
  * - 일괄 생성 버튼
  * - 진행 상태 표시
  *
  * @author C팀 (Frontend Team)
- * @version 1.0
+ * @version 2.0
  * @date 2025-11-28
  */
 
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Wand2, Loader2, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { Wand2, Loader2, CheckCircle, XCircle, AlertCircle, Sparkles } from 'lucide-react';
 import { useCanvasStore } from '../stores/useCanvasStore';
+import { useChatStore } from '../stores/useChatStore';
 import { useImageGeneration } from '@/hooks/useImageGeneration';
 import { getImageMetadata, isPlaceholder } from '@/lib/canvas/image-metadata';
+import { IMAGE_LLM_INFO } from '../stores/types/llm';
 
 export function ImageGenerationPanel() {
   const polotnoStore = useCanvasStore((state) => state.polotnoStore);
-  const { isGenerating, progress, results, error, generateImages, reset } = useImageGeneration();
+  const chatConfig = useChatStore((state) => state.chatConfig);
+  const { isGenerating, progress, results, error, currentProvider, generateImages, reset } = useImageGeneration();
   const [placeholderCount, setPlaceholderCount] = useState(0);
 
   // 현재 페이지의 플레이스홀더 개수 감지
@@ -79,13 +84,26 @@ export function ImageGenerationPanel() {
       };
     });
 
-    // 배치 생성 시작
-    await generateImages(requests);
+    // 배치 생성 시작 (ChatConfig에서 설정한 Image LLM Provider 사용)
+    await generateImages(requests, {
+      provider: chatConfig.imageLLM || 'auto',
+      maxConcurrent: 3,
+    });
   };
 
   if (placeholderCount === 0 && !isGenerating && results.length === 0) {
     return null; // 플레이스홀더가 없으면 패널 숨김
   }
+
+  // Provider 표시 이름
+  const providerName = chatConfig.imageLLM
+    ? IMAGE_LLM_INFO[chatConfig.imageLLM]?.name || chatConfig.imageLLM
+    : '자동 선택';
+
+  // 실제 사용 중인 Provider (생성 중일 때만 표시)
+  const activeProviderName = currentProvider && currentProvider !== 'auto'
+    ? IMAGE_LLM_INFO[currentProvider as keyof typeof IMAGE_LLM_INFO]?.name || currentProvider
+    : null;
 
   return (
     <div className="border-t border-gray-200 bg-gradient-to-r from-purple-50 to-indigo-50 p-3">
@@ -94,9 +112,23 @@ export function ImageGenerationPanel() {
           <Wand2 className="w-5 h-5 text-purple-600" />
           <div>
             <h3 className="text-sm font-semibold text-purple-900">AI 이미지 생성</h3>
-            <p className="text-xs text-purple-600">
-              {placeholderCount}개의 플레이스홀더 감지됨
-            </p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs text-purple-600">
+                {placeholderCount}개의 플레이스홀더 감지됨
+              </p>
+              {!isGenerating && (
+                <span className="text-xs text-purple-500 flex items-center gap-1">
+                  <Sparkles className="w-3 h-3" />
+                  {providerName}
+                </span>
+              )}
+              {isGenerating && activeProviderName && (
+                <span className="text-xs text-indigo-600 font-medium flex items-center gap-1">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  {activeProviderName} 사용 중
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
@@ -166,6 +198,16 @@ export function ImageGenerationPanel() {
               <p>{error}</p>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Provider Info Tooltip */}
+      {!isGenerating && chatConfig.imageLLM === 'auto' && (
+        <div className="mt-2 p-2 bg-indigo-50 rounded-lg border border-indigo-200">
+          <p className="text-xs text-indigo-700">
+            💡 <span className="font-medium">자동 모드</span>: Agent가 최적의 Provider를 자동으로 선택합니다
+            (Nano Banana → ComfyUI → DALL-E 순으로 폴백)
+          </p>
         </div>
       )}
     </div>
