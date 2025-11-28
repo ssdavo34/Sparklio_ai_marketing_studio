@@ -23,6 +23,7 @@ import {
   getOrCreatePolotnoStore,
   isPolotnoStoreInitialized,
 } from './polotnoStoreSingleton';
+import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 
 interface PolotnoWorkspaceProps {
   apiKey: string;
@@ -35,6 +36,14 @@ export function PolotnoWorkspace({ apiKey }: PolotnoWorkspaceProps) {
   const setPolotnoStore = useCanvasStore((state) => state.setPolotnoStore);
   const currentTemplate = useCanvasStore((state) => state.currentTemplate);
   const isViewMode = useLayoutStore((state) => state.isViewMode);
+
+  // Keyboard Shortcuts (Undo/Redo, Copy/Paste, etc.)
+  const { canUndo, canRedo } = useKeyboardShortcuts({
+    enabled: !isViewMode, // View Mode에서는 비활성화
+    onShortcut: (shortcut) => {
+      console.log('[PolotnoWorkspace] Keyboard shortcut:', shortcut);
+    },
+  });
 
   // Client-side mount check
   useEffect(() => {
