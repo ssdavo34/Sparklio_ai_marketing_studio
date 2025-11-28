@@ -4,6 +4,7 @@ Video Builder Agent (Non-LLM)
 이미지, 오디오, 자막을 조합하여 영상을 생성하는 에이전트
 
 작성일: 2025-11-28
+수정일: 2025-11-29 - execute_v3() 메서드 추가 (Plan-Act-Reflect 패턴)
 작성자: B팀 (Backend)
 참조: AGENTS_DEMO_SPEC.md - VideoBuilder
 
@@ -22,7 +23,10 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 from uuid import uuid4
 
-from app.services.agents.base import AgentBase, AgentRequest, AgentResponse, AgentOutput, AgentError
+from app.services.agents.base import (
+    AgentBase, AgentRequest, AgentResponse, AgentOutput, AgentError,
+    AgentGoal, SelfReview, ExecutionPlan
+)
 
 logger = logging.getLogger(__name__)
 
@@ -552,6 +556,99 @@ class VideoBuilder(AgentBase):
         except Exception as e:
             logger.warning(f"[VideoBuilder] Storage upload failed: {e}")
             return None
+
+    # =========================================================================
+    # Plan-Act-Reflect 패턴 (v3.0)
+    # =========================================================================
+
+    async def execute_v3(self, request: AgentRequest) -> AgentResponse:
+        """
+        VideoBuilder v3.0 - Plan-Act-Reflect 패턴 적용
+
+        기존 execute()를 래핑하여 목표 기반 자기 검수를 수행합니다.
+        Non-LLM 에이전트이지만 빌드 프로세스 품질 검증을 수행합니다.
+
+        Args:
+            request: Agent 요청 (goal 필드 권장)
+
+        Returns:
+            AgentResponse: 품질 검수를 통과한 영상
+        """
+        logger.info(f"[{self.name}] execute_v3 called (Plan-Act-Reflect)")
+
+        # Goal이 없으면 기본 Goal 생성
+        if not request.goal:
+            request.goal = AgentGoal(
+                primary_objective="고품질 숏폼 영상 생성",
+                success_criteria=[
+                    "모든 씬 정상 렌더링",
+                    "오디오/비디오 동기화",
+                    "출력 파일 무결성"
+                ],
+                quality_threshold=7.0,
+                max_iterations=2
+            )
+
+        # Plan-Act-Reflect 실행
+        return await self.execute_with_reflection(request)
+
+    async def _plan(self, request: AgentRequest) -> ExecutionPlan:
+        """
+        VideoBuilder 전용 Plan 단계
+
+        Args:
+            request: Agent 요청
+
+        Returns:
+            ExecutionPlan
+        """
+        plan_id = f"video_plan_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+        goal = request.goal
+
+        # 입력 분석
+        scenes_count = len(request.payload.get("scenes", []))
+        has_audio = len(request.payload.get("audio_tracks", [])) > 0
+        has_subtitles = len(request.payload.get("subtitles", [])) > 0
+        resolution = request.payload.get("resolution", "1080x1920")
+        quality = request.payload.get("quality", "high")
+
+        # 접근 방식 결정
+        approach = f"이미지 {scenes_count}개 → 씬 렌더링 → "
+        if has_audio:
+            approach += "오디오 믹싱 → "
+        if has_subtitles:
+            approach += "자막 삽입 → "
+        approach += f"최종 인코딩 ({quality} 품질)"
+
+        steps = [
+            {"step": 1, "action": f"이미지 {scenes_count}개 준비 (다운로드/검증)", "status": "pending"},
+            {"step": 2, "action": "씬별 영상 렌더링", "status": "pending"},
+            {"step": 3, "action": "씬 연결 및 전환 효과 적용", "status": "pending"}
+        ]
+
+        if has_audio:
+            steps.append({"step": len(steps) + 1, "action": "오디오 트랙 믹싱", "status": "pending"})
+
+        if has_subtitles:
+            steps.append({"step": len(steps) + 1, "action": "자막 삽입", "status": "pending"})
+
+        steps.append({"step": len(steps) + 1, "action": "최종 인코딩 및 업로드", "status": "pending"})
+        steps.append({"step": len(steps) + 1, "action": "자기 검수 (파일 검증)", "status": "pending"})
+
+        risks = ["ffmpeg 실행 실패", "이미지 다운로드 실패"]
+
+        if scenes_count > 10:
+            risks.append(f"대량 씬 처리 ({scenes_count}개)")
+        if quality == "high":
+            risks.append("높은 인코딩 시간")
+
+        return ExecutionPlan(
+            plan_id=plan_id,
+            steps=steps,
+            approach=approach,
+            estimated_quality=7.5,
+            risks=risks
+        )
 
 
 # =============================================================================

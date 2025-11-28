@@ -4,6 +4,7 @@ Vision Generator Agent
 이미지 생성 프롬프트를 받아 실제 이미지를 생성하는 에이전트
 
 작성일: 2025-11-28
+수정일: 2025-11-29 - execute_v3() 메서드 추가 (Plan-Act-Reflect 패턴)
 작성자: B팀 (Backend)
 참조: AGENTS_SPEC.md - VisionGeneratorAgent
 
@@ -18,7 +19,10 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 from uuid import uuid4
 
-from app.services.agents.base import AgentBase, AgentRequest, AgentResponse, AgentOutput, AgentError
+from app.services.agents.base import (
+    AgentBase, AgentRequest, AgentResponse, AgentOutput, AgentError,
+    AgentGoal, SelfReview, ExecutionPlan
+)
 
 logger = logging.getLogger(__name__)
 
@@ -411,6 +415,88 @@ class VisionGeneratorAgent(AgentBase):
                 "batch_mode": True
             }
         ))
+
+    # =========================================================================
+    # Plan-Act-Reflect 패턴 (v3.0)
+    # =========================================================================
+
+    async def execute_v3(self, request: AgentRequest) -> AgentResponse:
+        """
+        VisionGeneratorAgent v3.0 - Plan-Act-Reflect 패턴 적용
+
+        기존 execute()를 래핑하여 목표 기반 자기 검수를 수행합니다.
+
+        Args:
+            request: Agent 요청 (goal 필드 권장)
+
+        Returns:
+            AgentResponse: 품질 검수를 통과한 이미지
+        """
+        logger.info(f"[{self.name}] execute_v3 called (Plan-Act-Reflect)")
+
+        # Goal이 없으면 기본 Goal 생성
+        if not request.goal:
+            request.goal = AgentGoal(
+                primary_objective="브랜드 컨셉에 맞는 고품질 이미지 생성",
+                success_criteria=[
+                    "프롬프트 의도와 결과 이미지 일치",
+                    "해상도 및 비율 요구사항 충족",
+                    "생성 성공률 80% 이상"
+                ],
+                quality_threshold=7.0,
+                max_iterations=2
+            )
+
+        # Plan-Act-Reflect 실행
+        return await self.execute_with_reflection(request)
+
+    async def _plan(self, request: AgentRequest) -> ExecutionPlan:
+        """
+        VisionGenerator 전용 Plan 단계
+
+        Args:
+            request: Agent 요청
+
+        Returns:
+            ExecutionPlan
+        """
+        plan_id = f"vision_plan_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+        goal = request.goal
+
+        # 프로바이더별 접근 방식
+        provider = request.payload.get("provider", "nanobanana")
+        provider_approach = {
+            "nanobanana": "Nanobanana API 호출 → 결과 검증 → 실패 시 DALL-E 폴백",
+            "comfyui": "ComfyUI 로컬 생성 → 워크플로우 실행 → 결과 검증",
+            "dalle": "DALL-E API 호출 → 해상도 조정 → 결과 검증"
+        }
+
+        approach = provider_approach.get(provider, provider_approach["nanobanana"])
+
+        steps = [
+            {"step": 1, "action": "프롬프트 및 옵션 검증", "status": "pending"},
+            {"step": 2, "action": f"{provider} 프로바이더로 이미지 생성", "status": "pending"},
+            {"step": 3, "action": "배치 처리 (병렬 생성)", "status": "pending"},
+            {"step": 4, "action": "결과 검증 및 자기 검수", "status": "pending"}
+        ]
+
+        risks = [
+            "API 호출 실패",
+            "프롬프트 해석 오류",
+            "해상도 불일치"
+        ]
+
+        prompt_count = len(request.payload.get("prompts", []))
+        if prompt_count > 5:
+            risks.append(f"대량 배치 처리 ({prompt_count}개)")
+
+        return ExecutionPlan(
+            plan_id=plan_id,
+            steps=steps,
+            approach=approach,
+            estimated_quality=7.5,
+            risks=risks
+        )
 
 
 # =============================================================================
