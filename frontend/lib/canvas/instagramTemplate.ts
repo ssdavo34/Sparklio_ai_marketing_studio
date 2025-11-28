@@ -7,9 +7,11 @@
  * - CTA, 해시태그 자동 적용
  *
  * @author C팀 (Frontend Team)
- * @version 1.0
+ * @version 1.1
  * @date 2025-11-28
  */
+
+import { createPlaceholderMetadata, type ImageMetadata } from './image-metadata';
 
 // ============================================================================
 // Types
@@ -108,6 +110,7 @@ export function createInstagramAdElements(
 
   if (ad.creative.image_url) {
     // 실제 이미지가 있으면 표시
+    // TODO: Nano Banana로 생성된 이미지면 메타데이터 포함
     elements.push({
       type: 'image',
       x: 0,
@@ -115,6 +118,10 @@ export function createInstagramAdElements(
       width: pageWidth,
       height: imageHeight,
       src: ad.creative.image_url,
+      // 이미지 메타데이터 저장 (재생성/편집용)
+      custom: createPlaceholderMetadata(
+        ad.creative.headline || ad.creative.primary_text
+      ),
     });
   } else {
     // 이미지가 없으면 플레이스홀더

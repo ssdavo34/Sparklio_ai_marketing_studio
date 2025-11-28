@@ -7,9 +7,11 @@
  * - 각 씬을 별도 페이지로 생성
  *
  * @author C팀 (Frontend Team)
- * @version 1.0
+ * @version 1.1
  * @date 2025-11-28
  */
+
+import { createPlaceholderMetadata } from './image-metadata';
 
 // ============================================================================
 // Types
@@ -35,7 +37,7 @@ export interface ShortsScript {
 }
 
 interface CanvasElement {
-  type: 'text' | 'rect' | 'svg';
+  type: 'text' | 'rect' | 'svg' | 'image';
   x: number;
   y: number;
   width?: number;
@@ -46,6 +48,7 @@ interface CanvasElement {
   fill?: string;
   text?: string;
   align?: 'left' | 'center' | 'right';
+  src?: string;
   [key: string]: any;
 }
 
@@ -185,15 +188,27 @@ function createScene(scene: ShortsScene, width: number, height: number): CanvasE
     fontWeight: 'bold',
   });
 
-  // Visual Description (상단 1/3)
+  // Visual Description (상단 1/3) - 이미지 플레이스홀더
+  // TODO: Nano Banana로 생성된 이미지로 교체
   elements.push({
-    type: 'rect',
+    type: 'image',
     x: margin,
     y: 250,
     width: width - margin * 2,
     height: 400,
-    fill: 'rgba(255, 255, 255, 0.15)',
-    cornerRadius: 16,
+    src: '', // 플레이스홀더 (나중에 Nano Banana로 생성)
+    custom: createPlaceholderMetadata(scene.visual),
+  });
+
+  // Visual 라벨 (이미지 위에 오버레이)
+  elements.push({
+    type: 'rect',
+    x: margin,
+    y: 250,
+    width: 150,
+    height: 40,
+    fill: 'rgba(0, 0, 0, 0.6)',
+    cornerRadius: 8,
   });
 
   elements.push({
@@ -202,19 +217,8 @@ function createScene(scene: ShortsScene, width: number, height: number): CanvasE
     y: 270,
     fontSize: 20,
     fontWeight: 'bold',
-    fill: 'rgba(255, 255, 255, 0.8)',
-    text: '🎬 Visual',
-  });
-
-  elements.push({
-    type: 'text',
-    x: margin + 20,
-    y: 320,
-    width: width - margin * 2 - 40,
-    fontSize: 28,
     fill: '#FFFFFF',
-    text: scene.visual,
-    fontFamily: TEMPLATE_CONFIG.fonts.body,
+    text: '🎬 Visual',
   });
 
   // Narration (중앙)

@@ -6,9 +6,11 @@
  * - 세로 스크롤 형식의 긴 페이지 레이아웃
  *
  * @author C팀 (Frontend Team)
- * @version 1.0
+ * @version 1.1
  * @date 2025-11-28
  */
+
+import { createPlaceholderMetadata } from './image-metadata';
 
 // ============================================================================
 // Types
@@ -27,7 +29,7 @@ export interface ProductDetail {
 }
 
 interface CanvasElement {
-  type: 'text' | 'rect' | 'svg';
+  type: 'text' | 'rect' | 'svg' | 'image';
   x: number;
   y: number;
   width?: number;
@@ -38,6 +40,7 @@ interface CanvasElement {
   fill?: string;
   text?: string;
   align?: 'left' | 'center' | 'right';
+  src?: string;
   [key: string]: any;
 }
 
@@ -78,25 +81,53 @@ function createHeroSection(content: any, width: number, startY: number): CanvasE
   const elements: CanvasElement[] = [];
   const margin = TEMPLATE_CONFIG.margin;
 
-  // 배경 그라디언트
+  // Hero 이미지 배경 (상단 절반)
+  // TODO: Nano Banana로 생성된 이미지로 교체
+  const heroImageHeight = TEMPLATE_CONFIG.sectionHeight * 0.5;
+
+  if (content?.image_url) {
+    // 실제 이미지가 있으면 표시
+    elements.push({
+      type: 'image',
+      x: 0,
+      y: startY,
+      width: width,
+      height: heroImageHeight,
+      src: content.image_url,
+      custom: createPlaceholderMetadata(content?.headline || 'Hero Image'),
+    });
+  } else {
+    // 이미지가 없으면 그라디언트 플레이스홀더
+    elements.push({
+      type: 'rect',
+      x: 0,
+      y: startY,
+      width: width,
+      height: heroImageHeight,
+      fill: `linear-gradient(135deg, ${TEMPLATE_CONFIG.colors.hero[0]}, ${TEMPLATE_CONFIG.colors.hero[1]})`,
+    });
+  }
+
+  // 하단 텍스트 영역 배경
   elements.push({
     type: 'rect',
     x: 0,
-    y: startY,
+    y: startY + heroImageHeight,
     width: width,
-    height: TEMPLATE_CONFIG.sectionHeight,
-    fill: `linear-gradient(135deg, ${TEMPLATE_CONFIG.colors.hero[0]}, ${TEMPLATE_CONFIG.colors.hero[1]})`,
+    height: TEMPLATE_CONFIG.sectionHeight - heroImageHeight,
+    fill: '#FFFFFF',
   });
 
-  // 헤드라인
+  // 헤드라인 (텍스트 영역 중앙)
+  const textAreaY = startY + heroImageHeight;
   elements.push({
     type: 'text',
     x: width / 2,
-    y: startY + 250,
+    y: textAreaY + 80,
     width: width - margin * 2,
     fontSize: 64,
     fontWeight: 'bold',
-    fill: '#FFFFFF',
+    fill: TEMPLATE_CONFIG.colors.text,
     text: content?.headline || 'Hero Title',
     align: 'center',
     fontFamily: TEMPLATE_CONFIG.fonts.title,
@@ -107,10 +138,10 @@ function createHeroSection(content: any, width: number, startY: number): CanvasE
     elements.push({
       type: 'text',
       x: width / 2,
-      y: startY + 350,
+      y: textAreaY + 180,
       width: width - margin * 2,
       fontSize: 32,
-      fill: 'rgba(255, 255, 255, 0.9)',
+      fill: TEMPLATE_CONFIG.colors.textLight,
       text: content.subheadline,
       align: 'center',
       fontFamily: TEMPLATE_CONFIG.fonts.body,
@@ -123,20 +154,20 @@ function createHeroSection(content: any, width: number, startY: number): CanvasE
     elements.push({
       type: 'rect',
       x: (width - ctaWidth) / 2,
-      y: startY + 500,
+      y: textAreaY + 280,
       width: ctaWidth,
       height: 80,
-      fill: '#FFFFFF',
+      fill: TEMPLATE_CONFIG.colors.primary,
       cornerRadius: 12,
     });
 
     elements.push({
       type: 'text',
       x: width / 2,
-      y: startY + 540,
+      y: textAreaY + 320,
       fontSize: 28,
       fontWeight: 'bold',
-      fill: TEMPLATE_CONFIG.colors.primary,
+      fill: '#FFFFFF',
       text: content.cta_text,
       align: 'center',
     });

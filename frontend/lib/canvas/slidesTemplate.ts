@@ -7,9 +7,11 @@
  * - 일관된 디자인 적용
  *
  * @author C팀 (Frontend Team)
- * @version 1.0
+ * @version 1.1
  * @date 2025-11-28
  */
+
+import { createPlaceholderMetadata } from './image-metadata';
 
 // ============================================================================
 // Types
@@ -22,10 +24,12 @@ export interface Slide {
   bullets?: string[];
   speakerNotes?: string;
   subtitle?: string;
+  image_url?: string;
+  visual_description?: string;
 }
 
 interface CanvasElement {
-  type: 'text' | 'rect' | 'svg';
+  type: 'text' | 'rect' | 'svg' | 'image';
   x: number;
   y: number;
   width?: number;
@@ -36,6 +40,7 @@ interface CanvasElement {
   fill?: string;
   text?: string;
   align?: 'left' | 'center' | 'right';
+  src?: string;
   [key: string]: any;
 }
 
@@ -152,13 +157,59 @@ export function createSlideElements(
   });
   currentY += 40;
 
-  // 본문 컨텐츠
+  // 이미지가 있으면 2열 레이아웃 (좌: 텍스트, 우: 이미지)
+  const hasImage = slide.image_url || slide.visual_description;
+  const textColumnWidth = hasImage ? contentWidth * 0.5 - 20 : contentWidth;
+  const imageColumnX = hasImage ? margin + contentWidth * 0.5 + 20 : 0;
+  const imageWidth = hasImage ? contentWidth * 0.5 - 20 : 0;
+
+  // 이미지 추가 (우측)
+  if (hasImage) {
+    const imageHeight = 500;
+
+    if (slide.image_url) {
+      // 실제 이미지
+      elements.push({
+        type: 'image',
+        x: imageColumnX,
+        y: currentY,
+        width: imageWidth,
+        height: imageHeight,
+        src: slide.image_url,
+        custom: createPlaceholderMetadata(
+          slide.visual_description || slide.title
+        ),
+      });
+    } else {
+      // 플레이스홀더
+      elements.push({
+        type: 'rect',
+        x: imageColumnX,
+        y: currentY,
+        width: imageWidth,
+        height: imageHeight,
+        fill: colors.accent,
+        cornerRadius: 12,
+      });
+
+      elements.push({
+        type: 'text',
+        x: imageColumnX + imageWidth / 2,
+        y: currentY + imageHeight / 2,
+        fontSize: 80,
+        text: '🖼️',
+        align: 'center',
+      });
+    }
+  }
+
+  // 본문 컨텐츠 (좌측 또는 전체 너비)
   if (slide.content && typeof slide.content === 'string') {
     elements.push({
       type: 'text',
       x: margin,
       y: currentY,
-      width: contentWidth,
+      width: textColumnWidth,
       fontSize: 28,
       fill: colors.text,
       text: slide.content,
