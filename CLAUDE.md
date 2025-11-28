@@ -71,23 +71,37 @@ ssh macmini
 ssh root@100.123.51.5
 ```
 
-### 3.2 Docker 명령 실행
+### 3.2 SSH 키 인증 (비밀번호 불필요)
 ```bash
-# PATH 설정 필수
-export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+# SSH 키가 설정되어 있어 비밀번호 없이 접속 가능
+# 이 Windows 시스템의 SSH 키:
+#   - C:\Users\user\.ssh\id_ed25519
+#   - C:\Users\user\.ssh\id_rsa
+# Mac Mini의 ~/.ssh/authorized_keys에 등록됨
 
-# 백엔드 재시작
-cd ~/sparklio/docker/mac-mini
-docker-compose restart backend
-
-# 로그 확인
-docker logs sparklio-backend --tail 100
-
-# 환경변수 확인
-docker exec sparklio-backend env | grep API_KEY
+# 테스트 (비밀번호 프롬프트 없이 작동해야 함)
+ssh -o BatchMode=yes woosun@100.123.51.5 "echo 'connected'"
 ```
 
-### 3.3 PostgreSQL 접속
+### 3.3 Docker 명령 실행
+```bash
+# 원격에서 Docker 명령 실행 (전체 경로 필수!)
+# docker-compose는 PATH에 없으므로 /usr/local/bin/docker 사용
+
+# 백엔드 재시작
+ssh woosun@100.123.51.5 "/usr/local/bin/docker compose -f ~/sparklio_ai_marketing_studio/docker/mac-mini/docker-compose.yml restart backend"
+
+# 상태 확인
+ssh woosun@100.123.51.5 "/usr/local/bin/docker ps --filter 'name=sparklio-backend'"
+
+# 로그 확인
+ssh woosun@100.123.51.5 "/usr/local/bin/docker logs sparklio-backend --tail 100"
+
+# 환경변수 확인
+ssh woosun@100.123.51.5 "/usr/local/bin/docker exec sparklio-backend env | grep API_KEY"
+```
+
+### 3.4 PostgreSQL 접속
 ```bash
 # 올바른 유저: sparklio
 docker exec -it sparklio-postgres psql -U sparklio -d sparklio
@@ -158,16 +172,67 @@ curl http://100.123.51.5:8000/api/v1/embeddings/health
 
 ---
 
-## 7. 인수인계 체크리스트
+## 7. 세션 종료 절차 (CRITICAL)
 
-세션 종료 전 반드시 확인:
+### 7.1 작업 종료 시 필수 체크리스트
 
-- [ ] 변경된 파일 목록 정리
-- [ ] 커밋 완료 여부
-- [ ] Mac mini 배포 여부
-- [ ] 다음 작업 TODO 정리
-- [ ] 에러/이슈 문서화
-- [ ] 이 CLAUDE.md 업데이트 필요 여부
+사용자가 "작업 종료", "마무리", "끝" 등을 말하면:
+
+```
+1. [ ] Git 상태 확인 및 커밋
+   git status
+   git add -A && git commit -m "..."
+
+2. [ ] Mac Mini 배포 (변경사항 있으면)
+   ssh woosun@100.123.51.5 "cd ~/sparklio_ai_marketing_studio && git pull origin feature/editor-migration-polotno"
+   ssh woosun@100.123.51.5 "/usr/local/bin/docker compose -f ~/sparklio_ai_marketing_studio/docker/mac-mini/docker-compose.yml restart backend"
+
+3. [ ] SESSION_HANDOVER.md 작성/업데이트
+   docs/SESSION_HANDOVER.md (최신 상태 유지)
+
+4. [ ] 이 CLAUDE.md의 "현재 상태" 섹션 업데이트
+```
+
+### 7.2 SESSION_HANDOVER.md 작성 규칙
+
+**위치**: `docs/SESSION_HANDOVER.md`
+**목적**: 다음 Claude가 빠르게 상황 파악
+
+**필수 포함 내용** (100줄 이내로 간결하게):
+```markdown
+# 세션 인수인계 (YYYY-MM-DD HH:MM 기준)
+
+## 현재 상태
+- 브랜치: feature/editor-migration-polotno
+- 최신 커밋: [해시] [메시지]
+- Mac Mini 배포: ✅/❌
+
+## 오늘 완료한 작업
+1. [작업1]
+2. [작업2]
+
+## 진행 중인 작업 (있으면)
+- [작업]: [현재 상태]
+
+## 알려진 이슈
+- [이슈1]: [상태]
+
+## 다음 작업 우선순위
+1. [P0] [작업]
+2. [P1] [작업]
+
+## 중요 명령어 (복사해서 바로 사용)
+- Mac Mini 배포: `ssh woosun@100.123.51.5 "..."`
+- Docker 재시작: `...`
+```
+
+### 7.3 다음 세션 시작 시 읽을 파일 순서
+
+```
+1. CLAUDE.md (이 파일) - 환경 정보, 규칙
+2. docs/SESSION_HANDOVER.md - 마지막 세션 상태
+3. git log --oneline -10 - 최근 커밋 확인
+```
 
 ---
 
