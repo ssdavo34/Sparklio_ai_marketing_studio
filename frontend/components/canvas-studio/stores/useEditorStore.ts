@@ -27,11 +27,20 @@ import type { StudioMode, ViewMode, Document, Page, CanvasObject } from './types
 // 상태 인터페이스
 // ============================================================================
 
+export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+
 export interface EditorState {
-  // Document
+  // Document (URL 기반)
+  projectId: string | null;
+  documentId: string | null;
   document: Document | null;
-  isSaved: boolean;
-  isSaving: boolean;
+
+  // Save State
+  saveStatus: SaveStatus;
+  lastSaved: Date | null;
+  lastError: Error | null;
+  isDirty: boolean;
+  autoSaveEnabled: boolean;
 
   // Mode
   currentMode: StudioMode;
@@ -47,10 +56,20 @@ export interface EditorState {
   // canUndo: boolean;
   // canRedo: boolean;
 
+  // Actions - Route Info
+  setRouteInfo: (projectId: string | null, documentId: string | null) => void;
+
   // Actions - Document
   setDocument: (document: Document | null) => void;
   setCurrentMode: (mode: StudioMode) => void;
   setViewMode: (mode: ViewMode) => void;
+
+  // Actions - Save State
+  setSaveStatus: (status: SaveStatus) => void;
+  setDirty: (dirty: boolean) => void;
+  setAutoSaveEnabled: (enabled: boolean) => void;
+  setLastSaved: (date: Date | null) => void;
+  setLastError: (error: Error | null) => void;
 
   // Actions - Selection
   selectObjects: (objectIds: string[]) => void;
@@ -68,7 +87,7 @@ export interface EditorState {
   updateObject: (objectId: string, updates: Partial<CanvasObject>) => void;
   deleteObject: (objectId: string) => void;
 
-  // Actions - Save
+  // Actions - Save (Deprecated - useDocumentSync로 대체)
   saveDocument: () => Promise<void>;
   autoSave: () => Promise<void>;
 }
@@ -84,13 +103,36 @@ export const useEditorStore = create<EditorState>()(
         // ========================================
         // 초기 상태
         // ========================================
+        // Document (URL 기반)
+        projectId: null,
+        documentId: null,
         document: null,
-        isSaved: true,
-        isSaving: false,
+
+        // Save State
+        saveStatus: 'idle' as SaveStatus,
+        lastSaved: null,
+        lastError: null,
+        isDirty: false,
+        autoSaveEnabled: true, // 기본값 ON
+
+        // Mode
         currentMode: 'planning',
         viewMode: 'studio',
+
+        // Selection
         selectedObjectIds: [],
         selectedPageId: null,
+
+        // ========================================
+        // Route Info Actions
+        // ========================================
+
+        /**
+         * URL 기반 라우트 정보 설정
+         */
+        setRouteInfo: (projectId, documentId) => {
+          set({ projectId, documentId });
+        },
 
         // ========================================
         // Document Actions
@@ -100,7 +142,7 @@ export const useEditorStore = create<EditorState>()(
          * 문서 설정
          */
         setDocument: (document) => {
-          set({ document, isSaved: true });
+          set({ document, saveStatus: 'idle', isDirty: false });
         },
 
         /**
@@ -118,6 +160,45 @@ export const useEditorStore = create<EditorState>()(
          */
         setViewMode: (mode) => {
           set({ viewMode: mode });
+        },
+
+        // ========================================
+        // Save State Actions
+        // ========================================
+
+        /**
+         * 저장 상태 설정
+         */
+        setSaveStatus: (status) => {
+          set({ saveStatus: status });
+        },
+
+        /**
+         * Dirty 플래그 설정
+         */
+        setDirty: (dirty) => {
+          set({ isDirty: dirty });
+        },
+
+        /**
+         * Auto-save 활성화/비활성화
+         */
+        setAutoSaveEnabled: (enabled) => {
+          set({ autoSaveEnabled: enabled });
+        },
+
+        /**
+         * 마지막 저장 시간 설정
+         */
+        setLastSaved: (date) => {
+          set({ lastSaved: date });
+        },
+
+        /**
+         * 마지막 에러 설정
+         */
+        setLastError: (error) => {
+          set({ lastError: error });
         },
 
         // ========================================
@@ -165,7 +246,7 @@ export const useEditorStore = create<EditorState>()(
               ...doc,
               pages: [...doc.pages, newPage].sort((a, b) => a.order - b.order),
             },
-            isSaved: false,
+            isDirty: true,
           });
         },
 
@@ -183,7 +264,7 @@ export const useEditorStore = create<EditorState>()(
                 page.id === pageId ? { ...page, ...updates } : page
               ),
             },
-            isSaved: false,
+            isDirty: true,
           });
         },
 
@@ -199,7 +280,7 @@ export const useEditorStore = create<EditorState>()(
               ...doc,
               pages: doc.pages.filter((page) => page.id !== pageId),
             },
-            isSaved: false,
+            isDirty: true,
           });
         },
 
@@ -225,7 +306,7 @@ export const useEditorStore = create<EditorState>()(
               ...doc,
               pages: [...doc.pages, newPage].sort((a, b) => a.order - b.order),
             },
-            isSaved: false,
+            isDirty: true,
           });
         },
 
@@ -269,7 +350,7 @@ export const useEditorStore = create<EditorState>()(
                   : page
               ),
             },
-            isSaved: false,
+            isDirty: true,
           });
         },
 
@@ -290,7 +371,7 @@ export const useEditorStore = create<EditorState>()(
                 ),
               })),
             },
-            isSaved: false,
+            isDirty: true,
           });
         },
 
@@ -309,7 +390,7 @@ export const useEditorStore = create<EditorState>()(
                 objects: page.objects.filter((obj) => obj.id !== objectId),
               })),
             },
-            isSaved: false,
+            isDirty: true,
           });
         },
 
@@ -318,11 +399,11 @@ export const useEditorStore = create<EditorState>()(
         // ========================================
 
         /**
-         * 문서 저장
-         * - API 호출하여 서버에 저장
+         * 문서 저장 (Deprecated)
+         * - useDocumentSync Hook 사용 권장
          */
         saveDocument: async () => {
-          set({ isSaving: true });
+          set({ saveStatus: 'saving' });
 
           try {
             // TODO: Phase 3에서 API 호출 구현
@@ -331,20 +412,20 @@ export const useEditorStore = create<EditorState>()(
             // 임시: 1초 대기
             await new Promise((resolve) => setTimeout(resolve, 1000));
 
-            set({ isSaved: true, isSaving: false });
+            set({ saveStatus: 'saved', isDirty: false, lastSaved: new Date() });
           } catch (error) {
             console.error('Failed to save document:', error);
-            set({ isSaving: false });
+            set({ saveStatus: 'error', lastError: error as Error });
           }
         },
 
         /**
-         * 자동 저장
-         * - 변경사항이 있을 때만 저장
+         * 자동 저장 (Deprecated)
+         * - useDocumentSync Hook 사용 권장
          */
         autoSave: async () => {
-          const { isSaved, isSaving } = get();
-          if (isSaved || isSaving) return;
+          const { isDirty, saveStatus } = get();
+          if (!isDirty || saveStatus === 'saving') return;
 
           await get().saveDocument();
         },
@@ -353,9 +434,12 @@ export const useEditorStore = create<EditorState>()(
         name: 'canvas-studio-editor', // localStorage key
         // 일부 상태만 저장
         partialize: (state) => ({
+          projectId: state.projectId,
+          documentId: state.documentId,
           document: state.document,
           currentMode: state.currentMode,
           viewMode: state.viewMode,
+          autoSaveEnabled: state.autoSaveEnabled,
         }),
       }
     ),

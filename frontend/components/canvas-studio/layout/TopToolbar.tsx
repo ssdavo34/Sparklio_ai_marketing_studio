@@ -22,6 +22,8 @@ import type { StudioMode, ViewMode } from '../stores/types';
 import { useState, useEffect, useRef } from 'react';
 import { TemplateSelector } from './TemplateSelector';
 import { ThemeSelector } from './ThemeSelector';
+import { SaveStatusIndicator } from '../components/SaveStatusIndicator';
+import { toast } from '@/components/ui/Toast';
 import { useRouter } from 'next/navigation';
 
 export function TopToolbar() {
@@ -30,6 +32,15 @@ export function TopToolbar() {
   const setCurrentMode = useEditorStore((state) => state.setCurrentMode);
   const viewMode = useEditorStore((state) => state.viewMode);
   const setViewMode = useEditorStore((state) => state.setViewMode);
+
+  // Save State
+  const saveStatus = useEditorStore((state) => state.saveStatus);
+  const lastSaved = useEditorStore((state) => state.lastSaved);
+  const isDirty = useEditorStore((state) => state.isDirty);
+  const lastError = useEditorStore((state) => state.lastError);
+  const autoSaveEnabled = useEditorStore((state) => state.autoSaveEnabled);
+  const setAutoSaveEnabled = useEditorStore((state) => state.setAutoSaveEnabled);
+
   const isViewMode = useLayoutStore((state) => state.isViewMode);
   const toggleViewMode = useLayoutStore((state) => state.toggleViewMode);
   const polotnoStore = useCanvasStore((state) => state.polotnoStore);
@@ -115,6 +126,32 @@ export function TopToolbar() {
       setIsExporting(false);
     }
   };
+
+  // Manual Save Handler
+  const handleManualSave = async () => {
+    if (!polotnoStore || !isDirty) return;
+
+    try {
+      await useEditorStore.getState().saveDocument();
+      toast.success('문서가 저장되었습니다.');
+    } catch (error) {
+      console.error('[TopToolbar] Manual save failed:', error);
+      toast.error('저장에 실패했습니다. 네트워크를 확인하고 다시 시도해주세요.');
+    }
+  };
+
+  // Keyboard Shortcut (Ctrl+S / Cmd+S)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        handleManualSave();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [polotnoStore, isDirty]);
 
   return (
     <div className="flex h-full items-center justify-between px-4">
@@ -229,6 +266,33 @@ export function TopToolbar() {
           className="text-sm text-gray-700 bg-transparent hover:bg-gray-100 px-2 py-1 rounded border-none focus:outline-none focus:ring-2 focus:ring-purple-500 min-w-[150px]"
           placeholder="프로젝트 이름..."
         />
+
+        {/* Save Status Indicator */}
+        <SaveStatusIndicator
+          status={saveStatus}
+          lastSaved={lastSaved}
+          isDirty={isDirty}
+          lastError={lastError}
+          onManualSave={handleManualSave}
+        />
+
+        {/* Auto-save Toggle */}
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-lg border border-gray-200">
+          <span className="text-xs text-gray-600">자동 저장</span>
+          <button
+            onClick={() => setAutoSaveEnabled(!autoSaveEnabled)}
+            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+              autoSaveEnabled ? 'bg-indigo-600' : 'bg-gray-300'
+            }`}
+            title={autoSaveEnabled ? '자동 저장 켜짐' : '자동 저장 꺼짐'}
+          >
+            <span
+              className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
+                autoSaveEnabled ? 'translate-x-5' : 'translate-x-1'
+              }`}
+            />
+          </button>
+        </div>
       </div>
 
       {/* Right */}

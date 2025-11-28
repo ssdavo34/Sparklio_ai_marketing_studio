@@ -7,22 +7,25 @@
  * - 수동 저장 버튼
  *
  * @author C팀 (Frontend Team)
- * @version 1.0
+ * @version 2.0
  * @date 2025-11-28
  */
 
 'use client';
 
 import React from 'react';
-import { Cloud, CloudOff, Loader2, Check, AlertCircle } from 'lucide-react';
-import type { DocumentSyncState } from '@/hooks/useDocumentSync';
+import { Loader2, Check, AlertCircle, Cloud } from 'lucide-react';
+import type { SaveStatus } from '../stores/useEditorStore';
 
 // ============================================================================
 // Types
 // ============================================================================
 
 interface SaveStatusIndicatorProps {
-  state: DocumentSyncState;
+  status: SaveStatus;
+  lastSaved: Date | null;
+  isDirty: boolean;
+  lastError: Error | null;
   onManualSave?: () => void;
   className?: string;
 }
@@ -32,7 +35,10 @@ interface SaveStatusIndicatorProps {
 // ============================================================================
 
 export function SaveStatusIndicator({
-  state,
+  status,
+  lastSaved,
+  isDirty,
+  lastError,
   onManualSave,
   className = '',
 }: SaveStatusIndicatorProps) {
@@ -40,7 +46,7 @@ export function SaveStatusIndicator({
    * 상태별 UI 정보
    */
   const getStatusInfo = () => {
-    switch (state.status) {
+    switch (status) {
       case 'saving':
         return {
           icon: <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />,
@@ -63,7 +69,7 @@ export function SaveStatusIndicator({
           bg: 'bg-red-50',
         };
       default:
-        if (state.hasUnsavedChanges) {
+        if (isDirty) {
           return {
             icon: <Cloud className="w-4 h-4 text-amber-600" />,
             text: '저장 안됨',
@@ -102,30 +108,34 @@ export function SaveStatusIndicator({
       <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${info.bg}`}>
         {info.icon}
         <span className={`text-sm font-medium ${info.color}`}>{info.text}</span>
-        {state.lastSaved && state.status === 'idle' && (
+        {lastSaved && status === 'idle' && (
           <span className="text-xs text-gray-500 ml-1">
-            ({formatLastSaved(state.lastSaved)})
+            ({formatLastSaved(lastSaved)})
           </span>
         )}
       </div>
 
       {/* Manual Save Button */}
-      {onManualSave && state.status !== 'saving' && (
+      {onManualSave && status !== 'saving' && (
         <button
           onClick={onManualSave}
-          disabled={!state.hasUnsavedChanges}
+          disabled={!isDirty}
           className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          title="수동 저장"
+          title="수동 저장 (Ctrl+S)"
         >
           저장
         </button>
       )}
 
       {/* Error Message */}
-      {state.status === 'error' && state.lastError && (
-        <div className="text-xs text-red-600">
-          {state.lastError.message}
-        </div>
+      {status === 'error' && lastError && onManualSave && (
+        <button
+          onClick={onManualSave}
+          className="text-xs text-red-600 underline hover:text-red-700"
+          title={lastError.message}
+        >
+          재시도
+        </button>
       )}
     </div>
   );
