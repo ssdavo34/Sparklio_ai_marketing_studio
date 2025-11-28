@@ -1,9 +1,10 @@
 'use client';
 
 import { useRef, useState, useEffect } from 'react';
-import { Upload, X, Video, Sparkles, Loader2, FileAudio, Clock, Download, Radio, Trash2, StopCircle, CheckSquare, Square } from 'lucide-react';
+import { Upload, X, Video, Sparkles, Loader2, FileAudio, Clock, Download, Radio, Trash2, StopCircle, CheckSquare, Square, FileText } from 'lucide-react';
 import { useCanvasStore } from '../../../stores/useCanvasStore';
 import { useMeetingStore } from '../../../stores/useMeetingStore';
+import { useBriefStore } from '../../../stores/useBriefStore';
 import type { Meeting, MeetingAnalysisResult, MeetingStatus } from '@/types/meeting';
 import {
   createMeetingFromFile,
@@ -14,6 +15,8 @@ import {
   getMeeting,
   deleteMeeting,
 } from '@/lib/api/meeting-api';
+import { convertMeetingToBrief, canConvertToBrief } from '@/lib/utils/meetingToBrief';
+import { toast } from '@/components/ui/Toast';
 
 // Status Badge Helper
 const getStatusBadgeConfig = (status: MeetingStatus) => {
@@ -86,6 +89,7 @@ export function MeetingTab() {
   const [isSelectMode, setIsSelectMode] = useState(false);
   const polotnoStore = useCanvasStore((state) => state.polotnoStore);
   const setGlobalAnalysis = useMeetingStore((state) => state.setAnalysisResult);
+  const setBrief = useBriefStore((state) => state.setBrief);
 
   // Load meetings on mount
   useEffect(() => {
@@ -476,6 +480,29 @@ export function MeetingTab() {
       hour: '2-digit',
       minute: '2-digit',
     });
+  };
+
+  // Meeting → Brief 변환
+  const handleConvertToBrief = () => {
+    if (!selectedMeeting || !analysisResult) {
+      toast.error('분석이 완료된 미팅을 선택해주세요.');
+      return;
+    }
+
+    if (!canConvertToBrief(selectedMeeting)) {
+      toast.error('이 미팅은 Brief로 변환할 수 없습니다. 먼저 분석을 완료해주세요.');
+      return;
+    }
+
+    try {
+      const brief = convertMeetingToBrief(selectedMeeting, analysisResult);
+      setBrief(brief);
+      toast.success('Brief가 생성되었습니다! Brief 탭에서 확인하세요.');
+      console.log('[MeetingTab] Brief created:', brief);
+    } catch (error) {
+      console.error('Failed to convert to brief:', error);
+      toast.error(`Brief 변환 실패: ${error instanceof Error ? error.message : String(error)}`);
+    }
   };
 
   // 개별 Meeting 삭제
@@ -926,6 +953,14 @@ export function MeetingTab() {
                 className="px-3 py-2 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 📊 To Canvas
+              </button>
+              <button
+                onClick={handleConvertToBrief}
+                disabled={!analysisResult || !canConvertToBrief(selectedMeeting || {} as Meeting)}
+                className="px-3 py-2 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+              >
+                <FileText className="w-3 h-3" />
+                Brief로 변환
               </button>
               <button
                 onClick={() => {

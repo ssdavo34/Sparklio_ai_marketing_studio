@@ -16,7 +16,7 @@
 /**
  * 채널 타입
  */
-export type ChannelType = 'product_detail' | 'sns' | 'banner' | 'deck' | 'video';
+export type ChannelType = 'product_detail' | 'sns' | 'banner' | 'deck' | 'video' | 'instagram' | 'youtube' | 'facebook';
 
 /**
  * 캠페인 브리프
@@ -59,6 +59,15 @@ export interface Brief {
 
   /** 추가 노트 (선택) */
   notes?: string;
+
+  /** 브리프 상태 (선택) */
+  status?: 'draft' | 'active' | 'archived';
+
+  /** 브리프 소스 타입 (선택) */
+  sourceType?: 'manual' | 'meeting' | 'template';
+
+  /** 소스 Meeting ID (Meeting에서 생성된 경우) */
+  sourceMeetingId?: string;
 
   /** 생성일시 */
   createdAt: string;
