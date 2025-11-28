@@ -485,6 +485,24 @@ Campaign Ideas: ${meetingAnalysis.campaign_ideas.join(', ')}
                       ))}
                     </select>
                   </div>
+
+                  {/* Image LLM Selector */}
+                  <div>
+                    <label className="text-xs font-semibold text-gray-700 uppercase mb-1 block">
+                      이미지 LLM
+                    </label>
+                    <select
+                      value={chatConfig.imageLLM || 'auto'}
+                      onChange={(e) => setImageLLM(e.target.value as ImageLLMProvider)}
+                      className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    >
+                      {Object.entries(IMAGE_LLM_INFO).map(([key, info]) => (
+                        <option key={key} value={key}>
+                          {info.name} - {info.description}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </>
             )}
