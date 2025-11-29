@@ -684,11 +684,15 @@ class VideoDirectorAgent(AgentBase):
 
             if input_data.generation_mode == VideoGenerationMode.REUSE:
                 # Level 1: 기존 이미지만 사용
-                if i < len(available_assets):
+                if available_assets and i < len(available_assets):
                     image_id = available_assets[i]
-                else:
+                elif available_assets:
                     # 부족하면 순환 사용
-                    image_id = available_assets[i % len(available_assets)] if available_assets else None
+                    image_id = available_assets[i % len(available_assets)]
+                else:
+                    # 에셋이 없으면 새로 생성으로 fallback
+                    generate_new = True
+                    image_prompt = scene.get("image_prompt_hint") or scene.get("visual_description") or "Marketing visual"
             elif input_data.generation_mode == VideoGenerationMode.HYBRID:
                 # Level 2: 혼합
                 if i < len(available_assets):

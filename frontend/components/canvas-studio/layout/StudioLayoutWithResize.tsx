@@ -22,7 +22,8 @@ import { LeftPanel } from './LeftPanel';
 import { CanvasViewport } from './CanvasViewport';
 import { RightDock } from './RightDock';
 import { ResizeHandle } from '../components/ResizeHandle';
-import { useLayoutStore } from '../stores';
+import { useLayoutStore, useVideo6ModalStore } from '../stores';
+import { Video6Modal } from '@/components/video6';
 
 export function StudioLayout() {
   const {
@@ -33,6 +34,8 @@ export function StudioLayout() {
     isLeftPanelCollapsed,
     isRightDockCollapsed
   } = useLayoutStore();
+
+  const { isOpen: isVideo6ModalOpen, closeModal: closeVideo6Modal } = useVideo6ModalStore();
 
   // 키보드 단축키 설정
   useEffect(() => {
@@ -127,6 +130,9 @@ export function StudioLayout() {
           <RightDock />
         </div>
       </main>
+
+      {/* Video6 Modal (전체 화면 오버레이) */}
+      <Video6Modal isOpen={isVideo6ModalOpen} onClose={closeVideo6Modal} />
     </div>
   );
 }

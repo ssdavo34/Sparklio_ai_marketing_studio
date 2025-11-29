@@ -13,7 +13,8 @@
 'use client';
 
 import { useLeftPanelStore, type LeftPanelTab } from '../stores/useLeftPanelStore';
-import { FileText, Plus, Type, Upload, Image as ImageIcon, Palette, Settings, HelpCircle, FolderOpen, Mic, Sparkles } from 'lucide-react';
+import { useVideo6ModalStore } from '../stores/useVideo6ModalStore';
+import { FileText, Plus, Type, Upload, Image as ImageIcon, Palette, Settings, HelpCircle, FolderOpen, Mic, Sparkles, Video } from 'lucide-react';
 
 interface Tool {
   id: LeftPanelTab;
@@ -36,6 +37,7 @@ const TOOLS: Tool[] = [
 export function ActivityBar() {
   const activeTab = useLeftPanelStore((state) => state.activeTab);
   const setActiveTab = useLeftPanelStore((state) => state.setActiveTab);
+  const openVideo6Modal = useVideo6ModalStore((state) => state.openModal);
 
   return (
     <nav className="flex w-14 flex-col border-r border-neutral-800 bg-neutral-950 text-neutral-100">
@@ -72,6 +74,15 @@ export function ActivityBar() {
 
       {/* Bottom Buttons */}
       <div className="flex flex-col">
+        {/* Video6 - 비디오 만들기 버튼 */}
+        <button
+          onClick={openVideo6Modal}
+          className="flex h-14 items-center justify-center text-neutral-400 transition-colors hover:bg-purple-900/50 hover:text-purple-300 border-l-2 border-transparent hover:border-purple-500"
+          title="비디오 만들기"
+          aria-label="비디오 만들기"
+        >
+          <Video className="w-5 h-5" />
+        </button>
         <button
           className="flex h-14 items-center justify-center text-neutral-400 transition-colors hover:bg-neutral-900 hover:text-neutral-100"
           title="Help"

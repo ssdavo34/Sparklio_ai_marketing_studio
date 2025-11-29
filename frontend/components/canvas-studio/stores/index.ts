@@ -20,3 +20,6 @@ export * from './useWorkspaceStore';
 export * from './useBrandStore';
 export * from './useProjectStore';
 export * from './useBriefStore';
+
+// Video6 Modal Store
+export * from './useVideo6ModalStore';
