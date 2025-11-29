@@ -84,23 +84,63 @@ class NanoBananaProvider(MediaProvider):
             # 프롬프트 개선
             enhanced_prompt = self._enhance_prompt(prompt, task)
 
-            # 이미지 생성 설정
+            logger.info(f"[NanoBanana] Enhanced prompt: {enhanced_prompt[:100]}...")
+
+            # 이미지 생성 설정 (공식 문서: 대문자 'IMAGE' 사용)
             config = types.GenerateContentConfig(
-                response_modalities=['Image'],
+                response_modalities=['IMAGE'],  # 대문자로 변경
                 image_config=types.ImageConfig(
                     aspect_ratio=aspect_ratio
                 )
             )
 
             # 이미지 생성
+            logger.info(f"[NanoBanana] Calling Gemini API with model={model_name}")
             response = self.client.models.generate_content(
                 model=model_name,
                 contents=[enhanced_prompt],
                 config=config
             )
 
+            logger.info(f"[NanoBanana] Response received. Type: {type(response)}")
+
             # 응답에서 이미지 추출 (공식 문서 방식)
             outputs = []
+
+            # response가 None인지 확인
+            if response is None:
+                logger.error("[NanoBanana] Response is None")
+                raise ProviderError(
+                    message="Gemini returned None response",
+                    provider=self.vendor,
+                    status_code=500
+                )
+
+            # response.candidates 확인 (content blocking 체크)
+            if hasattr(response, 'candidates') and response.candidates:
+                candidate = response.candidates[0]
+                if hasattr(candidate, 'finish_reason') and candidate.finish_reason:
+                    logger.info(f"[NanoBanana] Finish reason: {candidate.finish_reason}")
+                    # SAFETY 등의 이유로 차단된 경우
+                    if str(candidate.finish_reason) not in ['STOP', 'MAX_TOKENS']:
+                        logger.warning(f"[NanoBanana] Content may be blocked: {candidate.finish_reason}")
+
+            # response.parts가 None인지 확인
+            if response.parts is None:
+                # text 속성이 있으면 텍스트 응답일 수 있음
+                response_text = getattr(response, 'text', None)
+                logger.error(f"[NanoBanana] response.parts is None. text={response_text}")
+
+                # prompt_feedback 확인 (safety blocking)
+                if hasattr(response, 'prompt_feedback'):
+                    logger.error(f"[NanoBanana] prompt_feedback: {response.prompt_feedback}")
+
+                raise ProviderError(
+                    message="Gemini returned no parts in response (possible content blocking)",
+                    provider=self.vendor,
+                    status_code=500,
+                    details={"response_text": response_text or "N/A"}
+                )
 
             # Gemini는 이미지를 response.parts에 반환
             for part in response.parts:

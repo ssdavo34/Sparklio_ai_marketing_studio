@@ -44,6 +44,7 @@ class Settings(BaseSettings):
 
     # MinIO
     MINIO_ENDPOINT: str = "100.123.51.5:9000"
+    MINIO_PUBLIC_URL: str = "http://100.123.51.5:9000"  # Public URL for external access
     MINIO_ACCESS_KEY: str = "sparklio"
     MINIO_SECRET_KEY: str = "sparklio_minio_2025"
     MINIO_SECURE: bool = False

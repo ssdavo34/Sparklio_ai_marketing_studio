@@ -408,9 +408,35 @@ class VisionGeneratorAgent(AgentBase):
                 "seed": result.get("seed")
             }
         except Exception as e:
-            logger.warning(f"[VisionGeneratorAgent] Nanobanana failed, trying fallback: {e}")
-            # 폴백: DALL-E
-            return await self._generate_dalle(prompt_req, width, height)
+            logger.warning(f"[VisionGeneratorAgent] Nanobanana failed, trying mock fallback: {e}")
+            # 폴백: Mock provider (DALL-E provider가 없으므로)
+            return await self._generate_mock(prompt_req, width, height)
+
+    async def _generate_mock(
+        self,
+        prompt_req: ImageGenerationRequest,
+        width: int,
+        height: int
+    ) -> Dict[str, Any]:
+        """Mock provider로 이미지 생성 (fallback용)"""
+        try:
+            result = await self.media_gateway.generate_image(
+                prompt=prompt_req.prompt_text,
+                negative_prompt=prompt_req.negative_prompt,
+                width=width,
+                height=height,
+                seed=prompt_req.seed,
+                provider="mock"
+            )
+            logger.info(f"[VisionGeneratorAgent] Mock image generated: {result.get('url')}")
+            return {
+                "url": result.get("url"),
+                "base64": result.get("base64"),
+                "seed": result.get("seed")
+            }
+        except Exception as e:
+            logger.error(f"[VisionGeneratorAgent] Mock fallback also failed: {e}")
+            raise
 
     async def _generate_comfyui(
         self,

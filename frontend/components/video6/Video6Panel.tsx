@@ -28,6 +28,20 @@ import { RenderProgress } from './RenderProgress';
 import type { VideoGenerationMode } from '@/types/video-pipeline';
 
 // ============================================================================
+// URL 변환 유틸리티 (임시 - 백엔드 수정 전까지)
+// ============================================================================
+
+function convertMinioUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  // 1. Docker 내부 호스트명을 외부 IP로 변환
+  let converted = url.replace('minio:9000', '100.123.51.5:9000');
+  // 2. presigned URL의 서명 파라미터 제거 (버킷이 public이므로 불필요)
+  const urlObj = new URL(converted);
+  urlObj.search = ''; // 쿼리 파라미터 모두 제거
+  return urlObj.toString();
+}
+
+// ============================================================================
 // Types
 // ============================================================================
 
@@ -340,16 +354,16 @@ export function Video6Panel({ onClose, className = '' }: Video6PanelProps) {
           <div className="space-y-4">
             <div className="aspect-video bg-black rounded-lg overflow-hidden">
               <video
-                src={state.videoUrl}
+                src={convertMinioUrl(state.videoUrl) || ''}
                 controls
                 className="w-full h-full"
-                poster={state.thumbnailUrl || undefined}
+                poster={convertMinioUrl(state.thumbnailUrl) || undefined}
               />
             </div>
 
             <div className="flex gap-3">
               <button
-                onClick={() => window.open(state.videoUrl!, '_blank')}
+                onClick={() => window.open(convertMinioUrl(state.videoUrl)!, '_blank')}
                 className="flex-1 py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors"
               >
                 다운로드
