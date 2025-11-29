@@ -245,6 +245,95 @@ class MediaGateway:
 
         return options
 
+    async def generate_image(
+        self,
+        prompt: str,
+        negative_prompt: Optional[str] = None,
+        width: int = 1024,
+        height: int = 1024,
+        seed: Optional[int] = None,
+        size: Optional[str] = None,
+        provider: str = "auto",
+        **kwargs
+    ) -> Dict[str, Any]:
+        """
+        이미지 생성 (VisionGeneratorAgent 호환 인터페이스)
+
+        Args:
+            prompt: 이미지 생성 프롬프트
+            negative_prompt: 네거티브 프롬프트
+            width: 이미지 너비
+            height: 이미지 높이
+            seed: 랜덤 시드
+            size: DALL-E 스타일 크기 (예: "1024x1024")
+            provider: 사용할 provider (nanobanana, dalle, comfyui, auto)
+            **kwargs: 추가 옵션
+
+        Returns:
+            {"url": str, "base64": str, "seed": int}
+        """
+        # size 파라미터가 있으면 width/height로 변환
+        if size:
+            try:
+                w, h = size.split("x")
+                width, height = int(w), int(h)
+            except ValueError:
+                pass
+
+        # Provider 선택
+        if provider == "auto":
+            # nanobanana 우선, 없으면 comfyui, 마지막으로 mock
+            if "nanobanana" in self.providers:
+                selected_provider = "nanobanana"
+            elif "comfyui" in self.providers:
+                selected_provider = "comfyui"
+            else:
+                selected_provider = "mock"
+        else:
+            selected_provider = provider
+
+        # Provider 확인
+        if selected_provider not in self.providers:
+            logger.warning(f"Provider '{selected_provider}' not found, using mock")
+            selected_provider = "mock"
+
+        provider_instance = self.providers[selected_provider]
+
+        # 옵션 구성
+        options = {
+            "width": width,
+            "height": height,
+            "negative_prompt": negative_prompt,
+            "seed": seed,
+            **kwargs
+        }
+
+        logger.info(f"[MediaGateway] generate_image: provider={selected_provider}, size={width}x{height}")
+
+        try:
+            # Provider 호출
+            response = await provider_instance.generate(
+                prompt=prompt,
+                task="image_generation",
+                media_type="image",
+                options=options
+            )
+
+            # 응답 변환
+            if response.outputs and len(response.outputs) > 0:
+                output = response.outputs[0]
+                return {
+                    "url": output.data if output.data.startswith("http") else None,
+                    "base64": output.data if not output.data.startswith("http") else None,
+                    "seed": output.metadata.get("seed") if output.metadata else seed
+                }
+            else:
+                raise ValueError("No output from provider")
+
+        except Exception as e:
+            logger.error(f"[MediaGateway] generate_image failed: {e}")
+            raise
+
     async def health_check(self) -> Dict[str, Any]:
         """
         Gateway 및 모든 Provider 상태 확인
