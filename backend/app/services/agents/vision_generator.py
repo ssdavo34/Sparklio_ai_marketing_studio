@@ -368,8 +368,8 @@ class VisionGeneratorAgent(AgentBase):
                         img_bytes = base64.b64decode(base64_data)
                         
                         # Upload to MinIO (temp bucket or similar)
-                        # bucket="assets" (default)
-                        bucket = "assets" 
+                        # Use storage_service to get correct bucket name
+                        bucket = storage_service._get_bucket_name('temp')
                         object_path = f"temp/generated/{image_id}.png"
                         
                         upload_result = storage_service.upload_file(

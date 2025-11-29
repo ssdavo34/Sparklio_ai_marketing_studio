@@ -46,6 +46,16 @@ class StorageService:
         )
         return path
 
+    def ensure_bucket_exists(self, bucket_name: str):
+        """Ensure bucket exists, create if not"""
+        try:
+            if not self.client.bucket_exists(bucket_name):
+                self.client.make_bucket(bucket_name)
+        except S3Error as e:
+            # Ignore if bucket already owned by you (race condition)
+            if e.code != 'BucketAlreadyOwnedByYou':
+                raise Exception(f"Failed to create bucket {bucket_name}: {str(e)}")
+
     def upload_file(
         self,
         bucket: str,
@@ -55,6 +65,9 @@ class StorageService:
     ) -> dict:
         """Upload file to MinIO and return metadata"""
         try:
+            # Ensure bucket exists
+            self.ensure_bucket_exists(bucket)
+
             # Calculate checksum
             checksum = hashlib.sha256(file_data).hexdigest()
 
