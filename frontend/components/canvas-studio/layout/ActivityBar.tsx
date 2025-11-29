@@ -76,7 +76,10 @@ export function ActivityBar() {
       <div className="flex flex-col">
         {/* Video6 - 비디오 만들기 버튼 */}
         <button
-          onClick={openVideo6Modal}
+          onClick={() => {
+            console.log('[Video6] Button clicked, opening modal...');
+            openVideo6Modal();
+          }}
           className="flex h-14 items-center justify-center text-neutral-400 transition-colors hover:bg-purple-900/50 hover:text-purple-300 border-l-2 border-transparent hover:border-purple-500"
           title="비디오 만들기"
           aria-label="비디오 만들기"

@@ -46,7 +46,96 @@ from app.schemas.video_timeline import (
     TextRole,
     TextPosition,
     BGMMode,
+    EasingType,
 )
+
+
+# ============================================================================
+# Ken Burns 모션 프리셋
+# ============================================================================
+# 각 프리셋은 자연스러운 카메라 무빙을 시뮬레이션
+# zoom: 1.0 = 원본, 1.2 = 20% 확대
+# pan: [x, y] - 0.5 = 중앙, 0.0 = 좌/상단, 1.0 = 우/하단
+
+KENBURNS_PRESETS = [
+    # 1. Slow Zoom In (중앙 집중) - 가장 기본적인 효과
+    {
+        "name": "zoom_in_center",
+        "zoom_start": 1.0, "zoom_end": 1.15,
+        "pan_start": [0.5, 0.5], "pan_end": [0.5, 0.5],
+        "easing": EasingType.EASE_OUT,
+    },
+    # 2. Slow Zoom Out (넓어지는 효과)
+    {
+        "name": "zoom_out_center",
+        "zoom_start": 1.15, "zoom_end": 1.0,
+        "pan_start": [0.5, 0.5], "pan_end": [0.5, 0.5],
+        "easing": EasingType.EASE_IN,
+    },
+    # 3. Pan Right + Zoom In (오른쪽으로 이동하며 확대)
+    {
+        "name": "pan_right_zoom",
+        "zoom_start": 1.05, "zoom_end": 1.15,
+        "pan_start": [0.4, 0.5], "pan_end": [0.6, 0.5],
+        "easing": EasingType.EASE_IN_OUT,
+    },
+    # 4. Pan Left + Zoom In (왼쪽으로 이동하며 확대)
+    {
+        "name": "pan_left_zoom",
+        "zoom_start": 1.05, "zoom_end": 1.15,
+        "pan_start": [0.6, 0.5], "pan_end": [0.4, 0.5],
+        "easing": EasingType.EASE_IN_OUT,
+    },
+    # 5. Pan Down + Zoom In (아래로 이동, 제품 강조에 적합)
+    {
+        "name": "pan_down_zoom",
+        "zoom_start": 1.0, "zoom_end": 1.12,
+        "pan_start": [0.5, 0.4], "pan_end": [0.5, 0.6],
+        "easing": EasingType.EASE_OUT,
+    },
+    # 6. Pan Up + Zoom Out (위로 이동, 공간감 표현)
+    {
+        "name": "pan_up_zoom_out",
+        "zoom_start": 1.15, "zoom_end": 1.0,
+        "pan_start": [0.5, 0.6], "pan_end": [0.5, 0.4],
+        "easing": EasingType.EASE_IN,
+    },
+    # 7. Diagonal Pan (대각선 이동, 역동적)
+    {
+        "name": "diagonal_pan",
+        "zoom_start": 1.05, "zoom_end": 1.12,
+        "pan_start": [0.4, 0.4], "pan_end": [0.6, 0.6],
+        "easing": EasingType.LINEAR,
+    },
+]
+
+
+def get_kenburns_motion(scene_index: int, total_scenes: int) -> MotionConfig:
+    """씬 인덱스에 따른 Ken Burns 모션 설정 반환
+
+    다양성을 위해 씬마다 다른 프리셋을 순환 적용
+    첫 씬과 마지막 씬은 특별 처리
+    """
+    # 첫 씬: Zoom In (시작 집중)
+    if scene_index == 1:
+        preset = KENBURNS_PRESETS[0]  # zoom_in_center
+    # 마지막 씬: Zoom Out (마무리 확장)
+    elif scene_index == total_scenes:
+        preset = KENBURNS_PRESETS[1]  # zoom_out_center
+    # 중간 씬: 순환 적용 (2~6번 프리셋)
+    else:
+        middle_presets = KENBURNS_PRESETS[2:]  # pan+zoom 효과들
+        preset_idx = (scene_index - 2) % len(middle_presets)
+        preset = middle_presets[preset_idx]
+
+    return MotionConfig(
+        type=MotionType.KENBURNS,
+        zoom_start=preset["zoom_start"],
+        zoom_end=preset["zoom_end"],
+        pan_start=preset["pan_start"],
+        pan_end=preset["pan_end"],
+        easing=preset["easing"],
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -843,7 +932,8 @@ class VideoDirectorAgent(AgentBase):
                     position=TextPosition.BOTTOM_CENTER
                 ))
 
-            # 씬 구성
+            # 씬 구성 (Ken Burns 프리셋 적용)
+            total_scenes = len(plan_draft.scenes)
             scene = SceneConfig(
                 scene_index=scene_draft.scene_index,
                 start_sec=start_sec,
@@ -853,11 +943,7 @@ class VideoDirectorAgent(AgentBase):
                     source_type="asset" if scene_draft.image_id else "generated",
                     url=image_url,
                 ),
-                motion=MotionConfig(
-                    type=MotionType.KENBURNS,
-                    zoom_start=1.0,
-                    zoom_end=1.15,
-                ),
+                motion=get_kenburns_motion(scene_draft.scene_index, total_scenes),
                 transition_out=TransitionConfig(
                     type=TransitionType.CROSSFADE,
                     duration_sec=0.5
