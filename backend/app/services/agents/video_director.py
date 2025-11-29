@@ -871,16 +871,29 @@ class VideoDirectorAgent(AgentBase):
         logger.info(f"[VideoDirector] generation_mode={input_data.generation_mode}")
         logger.info(f"[VideoDirector] plan_draft.scenes count: {len(plan_draft.scenes) if plan_draft else 0}")
 
+        # ============ DEBUG V5: 씬별 상세 정보 ============
+        for scene in plan_draft.scenes:
+            logger.info(
+                f"[VideoDirector] Scene {scene.scene_index}: "
+                f"generate_new_image={scene.generate_new_image}, "
+                f"image_url={scene.image_url is not None}, "
+                f"image_id={scene.image_id is not None}, "
+                f"image_prompt={scene.image_prompt[:50] if scene.image_prompt else 'None'}..."
+            )
+        # ============ DEBUG V5 END ============
+
         # 1. 기존 이미지 URL 수집
         for scene in plan_draft.scenes:
             if scene.image_url:
                 image_urls[scene.scene_index] = scene.image_url
-                logger.debug(f"[VideoDirector] Scene {scene.scene_index}: using existing URL")
+                logger.info(f"[VideoDirector] Scene {scene.scene_index}: using existing URL")
             elif scene.image_id:
                 # TODO: Asset Pool에서 URL 조회
                 # 현재는 placeholder
                 image_urls[scene.scene_index] = f"https://placeholder/{scene.image_id}"
-                logger.debug(f"[VideoDirector] Scene {scene.scene_index}: using asset_id placeholder")
+                logger.info(f"[VideoDirector] Scene {scene.scene_index}: using asset_id placeholder")
+
+        logger.info(f"[VideoDirector] After URL collection: {len(image_urls)} images in image_urls")
 
         # 2. 새 이미지 생성이 필요한 씬
         scenes_to_generate = [
@@ -889,6 +902,7 @@ class VideoDirectorAgent(AgentBase):
         ]
 
         logger.info(f"[VideoDirector] Scenes to generate: {len(scenes_to_generate)}")
+        logger.info(f"[VideoDirector] Condition check: scenes_to_generate={len(scenes_to_generate) > 0}, mode!={input_data.generation_mode != VideoGenerationMode.REUSE}")
 
         if scenes_to_generate and input_data.generation_mode != VideoGenerationMode.REUSE:
             # VisionGenerator로 이미지 생성

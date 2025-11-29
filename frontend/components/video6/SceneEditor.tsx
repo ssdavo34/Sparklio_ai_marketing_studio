@@ -1,9 +1,25 @@
 'use client';
 
-import React from 'react';
-import { GripVertical, Trash2, Image as ImageIcon, Sparkles, Clock } from 'lucide-react';
+import React, { useState } from 'react';
+import { GripVertical, Trash2, Image as ImageIcon, Sparkles, Clock, RefreshCw } from 'lucide-react';
 import type { SceneDraft } from '@/types/video-pipeline';
 import { getSceneThumbUrl } from '@/types/video-pipeline';
+
+/**
+ * 이미지 프롬프트에서 키워드 추출하여 Unsplash 플레이스홀더 URL 생성
+ */
+function getPlaceholderImageUrl(prompt: string | undefined): string {
+  if (!prompt) return '';
+  // 프롬프트에서 첫 3개 단어 추출 (영어 기준)
+  const keywords = prompt
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '')
+    .split(/\s+/)
+    .filter(w => w.length > 2)
+    .slice(0, 3)
+    .join(',');
+  return keywords ? `https://source.unsplash.com/200x200/?${encodeURIComponent(keywords)}` : '';
+}
 
 interface SceneEditorProps {
   scene: SceneDraft;
@@ -66,7 +82,7 @@ export function SceneEditor({
         </div>
 
         {/* 썸네일 */}
-        <div className="w-20 h-20 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+        <div className="w-20 h-20 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 relative group">
           {getSceneThumbUrl(scene) ? (
             <img
               src={getSceneThumbUrl(scene)}
@@ -74,8 +90,27 @@ export function SceneEditor({
               className="w-full h-full object-cover"
               loading="lazy"
             />
+          ) : scene.generate_new_image && scene.image_prompt ? (
+            // AI 생성 씬 + 프롬프트 있음: Unsplash 플레이스홀더 표시
+            <div className="relative w-full h-full">
+              <img
+                src={getPlaceholderImageUrl(scene.image_prompt)}
+                alt={`Preview for scene ${scene.scene_index}`}
+                className="w-full h-full object-cover opacity-70"
+                loading="lazy"
+                onError={(e) => {
+                  // Unsplash 실패 시 기본 아이콘으로 대체
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
+              {/* AI 생성 예정 오버레이 */}
+              <div className="absolute inset-0 bg-purple-600/30 flex flex-col items-center justify-center">
+                <Sparkles className="w-5 h-5 text-white mb-0.5" />
+                <span className="text-[9px] text-white font-medium">AI 예정</span>
+              </div>
+            </div>
           ) : scene.generate_new_image ? (
-            <div className="w-full h-full flex flex-col items-center justify-center text-purple-500">
+            <div className="w-full h-full flex flex-col items-center justify-center text-purple-500 bg-purple-50">
               <Sparkles className="w-6 h-6 mb-1" />
               <span className="text-[10px]">AI 생성</span>
             </div>
