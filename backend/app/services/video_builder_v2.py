@@ -211,7 +211,7 @@ class VideoBuilderV2:
         """이미지 다운로드"""
         logger.info(f"[VideoBuilderV2] Downloading {len(ctx.timeline.scenes)} images")
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
             for scene in ctx.timeline.scenes:
                 if not scene.image or not scene.image.url:
                     continue
@@ -519,8 +519,10 @@ class VideoBuilderV2:
         audio_config = ctx.timeline.audio
 
         if audio_config.bgm_mode == BGMMode.AUTO:
-            # TODO: BGM 자동 선택 로직
-            bgm_path = None
+            # Default BGM (Warm Lofi)
+            bgm_path = await self._download_bgm(ctx, "https://storage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4") # Using video audio as bgm for now
+            # Better public domain audio:
+            bgm_path = await self._download_bgm(ctx, "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3")
         elif audio_config.bgm_url:
             # BGM 다운로드
             bgm_path = await self._download_bgm(ctx, audio_config.bgm_url)
