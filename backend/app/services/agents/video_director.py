@@ -1004,9 +1004,12 @@ class VideoDirectorAgent(AgentBase):
         # 1. 환경변수 강제 Mock 모드
         MOCK_IMAGE_MODE = os.getenv("VIDEO_MOCK_IMAGES", "0") == "1"
 
-        # 2. Auto-Fallback: 이미지가 하나라도 없으면 자동으로 Mock 이미지 채움
-        # (Gemini API 실패 시 사용자에게 검은 화면 대신 데모 이미지를 보여주기 위함)
-        missing_scenes = [s for s in plan_draft.scenes if s.scene_index not in image_urls]
+        # 2. Auto-Fallback: 이미지가 없거나(None) 키가 없는 경우
+        # image_urls에 키가 있어도 값이 None이면 missing으로 간주
+        missing_scenes = [
+            s for s in plan_draft.scenes 
+            if s.scene_index not in image_urls or not image_urls.get(s.scene_index)
+        ]
         
         if MOCK_IMAGE_MODE or missing_scenes:
             reason = "MOCK_MODE_ENABLED" if MOCK_IMAGE_MODE else "GENERATION_FAILED_FALLBACK"
