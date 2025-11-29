@@ -1137,11 +1137,13 @@ class VideoDirectorAgent(AgentBase):
                 "render_time_sec": result.render_time_sec
             }
         except Exception as e:
-            logger.error(f"[VideoDirectorAgent] VideoBuilder V2 failed: {e}")
-            # Fallback: placeholder URL
+            import traceback
+            traceback.print_exc()
+            logger.error(f"[VideoDirectorAgent] VideoBuilder V2 failed: {e}", exc_info=True)
+            # Fallback: placeholder URL (Temporary public video)
             return {
-                "video_url": f"https://storage/videos/video_{uuid4().hex[:8]}.mp4",
-                "thumbnail_url": f"https://storage/thumbnails/thumb_{uuid4().hex[:8]}.png",
+                "video_url": "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+                "thumbnail_url": "https://picsum.photos/1080/1920",
                 "duration_sec": timeline.global_config.total_duration_sec
             }
 
