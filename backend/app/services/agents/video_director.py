@@ -1019,7 +1019,8 @@ class VideoDirectorAgent(AgentBase):
             for scene in missing_scenes:
                 # 고정된 시드(scene_index)를 사용하여 일관된 랜덤 이미지 제공
                 # 9:16 비율 (720x1280)
-                mock_url = f"https://picsum.photos/seed/{scene.scene_index}/720/1280"
+                # Picsum이 405 에러를 뱉는 경우가 있어 placehold.co로 변경
+                mock_url = f"https://placehold.co/720x1280/252525/FFFFFF/png?text=Scene+{scene.scene_index}"
                 image_urls[scene.scene_index] = mock_url
                 print(f">>> V6 scene {scene.scene_index} fallback: {mock_url}")
         # ============ V6 END ============
