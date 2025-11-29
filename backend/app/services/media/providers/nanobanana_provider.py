@@ -41,6 +41,10 @@ class NanoBananaProvider(MediaProvider):
         self.client = genai.Client(api_key=api_key)
         self.default_model = default_model
 
+        # V8 DEBUG: 초기화 시 모델명 출력
+        print(f">>> NANO INIT: default_model={default_model}")
+        print(f">>> NANO INIT: api_key={api_key[:10]}...{api_key[-4:]}")
+
     async def generate(
         self,
         prompt: str,

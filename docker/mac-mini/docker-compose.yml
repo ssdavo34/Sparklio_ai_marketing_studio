@@ -103,6 +103,11 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
 
+      # Gemini Image Generation (NanoBanana)
+      GEMINI_IMAGE_MODEL: ${GEMINI_IMAGE_MODEL:-gemini-2.5-flash-image}
+      GEMINI_TEXT_MODEL: ${GEMINI_TEXT_MODEL:-gemini-2.5-flash}
+      GEMINI_TIMEOUT: ${GEMINI_TIMEOUT:-60}
+
       # App Settings
       GENERATOR_MODE: ${GENERATOR_MODE:-live}
       DEBUG: ${DEBUG:-false}
