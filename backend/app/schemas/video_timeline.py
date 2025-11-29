@@ -210,6 +210,7 @@ class SceneConfig(BaseModel):
     motion: MotionConfig = Field(default_factory=MotionConfig)
     transition_out: TransitionConfig = Field(default_factory=TransitionConfig)
     texts: List[TextLayer] = Field(default_factory=list)
+    script: Optional[str] = None  # TTS용 스크립트
 
     @field_validator("end_sec")
     @classmethod
@@ -251,6 +252,7 @@ class SceneDraft(BaseModel):
     image_id: Optional[str] = None  # Asset Pool의 이미지 ID
     image_url: Optional[str] = None
     caption: str = ""
+    script: Optional[str] = None  # TTS용 스크립트
     duration_sec: float = Field(default=3.0, ge=2.0, le=5.0)
     generate_new_image: bool = False  # True면 새로 생성
     image_prompt: Optional[str] = None  # 새 이미지 프롬프트

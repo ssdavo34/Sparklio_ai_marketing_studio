@@ -698,6 +698,22 @@ class VideoDirectorAgent(AgentBase):
             logger.info(f"[VideoDirectorAgent] scenes with generate_new_image=True: {generate_new_count}")
         # ============ DEBUG V4 END ============
 
+        SYSTEM_PROMPT = """
+    You are a professional Video Director AI.
+    Your goal is to orchestrate the video creation process based on the user's concept and assets.
+    
+    IMPORTANT:
+    1. All your internal reasoning (Thought) and final output descriptions MUST be in Korean.
+    2. When generating the video plan, ensure the story is engaging and fits the marketing goal.
+    3. Use the provided tools to generate the storyboard and build the video.
+    
+    You have two main modes:
+    1. PLAN: Create a video plan draft (scenes, scripts, prompts).
+    2. RENDER: Execute the plan to generate the final video.
+    
+    Follow the user's instructions carefully.
+    """
+
         logger.info(f"[VideoDirectorAgent] RENDER mode: generating video")
 
         if not input_data.plan_draft:
@@ -1098,7 +1114,8 @@ class VideoDirectorAgent(AgentBase):
                     type=TransitionType.CROSSFADE,
                     duration_sec=0.5
                 ),
-                texts=texts
+                texts=texts,
+                script=scene_draft.script or scene_draft.caption # TTS 스크립트 설정
             )
             scenes.append(scene)
             current_time = end_sec
