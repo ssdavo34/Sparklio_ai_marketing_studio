@@ -140,11 +140,24 @@ async def create_video_project(
     """
     video_project_id = f"vp_{uuid4().hex[:8]}"
 
+    # user_id가 없으면 기존 테스트 사용자 조회 (회원 시스템 구현 전 임시)
+    user_id = request.user_id
+    if not user_id:
+        from app.models.user import User
+        test_user = db.query(User).first()
+        if test_user:
+            user_id = test_user.id
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No users found. Please create a user first."
+            )
+
     # ProjectOutput 생성
     project = ProjectOutput(
         brand_id=request.brand_id,
         project_id=request.project_id,
-        user_id=request.user_id,
+        user_id=user_id,
         output_type='video',
         name=request.name or f"Video Project {video_project_id}",
         status='draft',  # ProjectOutput status
