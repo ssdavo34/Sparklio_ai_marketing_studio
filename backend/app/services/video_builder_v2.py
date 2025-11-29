@@ -246,6 +246,82 @@ class VideoBuilderV2:
             logger.error(f"[VideoBuilderV2] Build failed: {job_id}, error={e}")
             raise
 
+    async def _generate_voiceovers(self, ctx: RenderContext):
+        """TTS 오디오 생성"""
+        from app.services.media.gateway import get_media_gateway
+        gateway = get_media_gateway()
+        
+        ctx.voiceover_paths = {} # scene_index -> path
+
+        logger.info(f"[VideoBuilderV2] Generating voiceovers for {len(ctx.timeline.scenes)} scenes")
+
+        for scene in ctx.timeline.scenes:
+            script = scene.script
+            if not script:
+                continue
+                
+            try:
+                # TTS 생성 요청
+                response = await gateway.generate(
+                    prompt=script,
+                    task="voiceover",
+                    media_type="audio",
+                    options={"voice": "ko-KR-SunHiNeural"}
+                )
+                
+                if response.outputs:
+                    import base64
+                    audio_data = base64.b64decode(response.outputs[0].data)
+                    
+                    output_path = ctx.workdir / f"voice_{scene.scene_index}.mp3"
+                    with open(output_path, "wb") as f:
+                        f.write(audio_data)
+                        
+                    ctx.voiceover_paths[scene.scene_index] = str(output_path)
+                    
+                    # 오디오 길이 측정 및 씬 길이 업데이트
+                    duration = await self._get_audio_duration(str(output_path))
+                    if duration > 0:
+                        # 씬 길이를 오디오 길이 + 0.5초(여유)로 조정
+                        # 기존 duration보다 짧아지지 않도록 max 사용
+                        min_duration = scene.end_sec - scene.start_sec
+                        new_duration = max(min_duration, duration + 0.5)
+                        
+                        # 타임라인 업데이트 (단순화를 위해 scene 객체의 duration만 변경한다고 가정)
+                        scene.duration_override = new_duration 
+                        logger.info(f"[VideoBuilderV2] Scene {scene.scene_index} duration updated to {new_duration:.2f}s (TTS: {duration:.2f}s)")
+
+            except Exception as e:
+                logger.error(f"[VideoBuilderV2] TTS failed for scene {scene.scene_index}: {e}")
+
+    async def _get_audio_duration(self, audio_path: str) -> float:
+        """오디오 파일 길이 측정 (ffprobe)"""
+        cmd = [
+            "ffprobe", 
+            "-v", "error", 
+            "-show_entries", "format=duration", 
+            "-of", "default=noprint_wrappers=1:nokey=1", 
+            audio_path
+        ]
+        
+        import asyncio
+        import subprocess
+        
+        try:
+            process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+            stdout, stderr = await process.communicate()
+            
+            if process.returncode == 0:
+                return float(stdout.decode().strip())
+        except Exception as e:
+            logger.warning(f"Failed to get audio duration: {e}")
+        
+        return 0.0
+
     async def _download_images(self, ctx: RenderContext):
         """이미지 다운로드"""
         logger.info(f"[VideoBuilderV2] Downloading {len(ctx.timeline.scenes)} images")
