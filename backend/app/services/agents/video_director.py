@@ -859,10 +859,12 @@ class VideoDirectorAgent(AgentBase):
         Returns:
             Dict[scene_index, image_url]
         """
-        # ============ DEBUG V4: 진입 확인 ============
-        print("!!! _prepare_images_v3 CALLED !!!")
-        print(f"!!! generation_mode={input_data.generation_mode} !!!")
-        # ============ DEBUG V4 END ============
+        import os
+
+        # ============ DEBUG V6: 진입 확인 (print) ============
+        print(">>> V6 _prepare_images_v3 CALLED")
+        print(f">>> V6 generation_mode={input_data.generation_mode}")
+        # ============ DEBUG V6 END ============
 
         plan_draft = input_data.plan_draft
         image_urls: Dict[int, str] = {}
@@ -871,8 +873,16 @@ class VideoDirectorAgent(AgentBase):
         logger.info(f"[VideoDirector] generation_mode={input_data.generation_mode}")
         logger.info(f"[VideoDirector] plan_draft.scenes count: {len(plan_draft.scenes) if plan_draft else 0}")
 
-        # ============ DEBUG V5: 씬별 상세 정보 ============
+        # ============ DEBUG V6: 씬별 상세 정보 (print) ============
+        print(">>> V6 plan_draft.scenes len:", len(plan_draft.scenes))
         for scene in plan_draft.scenes:
+            print(
+                f">>> V6 scene {scene.scene_index}: "
+                f"gen={getattr(scene, 'generate_new_image', None)}, "
+                f"url={bool(getattr(scene, 'image_url', None))}, "
+                f"id={bool(getattr(scene, 'image_id', None))}, "
+                f"prompt={(scene.image_prompt[:40] + '...') if getattr(scene, 'image_prompt', None) else 'None'}"
+            )
             logger.info(
                 f"[VideoDirector] Scene {scene.scene_index}: "
                 f"generate_new_image={scene.generate_new_image}, "
@@ -880,7 +890,7 @@ class VideoDirectorAgent(AgentBase):
                 f"image_id={scene.image_id is not None}, "
                 f"image_prompt={scene.image_prompt[:50] if scene.image_prompt else 'None'}..."
             )
-        # ============ DEBUG V5 END ============
+        # ============ DEBUG V6 END ============
 
         # 1. 기존 이미지 URL 수집
         for scene in plan_draft.scenes:
@@ -893,23 +903,42 @@ class VideoDirectorAgent(AgentBase):
                 image_urls[scene.scene_index] = f"https://placeholder/{scene.image_id}"
                 logger.info(f"[VideoDirector] Scene {scene.scene_index}: using asset_id placeholder")
 
+        # ============ DEBUG V6: URL 수집 결과 ============
+        print(">>> V6 image_urls keys after collection:", list(image_urls.keys()))
         logger.info(f"[VideoDirector] After URL collection: {len(image_urls)} images in image_urls")
+        # ============ DEBUG V6 END ============
 
         # 2. 새 이미지 생성이 필요한 씬
         scenes_to_generate = [
             s for s in plan_draft.scenes
-            if s.generate_new_image and s.scene_index not in image_urls
+            if getattr(s, "generate_new_image", False) and s.scene_index not in image_urls
         ]
 
+        # ============ DEBUG V6: 조건 검사 결과 ============
+        print(">>> V6 scenes_to_generate indices:", [s.scene_index for s in scenes_to_generate])
+        print(">>> V6 generation_mode:", input_data.generation_mode)
+        will_call_vision = bool(scenes_to_generate) and input_data.generation_mode != VideoGenerationMode.REUSE
+        print(">>> V6 condition: will_call_vision =", will_call_vision)
         logger.info(f"[VideoDirector] Scenes to generate: {len(scenes_to_generate)}")
         logger.info(f"[VideoDirector] Condition check: scenes_to_generate={len(scenes_to_generate) > 0}, mode!={input_data.generation_mode != VideoGenerationMode.REUSE}")
+        # ============ DEBUG V6 END ============
 
-        if scenes_to_generate and input_data.generation_mode != VideoGenerationMode.REUSE:
-            # VisionGenerator로 이미지 생성
-            logger.info(f"[VideoDirector] Starting VisionGenerator for {len(scenes_to_generate)} scenes")
+        # ============ V6: 강제 VisionGenerator 호출 (디버깅용) ============
+        # 원래 조건: if scenes_to_generate and input_data.generation_mode != VideoGenerationMode.REUSE:
+        # 임시로 강제 ON (scenes_to_generate가 비어있어도 실행)
+        force_vision_call = len(plan_draft.scenes) > 0 and input_data.generation_mode != VideoGenerationMode.REUSE
+        print(">>> V6 FORCE_VISION_CALL =", force_vision_call)
+
+        if force_vision_call:
+            print(">>> V6 ENTERING VisionGenerator block (FORCED)")
+            logger.info(f"[VideoDirector] Starting VisionGenerator for {len(scenes_to_generate)} scenes (FORCED)")
 
             try:
                 from app.services.agents.vision_generator import get_vision_generator_agent, ImageGenerationRequest
+
+                # scenes_to_generate가 비어있으면 plan_draft.scenes 전체 사용
+                target_scenes = scenes_to_generate if scenes_to_generate else plan_draft.scenes
+                print(f">>> V6 target_scenes count: {len(target_scenes)}")
 
                 prompts = [
                     ImageGenerationRequest(
@@ -918,8 +947,10 @@ class VideoDirectorAgent(AgentBase):
                         aspect_ratio="9:16",
                         style="realistic"
                     )
-                    for s in scenes_to_generate
+                    for s in target_scenes
                 ]
+
+                print(f">>> V6 calling VisionGenerator with {len(prompts)} prompts")
 
                 agent = get_vision_generator_agent(
                     llm_gateway=self.llm_gateway,
@@ -938,27 +969,48 @@ class VideoDirectorAgent(AgentBase):
                     }
                 ))
 
-                result = response.outputs[0].value
+                print(f">>> V6 VisionGenerator response received")
+                result = response.outputs[0].value if response.outputs else {}
                 generated_images = result.get("images", [])
 
+                print(f">>> V6 VisionGenerator images len: {len(generated_images)}")
                 logger.info(f"[VideoDirector] VisionGenerator returned {len(generated_images)} images")
 
-                for i, scene in enumerate(scenes_to_generate):
+                for i, scene in enumerate(target_scenes):
                     if i < len(generated_images) and generated_images[i].get("status") == "completed":
-                        image_urls[scene.scene_index] = generated_images[i].get("image_url")
+                        url = generated_images[i].get("image_url")
+                        image_urls[scene.scene_index] = url
+                        print(f">>> V6 scene {scene.scene_index} got image: {url[:60] if url else 'None'}...")
                         logger.info(f"[VideoDirector] Scene {scene.scene_index}: image generated")
                     else:
                         status = generated_images[i].get("status") if i < len(generated_images) else "missing"
+                        print(f">>> V6 scene {scene.scene_index} FAILED: {status}")
                         logger.warning(f"[VideoDirector] Scene {scene.scene_index}: image failed ({status})")
 
             except Exception as e:
+                import traceback
+                print(f">>> V6 VisionGenerator ERROR: {e}")
+                traceback.print_exc()
                 logger.error(f"[VideoDirector] VisionGenerator error: {e}", exc_info=True)
                 # 예외가 발생해도 계속 진행 (기존 이미지만 사용)
         else:
+            print(">>> V6 SKIPPING VisionGenerator block")
             if not scenes_to_generate:
                 logger.info("[VideoDirector] No scenes need new images")
             else:
                 logger.info(f"[VideoDirector] Skipping image generation (mode={input_data.generation_mode})")
+
+        # ============ V6: Mock 이미지 모드 (데모용) ============
+        MOCK_IMAGE_MODE = os.getenv("VIDEO_MOCK_IMAGES", "0") == "1"
+
+        if MOCK_IMAGE_MODE:
+            print(">>> V6 MOCK_IMAGE_MODE ON - using placeholder images for missing scenes")
+            for scene in plan_draft.scenes:
+                if scene.scene_index not in image_urls:
+                    mock_url = f"https://picsum.photos/720/1280?random={scene.scene_index}"
+                    image_urls[scene.scene_index] = mock_url
+                    print(f">>> V6 scene {scene.scene_index} uses mock placeholder: {mock_url}")
+        # ============ V6 END ============
 
         logger.info(f"[VideoDirector] _prepare_images_v3 complete: {len(image_urls)} images ready")
         return image_urls
