@@ -24,7 +24,7 @@ class NanoBananaProvider(MediaProvider):
     def __init__(
         self,
         api_key: str,
-        default_model: str = "gemini-2.5-flash-image",
+        default_model: str = "gemini-2.0-flash-exp",
         timeout: int = 60
     ):
         """

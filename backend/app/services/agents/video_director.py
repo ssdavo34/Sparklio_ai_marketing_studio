@@ -1000,16 +1000,25 @@ class VideoDirectorAgent(AgentBase):
             else:
                 logger.info(f"[VideoDirector] Skipping image generation (mode={input_data.generation_mode})")
 
-        # ============ V6: Mock 이미지 모드 (데모용) ============
+        # ============ V6: Mock 이미지 모드 (데모용) & Auto-Fallback ============
+        # 1. 환경변수 강제 Mock 모드
         MOCK_IMAGE_MODE = os.getenv("VIDEO_MOCK_IMAGES", "0") == "1"
 
-        if MOCK_IMAGE_MODE:
-            print(">>> V6 MOCK_IMAGE_MODE ON - using placeholder images for missing scenes")
-            for scene in plan_draft.scenes:
-                if scene.scene_index not in image_urls:
-                    mock_url = f"https://picsum.photos/720/1280?random={scene.scene_index}"
-                    image_urls[scene.scene_index] = mock_url
-                    print(f">>> V6 scene {scene.scene_index} uses mock placeholder: {mock_url}")
+        # 2. Auto-Fallback: 이미지가 하나라도 없으면 자동으로 Mock 이미지 채움
+        # (Gemini API 실패 시 사용자에게 검은 화면 대신 데모 이미지를 보여주기 위함)
+        missing_scenes = [s for s in plan_draft.scenes if s.scene_index not in image_urls]
+        
+        if MOCK_IMAGE_MODE or missing_scenes:
+            reason = "MOCK_MODE_ENABLED" if MOCK_IMAGE_MODE else "GENERATION_FAILED_FALLBACK"
+            print(f">>> V6 {reason}: Filling {len(missing_scenes)} missing scenes with placeholders")
+            logger.warning(f"[VideoDirector] {reason}: Using Picsum placeholders for missing images")
+            
+            for scene in missing_scenes:
+                # 고정된 시드(scene_index)를 사용하여 일관된 랜덤 이미지 제공
+                # 9:16 비율 (720x1280)
+                mock_url = f"https://picsum.photos/seed/{scene.scene_index}/720/1280"
+                image_urls[scene.scene_index] = mock_url
+                print(f">>> V6 scene {scene.scene_index} fallback: {mock_url}")
         # ============ V6 END ============
 
         logger.info(f"[VideoDirector] _prepare_images_v3 complete: {len(image_urls)} images ready")

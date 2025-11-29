@@ -84,7 +84,7 @@ class Settings(BaseSettings):
         env="GEMINI_TEXT_MODEL"
     )
     gemini_image_model: str = Field(
-        "gemini-2.5-flash-image",
+        "gemini-2.0-flash-exp",
         env="GEMINI_IMAGE_MODEL"
     )
     gemini_timeout: int = Field(60, env="GEMINI_TIMEOUT")
@@ -114,6 +114,9 @@ class Settings(BaseSettings):
 
     # Vector Search
     EMBEDDING_DIMENSION: int = 1536
+
+    # Video Pipeline
+    video_mock_images: bool = Field(False, env="VIDEO_MOCK_IMAGES")
 
     # Whisper STT (Meeting AI)
     whisper_mode: str = Field("hybrid_cost", env="WHISPER_MODE")  # openai | local | hybrid_cost | hybrid_quality

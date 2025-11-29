@@ -232,6 +232,12 @@ class StoryboardBuilderAgent(AgentBase):
 }}
 
 Create a compelling storyboard that captures attention in the first 3 seconds and delivers the message effectively.
+
+IMPORTANT:
+- The 'voiceover' or 'text_overlay' must be ENGAGING and SPECIFIC to the concept. Avoid generic phrases like "Sale now on". Use emotional hooks, benefits, or storytelling.
+- 'visual_description' must be detailed enough for a high-end AI image generator. Include lighting, composition, and mood details.
+- Ensure the flow between scenes is logical and builds up to the call to action.
+- **OUTPUT LANGUAGE**: All text (voiceover, text_overlay, title) MUST be in **KOREAN (한국어)**.
 """
         return prompt
 
