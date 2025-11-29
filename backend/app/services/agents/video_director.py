@@ -705,6 +705,20 @@ class VideoDirectorAgent(AgentBase):
                 generate_new = True
                 image_prompt = scene.get("image_prompt_hint") or scene.get("visual_description")
 
+            # 안전 가드: generate_new=False인데 이미지 정보가 없으면 강제로 generate_new=True
+            if not generate_new and not image_id and not image_url:
+                logger.warning(
+                    f"SceneDraft fallback: no image for scene {scene_index}, "
+                    f"mode={input_data.generation_mode}. Forcing generate_new_image=True"
+                )
+                generate_new = True
+                image_prompt = (
+                    image_prompt
+                    or scene.get("image_prompt_hint")
+                    or scene.get("visual_description")
+                    or "Marketing visual"
+                )
+
             scene_drafts.append(SceneDraft(
                 scene_index=scene_index,
                 image_id=image_id,
