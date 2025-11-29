@@ -234,10 +234,12 @@ class StoryboardBuilderAgent(AgentBase):
 Create a compelling storyboard that captures attention in the first 3 seconds and delivers the message effectively.
 
 IMPORTANT:
-- The 'voiceover' or 'text_overlay' must be ENGAGING and SPECIFIC to the concept. Avoid generic phrases like "Sale now on". Use emotional hooks, benefits, or storytelling.
-- 'visual_description' must be detailed enough for a high-end AI image generator. Include lighting, composition, and mood details.
+- The 'voiceover' must be natural, spoken KOREAN. Use emotional hooks and storytelling. Avoid robotic lists.
+- 'text_overlay' must be SHORT and PUNCHY (max 20 characters). This is for subtitles/captions.
+- 'visual_description' and 'image_prompt_hint' must be HIGHLY DETAILED. Include lighting (e.g., cinematic lighting, golden hour), composition (e.g., wide angle, close up), style (e.g., photorealistic, 8k, unreal engine 5), and mood.
+- **CRITICAL**: The generated images must NOT contain any text. Do not include signboards, logos with text, or letters in the visual description. The text will be added via overlay later.
 - Ensure the flow between scenes is logical and builds up to the call to action.
-- **OUTPUT LANGUAGE**: All text (voiceover, text_overlay, title) MUST be in **KOREAN (한국어)**.
+- **OUTPUT LANGUAGE**: Voiceover and Text Overlay MUST be in **KOREAN (한국어)**. Visual descriptions and prompts can be in English or Korean (English preferred for image gen).
 """
         return prompt
 

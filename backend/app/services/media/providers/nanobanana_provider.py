@@ -415,8 +415,11 @@ class NanoBananaProvider(MediaProvider):
         # 4. 이미지 생성을 명시적으로 요청하는 프리픽스 추가
         prefix = "Generate an image of: "
 
+        # 5. 텍스트 포함 금지 (Negative Prompt)
+        negative_instruction = " (NO TEXT, NO LETTERS, NO SIGNATURES, NO WATERMARKS, CLEAN BACKGROUND)"
+
         # 최종 프롬프트
-        enhanced = f"{prefix}{cleaned_prompt.strip()}, {style_guide}"
+        enhanced = f"{prefix}{cleaned_prompt.strip()}, {style_guide}{negative_instruction}"
 
         logger.info(f"[NanoBanana] Original prompt: {prompt[:80]}...")
         logger.info(f"[NanoBanana] Cleaned prompt: {cleaned_prompt[:80]}...")
