@@ -326,35 +326,66 @@ class VisionGeneratorAgent(AgentBase):
             thumb_url = None
 
             base64_data = result.get("base64")
-            if base64_data and brand_id and user_id and db_session:
-                try:
-                    pipeline = get_asset_ingestion_pipeline()
-                    ingested = await pipeline.ingest_from_base64(
-                        base64_str=base64_data,
-                        brand_id=brand_id,
-                        user_id=user_id,
-                        project_id=project_id,
-                        source=provider,
-                        source_metadata={
-                            "prompt_text": prompt_req.prompt_text,
-                            "negative_prompt": prompt_req.negative_prompt,
-                            "aspect_ratio": prompt_req.aspect_ratio,
-                            "style": prompt_req.style,
-                            "seed": result.get("seed"),
-                        },
-                        db=db_session,
-                    )
-                    asset_id = str(ingested.asset_id)
-                    original_url = ingested.original_url
-                    preview_url = ingested.preview_url
-                    thumb_url = ingested.thumb_url
-                    width = ingested.width
-                    height = ingested.height
+            if base64_data:
+                if brand_id and user_id and db_session:
+                    try:
+                        pipeline = get_asset_ingestion_pipeline()
+                        ingested = await pipeline.ingest_from_base64(
+                            base64_str=base64_data,
+                            brand_id=brand_id,
+                            user_id=user_id,
+                            project_id=project_id,
+                            source=provider,
+                            source_metadata={
+                                "prompt_text": prompt_req.prompt_text,
+                                "negative_prompt": prompt_req.negative_prompt,
+                                "aspect_ratio": prompt_req.aspect_ratio,
+                                "style": prompt_req.style,
+                                "seed": result.get("seed"),
+                            },
+                            db=db_session,
+                        )
+                        asset_id = str(ingested.asset_id)
+                        original_url = ingested.original_url
+                        preview_url = ingested.preview_url
+                        thumb_url = ingested.thumb_url
+                        width = ingested.width
+                        height = ingested.height
 
-                    logger.info(f"[VisionGeneratorAgent] Asset ingested: {asset_id}")
-                except Exception as ingest_err:
-                    # Ingestion 실패해도 이미지 생성 자체는 성공
-                    logger.warning(f"[VisionGeneratorAgent] Asset ingestion failed (continuing): {ingest_err}")
+                        logger.info(f"[VisionGeneratorAgent] Asset ingested: {asset_id}")
+                    except Exception as ingest_err:
+                        # Ingestion 실패해도 이미지 생성 자체는 성공
+                        logger.warning(f"[VisionGeneratorAgent] Asset ingestion failed (continuing): {ingest_err}")
+                
+                # Ingestion이 스킵되었거나 실패했고, original_url이 없는 경우
+                # 임시 스토리지에 업로드하여 URL 생성
+                if not original_url:
+                    try:
+                        from app.services.storage import storage_service
+                        import base64
+                        
+                        # Decode base64
+                        img_bytes = base64.b64decode(base64_data)
+                        
+                        # Upload to MinIO (temp bucket or similar)
+                        # bucket="assets" (default)
+                        bucket = "assets" 
+                        object_path = f"temp/generated/{image_id}.png"
+                        
+                        upload_result = storage_service.upload_file(
+                            bucket=bucket,
+                            object_path=object_path,
+                            file_data=img_bytes,
+                            content_type="image/png"
+                        )
+                        
+                        # Get presigned URL
+                        original_url = storage_service.get_presigned_url(upload_result["minio_path"])
+                        logger.info(f"[VisionGeneratorAgent] Uploaded temp image to MinIO: {original_url}")
+                        
+                    except Exception as upload_err:
+                        logger.error(f"[VisionGeneratorAgent] Temp upload failed: {upload_err}")
+                        # URL 생성 실패 시 base64라도 남김 (하지만 VideoDirector는 URL을 원함)
 
             return GeneratedImage(
                 image_id=image_id,
@@ -366,7 +397,7 @@ class VisionGeneratorAgent(AgentBase):
                 thumb_url=thumb_url,
                 # Legacy 필드 (하위 호환용)
                 image_url=result.get("url") or original_url,
-                image_base64=base64_data if not asset_id else None,  # 저장되면 base64 생략
+                image_base64=base64_data if not asset_id and not original_url else None,  # URL이 있으면 base64 생략
                 width=width,
                 height=height,
                 seed_used=result.get("seed"),
