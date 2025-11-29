@@ -106,14 +106,16 @@ class NanoBananaProvider(MediaProvider):
                 ),
             ]
 
-            # 이미지 생성 설정 (공식 문서: 대문자 'IMAGE' 사용)
+            # 이미지 생성 설정 (공식 문서: TEXT + IMAGE 모두 필요)
+            # V8 FIX: ['IMAGE']만으로는 안 됨, ['TEXT', 'IMAGE'] 필요
             config = types.GenerateContentConfig(
-                response_modalities=['IMAGE'],  # 이미지만 요청
+                response_modalities=['TEXT', 'IMAGE'],  # TEXT와 IMAGE 모두!
                 image_config=types.ImageConfig(
                     aspect_ratio=aspect_ratio
                 ),
                 safety_settings=safety_settings
             )
+            print(f">>> NANO DEBUG: config.response_modalities = ['TEXT', 'IMAGE']")
 
             # 이미지 생성
             logger.info(f"[NanoBanana] Calling Gemini API with model={model_name}")
@@ -124,6 +126,26 @@ class NanoBananaProvider(MediaProvider):
             )
 
             logger.info(f"[NanoBanana] Response received. Type: {type(response)}")
+
+            # ============ V8 DEBUG: 응답 전체 출력 ============
+            print(f">>> NANO DEBUG: response type = {type(response)}")
+            print(f">>> NANO DEBUG: response = {response}")
+            print(f">>> NANO DEBUG: response.text = {getattr(response, 'text', 'N/A')}")
+            print(f">>> NANO DEBUG: response.parts = {response.parts}")
+            print(f">>> NANO DEBUG: response.candidates = {getattr(response, 'candidates', 'N/A')}")
+
+            if hasattr(response, 'candidates') and response.candidates:
+                candidate = response.candidates[0]
+                print(f">>> NANO DEBUG: candidate.content = {getattr(candidate, 'content', 'N/A')}")
+                print(f">>> NANO DEBUG: candidate.finish_reason = {getattr(candidate, 'finish_reason', 'N/A')}")
+                print(f">>> NANO DEBUG: candidate.safety_ratings = {getattr(candidate, 'safety_ratings', 'N/A')}")
+
+            if response.parts:
+                for i, part in enumerate(response.parts):
+                    print(f">>> NANO DEBUG: part[{i}] = {part}")
+                    print(f">>> NANO DEBUG: part[{i}].inline_data = {getattr(part, 'inline_data', 'N/A')}")
+                    print(f">>> NANO DEBUG: part[{i}].text = {getattr(part, 'text', 'N/A')}")
+            # ============ V8 DEBUG END ============
 
             # 응답에서 이미지 추출 (공식 문서 방식)
             outputs = []
@@ -153,10 +175,12 @@ class NanoBananaProvider(MediaProvider):
                 # text 속성이 있으면 텍스트 응답일 수 있음
                 response_text = getattr(response, 'text', None)
                 logger.error(f"[NanoBanana] response.parts is None. text={response_text}")
+                print(f">>> NANO DEBUG: response.parts is None! response_text={response_text}")
 
                 # prompt_feedback 확인 (safety blocking)
                 if hasattr(response, 'prompt_feedback'):
                     logger.error(f"[NanoBanana] prompt_feedback: {response.prompt_feedback}")
+                    print(f">>> NANO DEBUG: prompt_feedback = {response.prompt_feedback}")
 
                 raise ProviderError(
                     message=f"Gemini returned no image (finish_reason={finish_reason_str}, text response received)",
@@ -280,9 +304,9 @@ class NanoBananaProvider(MediaProvider):
             # 간단한 이미지 생성으로 API 연결 확인
             response = self.client.models.generate_content(
                 model=self.default_model,
-                contents=["A simple test image"],
+                contents=["A simple test image of a red apple"],
                 config=types.GenerateContentConfig(
-                    response_modalities=['Image']
+                    response_modalities=['TEXT', 'IMAGE']  # V8 FIX
                 )
             )
             return response.parts and len(response.parts) > 0
