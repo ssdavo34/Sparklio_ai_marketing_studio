@@ -101,7 +101,9 @@ def _get_project_data(project: ProjectOutput) -> dict:
 
 def _update_project_in_db(db: Session, project: ProjectOutput, updates: dict):
     """DB에서 프로젝트 업데이트"""
-    source_meta = project.source_metadata or {}
+    from sqlalchemy.orm.attributes import flag_modified
+
+    source_meta = dict(project.source_metadata or {})  # 복사본 생성
 
     # source_metadata 업데이트 항목
     meta_fields = ["status", "script_status", "plan_draft", "error_message", "render_job_id"]
@@ -110,6 +112,7 @@ def _update_project_in_db(db: Session, project: ProjectOutput, updates: dict):
             source_meta[field] = updates[field]
 
     project.source_metadata = source_meta
+    flag_modified(project, "source_metadata")  # JSONB 변경 감지
 
     # 직접 컬럼 업데이트 항목
     if "video_url" in updates:
