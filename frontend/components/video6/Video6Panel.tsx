@@ -86,10 +86,8 @@ export function Video6Panel({ onClose, className = '' }: Video6PanelProps) {
   const handleTopicSubmit = async () => {
     if (!topicInput.trim()) return;
 
-    actions.setTopic(topicInput);
-
-    // 프로젝트 생성 및 플랜 실행
-    const projectId = await actions.createProject();
+    // 프로젝트 생성 시 topic을 직접 전달 (state 비동기 문제 회피)
+    const projectId = await actions.createProject(topicInput);
     if (projectId) {
       await actions.executePlan();
       setStep('PLAN_REVIEW');

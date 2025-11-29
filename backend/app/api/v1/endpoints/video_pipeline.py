@@ -14,6 +14,8 @@ PLAN/RENDER 2단계 플로우 기반 비디오 생성 API
 - POST /api/v1/video6/{project_id}/render - RENDER 모드 실행
 - GET /api/v1/video6/{project_id}/status - 상태 조회
 - GET /api/v1/video6/{project_id}/assets - Asset Pool 조회
+
+저장소: project_outputs 테이블 (output_type='video')
 """
 
 import logging
@@ -26,6 +28,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 
 from app.core.database import get_db
+from app.models.project_output import ProjectOutput
 from app.schemas.video_timeline import (
     VideoDirectorMode,
     VideoGenerationMode,
@@ -55,36 +58,69 @@ router = APIRouter()
 
 
 # =============================================================================
-# In-Memory Storage (MVP용 - 추후 DB로 이관)
+# DB Helper Functions
 # =============================================================================
 
-# 비디오 프로젝트 저장소 (video_project_id -> project_data)
-_video_projects: dict = {}
+def _get_project_from_db(db: Session, video_project_id: str) -> ProjectOutput:
+    """DB에서 프로젝트 조회"""
+    # video_project_id는 source_metadata.video_project_id에 저장됨
+    project = db.query(ProjectOutput).filter(
+        ProjectOutput.output_type == 'video',
+        ProjectOutput.source_metadata['video_project_id'].astext == video_project_id
+    ).first()
 
-
-# =============================================================================
-# Helper Functions
-# =============================================================================
-
-def _get_project(video_project_id: str) -> dict:
-    """프로젝트 조회"""
-    if video_project_id not in _video_projects:
+    if not project:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Video project not found: {video_project_id}"
         )
-    return _video_projects[video_project_id]
+    return project
 
 
-def _update_project(video_project_id: str, updates: dict):
-    """프로젝트 업데이트"""
-    if video_project_id not in _video_projects:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Video project not found: {video_project_id}"
-        )
-    _video_projects[video_project_id].update(updates)
-    _video_projects[video_project_id]["updated_at"] = datetime.utcnow().isoformat()
+def _get_project_data(project: ProjectOutput) -> dict:
+    """ProjectOutput을 dict로 변환"""
+    source_meta = project.source_metadata or {}
+    output_meta = project.output_metadata or {}
+
+    return {
+        "video_project_id": source_meta.get("video_project_id"),
+        "brand_id": str(project.brand_id) if project.brand_id else None,
+        "project_id": str(project.project_id) if project.project_id else None,
+        "name": project.name,
+        "status": source_meta.get("status", "not_started"),
+        "script_status": source_meta.get("script_status", "draft"),
+        "plan_draft": source_meta.get("plan_draft"),
+        "video_url": project.file_url,
+        "thumbnail_url": project.thumbnail_url,
+        "duration_sec": project.duration_sec,
+        "error_message": source_meta.get("error_message"),
+        "created_at": project.created_at.isoformat() if project.created_at else None,
+        "updated_at": project.updated_at.isoformat() if project.updated_at else None,
+    }
+
+
+def _update_project_in_db(db: Session, project: ProjectOutput, updates: dict):
+    """DB에서 프로젝트 업데이트"""
+    source_meta = project.source_metadata or {}
+
+    # source_metadata 업데이트 항목
+    meta_fields = ["status", "script_status", "plan_draft", "error_message", "render_job_id"]
+    for field in meta_fields:
+        if field in updates:
+            source_meta[field] = updates[field]
+
+    project.source_metadata = source_meta
+
+    # 직접 컬럼 업데이트 항목
+    if "video_url" in updates:
+        project.file_url = updates["video_url"]
+    if "thumbnail_url" in updates:
+        project.thumbnail_url = updates["thumbnail_url"]
+    if "duration_sec" in updates:
+        project.duration_sec = updates["duration_sec"]
+
+    db.commit()
+    db.refresh(project)
 
 
 # =============================================================================
@@ -100,33 +136,42 @@ async def create_video_project(
     비디오 프로젝트 생성
 
     새로운 비디오 프로젝트를 생성하고 ID를 반환합니다.
+    DB(project_outputs 테이블)에 저장됩니다.
     """
     video_project_id = f"vp_{uuid4().hex[:8]}"
-    now = datetime.utcnow().isoformat()
 
-    project_data = {
-        "video_project_id": video_project_id,
-        "brand_id": str(request.brand_id),
-        "project_id": str(request.project_id) if request.project_id else None,
-        "name": request.name or f"Video Project {video_project_id}",
-        "concept_board_id": request.concept_board_id,
-        "status": VideoProjectStatus.NOT_STARTED.value,
-        "script_status": ScriptStatus.DRAFT.value,
-        "plan_draft": None,
-        "video_url": None,
-        "thumbnail_url": None,
-        "created_at": now,
-        "updated_at": now,
-    }
+    # ProjectOutput 생성
+    project = ProjectOutput(
+        brand_id=request.brand_id,
+        project_id=request.project_id,
+        user_id=request.user_id,
+        output_type='video',
+        name=request.name or f"Video Project {video_project_id}",
+        status='draft',  # ProjectOutput status
+        source='video_pipeline_v2',
+        source_metadata={
+            "video_project_id": video_project_id,
+            "concept_board_id": request.concept_board_id,
+            "status": VideoProjectStatus.NOT_STARTED.value,
+            "script_status": ScriptStatus.DRAFT.value,
+            "plan_draft": None,
+        },
+        output_metadata={
+            "generation_mode": None,
+            "scenes_count": 0,
+        }
+    )
 
-    _video_projects[video_project_id] = project_data
+    db.add(project)
+    db.commit()
+    db.refresh(project)
 
-    logger.info(f"[VideoPipeline] Created project: {video_project_id}")
+    logger.info(f"[VideoPipeline] Created project: {video_project_id}, db_id={project.id}")
 
     return VideoProjectCreateResponse(
         video_project_id=video_project_id,
         status=VideoProjectStatus.NOT_STARTED,
-        created_at=now
+        created_at=project.created_at.isoformat()
     )
 
 
@@ -155,17 +200,18 @@ async def execute_plan_mode(
     - estimated_render_cost: 예상 렌더링 비용
     - estimated_render_time_sec: 예상 렌더링 시간
     """
-    project = _get_project(video_project_id)
+    project = _get_project_from_db(db, video_project_id)
+    project_data = _get_project_data(project)
 
     # 상태 체크
-    if project["status"] == VideoProjectStatus.RENDERING.value:
+    if project_data["status"] == VideoProjectStatus.RENDERING.value:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Project is currently rendering"
         )
 
     # 상태 업데이트
-    _update_project(video_project_id, {"status": VideoProjectStatus.PLANNING.value})
+    _update_project_in_db(db, project, {"status": VideoProjectStatus.PLANNING.value})
 
     try:
         # VideoDirector V3 호출
@@ -179,7 +225,7 @@ async def execute_plan_mode(
 
         # 컨셉 정보 구성 (MVP: 기본값 사용)
         concept = {
-            "concept_name": project.get("name", "Marketing Video"),
+            "concept_name": project_data.get("name", "Marketing Video"),
             "concept_description": "Short-form marketing video",
             "target_audience": "General audience",
             "tone_and_manner": "Professional",
@@ -205,7 +251,7 @@ async def execute_plan_mode(
         result = response.outputs[0].value
 
         if result.get("status") == VideoProjectStatus.FAILED.value:
-            _update_project(video_project_id, {"status": VideoProjectStatus.FAILED.value})
+            _update_project_in_db(db, project, {"status": VideoProjectStatus.FAILED.value})
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=result.get("error_message", "PLAN mode failed")
@@ -217,11 +263,19 @@ async def execute_plan_mode(
             # project_id를 실제 프로젝트 ID로 업데이트
             plan_draft["project_id"] = video_project_id
 
-        _update_project(video_project_id, {
+        _update_project_in_db(db, project, {
             "status": VideoProjectStatus.PLAN_READY.value,
             "plan_draft": plan_draft,
             "script_status": ScriptStatus.DRAFT.value
         })
+
+        # output_metadata 업데이트
+        project.output_metadata = {
+            **(project.output_metadata or {}),
+            "generation_mode": request.mode.value,
+            "scenes_count": len(plan_draft.get("scenes", [])) if plan_draft else 0,
+        }
+        db.commit()
 
         logger.info(f"[VideoPipeline] PLAN complete: {video_project_id}")
 
@@ -236,7 +290,7 @@ async def execute_plan_mode(
         raise
     except Exception as e:
         logger.error(f"[VideoPipeline] PLAN failed: {e}")
-        _update_project(video_project_id, {"status": VideoProjectStatus.FAILED.value})
+        _update_project_in_db(db, project, {"status": VideoProjectStatus.FAILED.value})
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
@@ -255,16 +309,17 @@ async def update_plan_draft(
     유저가 수정한 플랜을 저장합니다.
     RENDER 실행 전에 호출해야 합니다.
     """
-    project = _get_project(video_project_id)
+    project = _get_project_from_db(db, video_project_id)
+    project_data = _get_project_data(project)
 
     # 상태 체크
-    if project["status"] not in [
+    if project_data["status"] not in [
         VideoProjectStatus.PLAN_READY.value,
         VideoProjectStatus.NOT_STARTED.value
     ]:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"Cannot update plan in status: {project['status']}"
+            detail=f"Cannot update plan in status: {project_data['status']}"
         )
 
     # project_id 확인
@@ -272,7 +327,7 @@ async def update_plan_draft(
     plan_draft.script_status = ScriptStatus.USER_EDITED
 
     # 저장
-    _update_project(video_project_id, {
+    _update_project_in_db(db, project, {
         "plan_draft": plan_draft.model_dump(),
         "script_status": ScriptStatus.USER_EDITED.value
     })
@@ -306,17 +361,18 @@ async def execute_render_mode(
     - status: 현재 상태 (rendering)
     - estimated_time_sec: 예상 소요 시간
     """
-    project = _get_project(video_project_id)
+    project = _get_project_from_db(db, video_project_id)
+    project_data = _get_project_data(project)
 
     # 상태 체크
-    if project["status"] == VideoProjectStatus.RENDERING.value:
+    if project_data["status"] == VideoProjectStatus.RENDERING.value:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Project is already rendering"
         )
 
     # 플랜 확인
-    plan_draft_data = request.plan_draft.model_dump() if request and request.plan_draft else project.get("plan_draft")
+    plan_draft_data = request.plan_draft.model_dump() if request and request.plan_draft else project_data.get("plan_draft")
 
     if not plan_draft_data:
         raise HTTPException(
@@ -331,18 +387,20 @@ async def execute_render_mode(
     job_id = f"job_{uuid4().hex[:8]}"
 
     # 상태 업데이트
-    _update_project(video_project_id, {
+    _update_project_in_db(db, project, {
         "status": VideoProjectStatus.RENDERING.value,
         "plan_draft": plan_draft_data,
         "script_status": ScriptStatus.APPROVED.value,
         "render_job_id": job_id
     })
 
-    # 백그라운드에서 렌더링 실행
+    # 백그라운드에서 렌더링 실행 (DB ID 전달)
     background_tasks.add_task(
         _execute_render_background,
+        str(project.id),
         video_project_id,
-        plan_draft_data
+        plan_draft_data,
+        project_data.get("name", "Marketing Video")
     )
 
     logger.info(f"[VideoPipeline] RENDER started: {video_project_id}, job_id={job_id}")
@@ -359,9 +417,22 @@ async def execute_render_mode(
     )
 
 
-async def _execute_render_background(video_project_id: str, plan_draft_data: dict):
+async def _execute_render_background(
+    db_id: str,
+    video_project_id: str,
+    plan_draft_data: dict,
+    project_name: str
+):
     """백그라운드 렌더링 실행"""
+    from app.core.database import SessionLocal
+
+    db = SessionLocal()
     try:
+        project = db.query(ProjectOutput).filter(ProjectOutput.id == db_id).first()
+        if not project:
+            logger.error(f"[VideoPipeline] Project not found in DB: {db_id}")
+            return
+
         llm_gateway = get_llm_gateway()
         media_gateway = get_media_gateway()
 
@@ -371,9 +442,8 @@ async def _execute_render_background(video_project_id: str, plan_draft_data: dic
         )
 
         # 컨셉 정보 구성
-        project = _video_projects.get(video_project_id, {})
         concept = {
-            "concept_name": project.get("name", "Marketing Video"),
+            "concept_name": project_name,
             "concept_description": "Short-form marketing video",
             "target_audience": "General audience",
             "tone_and_manner": "Professional",
@@ -395,22 +465,37 @@ async def _execute_render_background(video_project_id: str, plan_draft_data: dic
         result = response.outputs[0].value
 
         if result.get("status") == VideoProjectStatus.FAILED.value:
-            _video_projects[video_project_id]["status"] = VideoProjectStatus.FAILED.value
-            _video_projects[video_project_id]["error_message"] = result.get("error_message")
+            _update_project_in_db(db, project, {
+                "status": VideoProjectStatus.FAILED.value,
+                "error_message": result.get("error_message")
+            })
         else:
-            _video_projects[video_project_id].update({
-                "status": VideoProjectStatus.COMPLETED.value,
-                "video_url": result.get("video_url"),
-                "thumbnail_url": result.get("thumbnail_url"),
-                "duration_sec": result.get("duration_sec")
+            # 성공 시 ProjectOutput 업데이트
+            project.status = 'active'
+            project.file_url = result.get("video_url")
+            project.thumbnail_url = result.get("thumbnail_url")
+            project.duration_sec = result.get("duration_sec")
+            project.completed_at = datetime.utcnow()
+
+            _update_project_in_db(db, project, {
+                "status": VideoProjectStatus.COMPLETED.value
             })
 
         logger.info(f"[VideoPipeline] RENDER complete: {video_project_id}")
 
     except Exception as e:
         logger.error(f"[VideoPipeline] RENDER failed: {video_project_id}, error={e}")
-        _video_projects[video_project_id]["status"] = VideoProjectStatus.FAILED.value
-        _video_projects[video_project_id]["error_message"] = str(e)
+        try:
+            project = db.query(ProjectOutput).filter(ProjectOutput.id == db_id).first()
+            if project:
+                _update_project_in_db(db, project, {
+                    "status": VideoProjectStatus.FAILED.value,
+                    "error_message": str(e)
+                })
+        except Exception:
+            pass
+    finally:
+        db.close()
 
 
 @router.get("/{video_project_id}/status", response_model=VideoStatusResponse)
@@ -429,24 +514,25 @@ async def get_project_status(
     - video_url: 완성된 영상 URL (completed 상태에서)
     - thumbnail_url: 썸네일 URL (completed 상태에서)
     """
-    project = _get_project(video_project_id)
+    project = _get_project_from_db(db, video_project_id)
+    project_data = _get_project_data(project)
 
     plan_draft = None
-    if project.get("plan_draft"):
+    if project_data.get("plan_draft"):
         try:
-            plan_draft = VideoPlanDraftV1(**project["plan_draft"])
+            plan_draft = VideoPlanDraftV1(**project_data["plan_draft"])
         except Exception:
             pass
 
     return VideoStatusResponse(
         project_id=video_project_id,
-        status=VideoProjectStatus(project["status"]),
-        script_status=ScriptStatus(project.get("script_status", "draft")),
+        status=VideoProjectStatus(project_data["status"]),
+        script_status=ScriptStatus(project_data.get("script_status", "draft")),
         plan_draft=plan_draft,
-        video_url=project.get("video_url"),
-        thumbnail_url=project.get("thumbnail_url"),
-        duration_sec=project.get("duration_sec"),
-        error_message=project.get("error_message")
+        video_url=project_data.get("video_url"),
+        thumbnail_url=project_data.get("thumbnail_url"),
+        duration_sec=project_data.get("duration_sec"),
+        error_message=project_data.get("error_message")
     )
 
 
@@ -462,15 +548,29 @@ async def get_asset_pool(
 
     TODO: ConceptBoard 연동 후 실제 에셋 조회 구현
     """
-    project = _get_project(video_project_id)
+    from app.models.asset import GeneratedAsset
 
-    # MVP: 빈 목록 반환
-    # TODO: brand_id로 GeneratedAsset 조회
+    project = _get_project_from_db(db, video_project_id)
+
+    # brand_id로 GeneratedAsset 조회
+    assets = db.query(GeneratedAsset).filter(
+        GeneratedAsset.brand_id == project.brand_id,
+        GeneratedAsset.type == 'image',
+        GeneratedAsset.status == 'active'
+    ).order_by(GeneratedAsset.created_at.desc()).limit(50).all()
+
     return {
         "video_project_id": video_project_id,
-        "assets": [],
-        "total": 0,
-        "message": "Asset Pool integration coming soon"
+        "assets": [
+            {
+                "id": str(a.id),
+                "url": a.preview_url or a.original_url or a.minio_path,
+                "thumb_url": a.thumb_url,
+                "name": a.name,
+            }
+            for a in assets
+        ],
+        "total": len(assets),
     }
 
 
@@ -479,11 +579,18 @@ async def get_asset_pool(
 # =============================================================================
 
 @router.get("/health")
-async def health_check():
+async def health_check(db: Session = Depends(get_db)):
     """Video Pipeline V2 헬스체크"""
+    # DB에서 활성 프로젝트 수 조회
+    active_count = db.query(ProjectOutput).filter(
+        ProjectOutput.output_type == 'video',
+        ProjectOutput.status.in_(['draft', 'processing'])
+    ).count()
+
     return {
         "status": "ok",
         "service": "video_pipeline_v2",
         "version": "2.0.0",
-        "active_projects": len(_video_projects)
+        "storage": "database",
+        "active_projects": active_count
     }

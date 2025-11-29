@@ -368,6 +368,7 @@ class VideoBuildResult(BaseModel):
 class VideoProjectCreateRequest(BaseModel):
     """POST /api/v1/video6/projects 요청"""
     brand_id: UUID
+    user_id: UUID  # 생성자 ID (필수)
     project_id: Optional[UUID] = None  # 연결할 프로젝트 ID
     name: Optional[str] = None
     concept_board_id: Optional[str] = None

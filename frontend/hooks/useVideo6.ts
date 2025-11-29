@@ -82,8 +82,8 @@ interface UseVideo6Actions {
   deselectAsset: (assetId: string) => void;
   clearSelectedAssets: () => void;
 
-  // 프로젝트 생성
-  createProject: () => Promise<string | null>;
+  // 프로젝트 생성 (topic 직접 전달 가능)
+  createProject: (overrideTopic?: string) => Promise<string | null>;
 
   // Plan
   executePlan: () => Promise<void>;
@@ -223,13 +223,20 @@ export function useVideo6(): [UseVideo6State, UseVideo6Actions] {
   // 프로젝트 생성
   // ============================================================================
 
-  const createProject = useCallback(async (): Promise<string | null> => {
-    if (!state.mode || !state.topic.trim()) {
+  const createProject = useCallback(async (overrideTopic?: string): Promise<string | null> => {
+    const topic = overrideTopic || state.topic;
+
+    if (!state.mode || !topic.trim()) {
       setState((prev) => ({
         ...prev,
         error: '모드와 주제를 입력해주세요.',
       }));
       return null;
+    }
+
+    // overrideTopic이 주어지면 state도 업데이트
+    if (overrideTopic) {
+      setState((prev) => ({ ...prev, topic: overrideTopic }));
     }
 
     setState((prev) => ({
@@ -240,7 +247,7 @@ export function useVideo6(): [UseVideo6State, UseVideo6Actions] {
 
     try {
       const response = await createVideoProject({
-        topic: state.topic,
+        topic: topic,
         mode: state.mode,
         selected_asset_ids:
           state.mode !== 'creative' ? state.selectedAssetIds : undefined,
