@@ -8,7 +8,7 @@ VideoBuilder의 입력 타입과 PLAN/RENDER 2단계 플로우를 위한 스키�
 참조: docs/VIDEO_PIPELINE_DESIGN_V2.md
 """
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import List, Optional, Literal
 from enum import Enum
 from uuid import UUID
@@ -255,14 +255,18 @@ class SceneDraft(BaseModel):
     generate_new_image: bool = False  # True면 새로 생성
     image_prompt: Optional[str] = None  # 새 이미지 프롬프트
 
-    @field_validator("image_url")
-    @classmethod
-    def validate_image_source(cls, v, info):
+    @model_validator(mode="after")
+    def validate_image_source(self):
         """image_id 또는 image_url 중 하나는 필수 (generate_new_image=False인 경우)"""
-        if not info.data.get("generate_new_image"):
-            if not v and not info.data.get("image_id"):
-                raise ValueError("image_id 또는 image_url 중 하나는 필수입니다 (generate_new_image=False)")
-        return v
+        # 새로 생성할 이미지면 기존 이미지 정보 불필요
+        if self.generate_new_image:
+            return self
+
+        # 기존 이미지 재사용인데 이미지 정보가 없으면 에러
+        if not self.image_id and not self.image_url:
+            raise ValueError("image_id 또는 image_url 중 하나는 필수입니다 (generate_new_image=False)")
+
+        return self
 
 
 class VideoPlanDraftV1(BaseModel):
