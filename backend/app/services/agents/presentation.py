@@ -3,11 +3,11 @@ Presentation Agent (Demo Day)
 
 컨셉 기반 프레젠테이션 슬라이드 구조 및 내용 생성
 
-작성일: 2025-11-27
+작성일: 2025-11-30
 작성자: B팀 (Backend)
 
-LLM: Gemini 2.0 Flash
-출력: 6-10개 슬라이드 구조 (제목, 본문, 비주얼 가이드)
+LLM: Claude 3.5 Haiku
+출력: 12-15개 슬라이드 구조 (Sparklio Vision Deck 지원)
 """
 
 import json
@@ -33,22 +33,22 @@ class PresentationInput(BaseModel):
     product_name: str = Field(..., description="제품/서비스명")
     presentation_type: str = Field(
         default="pitch",
-        description="프레젠테이션 유형 (pitch, sales, internal, investor)"
+        description="프레젠테이션 유형 (pitch, sales, internal, investor, vision)"
     )
-    slide_count: int = Field(default=8, ge=5, le=15, description="슬라이드 수")
+    slide_count: int = Field(default=12, ge=5, le=20, description="슬라이드 수")
     include_speaker_notes: bool = Field(default=True, description="발표자 노트 포함")
 
 
 class SlideOutput(BaseModel):
     """슬라이드 출력"""
     slide_number: int = Field(..., description="슬라이드 번호")
-    slide_type: str = Field(..., description="슬라이드 유형 (title, content, comparison, cta 등)")
+    slide_type: str = Field(..., description="슬라이드 유형 (vision, system_architecture, roadmap, team 등)")
     title: str = Field(..., description="슬라이드 제목")
     subtitle: Optional[str] = Field(None, description="부제목")
     body_points: List[str] = Field(default_factory=list, description="본문 포인트 (3-5개)")
     visual_suggestion: str = Field(..., description="비주얼 제안 (이미지/차트/아이콘 설명)")
     speaker_notes: Optional[str] = Field(None, description="발표자 노트")
-    layout: str = Field(default="standard", description="레이아웃 (standard, two_column, full_image)")
+    layout: str = Field(default="standard", description="레이아웃 (standard, two_column, full_image, stats, process)")
     animation_hint: Optional[str] = Field(None, description="애니메이션 힌트")
 
 
@@ -71,16 +71,7 @@ class PresentationAgent(AgentBase):
     Presentation Agent
 
     마케팅 컨셉을 기반으로 고품질 프레젠테이션 구조를 생성합니다.
-
-    구조:
-    1. Title Slide: 브랜드/제품 소개
-    2. Problem: 고객의 Pain Point
-    3. Solution: 우리의 해결책
-    4. Features: 핵심 기능/장점
-    5. Benefits: 고객 혜택
-    6. How It Works: 작동 방식
-    7. Social Proof: 사례/후기
-    8. Pricing/CTA: 가격/행동 유도
+    Sparklio Vision Deck을 포함한 다양한 프레젠테이션 유형을 지원합니다.
     """
 
     @property
@@ -115,10 +106,10 @@ class PresentationAgent(AgentBase):
                 task="generate_presentation",
                 payload={"prompt": prompt},
                 mode="json",
-                override_model="gemini-2.0-flash",
+                override_model="claude-3-5-haiku-20241022",
                 options={
                     "temperature": 0.7,
-                    "max_tokens": 10000
+                    "max_tokens": 4000
                 }
             )
         except Exception as e:
@@ -179,7 +170,8 @@ class PresentationAgent(AgentBase):
             "pitch": "투자자/파트너를 위한 피치 덱",
             "sales": "영업/세일즈를 위한 제품 소개 자료",
             "internal": "내부 팀을 위한 프로젝트 소개",
-            "investor": "투자 유치를 위한 IR 자료"
+            "investor": "투자 유치를 위한 IR 자료",
+            "vision": "Sparklio 비전 및 로드맵 발표 자료 (Vision Deck)"
         }
 
         type_desc = presentation_type_desc.get(
@@ -232,7 +224,7 @@ class PresentationAgent(AgentBase):
             speaker_notes_instruction = """
 - speaker_notes: 발표자가 참고할 노트 (2-3문장, 청중과의 소통 팁 포함)"""
 
-        prompt = f"""당신은 프레젠테이션 전문가입니다. 아래 정보를 바탕으로 {input_data.slide_count}개 슬라이드의 {type_desc}을 설계하세요.
+        prompt = f"""당신은 세계적인 수준의 프레젠테이션 전문가입니다. 아래 정보를 바탕으로 {input_data.slide_count}개 슬라이드의 {type_desc}을 설계하세요.
 
 ## 제품/서비스
 - 이름: {input_data.product_name}
@@ -258,32 +250,32 @@ class PresentationAgent(AgentBase):
 
 ## 프레젠테이션 구조 가이드
 
-**필수 슬라이드 유형:**
-1. title: 제목 슬라이드 (브랜드, 슬로건)
-2. problem: 문제 제기 (고객 Pain Point)
-3. solution: 해결책 제시
-4. features: 핵심 기능/특징 (3-4개)
-5. benefits: 고객 혜택 (수치화된 결과)
-6. how_it_works: 작동 방식/프로세스
-7. social_proof: 사례/후기/수치 (신뢰 구축)
-8. cta: 행동 유도 (다음 단계)
+**필수 슬라이드 유형 (Vision Deck 기준):**
+1. cover: 타이틀 슬라이드 (강렬한 첫인상)
+2. vision: 우리의 비전과 미션
+3. problem: 시장의 문제점 (Pain Point)
+4. solution: 우리의 해결책 (Value Proposition)
+5. system_architecture: 시스템 아키텍처/구조도
+6. agents_overview: AI 에이전트/핵심 기술 개요
+7. pipeline: 데이터/작업 파이프라인
+8. features: 주요 기능 상세
+9. benefits: 고객 혜택 (ROI 등)
+10. business_model: 비즈니스 모델/수익 구조
+11. roadmap: 향후 로드맵/계획
+12. team: 팀 소개
+13. cta: 마지막 행동 유도
 
-**선택 슬라이드 유형:**
-- comparison: 경쟁사 비교
-- pricing: 가격 정보
-- team: 팀 소개
-- roadmap: 로드맵
-
-## 고품질 슬라이드 작성 원칙
-
+**슬라이드 작성 원칙:**
 1. **제목**: 청중이 기억할 수 있는 간결하고 임팩트 있는 문구 (10자 이내)
 2. **본문 포인트**: 3-5개, 각 포인트는 한 줄로 요약 (15자 이내)
 3. **비주얼 제안**: 구체적인 이미지/차트/아이콘 설명
-4. **레이아웃**:
-   - standard: 제목 + 본문 + 이미지
-   - two_column: 좌우 분할 (비교용)
-   - full_image: 전면 이미지 + 오버레이 텍스트
-   - stats: 숫자/통계 강조
+4. **레이아웃 선택 가이드**:
+   - `standard`: 일반적인 제목+본문+이미지 (vision, features, benefits)
+   - `two_column`: 좌우 분할 (agents_overview, business_model, team)
+   - `full_image`: 전면 이미지 (cover, cta)
+   - `stats`: 숫자/통계 강조 (roadmap, social_proof)
+   - `process`: 단계별 프로세스 (system_architecture, pipeline)
+
 {speaker_notes_instruction}
 
 ## 출력 형식 (JSON)
@@ -295,14 +287,14 @@ class PresentationAgent(AgentBase):
     "slides": [
         {{
             "slide_number": 1,
-            "slide_type": "title",
+            "slide_type": "cover",
             "title": "슬라이드 제목",
             "subtitle": "부제목 (선택)",
             "body_points": ["포인트1", "포인트2", "포인트3"],
             "visual_suggestion": "구체적인 비주얼 설명",
-            "speaker_notes": "발표자 노트 (선택)",
-            "layout": "standard",
-            "animation_hint": "fade_in (선택)"
+            "speaker_notes": "발표자 노트",
+            "layout": "full_image",
+            "animation_hint": "fade_in"
         }}
     ],
     "design_guidelines": {{
@@ -342,7 +334,7 @@ class PresentationAgent(AgentBase):
         for i, slide_data in enumerate(data.get("slides", [])):
             slide = SlideOutput(
                 slide_number=slide_data.get("slide_number", i + 1),
-                slide_type=slide_data.get("slide_type", "content"),
+                slide_type=slide_data.get("slide_type", "default"),
                 title=slide_data.get("title", f"슬라이드 {i + 1}"),
                 subtitle=slide_data.get("subtitle"),
                 body_points=slide_data.get("body_points", []),

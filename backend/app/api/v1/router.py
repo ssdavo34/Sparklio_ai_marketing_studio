@@ -11,6 +11,7 @@ from app.api.v1.endpoints import (
     embeddings,  # Vector DB API (P3 - 2025-11-28)
     unsplash,  # Unsplash API Proxy (C팀 지원 - 2025-11-28)
     video_pipeline,  # Video Pipeline V2 API (P1 - 2025-11-30)
+    presentations,  # Presentation API (Vision Deck - 2025-11-30)
 )
 # agents (legacy) - Deprecated, import 에러로 주석 처리
 
@@ -159,4 +160,11 @@ api_router.include_router(
     video_pipeline.router,
     prefix="/video6",
     tags=["Video Pipeline"]
+)
+
+# Presentation API (Vision Deck - 2025-11-30)
+api_router.include_router(
+    presentations.router,
+    prefix="/presentations",
+    tags=["Presentations"]
 )

@@ -87,14 +87,41 @@ export interface PresentationData {
 
 export interface SlideData {
   slide_number: number;
-  slide_type: 'cover' | 'problem' | 'solution' | 'features' | 'benefits' | 'cta';
+  slide_type: SlideType;
+  layout?: SlideLayout;
   title: string;
   subtitle?: string;
   content?: string | string[] | FeatureItem[] | BenefitItem[];
+  bullets?: string[];
   background_image_url?: string;
   elements?: SlideElement[];
   cta_button?: CTAButton;
+  speakerNotes?: string; // 발표자 노트 추가
 }
+
+export type SlideType =
+  | 'cover'
+  | 'problem'
+  | 'solution'
+  | 'features'
+  | 'benefits'
+  | 'cta'
+  // Sparklio Vision Deck 확장
+  | 'vision'
+  | 'system_architecture'
+  | 'agents_overview'
+  | 'pipeline'
+  | 'roadmap'
+  | 'business_model'
+  | 'team'
+  | 'default';
+
+export type SlideLayout =
+  | 'standard'
+  | 'two_column'
+  | 'full_image'
+  | 'stats'
+  | 'process';
 
 export interface FeatureItem {
   feature: string;

@@ -1,120 +1,60 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { Edit } from 'lucide-react';
+import React, { useEffect, useState, useCallback } from 'react';
+import { Edit, Save, Download, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCenterViewStore } from '../stores/useCenterViewStore';
 import { useGeneratedAssetsStore } from '../stores/useGeneratedAssetsStore';
 import { useCanvasStore } from '../stores/useCanvasStore';
 import { addSlidesToCanvas } from '@/lib/canvas/slidesTemplate';
 import { toast } from '@/components/ui/Toast';
-import type { PresentationData } from '@/types/demo';
-
-// 통합 슬라이드 타입
-interface SlideViewData {
-  id: string;
-  title: string;
-  content: string | any[];
-  bullets?: string[];
-  speakerNotes?: string;
-  slide_type?: string;
-  subtitle?: string;
-  cta_button?: { text: string; url?: string };
-}
-
-interface PresentationViewData {
-  id: string;
-  title: string;
-  slides: SlideViewData[];
-}
+import type { PresentationData, SlideData, SlideLayout } from '@/types/demo';
 
 export function SlidesPreviewView() {
   const { selectedConcept, backToConceptBoard, backToCanvas, setView } = useCenterViewStore();
-  const generatedSlidesData = useGeneratedAssetsStore((state) => state.slidesData);
+  const { slidesData: generatedSlidesData, setSlidesData } = useGeneratedAssetsStore();
   const polotnoStore = useCanvasStore((state) => state.polotnoStore);
-  const [mockData, setMockData] = useState<PresentationData | null>(null);
-  const [currentSlide, setCurrentSlide] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
-  const [dataSource, setDataSource] = useState<'generated' | 'mock'>('generated');
 
-  // Mock 데이터 로드 (생성된 데이터가 없을 때만)
+  const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Local state for editing to avoid global store thrashing
+  // We sync this with the store when changing slides or saving
+  const [localSlides, setLocalSlides] = useState<SlideData[]>([]);
+
+  // Initialize local slides from store
   useEffect(() => {
-    async function loadMockData() {
-      if (generatedSlidesData) {
-        setIsLoading(false);
-        setDataSource('generated');
-        return;
-      }
-
-      setIsLoading(true);
-      try {
-        const response = await fetch('/mock-data/presentation-sample.json');
-        const data = await response.json();
-        setMockData(data);
-        setDataSource('mock');
-      } catch (err) {
-        console.error('Error loading presentation:', err);
-      } finally {
-        setIsLoading(false);
-      }
+    if (generatedSlidesData?.slides) {
+      // Ensure compatibility with SlideData type
+      const mappedSlides: SlideData[] = generatedSlidesData.slides.map(s => ({
+        ...s,
+        slide_number: s.slide_number || 0, // Ensure slide_number exists
+        slide_type: (s.slide_type as any) || 'default',
+        layout: (s.layout as any) || 'standard',
+      } as SlideData));
+      setLocalSlides(mappedSlides);
     }
-    loadMockData();
   }, [generatedSlidesData]);
 
-  // 표시할 데이터 결정
-  const presentationData: PresentationViewData | null = generatedSlidesData
-    ? {
-        id: generatedSlidesData.id,
-        title: generatedSlidesData.title,
-        slides: generatedSlidesData.slides.map((slide) => ({
-          id: slide.id,
-          title: slide.title,
-          content: slide.content,
-          bullets: slide.bullets,
-          speakerNotes: slide.speakerNotes,
-          slide_type: 'content',
-        })),
-      }
-    : mockData
-      ? {
-          id: mockData.id,
-          title: mockData.title,
-          slides: mockData.slides.map((slide, idx) => ({
-            id: `slide-${slide.slide_number || idx + 1}`,
-            title: slide.title,
-            content: slide.content || '',
-            slide_type: slide.slide_type,
-            subtitle: slide.subtitle,
-            cta_button: slide.cta_button,
-          })),
-        }
-      : null;
+  const currentSlide = localSlides[currentSlideIndex];
+  const totalSlides = localSlides.length;
 
-  if (isLoading) {
-    return (
-      <div className="h-full flex items-center justify-center bg-gray-100">
-        <div className="w-10 h-10 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+  // Update a specific field of the current slide
+  const updateSlideField = (field: keyof SlideData, value: any) => {
+    const updatedSlides = [...localSlides];
+    updatedSlides[currentSlideIndex] = {
+      ...updatedSlides[currentSlideIndex],
+      [field]: value,
+    };
+    setLocalSlides(updatedSlides);
 
-  if (!presentationData) {
-    return (
-      <div className="h-full flex items-center justify-center bg-gray-100">
-        <div className="text-center">
-          <p className="text-gray-500 mb-4">프레젠테이션 데이터를 불러올 수 없습니다.</p>
-          <button
-            onClick={backToCanvas}
-            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-          >
-            캔버스로 돌아가기
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const slide = presentationData.slides[currentSlide];
-  const totalSlides = presentationData.slides.length;
+    // Sync to global store immediately for "Single Source of Truth"
+    if (generatedSlidesData) {
+      setSlidesData({
+        ...generatedSlidesData,
+        slides: updatedSlides as any // Casting to satisfy the store's type which might be slightly different
+      });
+    }
+  };
 
   // Canvas로 변환 핸들러
   const handleEditInCanvas = () => {
@@ -123,33 +63,62 @@ export function SlidesPreviewView() {
       return;
     }
 
-    if (!presentationData) {
+    if (localSlides.length === 0) {
       toast.error('프레젠테이션 데이터가 없습니다');
       return;
     }
 
     try {
-      // Slides를 Canvas에 추가
-      const slides = presentationData.slides.map((s) => ({
-        id: s.id,
-        title: s.title,
-        content: typeof s.content === 'string' ? s.content : '',
-        bullets: s.bullets,
-        subtitle: s.subtitle,
-        speakerNotes: s.speakerNotes,
-      }));
-
-      addSlidesToCanvas(polotnoStore, slides);
-
-      // Canvas 뷰로 전환
+      addSlidesToCanvas(polotnoStore, localSlides);
       setView('canvas');
-
-      toast.success(`${slides.length}개 슬라이드가 Canvas에 추가되었습니다`);
+      toast.success(`${localSlides.length}개 슬라이드가 Canvas에 추가되었습니다`);
     } catch (error: any) {
       console.error('[SlidesPreview] Canvas 변환 실패:', error);
       toast.error('Canvas 변환 실패: ' + (error?.message || '알 수 없는 오류'));
     }
   };
+
+  // 저장 핸들러 (Mock)
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // In a real app, we would POST to /api/v1/presentations
+      // For now, we just ensure the store is updated (which is done in updateSlideField)
+
+      toast.success('프레젠테이션이 저장되었습니다');
+    } catch (error) {
+      toast.error('저장 중 오류가 발생했습니다');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // 내보내기 핸들러 (Mock)
+  const handleExport = () => {
+    toast.success('내보내기 준비 중... (PNG 다운로드)');
+    // TODO: Implement actual export logic re-using ExportDialog
+  };
+
+  if (!generatedSlidesData && localSlides.length === 0) {
+    return (
+      <div className="h-full flex items-center justify-center bg-gray-100">
+        <div className="text-center">
+          <p className="text-gray-500 mb-4">프레젠테이션 데이터를 불러올 수 없습니다.</p>
+          <button
+            onClick={backToConceptBoard}
+            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+          >
+            컨셉보드로 돌아가기
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentSlide) return null;
 
   return (
     <div className="h-full flex flex-col bg-gray-100">
@@ -163,14 +132,34 @@ export function SlidesPreviewView() {
             ← 컨셉보드로
           </button>
           <span className="text-gray-300">|</span>
-          <h2 className="font-semibold text-gray-900">📊 {presentationData.title}</h2>
-          {dataSource === 'generated' && (
-            <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">
-              AI 생성
-            </span>
-          )}
+          <h2 className="font-semibold text-gray-900">
+            {generatedSlidesData?.title || '프레젠테이션 미리보기'}
+          </h2>
+          <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">
+            Light Editor
+          </span>
         </div>
-        <div className="flex items-center gap-3">
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors"
+          >
+            <Save className="w-4 h-4" />
+            {isSaving ? '저장 중...' : '저장'}
+          </button>
+
+          <button
+            onClick={handleExport}
+            className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors"
+          >
+            <Download className="w-4 h-4" />
+            내보내기
+          </button>
+
+          <div className="h-6 w-px bg-gray-300 mx-2" />
+
           <button
             onClick={handleEditInCanvas}
             className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2 text-sm font-medium transition-colors"
@@ -178,137 +167,129 @@ export function SlidesPreviewView() {
             <Edit className="w-4 h-4" />
             Canvas에서 편집
           </button>
-          <span className="text-sm text-gray-500">
-            {currentSlide + 1} / {totalSlides}
-          </span>
         </div>
       </div>
 
-      {/* 콘셉트 컨텍스트 */}
-      {selectedConcept && (
-        <div className="bg-purple-50 px-6 py-2 border-b">
-          <p className="text-sm text-purple-700">
-            <span className="font-medium">Concept:</span> {selectedConcept.concept_name}
-          </p>
-        </div>
-      )}
+      {/* 메인 영역 */}
+      <div className="flex-1 flex overflow-hidden">
 
-      {/* 생성된 데이터 안내 */}
-      {dataSource === 'generated' && (
-        <div className="bg-green-50 px-6 py-2 border-b">
-          <p className="text-sm text-green-700">
-            Chat AI가 생성한 슬라이드입니다.
-          </p>
-        </div>
-      )}
+        {/* 슬라이드 프리뷰 & 에디터 */}
+        <div className="flex-1 flex flex-col items-center justify-center p-8 overflow-y-auto">
+          <div className="w-full max-w-4xl">
 
-      {/* 슬라이드 영역 */}
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div
-          className="bg-white rounded-xl shadow-xl max-w-3xl w-full aspect-[16/9] p-8 flex flex-col justify-center"
-        >
-          {/* 슬라이드 타입 배지 */}
-          {slide.slide_type && (
-            <div className="mb-4">
-              <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded uppercase">
-                {slide.slide_type}
-              </span>
+            {/* 슬라이드 카드 */}
+            <div className="bg-white rounded-xl shadow-xl aspect-[16/9] p-12 flex flex-col relative group">
+
+              {/* 슬라이드 타입/레이아웃 표시 (Hover 시) */}
+              <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded border">
+                  Type: {currentSlide.slide_type}
+                </span>
+                <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded border">
+                  Layout: {currentSlide.layout}
+                </span>
+              </div>
+
+              {/* 제목 편집 */}
+              <input
+                type="text"
+                value={currentSlide.title}
+                onChange={(e) => updateSlideField('title', e.target.value)}
+                className="text-4xl font-bold text-gray-900 mb-4 w-full border-b border-transparent hover:border-gray-200 focus:border-purple-500 focus:outline-none bg-transparent transition-colors"
+                placeholder="슬라이드 제목"
+              />
+
+              {/* 부제목 편집 */}
+              <input
+                type="text"
+                value={currentSlide.subtitle || ''}
+                onChange={(e) => updateSlideField('subtitle', e.target.value)}
+                className="text-xl text-gray-600 mb-8 w-full border-b border-transparent hover:border-gray-200 focus:border-purple-500 focus:outline-none bg-transparent transition-colors"
+                placeholder="부제목을 입력하세요"
+              />
+
+              {/* 본문 편집 */}
+              <div className="flex-1 overflow-y-auto">
+                {typeof currentSlide.content === 'string' ? (
+                  <textarea
+                    value={currentSlide.content}
+                    onChange={(e) => updateSlideField('content', e.target.value)}
+                    className="w-full h-full resize-none text-lg text-gray-700 leading-relaxed border border-transparent hover:border-gray-200 focus:border-purple-500 focus:outline-none rounded p-2 -ml-2 bg-transparent transition-colors"
+                    placeholder="본문 내용을 입력하세요"
+                  />
+                ) : (
+                  <div className="text-gray-400 italic">
+                    복잡한 콘텐츠는 Canvas 모드에서 편집해주세요.
+                  </div>
+                )}
+
+                {/* Bullets 편집 (간단히 텍스트로 변환하여 편집하거나, 별도 UI 제공 가능) */}
+                {currentSlide.bullets && currentSlide.bullets.length > 0 && (
+                  <div className="mt-4 space-y-2">
+                    {currentSlide.bullets.map((bullet, idx) => (
+                      <div key={idx} className="flex items-start gap-2">
+                        <span className="text-purple-500 mt-1.5">•</span>
+                        <input
+                          type="text"
+                          value={bullet}
+                          onChange={(e) => {
+                            const newBullets = [...(currentSlide.bullets || [])];
+                            newBullets[idx] = e.target.value;
+                            updateSlideField('bullets', newBullets);
+                          }}
+                          className="flex-1 text-lg text-gray-700 border-b border-transparent hover:border-gray-200 focus:border-purple-500 focus:outline-none bg-transparent"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
             </div>
-          )}
 
-          {/* 타이틀 */}
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">{slide.title}</h1>
-
-          {/* 서브타이틀 */}
-          {slide.subtitle && (
-            <p className="text-xl text-gray-600 mb-6">{slide.subtitle}</p>
-          )}
-
-          {/* 콘텐츠 */}
-          {slide.content && (
-            <div className="text-gray-700">
-              {Array.isArray(slide.content) ? (
-                <ul className="space-y-2">
-                  {slide.content.map((item, idx) => (
-                    <li key={idx} className="flex items-start gap-2">
-                      <span className="text-purple-500">•</span>
-                      <span>
-                        {typeof item === 'string'
-                          ? item
-                          : 'feature' in item
-                            ? `${item.feature}: ${item.description}`
-                            : `${item.metric}: ${item.value} (${item.description})`
-                        }
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p>{slide.content}</p>
-              )}
+            {/* 발표자 노트 에디터 */}
+            <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <label className="block text-xs font-bold text-yellow-800 mb-2 uppercase tracking-wide">
+                Speaker Notes
+              </label>
+              <textarea
+                value={currentSlide.speakerNotes || ''}
+                onChange={(e) => updateSlideField('speakerNotes', e.target.value)}
+                className="w-full bg-transparent border-none focus:ring-0 text-sm text-yellow-900 resize-none placeholder-yellow-800/50"
+                rows={3}
+                placeholder="발표자 노트를 입력하세요..."
+              />
             </div>
-          )}
 
-          {/* Bullets (생성된 슬라이드용) */}
-          {slide.bullets && slide.bullets.length > 0 && (
-            <ul className="space-y-2 mt-4">
-              {slide.bullets.map((bullet, idx) => (
-                <li key={idx} className="flex items-start gap-2 text-gray-700">
-                  <span className="text-purple-500">•</span>
-                  <span>{bullet}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          {/* CTA 버튼 */}
-          {slide.cta_button && (
-            <div className="mt-8">
-              <button className="px-6 py-3 bg-purple-600 text-white rounded-lg font-medium">
-                {slide.cta_button.text}
-              </button>
-            </div>
-          )}
+          </div>
         </div>
       </div>
 
-      {/* 발표자 노트 (생성된 슬라이드용) */}
-      {slide.speakerNotes && (
-        <div className="bg-yellow-50 border-t px-6 py-3">
-          <p className="text-xs font-semibold text-yellow-700 mb-1">발표자 노트:</p>
-          <p className="text-sm text-yellow-800">{slide.speakerNotes}</p>
-        </div>
-      )}
-
-      {/* 네비게이션 */}
-      <div className="bg-white border-t px-6 py-4 flex items-center justify-center gap-4">
+      {/* 하단 네비게이션 */}
+      <div className="bg-white border-t px-6 py-4 flex items-center justify-center gap-8">
         <button
-          onClick={() => setCurrentSlide(Math.max(0, currentSlide - 1))}
-          disabled={currentSlide === 0}
-          className="px-4 py-2 border rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+          onClick={() => setCurrentSlideIndex(Math.max(0, currentSlideIndex - 1))}
+          disabled={currentSlideIndex === 0}
+          className="p-2 rounded-full hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         >
-          ← 이전
+          <ChevronLeft className="w-6 h-6 text-gray-600" />
         </button>
 
-        {/* 슬라이드 인디케이터 */}
-        <div className="flex gap-1">
-          {presentationData.slides.map((_, idx) => (
-            <button
-              key={idx}
-              onClick={() => setCurrentSlide(idx)}
-              className={`w-2 h-2 rounded-full transition-colors ${
-                idx === currentSlide ? 'bg-purple-500' : 'bg-gray-300 hover:bg-gray-400'
-              }`}
-            />
-          ))}
+        <div className="flex flex-col items-center">
+          <span className="text-lg font-medium text-gray-900">
+            {currentSlideIndex + 1} <span className="text-gray-400">/</span> {totalSlides}
+          </span>
+          <span className="text-xs text-gray-500 uppercase mt-0.5">
+            {currentSlide.slide_type.replace('_', ' ')}
+          </span>
         </div>
 
         <button
-          onClick={() => setCurrentSlide(Math.min(totalSlides - 1, currentSlide + 1))}
-          disabled={currentSlide === totalSlides - 1}
-          className="px-4 py-2 border rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+          onClick={() => setCurrentSlideIndex(Math.min(totalSlides - 1, currentSlideIndex + 1))}
+          disabled={currentSlideIndex === totalSlides - 1}
+          className="p-2 rounded-full hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         >
-          다음 →
+          <ChevronRight className="w-6 h-6 text-gray-600" />
         </button>
       </div>
     </div>

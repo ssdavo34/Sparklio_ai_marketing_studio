@@ -27,12 +27,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "TEST_REPORT_GEMINI.md",
+                "file": "presentation/구현 계획 - Sparklio 비전 프리젠테이션.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "TEST_REPORT_GEMINI"
+              "title": "구현 계획 - Sparklio 비전 프리젠테이션"
             }
           }
         ],
@@ -198,8 +198,17 @@
       "bases:새 베이스 생성하기": false
     }
   },
-  "active": "99348368cff7262a",
+  "active": "2ab8856fccf2d677",
   "lastOpenFiles": [
+    "TEST_REPORT_GEMINI.md",
+    "presentation/구현 계획 - Sparklio 비전 프리젠테이션.md",
+    "presentation/프리젠테이션 현황 및 개발 제안에 대한 평가 gpt.md",
+    "presentation/프리젠테이션 현황 및 개발 제안 검토.md",
+    "presentation",
+    "presentaion",
+    "새 폴더",
+    "VIDEO_PIPELINE_V2_STATUS_REPORT_2025-11-30.md",
+    "VIDEO_PIPELINE_V2_STATUS_REPORT_2025-11-30.md.tmp.34100.1764430877389",
     "B_TEAM_REQUEST_VIDEO_PIPELINE_ENHANCEMENT_2025-11-30.md",
     "B_TEAM_REQUEST_VIDEO_PIPELINE_ENHANCEMENT_2025-11-30.md.tmp.34100.1764429617748",
     "TEAM_B_HANDOVER_REPORT_2025-11-29.md",
@@ -216,13 +225,9 @@
     "B_TEAM_REQUEST_LOGGING_FIX_2025-11-29.md",
     "B_TEAM_REQUEST_LOGGING_FIX_2025-11-29.md.tmp.34100.1764415929609",
     "B_TEAM_REQUEST_CRITICAL_2025-11-29.md",
-    "B_TEAM_REQUEST_CRITICAL_2025-11-29.md.tmp.34100.1764408627551",
     "B_TEAM_REQUEST_NANOBANANA_BLOCK_2025-11-29.md",
-    "B_TEAM_REQUEST_NANOBANANA_BLOCK_2025-11-29.md.tmp.34100.1764406811489",
     "B_TEAM_REQUEST_FINAL_2025-11-29.md",
-    "B_TEAM_REQUEST_FINAL_2025-11-29.md.tmp.34100.1764396934614",
     "B_TEAM_REQUEST_MINIO_URL_2025-11-29.md",
-    "B_TEAM_REQUEST_MINIO_URL_2025-11-29.md.tmp.34100.1764396198546",
     "B_TEAM_REQUEST_RENDER_FIX_V4_2025-11-29.md",
     "B_TEAM_REQUEST_RENDER_FIX_V3_2025-11-29.md",
     "B_TEAM_REQUEST_RENDER_FIX_V2_2025-11-29.md",
@@ -230,11 +235,6 @@
     "B_TEAM_REQUEST_CORS_FIX_2025-11-29.md",
     "FRONTEND_API_CHANGE_2025-11-30.md",
     "VIDEO_PIPELINE_DESIGN_V2.md",
-    "VIDEO_PIPELINE_WORK_PLAN.md",
-    "STORAGE_SYSTEM_GAP_ANALYSIS_2025-11-30.md",
-    "PRD/Sparklio_V4_PRD_Final 1.md",
-    "B_TEAM_DAILY_BACKEND_REPORT_2025-11-29.md",
-    "TESTING_GUIDE_MEETING_CONTEXT.md",
-    "PRD/Sparklio_V4_PRD_Final.md"
+    "VIDEO_PIPELINE_WORK_PLAN.md"
   ]
 }

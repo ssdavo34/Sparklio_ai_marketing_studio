@@ -24,12 +24,15 @@ import { sendChatMessage } from '@/lib/llm-gateway-client';
 // 슬라이드 데이터
 export interface GeneratedSlide {
   id: string;
+  slide_number: number;
   title: string;
   content: string;
   bullets?: string[];
   speakerNotes?: string;
   imagePrompt?: string;
   imageUrl?: string;
+  slide_type?: string;
+  layout?: string;
 }
 
 export interface GeneratedSlidesData {
@@ -199,11 +202,14 @@ function extractSlidesData(parsed: any, userMessage: string): GeneratedSlidesDat
       title: parsed.title || parsed.presentation_title || '생성된 슬라이드',
       slides: parsed.slides.map((slide: any, idx: number) => ({
         id: `slide-${idx + 1}`,
+        slide_number: slide.slide_number || idx + 1,
         title: slide.title || slide.headline || `슬라이드 ${idx + 1}`,
         content: slide.content || slide.body || slide.text || '',
         bullets: slide.bullets || slide.points || [],
         speakerNotes: slide.speaker_notes || slide.notes || '',
         imagePrompt: slide.image_prompt || slide.visual_prompt || '',
+        slide_type: slide.slide_type || 'default',
+        layout: slide.layout || 'standard',
       })),
       createdAt: new Date(),
       sourceMessage: userMessage,
