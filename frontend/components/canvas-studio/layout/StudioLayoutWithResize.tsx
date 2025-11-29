@@ -35,7 +35,19 @@ export function StudioLayout() {
     isRightDockCollapsed
   } = useLayoutStore();
 
-  const { isOpen: isVideo6ModalOpen, closeModal: closeVideo6Modal } = useVideo6ModalStore();
+  // Zustand store 직접 구독 - 매 렌더링마다 최신 상태 확인
+  const isVideo6ModalOpen = useVideo6ModalStore((state) => state.isOpen);
+  const closeVideo6Modal = useVideo6ModalStore((state) => state.closeModal);
+
+  // 디버깅: 컴포넌트 마운트 확인
+  useEffect(() => {
+    console.log('[StudioLayout] Component mounted');
+  }, []);
+
+  // 디버깅: isVideo6ModalOpen 값 변화 추적
+  useEffect(() => {
+    console.log('[StudioLayout] isVideo6ModalOpen changed:', isVideo6ModalOpen);
+  }, [isVideo6ModalOpen]);
 
   // 키보드 단축키 설정
   useEffect(() => {

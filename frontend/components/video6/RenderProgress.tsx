@@ -6,6 +6,7 @@ import { VideoStatus } from '@/types/video-pipeline';
 interface RenderProgressProps {
   status: VideoStatus;
   progress: number; // 0-100
+  currentStep?: string;
   estimatedTimeRemaining?: string;
   videoUrl?: string;
   thumbnailUrl?: string;
@@ -24,6 +25,7 @@ const STATUS_CONFIG: Record<VideoStatus, { label: string; color: string; icon: s
 export function RenderProgress({
   status,
   progress,
+  currentStep,
   estimatedTimeRemaining,
   videoUrl,
   thumbnailUrl,
@@ -129,7 +131,7 @@ export function RenderProgress({
 
       {status === 'rendering' && (
         <p className="text-sm text-gray-500 text-center mt-2">
-          영상을 렌더링하고 있습니다. 잠시만 기다려주세요...
+          {currentStep || '영상을 렌더링하고 있습니다. 잠시만 기다려주세요...'}
         </p>
       )}
     </div>

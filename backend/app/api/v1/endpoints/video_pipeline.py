@@ -276,8 +276,9 @@ async def execute_plan_mode(
         # 플랜 저장
         plan_draft = result.get("plan_draft")
         if plan_draft:
-            # project_id를 실제 프로젝트 ID로 업데이트
+            # project_id와 mode를 저장
             plan_draft["project_id"] = video_project_id
+            plan_draft["mode"] = request.mode.value  # RENDER 시 이미지 생성 모드 결정에 필요
 
         _update_project_in_db(db, project, {
             "status": VideoProjectStatus.PLAN_READY.value,

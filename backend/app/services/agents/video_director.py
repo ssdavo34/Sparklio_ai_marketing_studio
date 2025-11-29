@@ -850,14 +850,18 @@ class VideoDirectorAgent(AgentBase):
         plan_draft = input_data.plan_draft
         image_urls: Dict[int, str] = {}
 
+        logger.info(f"[VideoDirector] _prepare_images_v3: generation_mode={input_data.generation_mode}")
+
         # 1. 기존 이미지 URL 수집
         for scene in plan_draft.scenes:
             if scene.image_url:
                 image_urls[scene.scene_index] = scene.image_url
+                logger.debug(f"[VideoDirector] Scene {scene.scene_index}: using existing URL")
             elif scene.image_id:
                 # TODO: Asset Pool에서 URL 조회
                 # 현재는 placeholder
                 image_urls[scene.scene_index] = f"https://placeholder/{scene.image_id}"
+                logger.debug(f"[VideoDirector] Scene {scene.scene_index}: using asset_id placeholder")
 
         # 2. 새 이미지 생성이 필요한 씬
         scenes_to_generate = [
@@ -865,41 +869,65 @@ class VideoDirectorAgent(AgentBase):
             if s.generate_new_image and s.scene_index not in image_urls
         ]
 
+        logger.info(f"[VideoDirector] Scenes to generate: {len(scenes_to_generate)}")
+
         if scenes_to_generate and input_data.generation_mode != VideoGenerationMode.REUSE:
             # VisionGenerator로 이미지 생성
-            from app.services.agents.vision_generator import get_vision_generator_agent, ImageGenerationRequest
+            logger.info(f"[VideoDirector] Starting VisionGenerator for {len(scenes_to_generate)} scenes")
 
-            prompts = [
-                ImageGenerationRequest(
-                    prompt_text=s.image_prompt or "Marketing visual",
-                    negative_prompt="blurry, low quality, text, watermark",
-                    aspect_ratio="9:16",
-                    style="realistic"
+            try:
+                from app.services.agents.vision_generator import get_vision_generator_agent, ImageGenerationRequest
+
+                prompts = [
+                    ImageGenerationRequest(
+                        prompt_text=s.image_prompt or "Marketing visual",
+                        negative_prompt="blurry, low quality, text, watermark",
+                        aspect_ratio="9:16",
+                        style="realistic"
+                    )
+                    for s in scenes_to_generate
+                ]
+
+                agent = get_vision_generator_agent(
+                    llm_gateway=self.llm_gateway,
+                    media_gateway=self.media_gateway
                 )
-                for s in scenes_to_generate
-            ]
 
-            agent = get_vision_generator_agent(
-                llm_gateway=self.llm_gateway,
-                media_gateway=self.media_gateway
-            )
-            response = await agent.execute(AgentRequest(
-                task="generate_images",
-                payload={
-                    "prompts": [p.model_dump() for p in prompts],
-                    "provider": "nanobanana",
-                    "batch_mode": True,
-                    "max_concurrent": 3
-                }
-            ))
+                logger.info("[VideoDirector] Calling VisionGenerator.execute...")
 
-            result = response.outputs[0].value
-            generated_images = result.get("images", [])
+                response = await agent.execute(AgentRequest(
+                    task="generate_images",
+                    payload={
+                        "prompts": [p.model_dump() for p in prompts],
+                        "provider": "nanobanana",
+                        "batch_mode": True,
+                        "max_concurrent": 3
+                    }
+                ))
 
-            for i, scene in enumerate(scenes_to_generate):
-                if i < len(generated_images) and generated_images[i].get("status") == "completed":
-                    image_urls[scene.scene_index] = generated_images[i].get("image_url")
+                result = response.outputs[0].value
+                generated_images = result.get("images", [])
 
+                logger.info(f"[VideoDirector] VisionGenerator returned {len(generated_images)} images")
+
+                for i, scene in enumerate(scenes_to_generate):
+                    if i < len(generated_images) and generated_images[i].get("status") == "completed":
+                        image_urls[scene.scene_index] = generated_images[i].get("image_url")
+                        logger.info(f"[VideoDirector] Scene {scene.scene_index}: image generated")
+                    else:
+                        status = generated_images[i].get("status") if i < len(generated_images) else "missing"
+                        logger.warning(f"[VideoDirector] Scene {scene.scene_index}: image failed ({status})")
+
+            except Exception as e:
+                logger.error(f"[VideoDirector] VisionGenerator error: {e}", exc_info=True)
+                # 예외가 발생해도 계속 진행 (기존 이미지만 사용)
+        else:
+            if not scenes_to_generate:
+                logger.info("[VideoDirector] No scenes need new images")
+            else:
+                logger.info(f"[VideoDirector] Skipping image generation (mode={input_data.generation_mode})")
+
+        logger.info(f"[VideoDirector] _prepare_images_v3 complete: {len(image_urls)} images ready")
         return image_urls
 
     def _plan_draft_to_timeline(

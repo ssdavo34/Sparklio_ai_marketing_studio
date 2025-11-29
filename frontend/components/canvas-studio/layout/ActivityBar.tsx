@@ -12,8 +12,7 @@
 
 'use client';
 
-import { useLeftPanelStore, type LeftPanelTab } from '../stores/useLeftPanelStore';
-import { useVideo6ModalStore } from '../stores/useVideo6ModalStore';
+import { useLeftPanelStore, type LeftPanelTab, useVideo6ModalStore } from '../stores';
 import { FileText, Plus, Type, Upload, Image as ImageIcon, Palette, Settings, HelpCircle, FolderOpen, Mic, Sparkles, Video } from 'lucide-react';
 
 interface Tool {
@@ -78,7 +77,9 @@ export function ActivityBar() {
         <button
           onClick={() => {
             console.log('[Video6] Button clicked, opening modal...');
+            console.log('[Video6] Store state BEFORE:', useVideo6ModalStore.getState());
             openVideo6Modal();
+            console.log('[Video6] Store state AFTER:', useVideo6ModalStore.getState());
           }}
           className="flex h-14 items-center justify-center text-neutral-400 transition-colors hover:bg-purple-900/50 hover:text-purple-300 border-l-2 border-transparent hover:border-purple-500"
           title="비디오 만들기"

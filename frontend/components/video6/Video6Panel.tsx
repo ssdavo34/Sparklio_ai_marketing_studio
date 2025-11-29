@@ -89,7 +89,8 @@ export function Video6Panel({ onClose, className = '' }: Video6PanelProps) {
     // 프로젝트 생성 시 topic을 직접 전달 (state 비동기 문제 회피)
     const projectId = await actions.createProject(topicInput);
     if (projectId) {
-      await actions.executePlan();
+      // projectId를 직접 전달 (React state 업데이트가 비동기이므로)
+      await actions.executePlan(projectId);
       setStep('PLAN_REVIEW');
     }
   };
@@ -329,6 +330,8 @@ export function Video6Panel({ onClose, className = '' }: Video6PanelProps) {
             progress={state.renderProgress.progress}
             currentStep={state.renderProgress.currentStep}
             estimatedTimeRemaining={state.renderProgress.estimatedTimeRemaining}
+            errorMessage={state.error || undefined}
+            onRetry={state.renderProgress.status === 'error' ? handleApproveAndRender : undefined}
           />
         )}
 

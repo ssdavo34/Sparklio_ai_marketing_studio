@@ -18,6 +18,8 @@
 
 import { ReactNode, useRef, useCallback } from 'react';
 import { useLayoutStore } from '../stores/useLayoutStore';
+import { useVideo6ModalStore } from '../stores';
+import { Video6Modal } from '@/components/video6';
 
 interface StudioLayoutProps {
   topToolbar: ReactNode;
@@ -34,6 +36,10 @@ export function StudioLayout({
   canvas,
   rightDock,
 }: StudioLayoutProps) {
+  // Video6 Modal 상태
+  const isVideo6ModalOpen = useVideo6ModalStore((state) => state.isOpen);
+  const closeVideo6Modal = useVideo6ModalStore((state) => state.closeModal);
+
   const {
     leftPanelWidth,
     isLeftPanelCollapsed,
@@ -170,6 +176,9 @@ export function StudioLayout({
           </>
         )}
       </div>
+
+      {/* Video6 Modal (전체 화면 오버레이) */}
+      <Video6Modal isOpen={isVideo6ModalOpen} onClose={closeVideo6Modal} />
     </div>
   );
 }

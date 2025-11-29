@@ -277,8 +277,11 @@ export function useVideo6(): [UseVideo6State, UseVideo6Actions] {
   // Plan 관련
   // ============================================================================
 
-  const executePlan = useCallback(async () => {
-    if (!state.projectId) {
+  const executePlan = useCallback(async (projectIdOverride?: string) => {
+    // state.projectId 또는 직접 전달된 projectId 사용 (비동기 state 업데이트 문제 회피)
+    const projectId = projectIdOverride || state.projectId;
+
+    if (!projectId) {
       setState((prev) => ({
         ...prev,
         error: '프로젝트가 생성되지 않았습니다.',
@@ -294,7 +297,11 @@ export function useVideo6(): [UseVideo6State, UseVideo6Actions] {
     }));
 
     try {
-      const response = await executePlanMode(state.projectId);
+      // mode와 선택된 에셋 정보를 전달
+      const response = await executePlanMode(projectId, {
+        mode: state.mode,
+        available_assets: state.selectedAssetIds.length > 0 ? state.selectedAssetIds : undefined,
+      });
 
       setState((prev) => ({
         ...prev,

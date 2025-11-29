@@ -46,18 +46,25 @@ export function Video6Modal({ isOpen, onClose }: Video6ModalProps) {
     };
   }, [isOpen, handleKeyDown]);
 
-  if (!isOpen) return null;
+  console.log('[Video6Modal] Rendering, isOpen:', isOpen);
+
+  if (!isOpen) {
+    console.log('[Video6Modal] isOpen is false, returning null');
+    return null;
+  }
+
+  console.log('[Video6Modal] Rendering modal content');
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center">
       {/* 배경 오버레이 */}
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fadeIn"
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-200"
         onClick={onClose}
       />
 
       {/* 모달 컨테이너 */}
-      <div className="relative w-full h-full max-w-4xl max-h-[90vh] m-4 animate-slideUp">
+      <div className="relative w-full h-full max-w-4xl max-h-[90vh] m-4 transition-all duration-300">
         <div className="w-full h-full bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col">
           {/* 닫기 버튼 (고정 위치) */}
           <button
@@ -72,37 +79,6 @@ export function Video6Modal({ isOpen, onClose }: Video6ModalProps) {
           <Video6Panel onClose={onClose} className="flex-1" />
         </div>
       </div>
-
-      {/* 애니메이션 스타일 */}
-      <style jsx>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
-        }
-
-        @keyframes slideUp {
-          from {
-            opacity: 0;
-            transform: translateY(20px) scale(0.98);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
-        }
-
-        .animate-fadeIn {
-          animation: fadeIn 0.2s ease-out forwards;
-        }
-
-        .animate-slideUp {
-          animation: slideUp 0.3s ease-out forwards;
-        }
-      `}</style>
     </div>
   );
 }
