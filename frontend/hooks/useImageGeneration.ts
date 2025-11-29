@@ -43,11 +43,16 @@ export interface ImageGenerationRequest {
 
 export interface ImageGenerationResult {
   success: boolean;
-  imageUrl?: string;
+  imageUrl?: string; // Legacy: preview_url 사용 권장
   prompt: string;
   seed?: number;
   error?: string;
   generationTime?: number;
+  // 3종 URL (2025-11-30 추가)
+  assetId?: string;
+  originalUrl?: string;
+  previewUrl?: string;
+  thumbUrl?: string;
 }
 
 export interface UseImageGenerationOptions {
@@ -98,12 +103,31 @@ function mapUIProviderToAgent(uiProvider?: ImageLLMProvider): ImageProvider {
 
 /**
  * GeneratedImage를 ImageGenerationResult로 변환
+ *
+ * 3종 URL 우선순위:
+ * - 캔버스 표시: preview_url (1080px) 권장
+ * - 다운로드/원본: original_url
+ * - 썸네일/그리드: thumb_url (200px)
+ * - Legacy fallback: image_url
  */
 function convertToResult(
   generatedImage: GeneratedImage,
   request: ImageGenerationRequest
 ): ImageGenerationResult {
-  if (generatedImage.status === 'completed' && generatedImage.image_url) {
+  // 3종 URL 또는 legacy image_url 확인
+  const hasValidUrl =
+    generatedImage.preview_url ||
+    generatedImage.original_url ||
+    generatedImage.image_url;
+
+  if (generatedImage.status === 'completed' && hasValidUrl) {
+    // 캔버스 표시용 URL 결정 (preview_url 우선)
+    const displayUrl =
+      generatedImage.preview_url ||
+      generatedImage.original_url ||
+      generatedImage.image_url ||
+      '';
+
     // Element 업데이트 (있는 경우)
     if (request.element) {
       const metadata = createNanoBananaMetadata(
@@ -112,15 +136,20 @@ function convertToResult(
         generatedImage.seed_used
       );
 
-      updateImageSource(request.element, generatedImage.image_url, metadata);
+      updateImageSource(request.element, displayUrl, metadata);
     }
 
     return {
       success: true,
-      imageUrl: generatedImage.image_url,
+      imageUrl: displayUrl, // Legacy 호환
       prompt: request.prompt,
       seed: generatedImage.seed_used,
       generationTime: generatedImage.generation_time,
+      // 3종 URL
+      assetId: generatedImage.asset_id,
+      originalUrl: generatedImage.original_url,
+      previewUrl: generatedImage.preview_url,
+      thumbUrl: generatedImage.thumb_url,
     };
   } else {
     return {

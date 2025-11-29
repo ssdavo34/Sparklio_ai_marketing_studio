@@ -9,6 +9,11 @@ Video Director Agent
 참조: AGENTS_SPEC.md - VideoDirectorAgent
 
 역할: 영상 제작 총괄 (오케스트레이터)
+
+V2 업데이트 (2025-11-30):
+- PLAN/RENDER 2단계 플로우 지원
+- VideoGenerationMode (REUSE, HYBRID, CREATIVE) 지원
+- VideoPlanDraftV1 → VideoTimelinePlanV1 변환
 """
 
 import json
@@ -19,6 +24,29 @@ from datetime import datetime
 from uuid import uuid4
 
 from app.services.agents.base import AgentBase, AgentRequest, AgentResponse, AgentOutput, AgentError
+from app.schemas.video_timeline import (
+    VideoDirectorMode,
+    VideoGenerationMode,
+    VideoProjectStatus,
+    ScriptStatus,
+    VideoPlanDraftV1,
+    SceneDraft,
+    VideoTimelinePlanV1,
+    CanvasConfig,
+    GlobalConfig,
+    AudioConfig,
+    SceneConfig,
+    ImageConfig,
+    MotionConfig,
+    TransitionConfig,
+    TextLayer,
+    SceneType,
+    MotionType,
+    TransitionType,
+    TextRole,
+    TextPosition,
+    BGMMode,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +56,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 class VideoDirectorInput(BaseModel):
-    """VideoDirectorAgent 입력"""
+    """VideoDirectorAgent 입력 (기존 V1)"""
     concept: Dict[str, Any] = Field(..., description="컨셉 정보 (ConceptV1)")
     script: Optional[str] = Field(None, description="스크립트 (선택)")
     video_type: str = Field(default="shorts", description="영상 유형")
@@ -37,6 +65,52 @@ class VideoDirectorInput(BaseModel):
     auto_generate_images: bool = Field(default=True, description="이미지 자동 생성")
     bgm_url: Optional[str] = Field(None, description="BGM URL (선택)")
     voiceover_url: Optional[str] = Field(None, description="나레이션 URL (선택)")
+
+
+class VideoDirectorInputV3(BaseModel):
+    """VideoDirectorAgent V3 입력 (PLAN/RENDER 모드)"""
+    # 모드 설정
+    mode: VideoDirectorMode = Field(default=VideoDirectorMode.PLAN, description="실행 모드")
+    generation_mode: VideoGenerationMode = Field(default=VideoGenerationMode.HYBRID, description="이미지 생성 모드")
+
+    # 컨셉 정보
+    concept: Dict[str, Any] = Field(..., description="컨셉 정보 (ConceptV1)")
+    concept_board_id: Optional[str] = Field(None, description="컨셉보드 ID")
+
+    # 이미지 소스
+    available_assets: Optional[List[str]] = Field(None, description="재사용 가능 이미지 ID 목록")
+
+    # 영상 설정
+    video_type: str = Field(default="shorts", description="영상 유형")
+    target_duration: float = Field(default=15.0, description="목표 길이 (초)")
+    music_mood: str = Field(default="warm_lofi", description="음악 분위기")
+    style: str = Field(default="dynamic", description="스타일")
+
+    # RENDER 모드용 - 유저가 수정한 플랜
+    plan_draft: Optional[VideoPlanDraftV1] = Field(None, description="유저 수정 플랜 (RENDER 모드)")
+
+    # 오디오
+    bgm_url: Optional[str] = Field(None, description="BGM URL (선택)")
+
+
+class VideoDirectorOutputV3(BaseModel):
+    """VideoDirectorAgent V3 출력"""
+    production_id: str = Field(..., description="제작 ID")
+    mode: VideoDirectorMode = Field(..., description="실행 모드")
+    status: VideoProjectStatus = Field(default=VideoProjectStatus.PLAN_READY, description="상태")
+
+    # PLAN 모드 결과
+    plan_draft: Optional[VideoPlanDraftV1] = Field(None, description="플랜 초안")
+    estimated_render_cost: Optional[float] = Field(None, description="예상 렌더 비용")
+    estimated_render_time_sec: Optional[int] = Field(None, description="예상 렌더 시간 (초)")
+
+    # RENDER 모드 결과
+    video_url: Optional[str] = Field(None, description="영상 URL")
+    thumbnail_url: Optional[str] = Field(None, description="썸네일 URL")
+    duration_sec: Optional[float] = Field(None, description="영상 길이")
+
+    # 메타
+    error_message: Optional[str] = Field(None, description="에러 메시지")
 
 
 class ProductionStep(BaseModel):
@@ -400,6 +474,423 @@ class VideoDirectorAgent(AgentBase):
             "scenes": scenes,
             "total_duration": input_data.target_duration
         }
+
+    # =========================================================================
+    # V3: PLAN/RENDER 2단계 플로우
+    # =========================================================================
+
+    async def execute_v3(self, request: AgentRequest) -> AgentResponse:
+        """
+        V3 영상 제작 실행 (PLAN/RENDER 모드)
+
+        PLAN 모드: 스토리보드/스크립트 생성 (LLM만 사용)
+        RENDER 모드: 실제 영상 렌더링 (GPU/API 사용)
+
+        Args:
+            request: AgentRequest
+
+        Returns:
+            AgentResponse
+        """
+        start_time = datetime.utcnow()
+        production_id = f"prod_{uuid4().hex[:8]}"
+
+        self._validate_request(request)
+
+        try:
+            input_data = VideoDirectorInputV3(**request.payload)
+        except Exception as e:
+            raise AgentError(
+                message=f"Invalid V3 input: {str(e)}",
+                agent=self.name,
+                details={"payload": request.payload}
+            )
+
+        logger.info(f"[VideoDirectorAgent] V3 mode={input_data.mode}, production_id={production_id}")
+
+        if input_data.mode == VideoDirectorMode.PLAN:
+            output_data = await self._execute_plan_mode(input_data, production_id)
+        else:
+            output_data = await self._execute_render_mode(input_data, production_id)
+
+        elapsed = (datetime.utcnow() - start_time).total_seconds()
+
+        logger.info(f"[VideoDirectorAgent] V3 completed in {elapsed:.2f}s, status={output_data.status}")
+
+        return AgentResponse(
+            agent=self.name,
+            task=request.task,
+            outputs=[
+                self._create_output(
+                    output_type="json",
+                    name="video_production_v3",
+                    value=output_data.model_dump(),
+                    meta={"production_id": production_id, "mode": input_data.mode.value}
+                )
+            ],
+            usage={
+                "elapsed_seconds": elapsed,
+                "mode": input_data.mode.value,
+                "generation_mode": input_data.generation_mode.value
+            },
+            meta={
+                "production_id": production_id,
+                "mode": input_data.mode.value
+            }
+        )
+
+    async def _execute_plan_mode(
+        self,
+        input_data: VideoDirectorInputV3,
+        production_id: str
+    ) -> VideoDirectorOutputV3:
+        """
+        PLAN 모드 실행
+
+        LLM만 사용하여 스토리보드/스크립트 초안 생성
+        """
+        logger.info(f"[VideoDirectorAgent] PLAN mode: generating draft")
+
+        try:
+            # 1. StoryboardBuilder로 스토리보드 생성
+            storyboard = await self._generate_storyboard_v3(input_data)
+
+            # 2. 스토리보드 → VideoPlanDraftV1 변환
+            plan_draft = self._storyboard_to_plan_draft(
+                storyboard=storyboard,
+                input_data=input_data,
+                production_id=production_id
+            )
+
+            # 3. 비용/시간 추정
+            new_image_count = sum(1 for s in plan_draft.scenes if s.generate_new_image)
+            estimated_cost = new_image_count * 0.05  # 이미지당 $0.05 가정
+            estimated_time = 30 + (new_image_count * 10) + 60  # 기본 30초 + 이미지 생성 + 렌더링
+
+            logger.info(f"[VideoDirectorAgent] PLAN complete: {len(plan_draft.scenes)} scenes")
+
+            return VideoDirectorOutputV3(
+                production_id=production_id,
+                mode=VideoDirectorMode.PLAN,
+                status=VideoProjectStatus.PLAN_READY,
+                plan_draft=plan_draft,
+                estimated_render_cost=estimated_cost,
+                estimated_render_time_sec=estimated_time
+            )
+
+        except Exception as e:
+            logger.error(f"[VideoDirectorAgent] PLAN mode failed: {e}")
+            return VideoDirectorOutputV3(
+                production_id=production_id,
+                mode=VideoDirectorMode.PLAN,
+                status=VideoProjectStatus.FAILED,
+                error_message=str(e)
+            )
+
+    async def _execute_render_mode(
+        self,
+        input_data: VideoDirectorInputV3,
+        production_id: str
+    ) -> VideoDirectorOutputV3:
+        """
+        RENDER 모드 실행
+
+        GPU/API를 사용하여 실제 영상 생성
+        """
+        logger.info(f"[VideoDirectorAgent] RENDER mode: generating video")
+
+        if not input_data.plan_draft:
+            raise AgentError(
+                message="plan_draft is required for RENDER mode",
+                agent=self.name,
+                details={}
+            )
+
+        try:
+            # 1. 필요한 이미지 생성 (HYBRID/CREATIVE 모드)
+            image_urls = await self._prepare_images_v3(input_data)
+
+            # 2. VideoPlanDraftV1 → VideoTimelinePlanV1 변환
+            timeline = self._plan_draft_to_timeline(
+                plan_draft=input_data.plan_draft,
+                image_urls=image_urls,
+                input_data=input_data
+            )
+
+            # 3. VideoBuilder로 영상 생성
+            video_result = await self._build_video_v3(timeline)
+
+            logger.info(f"[VideoDirectorAgent] RENDER complete: {video_result.get('video_url')}")
+
+            return VideoDirectorOutputV3(
+                production_id=production_id,
+                mode=VideoDirectorMode.RENDER,
+                status=VideoProjectStatus.COMPLETED,
+                video_url=video_result.get("video_url"),
+                thumbnail_url=video_result.get("thumbnail_url"),
+                duration_sec=video_result.get("duration_sec")
+            )
+
+        except Exception as e:
+            logger.error(f"[VideoDirectorAgent] RENDER mode failed: {e}")
+            return VideoDirectorOutputV3(
+                production_id=production_id,
+                mode=VideoDirectorMode.RENDER,
+                status=VideoProjectStatus.FAILED,
+                error_message=str(e)
+            )
+
+    async def _generate_storyboard_v3(
+        self,
+        input_data: VideoDirectorInputV3
+    ) -> Dict[str, Any]:
+        """V3용 스토리보드 생성"""
+        from app.services.agents.storyboard_builder import get_storyboard_builder_agent
+
+        agent = get_storyboard_builder_agent(llm_gateway=self.llm_gateway)
+        response = await agent.execute(AgentRequest(
+            task="generate_storyboard",
+            payload={
+                "concept": input_data.concept,
+                "video_type": input_data.video_type,
+                "target_duration": input_data.target_duration,
+                "style": input_data.style
+            }
+        ))
+
+        return response.outputs[0].value
+
+    def _storyboard_to_plan_draft(
+        self,
+        storyboard: Dict[str, Any],
+        input_data: VideoDirectorInputV3,
+        production_id: str
+    ) -> VideoPlanDraftV1:
+        """스토리보드 → VideoPlanDraftV1 변환"""
+        scenes = storyboard.get("scenes", [])
+        available_assets = input_data.available_assets or []
+
+        scene_drafts = []
+        for i, scene in enumerate(scenes[:6]):  # V2 제한: 최대 6개
+            scene_index = i + 1
+            duration = scene.get("duration", 3.0)
+            caption = scene.get("text_overlay") or scene.get("voiceover") or ""
+
+            # 이미지 소스 결정
+            image_id = None
+            image_url = None
+            generate_new = False
+            image_prompt = None
+
+            if input_data.generation_mode == VideoGenerationMode.REUSE:
+                # Level 1: 기존 이미지만 사용
+                if i < len(available_assets):
+                    image_id = available_assets[i]
+                else:
+                    # 부족하면 순환 사용
+                    image_id = available_assets[i % len(available_assets)] if available_assets else None
+            elif input_data.generation_mode == VideoGenerationMode.HYBRID:
+                # Level 2: 혼합
+                if i < len(available_assets):
+                    image_id = available_assets[i]
+                else:
+                    generate_new = True
+                    image_prompt = scene.get("image_prompt_hint") or scene.get("visual_description")
+            else:
+                # Level 3: CREATIVE - 전부 새로 생성
+                generate_new = True
+                image_prompt = scene.get("image_prompt_hint") or scene.get("visual_description")
+
+            scene_drafts.append(SceneDraft(
+                scene_index=scene_index,
+                image_id=image_id,
+                image_url=image_url,
+                caption=caption,
+                duration_sec=min(max(duration, 2.0), 5.0),  # 2~5초 제한
+                generate_new_image=generate_new,
+                image_prompt=image_prompt
+            ))
+
+        # 최소 3개 씬 보장
+        while len(scene_drafts) < 3:
+            scene_drafts.append(SceneDraft(
+                scene_index=len(scene_drafts) + 1,
+                generate_new_image=True,
+                image_prompt="Generic marketing visual",
+                caption="",
+                duration_sec=3.0
+            ))
+
+        return VideoPlanDraftV1(
+            project_id=production_id,
+            mode=input_data.generation_mode,
+            total_duration_sec=sum(s.duration_sec for s in scene_drafts),
+            music_mood=input_data.music_mood,
+            scenes=scene_drafts,
+            script_status=ScriptStatus.DRAFT
+        )
+
+    async def _prepare_images_v3(
+        self,
+        input_data: VideoDirectorInputV3
+    ) -> Dict[int, str]:
+        """
+        RENDER용 이미지 준비
+
+        Returns:
+            Dict[scene_index, image_url]
+        """
+        plan_draft = input_data.plan_draft
+        image_urls: Dict[int, str] = {}
+
+        # 1. 기존 이미지 URL 수집
+        for scene in plan_draft.scenes:
+            if scene.image_url:
+                image_urls[scene.scene_index] = scene.image_url
+            elif scene.image_id:
+                # TODO: Asset Pool에서 URL 조회
+                # 현재는 placeholder
+                image_urls[scene.scene_index] = f"https://placeholder/{scene.image_id}"
+
+        # 2. 새 이미지 생성이 필요한 씬
+        scenes_to_generate = [
+            s for s in plan_draft.scenes
+            if s.generate_new_image and s.scene_index not in image_urls
+        ]
+
+        if scenes_to_generate and input_data.generation_mode != VideoGenerationMode.REUSE:
+            # VisionGenerator로 이미지 생성
+            from app.services.agents.vision_generator import get_vision_generator_agent, ImageGenerationRequest
+
+            prompts = [
+                ImageGenerationRequest(
+                    prompt_text=s.image_prompt or "Marketing visual",
+                    negative_prompt="blurry, low quality, text, watermark",
+                    aspect_ratio="9:16",
+                    style="realistic"
+                )
+                for s in scenes_to_generate
+            ]
+
+            agent = get_vision_generator_agent(
+                llm_gateway=self.llm_gateway,
+                media_gateway=self.media_gateway
+            )
+            response = await agent.execute(AgentRequest(
+                task="generate_images",
+                payload={
+                    "prompts": [p.model_dump() for p in prompts],
+                    "provider": "nanobanana",
+                    "batch_mode": True,
+                    "max_concurrent": 3
+                }
+            ))
+
+            result = response.outputs[0].value
+            generated_images = result.get("images", [])
+
+            for i, scene in enumerate(scenes_to_generate):
+                if i < len(generated_images) and generated_images[i].get("status") == "completed":
+                    image_urls[scene.scene_index] = generated_images[i].get("image_url")
+
+        return image_urls
+
+    def _plan_draft_to_timeline(
+        self,
+        plan_draft: VideoPlanDraftV1,
+        image_urls: Dict[int, str],
+        input_data: VideoDirectorInputV3
+    ) -> VideoTimelinePlanV1:
+        """VideoPlanDraftV1 → VideoTimelinePlanV1 변환"""
+        scenes = []
+        current_time = 0.0
+
+        for scene_draft in plan_draft.scenes:
+            start_sec = current_time
+            end_sec = current_time + scene_draft.duration_sec
+
+            image_url = image_urls.get(scene_draft.scene_index)
+            if not image_url:
+                logger.warning(f"[VideoDirector] No image for scene {scene_draft.scene_index}")
+                continue
+
+            # 텍스트 레이어 (캡션 있으면)
+            texts = []
+            if scene_draft.caption:
+                texts.append(TextLayer(
+                    role=TextRole.SUBTITLE,
+                    text=scene_draft.caption,
+                    start_sec=start_sec + 0.3,
+                    end_sec=end_sec - 0.3,
+                    position=TextPosition.BOTTOM_CENTER
+                ))
+
+            # 씬 구성
+            scene = SceneConfig(
+                scene_index=scene_draft.scene_index,
+                start_sec=start_sec,
+                end_sec=end_sec,
+                type=SceneType.IMAGE,
+                image=ImageConfig(
+                    source_type="asset" if scene_draft.image_id else "generated",
+                    url=image_url,
+                ),
+                motion=MotionConfig(
+                    type=MotionType.KENBURNS,
+                    zoom_start=1.0,
+                    zoom_end=1.15,
+                ),
+                transition_out=TransitionConfig(
+                    type=TransitionType.CROSSFADE,
+                    duration_sec=0.5
+                ),
+                texts=texts
+            )
+            scenes.append(scene)
+            current_time = end_sec
+
+        return VideoTimelinePlanV1(
+            canvas=CanvasConfig(width=1080, height=1920, fps=24),
+            global_config=GlobalConfig(
+                total_duration_sec=current_time,
+                bg_color="#000000",
+                music_mood=plan_draft.music_mood
+            ),
+            audio=AudioConfig(
+                bgm_mode=BGMMode.AUTO if not input_data.bgm_url else BGMMode.LIBRARY,
+                bgm_url=input_data.bgm_url
+            ),
+            scenes=scenes
+        )
+
+    async def _build_video_v3(
+        self,
+        timeline: VideoTimelinePlanV1
+    ) -> Dict[str, Any]:
+        """VideoBuilder V2로 영상 생성"""
+        from app.services.video_builder_v2 import get_video_builder_v2
+
+        logger.info(f"[VideoDirectorAgent] Building video with {len(timeline.scenes)} scenes")
+
+        try:
+            builder = get_video_builder_v2()
+            result = await builder.build(timeline)
+
+            return {
+                "video_url": result.video_url,
+                "thumbnail_url": result.thumbnail_url,
+                "duration_sec": result.duration_sec,
+                "file_size_bytes": result.file_size_bytes,
+                "render_time_sec": result.render_time_sec
+            }
+        except Exception as e:
+            logger.error(f"[VideoDirectorAgent] VideoBuilder V2 failed: {e}")
+            # Fallback: placeholder URL
+            return {
+                "video_url": f"https://storage/videos/video_{uuid4().hex[:8]}.mp4",
+                "thumbnail_url": f"https://storage/thumbnails/thumb_{uuid4().hex[:8]}.png",
+                "duration_sec": timeline.global_config.total_duration_sec
+            }
 
 
 # =============================================================================

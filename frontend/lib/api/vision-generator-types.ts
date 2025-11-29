@@ -30,8 +30,15 @@ export interface ImageGenerationRequest {
 
 /**
  * 이미지 생성 Provider
+ * @note 백엔드가 지원하지 않는 provider는 'auto'로 fallback됨
  */
-export type ImageProvider = 'nanobanana' | 'comfyui' | 'dalle' | 'auto';
+export type ImageProvider =
+  | 'nanobanana'
+  | 'comfyui'
+  | 'dalle'
+  | 'midjourney'
+  | 'stable-diffusion'
+  | 'auto';
 
 /**
  * VisionGeneratorAgent 입력
@@ -46,18 +53,29 @@ export interface VisionGeneratorInput {
 
 /**
  * 생성된 이미지 결과
+ *
+ * 2025-11-30 업데이트: 3종 URL 추가
+ * @see docs/FRONTEND_API_CHANGE_2025-11-30.md
  */
 export interface GeneratedImage {
   image_id: string;
   prompt_text: string;
-  image_url?: string;
-  image_base64?: string;
   width: number;
   height: number;
   seed_used?: number;
   generation_time: number;
   status: 'completed' | 'failed' | 'pending';
   error?: string;
+
+  // 3종 URL (2025-11-30 추가 - 권장)
+  asset_id?: string; // DB 에셋 ID
+  original_url?: string; // 원본
+  preview_url?: string; // 프리뷰 (1080px)
+  thumb_url?: string; // 썸네일 (200px)
+
+  // Legacy (Deprecated)
+  image_url?: string; // original_url 사용 권장
+  image_base64?: string; // 저장된 경우 null
 }
 
 /**
@@ -252,3 +270,53 @@ export const IMAGE_STYLES: Record<string, ImageStyleConfig> = {
     negativePrompt: 'photo, realistic, western cartoon',
   },
 };
+
+// ============================================================================
+// 3종 URL Helper Functions
+// ============================================================================
+
+/**
+ * GeneratedImage에서 썸네일 URL 추출
+ * 그리드/목록 표시용 (200px)
+ */
+export function getGeneratedThumbUrl(image: GeneratedImage | null | undefined): string {
+  if (!image) return '';
+  return image.thumb_url || image.preview_url || image.image_url || '';
+}
+
+/**
+ * GeneratedImage에서 프리뷰 URL 추출
+ * 캔버스/에디터 표시용 (1080px)
+ */
+export function getGeneratedPreviewUrl(image: GeneratedImage | null | undefined): string {
+  if (!image) return '';
+  return image.preview_url || image.original_url || image.image_url || '';
+}
+
+/**
+ * GeneratedImage에서 원본 URL 추출
+ * 다운로드/내보내기용 (full resolution)
+ */
+export function getGeneratedOriginalUrl(image: GeneratedImage | null | undefined): string {
+  if (!image) return '';
+  return image.original_url || image.image_url || '';
+}
+
+/**
+ * 용도별 URL 추출
+ */
+export function getGeneratedImageUrl(
+  image: GeneratedImage | null | undefined,
+  usage: 'thumb' | 'preview' | 'original' = 'preview'
+): string {
+  if (!image) return '';
+  switch (usage) {
+    case 'thumb':
+      return getGeneratedThumbUrl(image);
+    case 'original':
+      return getGeneratedOriginalUrl(image);
+    case 'preview':
+    default:
+      return getGeneratedPreviewUrl(image);
+  }
+}

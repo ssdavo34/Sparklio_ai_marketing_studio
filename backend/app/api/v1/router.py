@@ -10,6 +10,7 @@ from app.api.v1.endpoints import (
     generators,  # Multi-Channel Generators API (P1)
     embeddings,  # Vector DB API (P3 - 2025-11-28)
     unsplash,  # Unsplash API Proxy (C팀 지원 - 2025-11-28)
+    video_pipeline,  # Video Pipeline V2 API (P1 - 2025-11-30)
 )
 # agents (legacy) - Deprecated, import 에러로 주석 처리
 
@@ -150,4 +151,12 @@ api_router.include_router(
     unsplash.router,
     prefix="/unsplash",
     tags=["External APIs"]
+)
+
+# Video Pipeline V2 API (P1 - 2025-11-30)
+# PLAN/RENDER 2단계 플로우 기반 비디오 생성
+api_router.include_router(
+    video_pipeline.router,
+    prefix="/video6",
+    tags=["Video Pipeline"]
 )

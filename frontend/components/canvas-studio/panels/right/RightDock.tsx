@@ -16,7 +16,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTabsStore } from '../../stores/useTabsStore';
 import { useCanvasStore } from '../../stores/useCanvasStore';
-import { useChatStore } from '../../stores/useChatStore';
+import { useChatStore, getMessageImageUrl } from '../../stores/useChatStore';
 import { useCenterViewStore } from '../../stores/useCenterViewStore';
 import { useGeneratedAssetsStore } from '../../stores/useGeneratedAssetsStore';
 import { useMeetingStore } from '../../stores/useMeetingStore';
@@ -588,12 +588,21 @@ Campaign Ideas: ${meetingAnalysis.campaign_ideas.join(', ')}
                 }`}
             >
               <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-              {message.imageUrl && (
+              {/* 이미지 렌더링: 3종 URL 지원 (2025-11-30) */}
+              {(message.imageData || message.imageUrl) && (
                 <div className="mt-2">
                   <img
-                    src={message.imageUrl}
+                    src={getMessageImageUrl(message.imageData || message.imageUrl, 'thumb')}
                     alt="Generated"
-                    className="rounded max-w-full h-auto"
+                    className="rounded max-w-full h-auto cursor-pointer hover:opacity-90 transition-opacity"
+                    onClick={() => {
+                      // 클릭 시 원본 이미지 열기
+                      const originalUrl = getMessageImageUrl(message.imageData || message.imageUrl, 'original');
+                      if (originalUrl) {
+                        window.open(originalUrl, '_blank');
+                      }
+                    }}
+                    loading="lazy"
                   />
                 </div>
               )}

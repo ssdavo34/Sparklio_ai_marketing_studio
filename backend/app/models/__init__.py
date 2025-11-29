@@ -2,6 +2,7 @@ from app.models.asset import GeneratedAsset
 from app.models.user import User
 from app.models.brand import Brand, BrandDocument, DocumentType
 from app.models.project import Project
+from app.models.project_output import ProjectOutput
 from app.models.workflow import Workflow, WorkflowNode
 from app.models.agent_log import AgentLog, RouterLog
 from app.models.document import Document, Template, GenerationJob
@@ -16,6 +17,7 @@ __all__ = [
     "BrandDocument",
     "DocumentType",
     "Project",
+    "ProjectOutput",
     "Workflow",
     "WorkflowNode",
     "AgentLog",

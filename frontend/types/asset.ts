@@ -4,9 +4,11 @@
  * 자산 라이브러리 및 템플릿 시스템 관련 TypeScript 타입 정의
  *
  * @author C팀 (Frontend Team)
- * @version 1.0
- * @date 2025-11-24
+ * @version 1.1
+ * @date 2025-11-30
+ * @update 2025-11-30: 3종 URL 지원 (B팀 API 변경)
  * @reference FRONTEND_MVP_TODO_2025-11-24.md Phase 1.1.4
+ * @see docs/FRONTEND_API_CHANGE_2025-11-30.md
  */
 
 // ============================================================================
@@ -365,4 +367,173 @@ export function generateThumbnailUrl(assetUrl: string, size: number = 200): stri
   // 실제로는 Backend에서 처리하거나 이미지 리사이징 서비스 사용
   // 여기서는 간단히 원본 URL 반환
   return assetUrl;
+}
+
+// ============================================================================
+// Backend API Asset Types (2025-11-30 추가)
+// ============================================================================
+
+/**
+ * Backend Asset API 응답 타입
+ *
+ * GET /api/v1/assets, GET /api/v1/assets/{id}
+ *
+ * @see docs/FRONTEND_API_CHANGE_2025-11-30.md
+ */
+export interface BackendAssetResponse {
+  id: string;
+  brand_id: string;
+  project_id?: string;
+  user_id: string;
+  type: BackendAssetType;
+  minio_path: string;
+  original_name?: string;
+  file_size: number;
+  mime_type?: string;
+  checksum?: string;
+  source: BackendAssetSource;
+  source_metadata?: Record<string, any>;
+  status: BackendAssetStatus;
+  tags?: string[];
+  metadata?: Record<string, any>;
+  created_at: string;
+  updated_at: string;
+
+  // 3종 URL (2025-11-30 추가)
+  original_url?: string; // 원본 이미지 (다운로드, 편집)
+  preview_url?: string; // 프리뷰 (캔버스, 상세뷰) - 긴 변 1080px
+  thumb_url?: string; // 썸네일 (목록, 챗, 그리드) - 긴 변 200px
+
+  // Legacy (Deprecated - original_url 사용 권장)
+  presigned_url?: string;
+}
+
+export type BackendAssetType = 'image' | 'video' | 'text' | 'document' | 'template' | 'canvas';
+
+export type BackendAssetSource = 'comfyui' | 'nanobanana' | 'ollama' | 'manual' | 'upload' | 'generated';
+
+export type BackendAssetStatus = 'active' | 'archived' | 'deleted' | 'processing';
+
+/**
+ * Backend Asset 목록 API 응답
+ */
+export interface BackendAssetListResponse {
+  total: number;
+  page: number;
+  page_size: number;
+  assets: BackendAssetResponse[];
+}
+
+// ============================================================================
+// 3종 URL Helper Functions (2025-11-30 추가)
+// ============================================================================
+
+/**
+ * 썸네일 URL 가져오기 (fallback 포함)
+ *
+ * 용도: 목록, 그리드, 챗 메시지
+ *
+ * @example
+ * <img src={getThumbUrl(asset)} alt="" />
+ */
+export function getThumbUrl(asset: BackendAssetResponse | null | undefined): string {
+  if (!asset) return '';
+  return asset.thumb_url || asset.preview_url || asset.presigned_url || '';
+}
+
+/**
+ * 프리뷰 URL 가져오기 (fallback 포함)
+ *
+ * 용도: 캔버스, 상세뷰, 편집 화면
+ *
+ * @example
+ * <img src={getPreviewUrl(asset)} alt="" />
+ */
+export function getPreviewUrl(asset: BackendAssetResponse | null | undefined): string {
+  if (!asset) return '';
+  return asset.preview_url || asset.original_url || asset.presigned_url || '';
+}
+
+/**
+ * 원본 URL 가져오기 (fallback 포함)
+ *
+ * 용도: 다운로드, 원본 보기
+ *
+ * @example
+ * window.open(getOriginalUrl(asset))
+ */
+export function getOriginalUrl(asset: BackendAssetResponse | null | undefined): string {
+  if (!asset) return '';
+  return asset.original_url || asset.presigned_url || '';
+}
+
+/**
+ * 이미지 URL 가져오기 (용도에 따라)
+ *
+ * @param asset - Asset 객체
+ * @param usage - 사용 용도
+ */
+export function getAssetUrl(
+  asset: BackendAssetResponse | null | undefined,
+  usage: 'thumb' | 'preview' | 'original' = 'preview'
+): string {
+  switch (usage) {
+    case 'thumb':
+      return getThumbUrl(asset);
+    case 'original':
+      return getOriginalUrl(asset);
+    case 'preview':
+    default:
+      return getPreviewUrl(asset);
+  }
+}
+
+// ============================================================================
+// Generated Image Types (VisionGeneratorAgent 응답용)
+// ============================================================================
+
+/**
+ * VisionGeneratorAgent에서 반환하는 이미지
+ *
+ * 2025-11-30 업데이트: 3종 URL 추가
+ */
+export interface GeneratedImageAsset {
+  image_id: string;
+  prompt_text: string;
+  width: number;
+  height: number;
+  seed_used?: number;
+  generation_time: number;
+  status: 'completed' | 'failed' | 'pending';
+  error?: string;
+
+  // 3종 URL (신규 - 권장)
+  asset_id?: string; // DB 에셋 ID
+  original_url?: string; // 원본
+  preview_url?: string; // 프리뷰 (1080px)
+  thumb_url?: string; // 썸네일 (200px)
+
+  // Legacy (Deprecated)
+  image_url?: string; // original_url 사용 권장
+  image_base64?: string; // 저장된 경우 null
+}
+
+/**
+ * GeneratedImageAsset에서 표시용 URL 가져오기
+ */
+export function getGeneratedImageUrl(
+  image: GeneratedImageAsset | null | undefined,
+  usage: 'thumb' | 'preview' | 'original' = 'preview'
+): string {
+  if (!image) return '';
+
+  switch (usage) {
+    case 'thumb':
+      return image.thumb_url || image.preview_url || image.image_url || '';
+    case 'original':
+      return image.original_url || image.image_url || '';
+    case 'preview':
+    default:
+      return image.preview_url || image.original_url || image.image_url || '';
+  }
 }

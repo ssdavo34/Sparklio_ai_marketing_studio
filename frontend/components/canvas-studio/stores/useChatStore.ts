@@ -617,12 +617,60 @@ async function parseAndAddToCanvas(responseText: string, userMessage?: string) {
 // Types
 // ============================================================================
 
+/**
+ * 메시지에 첨부된 이미지 정보
+ *
+ * 2025-11-30 업데이트: B팀 3종 URL 지원
+ * @see docs/FRONTEND_API_CHANGE_2025-11-30.md
+ */
+export interface MessageImage {
+  // 3종 URL (신규 - 권장)
+  asset_id?: string;       // DB 에셋 ID
+  original_url?: string;   // 원본 (다운로드, 편집)
+  preview_url?: string;    // 프리뷰 (캔버스, 상세뷰) - 1080px
+  thumb_url?: string;      // 썸네일 (목록, 챗) - 200px
+
+  // Legacy (Deprecated)
+  image_url?: string;      // original_url 사용 권장
+  image_base64?: string;   // 저장된 경우 null
+
+  // 메타데이터
+  prompt?: string;
+  width?: number;
+  height?: number;
+}
+
+/**
+ * 채팅에서 이미지 표시용 URL 가져오기
+ * 용도에 따라 적절한 URL 반환 (fallback 포함)
+ */
+export function getMessageImageUrl(
+  image: MessageImage | string | undefined,
+  usage: 'thumb' | 'preview' | 'original' = 'thumb'
+): string {
+  if (!image) return '';
+
+  // Legacy: string인 경우 그대로 반환
+  if (typeof image === 'string') return image;
+
+  switch (usage) {
+    case 'thumb':
+      return image.thumb_url || image.preview_url || image.image_url || image.original_url || '';
+    case 'original':
+      return image.original_url || image.image_url || '';
+    case 'preview':
+    default:
+      return image.preview_url || image.original_url || image.image_url || '';
+  }
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: Date;
-  imageUrl?: string;
+  imageUrl?: string;       // Legacy (Deprecated) - imageData 사용 권장
+  imageData?: MessageImage; // 3종 URL 지원 (2025-11-30)
   agentUsed?: string;    // Which agent was used (copywriter, designer, etc.)
   taskUsed?: string;      // Which task was executed
   usage?: {               // Token usage info
@@ -647,7 +695,8 @@ export interface ChatState {
     imageUrl?: string,
     agentUsed?: string,
     taskUsed?: string,
-    usage?: any
+    usage?: any,
+    imageData?: MessageImage
   ) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null, type?: ErrorType, details?: Record<string, any>) => void;
@@ -711,14 +760,16 @@ export const useChatStore = create<ChatState>()(
 
         /**
          * 메시지 추가
+         * 2025-11-30 업데이트: imageData 파라미터 추가 (3종 URL 지원)
          */
-        addMessage: (role, content, imageUrl, agentUsed, taskUsed, usage) => {
+        addMessage: (role, content, imageUrl, agentUsed, taskUsed, usage, imageData) => {
           const message: Message = {
             id: `${Date.now()}-${Math.random()}`,
             role,
             content,
             timestamp: new Date(),
             imageUrl,
+            imageData,
             agentUsed,
             taskUsed,
             usage,
