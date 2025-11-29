@@ -46,8 +46,8 @@ from app.services.agents.video_director import (
     VideoDirectorInputV3,
 )
 from app.services.agents.base import AgentRequest
-from app.services.llm_gateway import get_llm_gateway
-from app.services.media_gateway import get_media_gateway
+from app.services.llm import get_gateway as get_llm_gateway
+from app.services.media import get_media_gateway
 
 logger = logging.getLogger(__name__)
 
