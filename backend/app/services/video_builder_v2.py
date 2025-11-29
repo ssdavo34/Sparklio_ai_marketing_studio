@@ -127,9 +127,42 @@ class VideoBuilderV2:
         Path(self.output_dir).mkdir(parents=True, exist_ok=True)
 
     def _get_default_font(self) -> str:
-        """시스템 기본 폰트 경로"""
+        """기본 폰트 경로 (NanumGothic 권장)"""
+        # Docker 환경의 assets 폴더
+        font_path = Path("/app/assets/fonts/NanumGothic-Bold.ttf")
+        if font_path.exists():
+            return str(font_path)
+        
+        # 로컬 개발 환경용 fallback
         import sys
-        return FONT_PATHS.get(sys.platform, FONT_PATHS["linux"])
+        if sys.platform == "darwin": # Mac
+            return "/System/Library/Fonts/AppleSDGothicNeo.ttc"
+        elif sys.platform == "win32": # Windows
+            return "C:\\Windows\\Fonts\\malgun.ttf"
+        
+        return str(font_path)
+
+    async def _ensure_font_exists(self):
+        """폰트 파일 확인 및 다운로드"""
+        if os.path.exists(self.font_path) and os.path.getsize(self.font_path) > 0:
+            return
+
+        # 폰트가 없으면 다운로드
+        font_url = "https://github.com/google/fonts/raw/main/ofl/nanumgothic/NanumGothic-Bold.ttf"
+        logger.info(f"[VideoBuilderV2] Downloading font from {font_url}")
+        
+        try:
+            os.makedirs(os.path.dirname(self.font_path), exist_ok=True)
+            async with httpx.AsyncClient() as client:
+                response = await client.get(font_url, follow_redirects=True)
+                response.raise_for_status()
+                with open(self.font_path, "wb") as f:
+                    f.write(response.content)
+            logger.info(f"[VideoBuilderV2] Font downloaded to {self.font_path}")
+        except Exception as e:
+            logger.error(f"[VideoBuilderV2] Failed to download font: {e}")
+            # Fallback to system font if download fails
+            self.font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 
     async def build(
         self,
@@ -165,25 +198,31 @@ class VideoBuilderV2:
         )
 
         try:
+            # 0. 폰트 확인
+            await self._ensure_font_exists()
+
             # 1. 이미지 다운로드
             await self._download_images(ctx)
 
-            # 2. 씬별 클립 생성
+            # 2. 음성(TTS) 생성
+            await self._generate_voiceovers(ctx)
+
+            # 3. 씬별 클립 생성 (TTS 길이에 맞춰 duration 조정)
             await self._render_scene_clips(ctx)
 
-            # 3. 씬 연결 + 전환 효과
+            # 4. 씬 연결 + 전환 효과
             video_no_audio = await self._concatenate_scenes(ctx)
 
-            # 4. 텍스트 오버레이
+            # 5. 텍스트 오버레이
             video_with_text = await self._apply_text_overlays(ctx, video_no_audio)
 
-            # 5. BGM 믹싱
+            # 6. BGM 및 보이스오버 믹싱
             final_video = await self._mix_audio(ctx, video_with_text)
-
-            # 6. 썸네일 생성
+            
+            # 7. 썸네일 생성
             thumbnail = await self._generate_thumbnail(ctx, final_video)
 
-            # 7. 스토리지 업로드
+            # 8. 스토리지 업로드
             video_url, thumb_url = await self._upload_to_storage(ctx, final_video, thumbnail)
 
             ctx.end_time = datetime.utcnow()
@@ -256,7 +295,12 @@ class VideoBuilderV2:
                 logger.warning(f"[VideoBuilderV2] No image for scene {scene.scene_index}")
                 continue
 
-            duration = scene.end_sec - scene.start_sec
+            # TTS에 의해 조정된 길이 사용
+            if hasattr(scene, 'duration_override'):
+                duration = scene.duration_override
+            else:
+                duration = scene.end_sec - scene.start_sec
+            
             output_path = ctx.workdir / f"scene_{scene.scene_index}.mp4"
 
             # FFmpeg 필터 구성
@@ -515,36 +559,84 @@ class VideoBuilderV2:
         return alpha_expr
 
     async def _mix_audio(self, ctx: RenderContext, video_path: str) -> str:
-        """BGM 믹싱"""
+        """BGM 및 보이스오버 믹싱"""
         audio_config = ctx.timeline.audio
-
+        
+        # 1. BGM 준비
+        bgm_path = None
         if audio_config.bgm_mode == BGMMode.AUTO:
-            # Default BGM (Warm Lofi)
-            bgm_path = await self._download_bgm(ctx, "https://storage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4") # Using video audio as bgm for now
-            # Better public domain audio:
             bgm_path = await self._download_bgm(ctx, "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3")
         elif audio_config.bgm_url:
-            # BGM 다운로드
             bgm_path = await self._download_bgm(ctx, audio_config.bgm_url)
-        else:
-            bgm_path = None
 
-        if not bgm_path:
+        # 2. 보이스오버 준비
+        voiceover_inputs = [] # (path, offset_ms)
+        current_offset = 0.0
+        
+        has_voiceover = hasattr(ctx, 'voiceover_paths') and ctx.voiceover_paths
+        
+        if has_voiceover:
+            for scene in ctx.timeline.scenes:
+                # 씬 길이 계산 (TTS override 반영)
+                duration = getattr(scene, 'duration_override', scene.end_sec - scene.start_sec)
+                
+                # 보이스오버가 있으면 추가
+                v_path = ctx.voiceover_paths.get(scene.scene_index)
+                if v_path:
+                    voiceover_inputs.append((v_path, int(current_offset * 1000)))
+                
+                current_offset += duration
+
+        if not bgm_path and not voiceover_inputs:
             return video_path
 
-        logger.info(f"[VideoBuilderV2] Mixing BGM")
+        logger.info(f"[VideoBuilderV2] Mixing Audio: BGM={bool(bgm_path)}, Voiceovers={len(voiceover_inputs)}")
 
-        output_path = ctx.workdir / "with_bgm.mp4"
-        duration = ctx.timeline.global_config.total_duration_sec
-        volume = audio_config.bgm_volume
+        output_path = ctx.workdir / "with_audio.mp4"
+        
+        # FFmpeg 명령 구성
+        inputs = [f'-i "{video_path}"']
+        filter_complex = []
+        
+        # BGM 입력 (인덱스 1)
+        if bgm_path:
+            inputs.append(f'-i "{bgm_path}"')
+            # BGM 루프 및 볼륨 조절
+            # video duration 구하기 (current_offset이 총 길이)
+            total_duration = current_offset if current_offset > 0 else ctx.timeline.global_config.total_duration_sec
+            
+            filter_complex.append(
+                f"[1:a]atrim=0:{total_duration},asetpts=PTS-STARTPTS,"
+                f"volume={audio_config.bgm_volume},loudnorm=I=-16:TP=-1.5:LRA=11[bgm]"
+            )
+        
+        # 보이스오버 입력 (인덱스 2부터)
+        vo_filter_tags = []
+        for i, (path, offset) in enumerate(voiceover_inputs):
+            input_idx = len(inputs)
+            inputs.append(f'-i "{path}"')
+            # 딜레이 적용 (adelay는 ms 단위)
+            tag = f"vo{i}"
+            filter_complex.append(f"[{input_idx}:a]adelay={offset}|{offset}[{tag}]")
+            vo_filter_tags.append(f"[{tag}]")
+            
+        # 믹싱
+        mix_inputs = []
+        if bgm_path:
+            mix_inputs.append("[bgm]")
+        mix_inputs.extend(vo_filter_tags)
+        
+        if len(mix_inputs) > 1:
+            filter_complex.append(f"{''.join(mix_inputs)}amix=inputs={len(mix_inputs)}:duration=first:dropout_transition=2[a]")
+        elif len(mix_inputs) == 1:
+            filter_complex.append(f"{mix_inputs[0]}anull[a]")
+        else:
+            # 오디오 없음 (위에서 리턴했으므로 도달 안함)
+            return video_path
 
-        # BGM 길이 조절 + 라우드니스 정규화 + 믹싱
         cmd = (
-            f'ffmpeg -y -i "{video_path}" -i "{bgm_path}" '
-            f'-filter_complex "'
-            f'[1:a]atrim=0:{duration},asetpts=PTS-STARTPTS,'
-            f'volume={volume},loudnorm=I=-16:TP=-1.5:LRA=11[bgm];'
-            f'[bgm]apad[a]" '
+            f'ffmpeg -y {" ".join(inputs)} '
+            f'-filter_complex "{";".join(filter_complex)}" '
             f'-map 0:v -map "[a]" '
             f'-c:v copy -c:a aac -shortest '
             f'"{output_path}"'

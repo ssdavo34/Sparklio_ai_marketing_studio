@@ -84,6 +84,15 @@ class MediaGateway:
             elif not NANOBANANA_AVAILABLE:
                 logger.info("Nano Banana Provider skipped (google-genai not installed)")
 
+            # Edge TTS Provider
+            try:
+                from .providers.edge_tts_provider import EdgeTTSProvider
+                logger.info("Initializing Edge TTS Provider...")
+                self.providers["edge_tts"] = EdgeTTSProvider()
+                logger.info("Edge TTS Provider initialized successfully")
+            except Exception as e:
+                logger.warning(f"Edge TTS Provider skipped: {e}")
+
             logger.info(f"All Media Providers initialized: {list(self.providers.keys())}")
 
         except Exception as e:
@@ -199,7 +208,8 @@ class MediaGateway:
             logger.warning("Video provider not implemented, falling back to mock")
             return "mock", self.providers["mock"]
         elif media_type == "audio":
-            # 추후 오디오 Provider 추가
+            if "edge_tts" in self.providers:
+                return "edge_tts", self.providers["edge_tts"]
             logger.warning("Audio provider not implemented, falling back to mock")
             return "mock", self.providers["mock"]
         else:
