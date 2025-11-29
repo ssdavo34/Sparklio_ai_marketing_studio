@@ -12,6 +12,41 @@ from app.core.config import settings
 
 router = APIRouter()
 
+
+def _build_asset_response(asset: GeneratedAsset) -> AssetResponse:
+    """
+    GeneratedAsset → AssetResponse 변환 (3종 URL 포함)
+
+    2025-11-30 변경:
+    - original_url, preview_url, thumb_url 우선 반환
+    - presigned_url은 legacy 호환용으로 유지
+
+    URL 용도:
+    - original_url: 원본 다운로드, 편집
+    - preview_url: 캔버스, 상세뷰 (1080px)
+    - thumb_url: 목록, 썸네일 (200px)
+    - presigned_url: [legacy] 직접 접근 URL
+    """
+    response = AssetResponse.model_validate(asset)
+
+    # 3종 URL 설정 (DB에 저장된 값 사용)
+    # - DB에 없으면 minio_path 기반 presigned URL 생성
+    if asset.original_url:
+        response.original_url = storage_service.get_presigned_url(asset.original_url)
+    elif asset.minio_path:
+        response.original_url = storage_service.get_presigned_url(asset.minio_path)
+
+    if asset.preview_url:
+        response.preview_url = storage_service.get_presigned_url(asset.preview_url)
+
+    if asset.thumb_url:
+        response.thumb_url = storage_service.get_presigned_url(asset.thumb_url)
+
+    # Legacy: presigned_url (original_url과 동일)
+    response.presigned_url = response.original_url
+
+    return response
+
 @router.post("/", response_model=AssetResponse, status_code=status.HTTP_201_CREATED)
 async def upload_asset(
     file: UploadFile = File(...),
@@ -96,14 +131,7 @@ async def upload_asset(
         db.commit()
         db.refresh(db_asset)
 
-        # Generate presigned URL for response
-        presigned_url = storage_service.get_presigned_url(db_asset.minio_path)
-
-        # Build response
-        response = AssetResponse.model_validate(db_asset)
-        response.presigned_url = presigned_url
-
-        return response
+        return _build_asset_response(db_asset)
 
     except HTTPException:
         raise
@@ -153,12 +181,8 @@ async def list_assets(
     offset = (page - 1) * page_size
     assets = query.order_by(GeneratedAsset.created_at.desc()).offset(offset).limit(page_size).all()
 
-    # Generate presigned URLs
-    asset_responses = []
-    for asset in assets:
-        response = AssetResponse.model_validate(asset)
-        response.presigned_url = storage_service.get_presigned_url(asset.minio_path)
-        asset_responses.append(response)
+    # Build responses with 3-type URLs
+    asset_responses = [_build_asset_response(asset) for asset in assets]
 
     return AssetListResponse(
         total=total,
@@ -178,10 +202,7 @@ async def get_asset(
     if not asset:
         raise HTTPException(status_code=404, detail='Asset not found')
 
-    response = AssetResponse.model_validate(asset)
-    response.presigned_url = storage_service.get_presigned_url(asset.minio_path)
-
-    return response
+    return _build_asset_response(asset)
 
 @router.patch("/{asset_id}", response_model=AssetResponse)
 async def update_asset(
@@ -206,10 +227,7 @@ async def update_asset(
     db.commit()
     db.refresh(asset)
 
-    response = AssetResponse.model_validate(asset)
-    response.presigned_url = storage_service.get_presigned_url(asset.minio_path)
-
-    return response
+    return _build_asset_response(asset)
 
 @router.delete("/{asset_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_asset(

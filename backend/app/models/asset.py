@@ -20,6 +20,14 @@ class GeneratedAsset(Base):
     mime_type = Column(String(100), nullable=True)
     checksum = Column(Text, nullable=True)
 
+    # 3종 URL (2025-11-30 추가)
+    # - original_url: 원본 이미지 MinIO 경로 (minio_path 기반)
+    # - preview_url: 리사이즈된 프리뷰 (긴 변 1080px, WEBP)
+    # - thumb_url: 썸네일 (긴 변 200px, WEBP)
+    original_url = Column(Text, nullable=True)
+    preview_url = Column(Text, nullable=True)
+    thumb_url = Column(Text, nullable=True)
+
     source = Column(String(50), nullable=False)  # 'comfyui', 'ollama', 'manual'
     source_metadata = Column(JSONB, nullable=True)
 

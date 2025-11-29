@@ -17,12 +17,13 @@ import asyncio
 from typing import Dict, Any, Optional, List
 from pydantic import BaseModel, Field
 from datetime import datetime
-from uuid import uuid4
+from uuid import uuid4, UUID
 
 from app.services.agents.base import (
     AgentBase, AgentRequest, AgentResponse, AgentOutput, AgentError,
     AgentGoal, SelfReview, ExecutionPlan
 )
+from app.services.asset_ingestion import get_asset_ingestion_pipeline, IngestedAssetResult
 
 logger = logging.getLogger(__name__)
 
@@ -48,13 +49,28 @@ class VisionGeneratorInput(BaseModel):
     batch_mode: bool = Field(default=True, description="배치 모드 (병렬 생성)")
     max_concurrent: int = Field(default=3, description="최대 동시 생성 수")
 
+    # Asset Ingestion 옵션 (2025-11-30 추가)
+    # 제공되면 생성된 이미지를 MinIO에 3종 저장
+    brand_id: Optional[str] = Field(None, description="브랜드 ID (Asset 저장용)")
+    user_id: Optional[str] = Field(None, description="사용자 ID (Asset 저장용)")
+    project_id: Optional[str] = Field(None, description="프로젝트 ID (선택)")
+
 
 class GeneratedImage(BaseModel):
     """생성된 이미지"""
     image_id: str = Field(..., description="이미지 ID")
     prompt_text: str = Field(..., description="사용된 프롬프트")
-    image_url: Optional[str] = Field(None, description="이미지 URL")
-    image_base64: Optional[str] = Field(None, description="Base64 인코딩 이미지")
+
+    # 3종 URL (2025-11-30 추가) - 권장 사용
+    asset_id: Optional[str] = Field(None, description="DB 에셋 ID (generated_assets.id)")
+    original_url: Optional[str] = Field(None, description="원본 이미지 URL")
+    preview_url: Optional[str] = Field(None, description="프리뷰 이미지 URL (1080px)")
+    thumb_url: Optional[str] = Field(None, description="썸네일 이미지 URL (200px)")
+
+    # Legacy 필드 (deprecated - 하위 호환용)
+    image_url: Optional[str] = Field(None, description="[DEPRECATED] 이미지 URL - original_url 사용 권장")
+    image_base64: Optional[str] = Field(None, description="[DEPRECATED] Base64 이미지 - URL 사용 권장")
+
     width: int = Field(default=1024, description="너비")
     height: int = Field(default=1024, description="높이")
     seed_used: Optional[int] = Field(None, description="사용된 시드")
@@ -109,12 +125,13 @@ class VisionGeneratorAgent(AgentBase):
     def name(self) -> str:
         return "vision_generator"
 
-    async def execute(self, request: AgentRequest) -> AgentResponse:
+    async def execute(self, request: AgentRequest, db_session=None) -> AgentResponse:
         """
         이미지 생성 실행
 
         Args:
             request: AgentRequest
+            db_session: SQLAlchemy 세션 (Asset Ingestion용, 선택)
 
         Returns:
             AgentResponse
@@ -134,18 +151,34 @@ class VisionGeneratorAgent(AgentBase):
 
         logger.info(f"[VisionGeneratorAgent] Generating {len(input_data.prompts)} images via {input_data.provider}")
 
+        # Asset Ingestion 컨텍스트 파싱
+        brand_id = UUID(input_data.brand_id) if input_data.brand_id else None
+        user_id = UUID(input_data.user_id) if input_data.user_id else None
+        project_id = UUID(input_data.project_id) if input_data.project_id else None
+
         # 이미지 생성
         try:
             if input_data.batch_mode and len(input_data.prompts) > 1:
                 generated_images = await self._generate_batch(
                     input_data.prompts,
                     input_data.provider,
-                    input_data.max_concurrent
+                    input_data.max_concurrent,
+                    brand_id=brand_id,
+                    user_id=user_id,
+                    project_id=project_id,
+                    db_session=db_session,
                 )
             else:
                 generated_images = []
                 for prompt_req in input_data.prompts:
-                    image = await self._generate_single(prompt_req, input_data.provider)
+                    image = await self._generate_single(
+                        prompt_req,
+                        input_data.provider,
+                        brand_id=brand_id,
+                        user_id=user_id,
+                        project_id=project_id,
+                        db_session=db_session,
+                    )
                     generated_images.append(image)
 
         except Exception as e:
@@ -200,14 +233,26 @@ class VisionGeneratorAgent(AgentBase):
         self,
         prompts: List[ImageGenerationRequest],
         provider: str,
-        max_concurrent: int
+        max_concurrent: int,
+        *,
+        brand_id: Optional[UUID] = None,
+        user_id: Optional[UUID] = None,
+        project_id: Optional[UUID] = None,
+        db_session=None,
     ) -> List[GeneratedImage]:
         """배치 이미지 생성 (병렬)"""
         semaphore = asyncio.Semaphore(max_concurrent)
 
         async def generate_with_limit(prompt_req: ImageGenerationRequest) -> GeneratedImage:
             async with semaphore:
-                return await self._generate_single(prompt_req, provider)
+                return await self._generate_single(
+                    prompt_req,
+                    provider,
+                    brand_id=brand_id,
+                    user_id=user_id,
+                    project_id=project_id,
+                    db_session=db_session,
+                )
 
         tasks = [generate_with_limit(p) for p in prompts]
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -229,9 +274,27 @@ class VisionGeneratorAgent(AgentBase):
     async def _generate_single(
         self,
         prompt_req: ImageGenerationRequest,
-        provider: str
+        provider: str,
+        *,
+        brand_id: Optional[UUID] = None,
+        user_id: Optional[UUID] = None,
+        project_id: Optional[UUID] = None,
+        db_session=None,
     ) -> GeneratedImage:
-        """단일 이미지 생성"""
+        """
+        단일 이미지 생성
+
+        Args:
+            prompt_req: 이미지 생성 요청
+            provider: 제공자 (nanobanana, comfyui, dalle)
+            brand_id: 브랜드 ID (Asset Ingestion용)
+            user_id: 사용자 ID (Asset Ingestion용)
+            project_id: 프로젝트 ID (선택)
+            db_session: SQLAlchemy 세션 (Asset Ingestion용)
+
+        Returns:
+            GeneratedImage: 생성된 이미지 정보 (3종 URL 포함)
+        """
         start_time = datetime.utcnow()
         image_id = f"img_{uuid4().hex[:8]}"
 
@@ -255,11 +318,55 @@ class VisionGeneratorAgent(AgentBase):
 
             elapsed = (datetime.utcnow() - start_time).total_seconds()
 
+            # Asset Ingestion Pipeline 통합 (2025-11-30)
+            # brand_id, user_id, db_session이 있으면 MinIO에 3종 저장
+            asset_id = None
+            original_url = None
+            preview_url = None
+            thumb_url = None
+
+            base64_data = result.get("base64")
+            if base64_data and brand_id and user_id and db_session:
+                try:
+                    pipeline = get_asset_ingestion_pipeline()
+                    ingested = await pipeline.ingest_from_base64(
+                        base64_str=base64_data,
+                        brand_id=brand_id,
+                        user_id=user_id,
+                        project_id=project_id,
+                        source=provider,
+                        source_metadata={
+                            "prompt_text": prompt_req.prompt_text,
+                            "negative_prompt": prompt_req.negative_prompt,
+                            "aspect_ratio": prompt_req.aspect_ratio,
+                            "style": prompt_req.style,
+                            "seed": result.get("seed"),
+                        },
+                        db=db_session,
+                    )
+                    asset_id = str(ingested.asset_id)
+                    original_url = ingested.original_url
+                    preview_url = ingested.preview_url
+                    thumb_url = ingested.thumb_url
+                    width = ingested.width
+                    height = ingested.height
+
+                    logger.info(f"[VisionGeneratorAgent] Asset ingested: {asset_id}")
+                except Exception as ingest_err:
+                    # Ingestion 실패해도 이미지 생성 자체는 성공
+                    logger.warning(f"[VisionGeneratorAgent] Asset ingestion failed (continuing): {ingest_err}")
+
             return GeneratedImage(
                 image_id=image_id,
                 prompt_text=prompt_req.prompt_text,
-                image_url=result.get("url"),
-                image_base64=result.get("base64"),
+                # 3종 URL (신규)
+                asset_id=asset_id,
+                original_url=original_url,
+                preview_url=preview_url,
+                thumb_url=thumb_url,
+                # Legacy 필드 (하위 호환용)
+                image_url=result.get("url") or original_url,
+                image_base64=base64_data if not asset_id else None,  # 저장되면 base64 생략
                 width=width,
                 height=height,
                 seed_used=result.get("seed"),

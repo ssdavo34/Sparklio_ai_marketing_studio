@@ -31,7 +31,17 @@ class AssetResponse(AssetBase):
     status: str
     created_at: datetime
     updated_at: datetime
-    presigned_url: Optional[str] = None  # Dynamically generated
+
+    # 3종 URL (2025-11-30 추가)
+    # - original_url: 원본 이미지 (다운로드, 원본 보기)
+    # - preview_url: 프리뷰 (캔버스, 상세뷰, 편집) - 긴 변 1080px
+    # - thumb_url: 썸네일 (목록, 챗, 그리드) - 긴 변 200px
+    original_url: Optional[str] = None
+    preview_url: Optional[str] = None
+    thumb_url: Optional[str] = None
+
+    # Presigned URL (legacy, 하위 호환용)
+    presigned_url: Optional[str] = None
 
     class Config:
         from_attributes = True
