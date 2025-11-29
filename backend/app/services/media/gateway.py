@@ -322,10 +322,12 @@ class MediaGateway:
             # 응답 변환
             if response.outputs and len(response.outputs) > 0:
                 output = response.outputs[0]
+                # response.meta에서 seed 가져오기 (MediaProviderOutput에는 metadata 없음)
+                response_seed = response.meta.get("seed") if response.meta else seed
                 return {
                     "url": output.data if output.data.startswith("http") else None,
                     "base64": output.data if not output.data.startswith("http") else None,
-                    "seed": output.metadata.get("seed") if output.metadata else seed
+                    "seed": response_seed
                 }
             else:
                 raise ValueError("No output from provider")
