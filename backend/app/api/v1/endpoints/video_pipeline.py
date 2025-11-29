@@ -443,6 +443,19 @@ async def _execute_render_background(
     """백그라운드 렌더링 실행"""
     from app.core.database import SessionLocal
 
+    # ============ DEBUG V4: 백그라운드 태스크 진입 확인 ============
+    print(f"!!! _execute_render_background CALLED !!! video_project_id={video_project_id}")
+    logger.info(f"[VideoPipeline] === RENDER BACKGROUND START ===")
+    logger.info(f"[VideoPipeline] db_id={db_id}, video_project_id={video_project_id}")
+    logger.info(f"[VideoPipeline] plan_draft_data.mode={plan_draft_data.get('mode')}")
+    logger.info(f"[VideoPipeline] plan_draft_data.scenes count={len(plan_draft_data.get('scenes', []))}")
+
+    # 씬별 generate_new_image 확인
+    scenes = plan_draft_data.get("scenes", [])
+    generate_new_count = sum(1 for s in scenes if s.get("generate_new_image"))
+    logger.info(f"[VideoPipeline] scenes with generate_new_image=True: {generate_new_count}")
+    # ============ DEBUG V4 END ============
+
     db = SessionLocal()
     try:
         project = db.query(ProjectOutput).filter(ProjectOutput.id == db_id).first()
@@ -467,9 +480,14 @@ async def _execute_render_background(
             "visual_style": "Modern"
         }
 
+        # generation_mode 결정
+        mode_str = plan_draft_data.get("mode", "hybrid")
+        logger.info(f"[VideoPipeline] Creating VideoDirectorInputV3 with generation_mode={mode_str}")
+        print(f"!!! generation_mode from plan_draft_data: {mode_str} !!!")
+
         input_data = VideoDirectorInputV3(
             mode=VideoDirectorMode.RENDER,
-            generation_mode=VideoGenerationMode(plan_draft_data.get("mode", "hybrid")),
+            generation_mode=VideoGenerationMode(mode_str),
             concept=concept,
             plan_draft=VideoPlanDraftV1(**plan_draft_data)
         )

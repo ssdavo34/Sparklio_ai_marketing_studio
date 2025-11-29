@@ -686,6 +686,18 @@ class VideoDirectorAgent(AgentBase):
 
         GPU/API를 사용하여 실제 영상 생성
         """
+        # ============ DEBUG V4: 진입 확인 ============
+        print(f"!!! _execute_render_mode CALLED !!! production_id={production_id}")
+        logger.info(f"[VideoDirectorAgent] === RENDER MODE START ===")
+        logger.info(f"[VideoDirectorAgent] production_id={production_id}")
+        logger.info(f"[VideoDirectorAgent] generation_mode={input_data.generation_mode}")
+        logger.info(f"[VideoDirectorAgent] plan_draft exists: {input_data.plan_draft is not None}")
+        if input_data.plan_draft:
+            logger.info(f"[VideoDirectorAgent] plan_draft.scenes count: {len(input_data.plan_draft.scenes)}")
+            generate_new_count = sum(1 for s in input_data.plan_draft.scenes if s.generate_new_image)
+            logger.info(f"[VideoDirectorAgent] scenes with generate_new_image=True: {generate_new_count}")
+        # ============ DEBUG V4 END ============
+
         logger.info(f"[VideoDirectorAgent] RENDER mode: generating video")
 
         if not input_data.plan_draft:
@@ -847,10 +859,17 @@ class VideoDirectorAgent(AgentBase):
         Returns:
             Dict[scene_index, image_url]
         """
+        # ============ DEBUG V4: 진입 확인 ============
+        print("!!! _prepare_images_v3 CALLED !!!")
+        print(f"!!! generation_mode={input_data.generation_mode} !!!")
+        # ============ DEBUG V4 END ============
+
         plan_draft = input_data.plan_draft
         image_urls: Dict[int, str] = {}
 
-        logger.info(f"[VideoDirector] _prepare_images_v3: generation_mode={input_data.generation_mode}")
+        logger.info(f"[VideoDirector] === _prepare_images_v3 START ===")
+        logger.info(f"[VideoDirector] generation_mode={input_data.generation_mode}")
+        logger.info(f"[VideoDirector] plan_draft.scenes count: {len(plan_draft.scenes) if plan_draft else 0}")
 
         # 1. 기존 이미지 URL 수집
         for scene in plan_draft.scenes:
@@ -937,8 +956,25 @@ class VideoDirectorAgent(AgentBase):
         input_data: VideoDirectorInputV3
     ) -> VideoTimelinePlanV1:
         """VideoPlanDraftV1 → VideoTimelinePlanV1 변환"""
+        # ============ DEBUG V4: Placeholder Fallback ============
+        # 디버깅용: 모든 씬에 이미지가 없으면 placeholder 사용
+        DEBUG_PLACEHOLDER_ENABLED = True  # 디버깅 완료 후 False로 변경
+        PLACEHOLDER_IMAGE_URL = "https://placehold.co/1080x1920/1a1a2e/FFFFFF/png?text=Scene+Placeholder"
+
+        total_scenes_without_image = sum(
+            1 for s in plan_draft.scenes
+            if s.scene_index not in image_urls
+        )
+        logger.info(f"[VideoDirector] _plan_draft_to_timeline: {len(image_urls)} images available, {total_scenes_without_image} scenes without image")
+
+        if DEBUG_PLACEHOLDER_ENABLED and total_scenes_without_image == len(plan_draft.scenes):
+            logger.warning("[VideoDirector] DEBUG: All scenes missing images - using placeholder for first scene")
+            print("!!! DEBUG PLACEHOLDER FALLBACK ACTIVATED !!!")
+        # ============ DEBUG V4 END ============
+
         scenes = []
         current_time = 0.0
+        placeholder_used = False
 
         for scene_draft in plan_draft.scenes:
             start_sec = current_time
@@ -946,8 +982,15 @@ class VideoDirectorAgent(AgentBase):
 
             image_url = image_urls.get(scene_draft.scene_index)
             if not image_url:
-                logger.warning(f"[VideoDirector] No image for scene {scene_draft.scene_index}")
-                continue
+                # ============ DEBUG V4: Placeholder Fallback ============
+                if DEBUG_PLACEHOLDER_ENABLED and not placeholder_used:
+                    logger.warning(f"[VideoDirector] Using placeholder for scene {scene_draft.scene_index}")
+                    image_url = PLACEHOLDER_IMAGE_URL
+                    placeholder_used = True
+                else:
+                    logger.warning(f"[VideoDirector] No image for scene {scene_draft.scene_index}")
+                    continue
+                # ============ DEBUG V4 END ============
 
             # 텍스트 레이어 (캡션 있으면)
             texts = []
