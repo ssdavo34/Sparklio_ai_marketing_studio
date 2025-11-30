@@ -11,8 +11,10 @@ MVP P0-1 Brand OS Module:
 
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import List
 from uuid import UUID
+from datetime import datetime
 import logging
 
 from app.core.database import get_db
@@ -415,7 +417,7 @@ async def crawl_brand_url(
             processed="completed",  # 크롤링 완료
             document_metadata={
                 "crawl_user_id": str(current_user.id) if current_user else "anonymous",
-                "crawl_requested_at": str(db.query(db.func.now()).scalar()),
+                "crawl_requested_at": datetime.utcnow().isoformat(),
                 "description": crawl_result.get("description"),
                 **crawl_result.get("metadata", {})
             }
@@ -444,7 +446,7 @@ async def crawl_brand_url(
             processed="failed",
             document_metadata={
                 "crawl_user_id": str(current_user.id) if current_user else "anonymous",
-                "crawl_requested_at": str(db.query(db.func.now()).scalar()),
+                "crawl_requested_at": datetime.utcnow().isoformat(),
                 "error": str(e)
             }
         )
