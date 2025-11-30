@@ -404,21 +404,27 @@ async def crawl_brand_url(
                 detail="Not enough permissions"
             )
 
+    # URL 프로토콜 자동 추가
+    url = crawl_data.url.strip()
+    if not url.startswith(('http://', 'https://')):
+        url = 'https://' + url
+        logger.info(f"Added https:// to URL: {url}")
+
     # 중복 URL 체크
     existing_doc = db.query(BrandDocument).filter(
         BrandDocument.brand_id == brand_id,
-        BrandDocument.source_url == crawl_data.url,
+        BrandDocument.source_url == url,
         BrandDocument.processed == "completed"
     ).first()
 
     if existing_doc:
-        logger.info(f"URL already crawled: {crawl_data.url}, returning existing document {existing_doc.id}")
+        logger.info(f"URL already crawled: {url}, returning existing document {existing_doc.id}")
         return existing_doc
 
     # URL 크롤링 (동기 실행)
     try:
         crawler = get_web_crawler(timeout=30)
-        crawl_result = await crawler.crawl(crawl_data.url)
+        crawl_result = await crawler.crawl(url)
 
         raw_text = crawl_result.get("extracted_text", "")
 
@@ -444,9 +450,9 @@ async def crawl_brand_url(
         # BrandDocument 생성
         document = BrandDocument(
             brand_id=brand_id,
-            title=crawl_data.title or crawl_result.get("title", f"Crawled from {crawl_data.url}"),
+            title=crawl_data.title or crawl_result.get("title", f"Crawled from {url}"),
             document_type=DocumentType.URL,
-            source_url=crawl_data.url,
+            source_url=url,
             extracted_text=raw_text,  # 원본 텍스트 저장
             clean_text=clean_text,  # 정제된 텍스트 저장
             extracted_keywords=extracted_keywords if extracted_keywords else None,
@@ -468,20 +474,20 @@ async def crawl_brand_url(
 
         logger.info(
             f"URL crawled successfully: {document.id} for brand {brand_id}, "
-            f"URL: {crawl_data.url}, raw: {len(raw_text)} chars, clean: {len(clean_text)} chars"
+            f"URL: {url}, raw: {len(raw_text)} chars, clean: {len(clean_text)} chars"
         )
 
         return document
 
     except WebCrawlerError as e:
         # 크롤링 실패 시 pending 상태로 저장
-        logger.error(f"Crawling failed for {crawl_data.url}: {str(e)}")
+        logger.error(f"Crawling failed for {url}: {str(e)}")
 
         document = BrandDocument(
             brand_id=brand_id,
-            title=crawl_data.title or f"Crawled from {crawl_data.url}",
+            title=crawl_data.title or f"Crawled from {url}",
             document_type=DocumentType.URL,
-            source_url=crawl_data.url,
+            source_url=url,
             processed="failed",
             document_metadata={
                 "crawl_user_id": str(current_user.id) if current_user else "anonymous",
