@@ -11,7 +11,8 @@ Canvas Studio v3.3 전체 기능 테스트 중 발견된 에러 목록
 - **에러**: `Objects are not valid as a React child (found: object with keys {브랜드_DNA, 브랜드_보이스, 커뮤니케이션_스타일})`
 - **위치**: BrandKitTab.tsx - Brand DNA 렌더링 부분
 - **원인**: Backend에서 반환한 Brand DNA 구조가 Frontend 타입과 불일치
-- **상태**: 🔴 미해결
+- **상태**: ✅ 해결 (커밋 5bbde1f)
+- **해결 방법**: `safeString()`, `safeStringArray()` 헬퍼 함수 추가하여 객체를 안전하게 문자열로 변환
 - **우선순위**: P0
 
 ---
@@ -23,7 +24,11 @@ Canvas Studio v3.3 전체 기능 테스트 중 발견된 에러 목록
 - **위치**: brand-api.ts:49
 - **원인**: localStorage에 저장된 mock JWT 토큰이 유효한 형식이 아님 (parts.length !== 3)
 - **영향**: 모든 인증이 필요한 API 호출 실패
-- **상태**: 🔴 미해결
+- **상태**: ✅ 해결 (커밋 5bbde1f, 743981a)
+- **해결 방법**:
+  - JWT 토큰이 유효하지 않으면 Demo 모드로 전환
+  - Authorization 헤더 없이 진행 (anonymous access)
+  - Demo Brand ID (`00000000-0000-0000-0000-000000000000`) 사용
 - **우선순위**: P0
 
 ### 2.2 문서 목록 로드 실패
@@ -31,35 +36,40 @@ Canvas Studio v3.3 전체 기능 테스트 중 발견된 에러 목록
 - **위치**: BrandKitTab.tsx:136 (listBrandDocuments)
 - **원인**: API 응답 에러 처리 시 error.detail 대신 [object Object] 표시
 - **HTTP**: 422 Unprocessable Entity
-- **상태**: 🔴 미해결
+- **상태**: ✅ 해결 (커밋 5bbde1f)
+- **해결 방법**: `extractErrorMessage()` 헬퍼 함수로 에러 메시지 추출 개선
 - **우선순위**: P1
 
 ### 2.3 Brand DNA 로드 실패
 - **에러**: `Failed to load Brand DNA: Error: [object Object]`
 - **위치**: BrandKitTab.tsx:157 (getBrandDNA)
 - **HTTP**: 422 Unprocessable Entity
-- **상태**: 🔴 미해결
+- **상태**: ✅ 해결 (커밋 5bbde1f)
+- **해결 방법**: `extractErrorMessage()` 헬퍼 함수로 에러 메시지 추출 개선
 - **우선순위**: P1
 
 ### 2.4 URL 크롤링 실패
 - **에러**: `Crawling failed: Error: [object Object]`
 - **위치**: BrandKitTab.tsx:242 (crawlBrandUrl)
 - **HTTP**: 422 Unprocessable Entity
-- **상태**: 🔴 미해결
+- **상태**: ✅ 해결 (커밋 5bbde1f)
+- **해결 방법**: `extractErrorMessage()` 헬퍼 함수로 에러 메시지 추출 개선
 - **우선순위**: P2
 
 ### 2.5 문서 삭제 실패
 - **에러**: `Delete failed: Error: [object Object]`
 - **위치**: BrandKitTab.tsx:471, 517 (deleteBrandDocument)
 - **HTTP**: 422 Unprocessable Entity
-- **상태**: 🔴 미해결
+- **상태**: ✅ 해결 (커밋 5bbde1f)
+- **해결 방법**: `extractErrorMessage()` 헬퍼 함수로 에러 메시지 추출 개선
 - **우선순위**: P2
 
 ### 2.6 Brand 분석 실패
 - **에러**: `Analysis failed: Error: [object Object]`
 - **위치**: BrandKitTab.tsx:427 (analyzeBrand)
 - **HTTP**: 422 Unprocessable Entity
-- **상태**: 🔴 미해결
+- **상태**: ✅ 해결 (커밋 5bbde1f)
+- **해결 방법**: `extractErrorMessage()` 헬퍼 함수로 에러 메시지 추출 개선
 - **우선순위**: P2
 
 ---
@@ -132,3 +142,4 @@ API 에러 응답을 표시할 때 `error.detail` 또는 `error.message`를 추�
 | 날짜 | 작성자 | 내용 |
 |------|--------|------|
 | 2025-12-01 | C팀 | 최초 작성 |
+| 2025-12-01 | C팀 | P0/P1/P2 에러 전체 수정 완료 (커밋 5bbde1f, 743981a) |
