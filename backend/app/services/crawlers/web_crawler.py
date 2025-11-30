@@ -217,14 +217,15 @@ class WebCrawler:
         # class 기반 제거
         for element in soup.find_all(class_=re.compile(combined_pattern, re.I)):
             # 메인 콘텐츠 영역은 보존
-            el_class = ' '.join(element.get('class', []))
+            el_class_list = element.get('class') or []
+            el_class = ' '.join(el_class_list) if isinstance(el_class_list, list) else str(el_class_list)
             if re.search(r'content|main|article|body|post', el_class, re.I):
                 continue
             element.decompose()
 
         # id 기반 제거
         for element in soup.find_all(id=re.compile(combined_pattern, re.I)):
-            el_id = element.get('id', '')
+            el_id = element.get('id') or ''
             if re.search(r'content|main|article|body|post', el_id, re.I):
                 continue
             element.decompose()
