@@ -89,8 +89,7 @@
               "title": "북마크"
             }
           }
-        ],
-        "currentTab": 1
+        ]
       }
     ],
     "direction": "horizontal",
@@ -199,7 +198,7 @@
       "bases:새 베이스 생성하기": false
     }
   },
-  "active": "4e090a48c803d51d",
+  "active": "99348368cff7262a",
   "lastOpenFiles": [
     "B_TEAM_CHAT_FIX_REPORT_2025-11-30.md",
     "B_TEAM_REQUEST_DataCleaner_V2_Bug_2025-11-30.md",

@@ -1135,7 +1135,7 @@ export function BrandKitTab() {
             <div className="flex-1 overflow-y-auto">
               {isEditing ? (
                 /* 편집 모드 */
-                <div className="h-full flex flex-col p-4">
+                <div className="h-full flex flex-col p-4 min-h-[400px]">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-medium text-blue-600 flex items-center gap-1">
                       <Pencil className="w-3 h-3" />
@@ -1148,7 +1148,7 @@ export function BrandKitTab() {
                   <textarea
                     value={editingText}
                     onChange={(e) => setEditingText(e.target.value)}
-                    className="flex-1 w-full p-4 text-xs font-mono bg-blue-50 border border-blue-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="flex-1 w-full min-h-[320px] p-4 text-xs font-mono bg-blue-50 border border-blue-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="텍스트를 입력하세요..."
                     disabled={savingEdit}
                   />

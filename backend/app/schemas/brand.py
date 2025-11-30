@@ -114,6 +114,8 @@ class BrandDocumentResponse(BrandDocumentBase):
     file_url: Optional[str] = None
     source_url: Optional[str] = None
     extracted_text: Optional[str] = None
+    clean_text: Optional[str] = None
+    extracted_keywords: Optional[List[str]] = None
     file_size: Optional[int] = None
     mime_type: Optional[str] = None
     processed: str
