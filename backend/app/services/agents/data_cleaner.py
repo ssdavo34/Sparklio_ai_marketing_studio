@@ -1866,7 +1866,7 @@ class DataCleanerAgent(AgentBase):
         result = re.sub(r'(견적문의|장바구니|구매하기)\s*(\d*\s*점)?\s+', r'\1\n', result)
 
         # 6. 폼 레이블 앞에 줄바꿈 (뉴스레터, 소속, 이름, 연락처 등)
-        form_labels = r'(뉴스레터\s*구독|개인\s*정보\s*수집|소속|이름|연락처|이메일|문의\s*내용)'
+        form_labels = r'뉴스레터\s*구독|개인\s*정보\s*수집|소속|이름|연락처|이메일|문의\s*내용'
         result = re.sub(rf'\s+({form_labels})', r'\n\1', result, flags=re.IGNORECASE)
 
         # 7. 섹션 헤더 앞에 줄바꿈 (대문자로 시작하는 영어 섹션)
@@ -1878,8 +1878,8 @@ class DataCleanerAgent(AgentBase):
 
         # 9. 연속된 짧은 항목들 분리 (로봇 종류 나열 등)
         # "휴머노이드 산업용로봇 협동로봇 청소로봇" 같은 패턴
-        robot_types = r'(휴머노이드|산업용\s*로봇|협동\s*로봇|청소\s*로봇|물류\s*로봇|서비스\s*로봇|교육용\s*로봇|ROS\s*지원)'
-        result = re.sub(rf'({robot_types})\s+(?={robot_types[1:]})', r'\1\n', result, flags=re.IGNORECASE)
+        robot_types = r'휴머노이드|산업용\s*로봇|협동\s*로봇|청소\s*로봇|물류\s*로봇|서비스\s*로봇|교육용\s*로봇|ROS\s*지원'
+        result = re.sub(rf'({robot_types})\s+(?={robot_types})', r'\1\n', result, flags=re.IGNORECASE)
 
         # 10. 저작권/사업자 정보 앞에 줄바꿈
         result = re.sub(r'\s+([©ⓒ]|사업자\s*등록\s*번호|통신\s*판매)', r'\n\n\1', result)
