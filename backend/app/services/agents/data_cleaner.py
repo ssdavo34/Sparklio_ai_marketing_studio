@@ -1933,7 +1933,8 @@ class DataCleanerAgent(AgentBase):
         if response and response.outputs:
             # 첫 번째 출력물에서 결과 추출
             result_data = response.outputs[0].value
-            cleaned_data = result_data.get("cleaned_data", [])
+            # _clean_data()가 반환하는 실제 키는 "data"
+            cleaned_data = result_data.get("data", [])
             
             if cleaned_data:
                 clean_text = cleaned_data[0].get("text", "")
