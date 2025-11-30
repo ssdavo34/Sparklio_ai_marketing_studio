@@ -1929,21 +1929,25 @@ class DataCleanerAgent(AgentBase):
             }
         ))
 
-        if response.status == "success" and response.data:
-            cleaned_data = response.data.get("cleaned_data", [])
+        # AgentResponse 구조에 맞게 수정
+        if response and response.outputs:
+            # 첫 번째 출력물에서 결과 추출
+            result_data = response.outputs[0].value
+            cleaned_data = result_data.get("cleaned_data", [])
+            
             if cleaned_data:
                 clean_text = cleaned_data[0].get("text", "")
                 
                 # 상세 로깅
                 logger.info(f"[DataCleaner] Cleaning result: {len(preprocessed_text)} -> {len(clean_text)} chars")
-                actions = response.data.get("actions_performed", [])
+                actions = result_data.get("actions_performed", [])
                 logger.info(f"[DataCleaner] Actions performed: {actions}")
                 
                 return {
                     "clean_text": clean_text,
-                    "extracted_keywords": response.data.get("extracted_keywords", []),
+                    "extracted_keywords": result_data.get("extracted_keywords", []),
                     "actions_performed": actions,
-                    "quality_improvement": response.meta.get("quality_improvement", 0) if response.meta else 0
+                    "quality_improvement": response.meta.get("quality_improvement", 0)
                 }
         
         # Fallback in case of failure or no cleaned data
