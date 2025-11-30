@@ -201,6 +201,7 @@
   },
   "active": "4e090a48c803d51d",
   "lastOpenFiles": [
+    "B_TEAM_CHAT_FIX_REPORT_2025-11-30.md",
     "B_TEAM_REQUEST_DataCleaner_V2_Bug_2025-11-30.md",
     "presentation/구현 계획 - Sparklio 비전 프리젠테이션.md",
     "TEST_REPORT_GEMINI.md",
@@ -235,7 +236,6 @@
     "B_TEAM_REQUEST_RENDER_FIX_V2_2025-11-29.md",
     "B_TEAM_REQUEST_RENDER_FIX_2025-11-29.md",
     "B_TEAM_REQUEST_CORS_FIX_2025-11-29.md",
-    "FRONTEND_API_CHANGE_2025-11-30.md",
-    "VIDEO_PIPELINE_DESIGN_V2.md"
+    "FRONTEND_API_CHANGE_2025-11-30.md"
   ]
 }
