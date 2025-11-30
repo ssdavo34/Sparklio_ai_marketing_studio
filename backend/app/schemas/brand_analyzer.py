@@ -304,6 +304,16 @@ class BrandDNAOutputV1(BaseModel):
         description="분석 노트 (추가 인사이트)"
     )
 
+    # LLM Meta Info (API 응답에 추가)
+    llm_provider: Optional[str] = Field(
+        None,
+        description="분석에 사용된 LLM Provider (예: openai, anthropic)"
+    )
+    llm_model: Optional[str] = Field(
+        None,
+        description="분석에 사용된 LLM 모델 (예: gpt-4o, claude-3-sonnet)"
+    )
+
     class Config:
         json_schema_extra = {
             "example": {

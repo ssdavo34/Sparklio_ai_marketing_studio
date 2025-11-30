@@ -504,6 +504,25 @@ async def crawl_brand_url(
         )
 
         db.add(document)
+
+        # Demo Brand인 경우, 크롤링한 페이지 타이틀에서 브랜드 이름 추출하여 업데이트
+        # "Demo Brand"라는 이름 대신 실제 브랜드 이름 사용
+        if brand_id == DEMO_BRAND_ID and brand.name == "Demo Brand" and title_from_crawl:
+            # 타이틀에서 브랜드 이름 추출 (예: "미리캔버스 - 디자인 플랫폼" -> "미리캔버스")
+            extracted_brand_name = title_from_crawl.split(' - ')[0].split(' | ')[0].split(' : ')[0].strip()
+            # URL에서 도메인 추출하여 website_url 업데이트
+            from urllib.parse import urlparse
+            parsed_url = urlparse(url)
+            base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
+
+            if extracted_brand_name and len(extracted_brand_name) <= 100:
+                brand.name = extracted_brand_name
+                brand.website_url = base_url
+                logger.info(
+                    f"Demo Brand name updated: 'Demo Brand' -> '{extracted_brand_name}', "
+                    f"website_url: {base_url}"
+                )
+
         db.commit()
         db.refresh(document)
 
@@ -1033,7 +1052,12 @@ async def analyze_brand(
 
         brand_dna_output = BrandDNAOutputV1(**response.outputs[0].value)
 
-        # Brand DNA를 DB에 저장
+        # LLM 정보 추가 (response.meta에서 추출)
+        if response.meta:
+            brand_dna_output.llm_provider = response.meta.get("llm_provider")
+            brand_dna_output.llm_model = response.meta.get("llm_model")
+
+        # Brand DNA를 DB에 저장 (LLM 정보 포함)
         brand.brand_dna = brand_dna_output.model_dump()
 
         # suggested_brand_kit을 brand_kit에 병합 (기존 값 유지)
