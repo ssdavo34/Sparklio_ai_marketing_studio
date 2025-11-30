@@ -115,8 +115,8 @@ class StrategistAgent(AgentBase):
                         logger.info(f"🐛 Parsed Output Type: {type(outputs[0].value).__name__ if outputs else 'None'}")
 
                     # Validation Pipeline
-                    # chat task는 자유 형식 응답이므로 validation 건너뛰기
-                    skip_validation = request.task in ['chat', 'free_chat', 'general_chat']
+                    # chat/brand_message task는 자유 형식 응답이므로 validation 건너뛰기
+                    skip_validation = request.task in ['chat', 'free_chat', 'general_chat', 'brand_message']
 
                     if skip_validation:
                         logger.info(f"⏭️ Skipping validation for task: {request.task}")
@@ -443,6 +443,17 @@ class StrategistAgent(AgentBase):
                 "structure": {
                     "response": "사용자 질문에 대한 응답"
                 }
+            },
+            # Brand message task: 브랜드 메시지/톤앤매너 관련 자유 형식 대화
+            "brand_message": {
+                "instruction": (
+                    "브랜드 메시징과 톤앤매너에 대한 전문적인 조언을 제공하세요. "
+                    "브랜드 DNA, 브랜드 보이스, 커뮤니케이션 스타일에 대해 설명하세요. "
+                    "사용자가 제공한 브랜드 컨텍스트를 바탕으로 응답하세요."
+                ),
+                "structure": {
+                    "response": "브랜드 메시지에 대한 조언"
+                }
             }
         }
 
@@ -482,7 +493,8 @@ class StrategistAgent(AgentBase):
                 "target_analysis": "target_insights",
                 "positioning": "positioning_strategy",
                 "content_strategy": "content_plan",
-                "chat": "chat_response"  # Chat task 지원
+                "chat": "chat_response",  # Chat task 지원
+                "brand_message": "chat_response"  # Brand message task 지원
             }
 
             output_name = output_names.get(task, "strategy")
