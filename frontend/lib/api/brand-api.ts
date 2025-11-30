@@ -6,8 +6,8 @@
  * - Brand DNA 분석
  *
  * @author C팀 (Frontend Team)
- * @version 2.0
- * @date 2025-11-24
+ * @version 2.1
+ * @date 2025-11-30
  * @reference FRONTEND_MVP_TODO_2025-11-24.md Phase 1.3.2
  */
 
@@ -23,6 +23,63 @@ import type {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
 
+/**
+ * 인증 헤더 생성
+ */
+function getAuthHeaders(contentType: string = 'application/json'): HeadersInit {
+  const headers: HeadersInit = {
+    'Content-Type': contentType,
+  };
+
+  if (typeof window !== 'undefined') {
+    try {
+      const token = localStorage.getItem('access_token');
+
+      // Debug logging
+      if (!token) {
+        console.warn('[BrandAPI] No token found in localStorage');
+      } else if (token === 'undefined' || token === 'null') {
+        console.error('[BrandAPI] Invalid token string found:', token);
+      } else {
+        // Basic JWT validation (header.payload.signature)
+        const parts = token.split('.');
+        if (parts.length === 3) {
+          headers['Authorization'] = `Bearer ${token}`;
+        } else {
+          console.error('[BrandAPI] Malformed JWT token:', token.substring(0, 10) + '...');
+        }
+      }
+    } catch (error) {
+      console.error('[BrandAPI] Failed to access localStorage:', error);
+    }
+  }
+
+  return headers;
+}
+
+/**
+ * 파일 업로드용 인증 헤더 생성 (Content-Type 제외)
+ */
+function getUploadHeaders(): HeadersInit {
+  const headers: HeadersInit = {};
+
+  if (typeof window !== 'undefined') {
+    try {
+      const token = localStorage.getItem('access_token');
+      if (token && token !== 'undefined' && token !== 'null') {
+        const parts = token.split('.');
+        if (parts.length === 3) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+      }
+    } catch (error) {
+      console.error('[BrandAPI] Failed to access localStorage:', error);
+    }
+  }
+
+  return headers;
+}
+
 // ============================================================================
 // API Functions
 // ============================================================================
@@ -35,9 +92,7 @@ export async function getBrandKit(workspaceId: string): Promise<BrandKit | null>
     `${API_BASE_URL}/api/v1/workspaces/${workspaceId}/brand-kit`,
     {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
     }
   );
 
@@ -63,9 +118,7 @@ export async function createBrandKit(
     `${API_BASE_URL}/api/v1/workspaces/${request.workspaceId}/brand-kit`,
     {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify(request),
     }
   );
@@ -88,9 +141,7 @@ export async function updateBrandKit(
 ): Promise<BrandKit> {
   const response = await fetch(`${API_BASE_URL}/api/v1/brand-kits/${id}`, {
     method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: getAuthHeaders(),
     body: JSON.stringify(request),
   });
 
@@ -109,9 +160,7 @@ export async function updateBrandKit(
 export async function deleteBrandKit(id: string): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/api/v1/brand-kits/${id}`, {
     method: 'DELETE',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: getAuthHeaders(),
   });
 
   if (!response.ok) {
@@ -134,6 +183,7 @@ export async function uploadLogo(
     `${API_BASE_URL}/api/v1/workspaces/${workspaceId}/brand-kit/logo`,
     {
       method: 'POST',
+      headers: getUploadHeaders(),
       body: formData,
     }
   );
@@ -275,8 +325,8 @@ export async function uploadBrandDocument(
     `${API_BASE_URL}/api/v1/brands/${brandId}/documents`,
     {
       method: 'POST',
+      headers: getUploadHeaders(),
       body: formData,
-      credentials: 'include',
     }
   );
 
@@ -300,11 +350,8 @@ export async function crawlBrandUrl(
     `${API_BASE_URL}/api/v1/brands/${brandId}/documents/crawl`,
     {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify({ url, title }),
-      credentials: 'include',
     }
   );
 
@@ -328,7 +375,7 @@ export async function listBrandDocuments(
     `${API_BASE_URL}/api/v1/brands/${brandId}/documents?skip=${skip}&limit=${limit}`,
     {
       method: 'GET',
-      credentials: 'include',
+      headers: getAuthHeaders(),
     }
   );
 
@@ -351,7 +398,7 @@ export async function deleteBrandDocument(
     `${API_BASE_URL}/api/v1/brands/${brandId}/documents/${documentId}`,
     {
       method: 'DELETE',
-      credentials: 'include',
+      headers: getAuthHeaders(),
     }
   );
 
@@ -372,10 +419,7 @@ export async function analyzeBrand(brandId: string): Promise<BrandDNA> {
     `${API_BASE_URL}/api/v1/brands/${brandId}/analyze`,
     {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
+      headers: getAuthHeaders(),
     }
   );
 
@@ -482,3 +526,4 @@ export function getMockBrandDNA(): BrandDNA {
     analysis_notes: '2개 문서 분석 완료. 추가 문서 업로드 시 정확도 향상',
   };
 }
+

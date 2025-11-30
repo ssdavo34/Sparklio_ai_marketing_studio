@@ -43,8 +43,30 @@ import { addBrandIdentityToCanvas } from '@/lib/canvas/brandIdentityTemplate';
 
 export function BrandKitTab() {
   // 임시로 workspace에서 브랜드 ID 가져오기
+  // 임시로 workspace에서 브랜드 ID 가져오기
   const { currentWorkspace } = useWorkspaceStore();
-  const brandId = currentWorkspace?.id || 'default-brand';
+
+  // Auth Check & Brand ID Selection
+  // If not authenticated, ALWAYS use Demo Brand ID (Nil UUID)
+  // If authenticated, use workspace ID
+  const [brandId, setBrandId] = useState<string>('00000000-0000-0000-0000-000000000000');
+
+  useEffect(() => {
+    const checkAuth = () => {
+      const token = localStorage.getItem('access_token');
+      if (token && currentWorkspace?.id) {
+        setBrandId(currentWorkspace.id);
+      } else {
+        setBrandId('00000000-0000-0000-0000-000000000000');
+      }
+    };
+
+    checkAuth();
+    // Listen for storage changes (login/logout)
+    window.addEventListener('storage', checkAuth);
+    return () => window.removeEventListener('storage', checkAuth);
+  }, [currentWorkspace]);
+
   const polotnoStore = useCanvasStore((state) => state.polotnoStore);
   const currentTemplate = useCanvasStore((state) => state.currentTemplate);
 
@@ -56,7 +78,10 @@ export function BrandKitTab() {
   const [urlInput, setUrlInput] = useState('');
   const [showUrlForm, setShowUrlForm] = useState(false);
   const [showDNAResult, setShowDNAResult] = useState(false);
+  const [progress, setProgress] = useState(0);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Load documents on mount
   useEffect(() => {
@@ -100,24 +125,70 @@ export function BrandKitTab() {
   };
 
   // URL 크롤링
-  const handleCrawlUrl = async () => {
-    if (!urlInput.trim() || !brandId) return;
+  const handleCrawlUrl = async (urlToCrawl?: string) => {
+    const targetUrl = urlToCrawl || urlInput;
+    if (!targetUrl.trim() || !brandId) return;
 
     setCrawling(true);
+    setProgress(0);
+    setShowUrlForm(true); // Retry 시 폼이 닫혀있을 수 있으므로 열기
+
+    // AbortController 설정
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
+    // 가짜 진행률 시뮬레이션
+    const progressInterval = setInterval(() => {
+      setProgress((prev) => {
+        if (prev >= 90) return prev;
+        return prev + Math.random() * 10;
+      });
+    }, 500);
+
     try {
-      // 실제 API 호출
-      const doc = await crawlBrandUrl(brandId, urlInput);
+      // 실제 API 호출 (Signal 전달은 api-client 수정 필요하지만, 여기서는 UI적 중단만 처리)
+      // TODO: api-client에 signal 전달 기능 추가 권장
+      const doc = await crawlBrandUrl(brandId, targetUrl);
+
+      clearInterval(progressInterval);
+      setProgress(100);
 
       setDocuments((prev) => [...prev, doc]);
-      setUrlInput('');
+      if (!urlToCrawl) setUrlInput(''); // Retry가 아닐 때만 초기화
       setShowUrlForm(false);
       toast.success('URL 크롤링 완료! 자동으로 임베딩이 생성됩니다.');
-    } catch (error) {
-      console.error('Crawling failed:', error);
-      toast.error(`크롤링 실패: ${error instanceof Error ? error.message : String(error)}`);
+    } catch (error: any) {
+      clearInterval(progressInterval);
+      if (error.name === 'AbortError') {
+        toast.info('크롤링이 중단되었습니다.');
+      } else {
+        console.error('Crawling failed:', error);
+        toast.error(`크롤링 실패: ${error instanceof Error ? error.message : String(error)}`);
+      }
     } finally {
       setCrawling(false);
+      setProgress(0);
+      abortControllerRef.current = null;
     }
+  };
+
+  // 크롤링 중지
+  const handleStopCrawl = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      setCrawling(false);
+      setProgress(0);
+      toast.info('사용자에 의해 크롤링이 중지되었습니다.');
+    }
+  };
+
+  // 재시도
+  const handleRetry = (url: string) => {
+    setUrlInput(url);
+    handleCrawlUrl(url);
   };
 
   // Brand DNA 분석
@@ -248,20 +319,44 @@ export function BrandKitTab() {
                   placeholder="https://example.com"
                   className="w-full px-3 py-2 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
                 />
+
+                {/* Progress Bar */}
+                {crawling && (
+                  <div className="w-full bg-gray-200 rounded-full h-1.5 mb-2">
+                    <div
+                      className="bg-purple-600 h-1.5 rounded-full transition-all duration-300"
+                      style={{ width: `${progress}%` }}
+                    ></div>
+                  </div>
+                )}
+
                 <div className="flex gap-2">
-                  <button
-                    onClick={handleCrawlUrl}
-                    disabled={crawling || !urlInput.trim()}
-                    className="flex-1 px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium rounded transition-colors disabled:opacity-50"
-                  >
-                    {crawling ? '크롤링 중...' : '크롤링 시작'}
-                  </button>
+                  {crawling ? (
+                    <button
+                      onClick={handleStopCrawl}
+                      className="flex-1 px-3 py-2 bg-red-500 hover:bg-red-600 text-white text-xs font-medium rounded transition-colors"
+                    >
+                      중지 ({Math.round(progress)}%)
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleCrawlUrl()}
+                      disabled={!urlInput.trim()}
+                      className="flex-1 px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium rounded transition-colors disabled:opacity-50"
+                    >
+                      크롤링 시작
+                    </button>
+                  )}
+
                   <button
                     onClick={() => {
-                      setShowUrlForm(false);
-                      setUrlInput('');
+                      if (!crawling) {
+                        setShowUrlForm(false);
+                        setUrlInput('');
+                      }
                     }}
-                    className="px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-medium rounded transition-colors"
+                    disabled={crawling}
+                    className="px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-medium rounded transition-colors disabled:opacity-50"
                   >
                     취소
                   </button>
@@ -277,24 +372,43 @@ export function BrandKitTab() {
               {documents.map((doc) => (
                 <div
                   key={doc.id}
-                  className="flex items-center justify-between p-2 bg-gray-50 rounded text-xs"
+                  className="flex flex-col p-2 bg-gray-50 rounded text-xs gap-1"
                 >
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    {doc.processed === 'completed' ? (
-                      <CheckCircle className="w-3 h-3 text-green-600 flex-shrink-0" />
-                    ) : doc.processed === 'failed' ? (
-                      <XCircle className="w-3 h-3 text-red-600 flex-shrink-0" />
-                    ) : (
-                      <AlertCircle className="w-3 h-3 text-yellow-600 flex-shrink-0" />
-                    )}
-                    <span className="text-gray-700 truncate">{doc.title}</span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      {doc.processed === 'completed' ? (
+                        <CheckCircle className="w-3 h-3 text-green-600 flex-shrink-0" />
+                      ) : doc.processed === 'failed' ? (
+                        <XCircle className="w-3 h-3 text-red-600 flex-shrink-0" />
+                      ) : (
+                        <AlertCircle className="w-3 h-3 text-yellow-600 flex-shrink-0" />
+                      )}
+                      <span className="text-gray-700 truncate font-medium">{doc.title}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {doc.processed === 'failed' && doc.source_url && (
+                        <button
+                          onClick={() => handleRetry(doc.source_url!)}
+                          className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors text-[10px]"
+                        >
+                          재시도
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleDelete(doc.id)}
+                        className="p-1 hover:bg-gray-200 rounded transition-colors flex-shrink-0"
+                      >
+                        <Trash2 className="w-3 h-3 text-gray-500" />
+                      </button>
+                    </div>
                   </div>
-                  <button
-                    onClick={() => handleDelete(doc.id)}
-                    className="p-1 hover:bg-gray-200 rounded transition-colors flex-shrink-0"
-                  >
-                    <Trash2 className="w-3 h-3 text-gray-500" />
-                  </button>
+
+                  {/* 실패 사유 표시 */}
+                  {doc.processed === 'failed' && doc.document_metadata?.error && (
+                    <div className="text-red-500 text-[10px] pl-5 break-all">
+                      실패 사유: {doc.document_metadata.error}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

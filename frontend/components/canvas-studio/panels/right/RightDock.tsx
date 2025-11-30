@@ -15,6 +15,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useTabsStore } from '../../stores/useTabsStore';
+import { useLeftPanelStore } from '../../stores/useLeftPanelStore';
 import { useCanvasStore } from '../../stores/useCanvasStore';
 import { useChatStore, getMessageImageUrl } from '../../stores/useChatStore';
 import { useCenterViewStore } from '../../stores/useCenterViewStore';
@@ -42,6 +43,49 @@ export function RightDock() {
   const activeTab = useTabsStore((state) => state.activeRightDockTab);
   const setActiveTab = useTabsStore((state) => state.setActiveRightDockTab);
   const polotnoStore = useCanvasStore((state) => state.polotnoStore);
+
+  // Sync Chat Role with Left Panel Context
+  const leftPanelTab = useLeftPanelStore((state) => state.activeTab);
+  const setChatRole = useChatStore((state) => state.setRole);
+  const setChatTask = useChatStore((state) => state.setTask);
+
+  useEffect(() => {
+    switch (leftPanelTab) {
+      case 'brandkit':
+        setChatRole('strategist');
+        setChatTask('brand_message');
+        break;
+      case 'presentation':
+        setChatRole('strategist');
+        setChatTask('presentation');
+        break;
+      case 'conceptboard':
+        setChatRole('strategist');
+        setChatTask('marketing_brief');
+        break;
+      case 'sns':
+        setChatRole('copywriter');
+        setChatTask('sns');
+        break;
+      case 'detail':
+        setChatRole('copywriter');
+        setChatTask('product_detail');
+        break;
+      case 'video':
+        // setChatRole('vision'); // vision role might not support image_generate task in types?
+        // Let's check AGENT_INFO. vision supports image_generate.
+        setChatRole('vision');
+        setChatTask('image_generate');
+        break;
+      case 'image':
+        setChatRole('vision');
+        setChatTask('image_generate');
+        break;
+      default:
+        break;
+    }
+  }, [leftPanelTab, setChatRole, setChatTask]);
+
   const [, forceUpdate] = useState({});
 
   // Force re-render when selection changes
@@ -383,8 +427,8 @@ Campaign Ideas: ${meetingAnalysis.campaign_ideas.join(', ')}
                 <button
                   onClick={() => setMode('chat')}
                   className={`flex-1 py-1.5 px-3 text-xs font-medium rounded-md transition-colors ${mode === 'chat'
-                      ? 'bg-white text-purple-600 shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
+                    ? 'bg-white text-purple-600 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
                     }`}
                 >
                   자유 대화
@@ -392,8 +436,8 @@ Campaign Ideas: ${meetingAnalysis.campaign_ideas.join(', ')}
                 <button
                   onClick={() => setMode('concept')}
                   className={`flex-1 py-1.5 px-3 text-xs font-medium rounded-md transition-colors ${mode === 'concept'
-                      ? 'bg-white text-purple-600 shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
+                    ? 'bg-white text-purple-600 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
                     }`}
                 >
                   컨셉 도출
@@ -453,8 +497,8 @@ Campaign Ideas: ${meetingAnalysis.campaign_ideas.join(', ')}
                         key={costMode}
                         onClick={() => setCostMode(costMode)}
                         className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-colors ${chatConfig.costMode === costMode
-                            ? 'bg-white text-purple-600 shadow-sm'
-                            : 'text-gray-500 hover:text-gray-700'
+                          ? 'bg-white text-purple-600 shadow-sm'
+                          : 'text-gray-500 hover:text-gray-700'
                           }`}
                       >
                         {costMode === 'fast' && '⚡ 빠름'}
@@ -485,8 +529,8 @@ Campaign Ideas: ${meetingAnalysis.campaign_ideas.join(', ')}
           >
             <div
               className={`max-w-[80%] rounded-lg px-3 py-2 ${message.role === 'user'
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-gray-100 text-gray-900'
+                ? 'bg-purple-600 text-white'
+                : 'bg-gray-100 text-gray-900'
                 }`}
             >
               <p className="text-sm whitespace-pre-wrap">{message.content}</p>
@@ -1137,14 +1181,12 @@ function AISettingsTab() {
           </div>
           <button
             onClick={() => setSmartRouterEnabled(!smartRouter.enabled)}
-            className={`relative w-12 h-6 rounded-full transition-colors ${
-              smartRouter.enabled ? 'bg-purple-600' : 'bg-gray-300'
-            }`}
+            className={`relative w-12 h-6 rounded-full transition-colors ${smartRouter.enabled ? 'bg-purple-600' : 'bg-gray-300'
+              }`}
           >
             <span
-              className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
-                smartRouter.enabled ? 'left-7' : 'left-1'
-              }`}
+              className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${smartRouter.enabled ? 'left-7' : 'left-1'
+                }`}
             />
           </button>
         </div>

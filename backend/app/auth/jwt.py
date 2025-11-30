@@ -162,3 +162,37 @@ async def get_current_admin_user(
             detail="Not enough permissions"
         )
     return current_user
+
+
+async def get_current_user_optional(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    db: Session = Depends(get_db)
+) -> Optional[User]:
+    """
+    현재 인증된 사용자를 반환하거나, 인증되지 않은 경우 None을 반환합니다.
+    
+    Args:
+        credentials: HTTPBearer 인증 정보 (Optional)
+        db: 데이터베이스 세션
+        
+    Returns:
+        User 객체 또는 None
+    """
+    if not credentials:
+        return None
+        
+    try:
+        token = credentials.credentials
+        payload = verify_token(token)
+        
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            return None
+            
+        user = db.query(User).filter(User.id == user_id).first()
+        if user is None or not user.is_active:
+            return None
+            
+        return user
+    except Exception:
+        return None

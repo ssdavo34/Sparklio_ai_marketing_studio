@@ -19,6 +19,7 @@
 'use client';
 
 import { useEditorStore } from '../stores';
+import { BrandKitPanel } from '../panels/BrandKitPanel';
 import { PageManager } from './PageManager';
 
 export function LeftPanel() {
@@ -39,7 +40,8 @@ export function LeftPanel() {
       {/* 패널 컨텐츠 */}
       <div className="flex-1 overflow-hidden">
         {/* Editor 모드일 때만 PageManager 표시 */}
-        {currentMode === 'editor' && <PageManager />}
+        {activeTab === 'brandkit' && <BrandKitPanel />}
+        {activeTab === 'pages' && <PagesTab />}
 
         {/* 다른 모드의 경우 */}
         {currentMode !== 'editor' && (

@@ -27,11 +27,40 @@ from app.schemas.brand_analyzer import BrandAnalysisInputV1, BrandDNAOutputV1, B
 from app.services.agents.brand_analyzer import get_brand_analyzer_agent
 from app.services.agents.base import AgentRequest, AgentError
 from app.services.crawlers import get_web_crawler, WebCrawlerError
-from app.auth.jwt import get_current_user
+from app.auth.jwt import get_current_user, get_current_user_optional
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+DEMO_BRAND_ID = UUID('00000000-0000-0000-0000-000000000000')
+
+def get_or_create_demo_brand(db: Session) -> Brand:
+    """데모 브랜드를 조회하거나 생성합니다."""
+    brand = db.query(Brand).filter(Brand.id == DEMO_BRAND_ID).first()
+    if brand:
+        return brand
+        
+    # 데모 브랜드 생성 (첫 번째 사용자를 소유자로 지정)
+    # 주의: 실제 운영 환경에서는 별도의 데모 계정을 사용해야 함
+    owner = db.query(User).first()
+    if not owner:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="No users found to create demo brand"
+        )
+        
+    brand = Brand(
+        id=DEMO_BRAND_ID,
+        owner_id=owner.id,
+        name="Demo Brand",
+        slug="demo-brand",
+        description="A demo brand for anonymous users",
+        brand_kit={}
+    )
+    db.add(brand)
+    db.commit()
+    db.refresh(brand)
+    return brand
 
 @router.post("/", response_model=BrandResponse, status_code=status.HTTP_201_CREATED)
 async def create_brand(
@@ -244,43 +273,41 @@ async def upload_brand_document(
     file: UploadFile = File(...),
     title: str | None = None,
     document_type: str = "pdf",
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(get_current_user_optional),
     db: Session = Depends(get_db)
 ):
     """
     브랜드 문서를 업로드합니다 (PDF, 이미지, 브로슈어 등).
-
-    Args:
-        brand_id: 브랜드 ID
-        file: 업로드할 파일
-        title: 문서 제목 (optional)
-        document_type: 문서 타입 (pdf, image, brochure)
-        current_user: 현재 인증된 사용자
-        db: 데이터베이스 세션
-
-    Returns:
-        생성된 문서 정보
-
-    Raises:
-        HTTPException: 브랜드를 찾을 수 없거나 권한이 없는 경우
+    
+    * 인증되지 않은 사용자는 Demo Brand에 대해서만 업로드 가능
     """
-    # 브랜드 존재 및 권한 확인
-    brand = db.query(Brand).filter(
-        Brand.id == brand_id,
-        Brand.deleted_at == None
-    ).first()
+    # Demo Brand 처리
+    if not current_user:
+        if brand_id == DEMO_BRAND_ID:
+            brand = get_or_create_demo_brand(db)
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication required"
+            )
+    else:
+        # 브랜드 존재 및 권한 확인
+        brand = db.query(Brand).filter(
+            Brand.id == brand_id,
+            Brand.deleted_at == None
+        ).first()
 
-    if not brand:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Brand not found"
-        )
+        if not brand:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Brand not found"
+            )
 
-    if brand.owner_id != current_user.id and current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions"
-        )
+        if brand.owner_id != current_user.id and current_user.role != "admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not enough permissions"
+            )
 
     # 파일 타입 검증
     allowed_types = {
@@ -320,7 +347,7 @@ async def upload_brand_document(
         processed="pending",
         document_metadata={
             "original_filename": file.filename,
-            "upload_user_id": str(current_user.id)
+            "upload_user_id": str(current_user.id) if current_user else "anonymous"
         }
     )
 
@@ -337,41 +364,41 @@ async def upload_brand_document(
 async def crawl_brand_url(
     brand_id: UUID,
     crawl_data: BrandDocumentCrawl,
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(get_current_user_optional),
     db: Session = Depends(get_db)
 ):
     """
     브랜드 URL을 크롤링하여 문서로 저장합니다.
-
-    Args:
-        brand_id: 브랜드 ID
-        crawl_data: 크롤링 요청 데이터 (URL, title)
-        current_user: 현재 인증된 사용자
-        db: 데이터베이스 세션
-
-    Returns:
-        생성된 문서 정보
-
-    Raises:
-        HTTPException: 브랜드를 찾을 수 없거나 권한이 없는 경우
+    
+    * 인증되지 않은 사용자는 Demo Brand에 대해서만 크롤링 가능
     """
-    # 브랜드 존재 및 권한 확인
-    brand = db.query(Brand).filter(
-        Brand.id == brand_id,
-        Brand.deleted_at == None
-    ).first()
+    # Demo Brand 처리
+    if not current_user:
+        if brand_id == DEMO_BRAND_ID:
+            brand = get_or_create_demo_brand(db)
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication required"
+            )
+    else:
+        # 브랜드 존재 및 권한 확인
+        brand = db.query(Brand).filter(
+            Brand.id == brand_id,
+            Brand.deleted_at == None
+        ).first()
 
-    if not brand:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Brand not found"
-        )
+        if not brand:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Brand not found"
+            )
 
-    if brand.owner_id != current_user.id and current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions"
-        )
+        if brand.owner_id != current_user.id and current_user.role != "admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not enough permissions"
+            )
 
     # URL 크롤링 (동기 실행)
     try:
@@ -387,7 +414,7 @@ async def crawl_brand_url(
             extracted_text=crawl_result.get("extracted_text", ""),
             processed="completed",  # 크롤링 완료
             document_metadata={
-                "crawl_user_id": str(current_user.id),
+                "crawl_user_id": str(current_user.id) if current_user else "anonymous",
                 "crawl_requested_at": str(db.query(db.func.now()).scalar()),
                 "description": crawl_result.get("description"),
                 **crawl_result.get("metadata", {})
@@ -416,7 +443,7 @@ async def crawl_brand_url(
             source_url=crawl_data.url,
             processed="failed",
             document_metadata={
-                "crawl_user_id": str(current_user.id),
+                "crawl_user_id": str(current_user.id) if current_user else "anonymous",
                 "crawl_requested_at": str(db.query(db.func.now()).scalar()),
                 "error": str(e)
             }
@@ -437,42 +464,41 @@ async def list_brand_documents(
     brand_id: UUID,
     skip: int = 0,
     limit: int = 100,
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(get_current_user_optional),
     db: Session = Depends(get_db)
 ):
     """
     브랜드의 문서 목록을 조회합니다.
-
-    Args:
-        brand_id: 브랜드 ID
-        skip: 건너뛸 레코드 수
-        limit: 조회할 최대 레코드 수
-        current_user: 현재 인증된 사용자
-        db: 데이터베이스 세션
-
-    Returns:
-        문서 목록 및 총 개수
-
-    Raises:
-        HTTPException: 브랜드를 찾을 수 없거나 권한이 없는 경우
+    
+    * 인증되지 않은 사용자는 Demo Brand에 대해서만 조회 가능
     """
-    # 브랜드 존재 및 권한 확인
-    brand = db.query(Brand).filter(
-        Brand.id == brand_id,
-        Brand.deleted_at == None
-    ).first()
+    # Demo Brand 처리
+    if not current_user:
+        if brand_id == DEMO_BRAND_ID:
+            brand = get_or_create_demo_brand(db)
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication required"
+            )
+    else:
+        # 브랜드 존재 및 권한 확인
+        brand = db.query(Brand).filter(
+            Brand.id == brand_id,
+            Brand.deleted_at == None
+        ).first()
 
-    if not brand:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Brand not found"
-        )
+        if not brand:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Brand not found"
+            )
 
-    if brand.owner_id != current_user.id and current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions"
-        )
+        if brand.owner_id != current_user.id and current_user.role != "admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not enough permissions"
+            )
 
     # 문서 목록 조회
     documents = db.query(BrandDocument).filter(
@@ -493,35 +519,36 @@ async def list_brand_documents(
 async def delete_brand_document(
     brand_id: UUID,
     document_id: UUID,
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(get_current_user_optional),
     db: Session = Depends(get_db)
 ):
     """
     브랜드 문서를 삭제합니다.
-
-    Args:
-        brand_id: 브랜드 ID
-        document_id: 문서 ID
-        current_user: 현재 인증된 사용자
-        db: 데이터베이스 세션
-
-    Raises:
-        HTTPException: 브랜드/문서를 찾을 수 없거나 권한이 없는 경우
     """
-    # 브랜드 존재 및 권한 확인
-    brand = db.query(Brand).filter(Brand.id == brand_id).first()
+    # Demo Brand 처리
+    if not current_user:
+        if brand_id == DEMO_BRAND_ID:
+            brand = get_or_create_demo_brand(db)
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication required"
+            )
+    else:
+        # 브랜드 존재 및 권한 확인
+        brand = db.query(Brand).filter(Brand.id == brand_id).first()
 
-    if not brand:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Brand not found"
-        )
+        if not brand:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Brand not found"
+            )
 
-    if brand.owner_id != current_user.id and current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions"
-        )
+        if brand.owner_id != current_user.id and current_user.role != "admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not enough permissions"
+            )
 
     # 문서 조회
     document = db.query(BrandDocument).filter(
@@ -549,43 +576,39 @@ async def delete_brand_document(
 @router.post("/{brand_id}/analyze", response_model=BrandDNAOutputV1)
 async def analyze_brand(
     brand_id: UUID,
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(get_current_user_optional),
     db: Session = Depends(get_db)
 ):
     """
     브랜드 분석 및 Brand DNA 자동 생성
-
-    브랜드에 업로드된 모든 문서를 분석하여 Brand DNA Card를 생성합니다.
-    생성된 Brand DNA는 자동으로 brands.brand_dna에 저장됩니다.
-
-    Args:
-        brand_id: 브랜드 ID
-        current_user: 현재 인증된 사용자
-        db: 데이터베이스 세션
-
-    Returns:
-        Brand DNA Card (tone, key_messages, target_audience, dos/donts, sample_copies, suggested_brand_kit)
-
-    Raises:
-        HTTPException: 브랜드를 찾을 수 없거나 권한이 없거나 문서가 없는 경우
     """
-    # 브랜드 존재 및 권한 확인
-    brand = db.query(Brand).filter(
-        Brand.id == brand_id,
-        Brand.deleted_at == None
-    ).first()
+    # Demo Brand 처리
+    if not current_user:
+        if brand_id == DEMO_BRAND_ID:
+            brand = get_or_create_demo_brand(db)
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication required"
+            )
+    else:
+        # 브랜드 존재 및 권한 확인
+        brand = db.query(Brand).filter(
+            Brand.id == brand_id,
+            Brand.deleted_at == None
+        ).first()
 
-    if not brand:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Brand not found"
-        )
+        if not brand:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Brand not found"
+            )
 
-    if brand.owner_id != current_user.id and current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions"
-        )
+        if brand.owner_id != current_user.id and current_user.role != "admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not enough permissions"
+            )
 
     # 문서 조회
     documents = db.query(BrandDocument).filter(
