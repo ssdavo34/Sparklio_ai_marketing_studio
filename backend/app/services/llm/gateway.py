@@ -146,68 +146,101 @@ class LLMGateway:
         """
         start_time = datetime.utcnow()
 
-        try:
-            # 1. 프롬프트 구성
-            prompt = self._build_prompt(role, task, payload, mode)
+        # 1. 프롬프트 구성
+        prompt = self._build_prompt(role, task, payload, mode)
 
-            # 2. Provider 선택 (Mock/Live 모드 + 사용자 지정)
-            provider_name, provider = self._select_provider(
-                role, task, override_model, llm_selection, channel
-            )
+        # 2. Provider 선택 (Mock/Live 모드 + 사용자 지정)
+        provider_name, provider = self._select_provider(
+            role, task, override_model, llm_selection, channel
+        )
 
-            # 3. 모델 선택 (Router 사용 또는 사용자 지정)
-            if provider_name != "mock":
-                # 사용자 지정이 있으면 Router 건너뜀 (이미 _select_provider에서 처리됨)
-                # 단, override_model이 있으면 그것을 우선
-                if override_model:
-                    model = override_model
-                elif llm_selection and llm_selection.mode == "manual":
-                    # Manual 모드에서는 Provider의 기본 모델 사용 (또는 추후 모델 지정 로직 추가)
-                    # 현재는 Provider 선택까지만 구현됨
-                    model = provider.default_model
+        # Fallback provider 순서 정의
+        fallback_order = ["openai", "anthropic", "gemini"]
+        tried_providers = set()
+        last_error = None
+
+        while True:
+            try:
+                # 3. 모델 선택 (Router 사용 또는 사용자 지정)
+                if provider_name != "mock":
+                    # 사용자 지정이 있으면 Router 건너뜀 (이미 _select_provider에서 처리됨)
+                    # 단, override_model이 있으면 그것을 우선
+                    if override_model:
+                        model = override_model
+                    elif llm_selection and llm_selection.mode == "manual":
+                        # Manual 모드에서는 Provider의 기본 모델 사용 (또는 추후 모델 지정 로직 추가)
+                        # 현재는 Provider 선택까지만 구현됨
+                        model = provider.default_model
+                    else:
+                        # Auto 모드에서는 Provider 기본 모델 사용 (Router가 ollama만 반환하므로)
+                        model = provider.default_model
                 else:
-                    # Auto 모드에서는 Router 사용
-                    model, _ = self.router.route(role, task, mode, override_model)
-            else:
-                model = "mock-model-v1"
+                    model = "mock-model-v1"
 
-            # 4. 옵션 병합 (기본값 + 사용자 지정)
-            merged_options = self._merge_options(provider, role, task, options)
+                # 4. 옵션 병합 (기본값 + 사용자 지정)
+                merged_options = self._merge_options(provider, role, task, options)
 
-            logger.info(
-                f"LLM Generate: role={role}, task={task}, "
-                f"provider={provider_name}, model={model}, mode={mode}"
-            )
+                logger.info(
+                    f"LLM Generate: role={role}, task={task}, "
+                    f"provider={provider_name}, model={model}, mode={mode}"
+                )
 
-            # 5. LLM 호출
-            response = await provider.generate(
-                prompt=prompt,
-                role=role,
-                task=task,
-                mode=mode,
-                options=merged_options
-            )
+                # 5. LLM 호출
+                response = await provider.generate(
+                    prompt=prompt,
+                    role=role,
+                    task=task,
+                    mode=mode,
+                    options=merged_options
+                )
 
-            # 6. 로깅
-            elapsed = (datetime.utcnow() - start_time).total_seconds()
-            logger.info(
-                f"LLM Success: {provider_name}/{model} - "
-                f"elapsed={elapsed:.2f}s, tokens={response.usage.get('total_tokens', 0)}"
-            )
+                # 6. 로깅
+                elapsed = (datetime.utcnow() - start_time).total_seconds()
+                logger.info(
+                    f"LLM Success: {provider_name}/{model} - "
+                    f"elapsed={elapsed:.2f}s, tokens={response.usage.get('total_tokens', 0)}"
+                )
 
-            return response
+                return response
 
-        except ProviderError as e:
-            logger.error(f"Provider error: {e.message}", exc_info=True)
-            raise
+            except ProviderError as e:
+                tried_providers.add(provider_name)
+                last_error = e
+                logger.warning(
+                    f"Provider '{provider_name}' failed: {e.message}. "
+                    f"Trying fallback..."
+                )
 
-        except Exception as e:
-            logger.error(f"Unexpected error in LLM Gateway: {str(e)}", exc_info=True)
-            raise ProviderError(
-                message=f"Gateway error: {str(e)}",
-                provider="gateway",
-                details={"role": role, "task": task}
-            )
+                # Fallback provider 찾기
+                fallback_provider = None
+                for fb_name in fallback_order:
+                    if fb_name not in tried_providers and fb_name in self.providers:
+                        fallback_provider = self.providers[fb_name]
+                        provider_name = fb_name
+                        provider = fallback_provider
+                        logger.info(f"Falling back to provider: {fb_name}")
+                        break
+
+                if fallback_provider is None:
+                    # 모든 fallback 실패
+                    logger.error(
+                        f"All providers failed. Tried: {tried_providers}. "
+                        f"Last error: {last_error.message if last_error else 'Unknown'}"
+                    )
+                    raise ProviderError(
+                        message=f"All providers failed: {last_error.message if last_error else 'Unknown'}",
+                        provider="gateway",
+                        details={"role": role, "task": task, "tried_providers": list(tried_providers)}
+                    )
+                # 다음 iteration에서 fallback provider로 재시도
+
+            except Exception as e:
+                logger.error(f"Unexpected error in LLM Gateway: {str(e)}", exc_info=True)
+                raise ProviderError(
+                    message=f"Gateway error: {str(e)}",
+                    provider="gateway",
+                    details={"role": role, "task": task}
+                )
 
     def _select_provider(
         self,
