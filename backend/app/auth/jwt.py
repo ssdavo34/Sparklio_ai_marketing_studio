@@ -21,6 +21,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
 
 # HTTPBearer 스키마
 security = HTTPBearer()
+security_optional = HTTPBearer(auto_error=False)  # 인증이 선택적인 경우
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
@@ -165,7 +166,7 @@ async def get_current_admin_user(
 
 
 async def get_current_user_optional(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_optional),
     db: Session = Depends(get_db)
 ) -> Optional[User]:
     """
