@@ -75,13 +75,13 @@ export type UpdateBrandKitRequest = Partial<
 >;
 
 // ============================================================================
-// Brand DNA Types (BrandAnalyzer Output)
+// Brand DNA Types V1 (Legacy - BrandAnalyzer Output)
 // ============================================================================
 
 /**
- * 브랜드 DNA
+ * 브랜드 DNA V1 (Legacy)
  *
- * BrandAnalyzer Agent가 생성하는 브랜드 분석 결과
+ * BrandAnalyzer Agent가 생성하는 브랜드 분석 결과 - 기본 버전
  */
 export interface BrandDNA {
   /** 스키마 버전 */
@@ -114,6 +114,172 @@ export interface BrandDNA {
     /** Agent 버전 */
     agent_version?: string;
   };
+}
+
+// ============================================================================
+// Brand DNA Types V2 (Repomix 기준 풍부한 구조)
+// ============================================================================
+
+/**
+ * 브랜드 핵심 정체성
+ */
+export interface BrandCore {
+  /** 한줄정의 */
+  one_liner: string;
+  /** 존재 목적 (Why we exist) */
+  purpose: string;
+  /** 고객 약속 (What we promise) */
+  promise: string;
+  /** 성격 키워드 */
+  personality: string[];
+}
+
+/**
+ * 메시지 기둥
+ */
+export interface MessagePillar {
+  title: string;
+  description: string;
+}
+
+/**
+ * 핵심 메시지 구조
+ */
+export interface MessageStructure {
+  /** 메인 메시지 */
+  main_message: string;
+  /** 서브 메시지 기둥 */
+  sub_pillars: MessagePillar[];
+}
+
+/**
+ * 톤앤매너 상세
+ */
+export interface ToneAndManner {
+  /** 요약 */
+  summary: string;
+  /** 키워드 */
+  keywords: string[];
+  /** 보이스 스타일 */
+  voice_style: string;
+}
+
+/**
+ * 타겟 오디언스 세그먼트
+ */
+export interface TargetAudienceSegment {
+  segment_name: string;
+  description: string;
+  needs: string[];
+}
+
+/**
+ * 타겟 오디언스 (다중 세그먼트)
+ */
+export interface TargetAudienceV2 {
+  primary: TargetAudienceSegment;
+  secondary?: TargetAudienceSegment;
+}
+
+/**
+ * 베네핏 래더
+ */
+export interface BenefitLadder {
+  /** 기능적 혜택 */
+  functional: string[];
+  /** 감성적 혜택 */
+  emotional: string[];
+}
+
+/**
+ * 비주얼 방향성
+ */
+export interface VisualDirection {
+  /** 스타일 키워드 */
+  style_keywords: string[];
+  /** 무드 */
+  mood: string;
+  /** 피해야 할 요소 */
+  avoid: string[];
+}
+
+/**
+ * Brand Kit 제안
+ */
+export interface SuggestedBrandKit {
+  primary_colors: string[];
+  secondary_colors: string[];
+  fonts: {
+    primary: string;
+    secondary: string;
+  };
+  tone_keywords: string[];
+  forbidden_expressions: string[];
+}
+
+/**
+ * 브랜드 DNA V2 (Repomix 기준 풍부한 구조)
+ *
+ * GPT의 Repomix 브랜드 분석 품질을 기준으로 설계된 확장 버전
+ */
+export interface BrandDNAV2 {
+  /** 스키마 버전 */
+  schema_version: '2.0';
+
+  /** 브랜드 핵심 정체성 */
+  brand_core: BrandCore;
+
+  /** 핵심 메시지 구조 */
+  message_structure: MessageStructure;
+
+  /** 톤앤매너 상세 */
+  tone_and_manner: ToneAndManner;
+
+  /** 타겟 오디언스 */
+  target_audience: TargetAudienceV2;
+
+  /** 베네핏 래더 */
+  benefit_ladder: BenefitLadder;
+
+  /** Do's */
+  dos: string[];
+
+  /** Don'ts */
+  donts: string[];
+
+  /** 샘플 카피 */
+  sample_copies: string[];
+
+  /** 비주얼 방향성 */
+  visual_direction: VisualDirection;
+
+  /** Brand Kit 제안 */
+  suggested_brand_kit: SuggestedBrandKit;
+
+  /** 분석 신뢰도 (0-10) */
+  confidence_score: number;
+
+  /** 분석 노트 */
+  analysis_notes?: string;
+
+  /** 메타 정보 */
+  meta?: {
+    analyzed_at?: string;
+    model?: string;
+    agent_version?: string;
+  };
+}
+
+/**
+ * Brand DNA 통합 타입 (V1 또는 V2)
+ */
+export type BrandDNAUnion = BrandDNA | BrandDNAV2;
+
+/**
+ * Brand DNA 버전 확인
+ */
+export function isBrandDNAV2(dna: BrandDNAUnion): dna is BrandDNAV2 {
+  return 'brand_core' in dna && 'message_structure' in dna;
 }
 
 /**
