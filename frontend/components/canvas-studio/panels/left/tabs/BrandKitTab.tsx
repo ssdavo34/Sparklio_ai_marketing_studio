@@ -46,6 +46,7 @@ import {
   analyzeBrand,
   type BrandDocument,
   type BrandDNA,
+  type CrawlOptions,
 } from '@/lib/api/brand-api';
 import { toast } from '@/components/ui/Toast';
 import { useCanvasStore } from '../../../stores/useCanvasStore';
@@ -90,6 +91,9 @@ export function BrandKitTab() {
   const [showUrlForm, setShowUrlForm] = useState(false);
   const [showDNAResult, setShowDNAResult] = useState(false);
   const [progress, setProgress] = useState(0);
+
+  // 다중 페이지 크롤링 옵션
+  const [multiPageCrawl, setMultiPageCrawl] = useState(true);  // 기본 활성화
 
   // 분석 상태 관련
   const [analyzeProgress, setAnalyzeProgress] = useState(0);
@@ -177,9 +181,15 @@ export function BrandKitTab() {
     }, 500);
 
     try {
-      // 실제 API 호출 (Signal 전달은 api-client 수정 필요하지만, 여기서는 UI적 중단만 처리)
-      // TODO: api-client에 signal 전달 기능 추가 권장
-      const doc = await crawlBrandUrl(brandId, targetUrl);
+      // 다중 페이지 크롤링 옵션
+      const crawlOptions: CrawlOptions = {
+        multiPage: multiPageCrawl,
+        maxPages: 5,
+        includeCategories: true,
+      };
+
+      // 실제 API 호출
+      const doc = await crawlBrandUrl(brandId, targetUrl, undefined, crawlOptions);
 
       clearInterval(progressInterval);
       setProgress(100);
@@ -187,7 +197,13 @@ export function BrandKitTab() {
       setDocuments((prev) => [...prev, doc]);
       if (!urlToCrawl) setUrlInput(''); // Retry가 아닐 때만 초기화
       setShowUrlForm(false);
-      toast.success('URL 크롤링 완료! 자동으로 임베딩이 생성됩니다.');
+
+      // 다중 페이지 크롤링 결과 표시
+      const pageCount = doc.document_metadata?.page_count || 1;
+      const successMsg = multiPageCrawl && pageCount > 1
+        ? `${pageCount}개 페이지 크롤링 완료! (회사 소개, 서비스 등 자동 탐색)`
+        : 'URL 크롤링 완료!';
+      toast.success(successMsg);
     } catch (error: any) {
       clearInterval(progressInterval);
       if (error.name === 'AbortError') {
@@ -583,6 +599,20 @@ export function BrandKitTab() {
                   className="w-full px-3 py-2 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
                 />
 
+                {/* 다중 페이지 크롤링 옵션 */}
+                <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={multiPageCrawl}
+                    onChange={(e) => setMultiPageCrawl(e.target.checked)}
+                    className="w-3.5 h-3.5 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
+                  />
+                  <span>
+                    다중 페이지 크롤링
+                    <span className="text-gray-400 ml-1">(회사 소개, 서비스 페이지 자동 탐색)</span>
+                  </span>
+                </label>
+
                 {/* Progress Bar */}
                 {crawling && (
                   <div className="w-full bg-gray-200 rounded-full h-1.5 mb-2">
@@ -607,7 +637,7 @@ export function BrandKitTab() {
                       disabled={!urlInput.trim()}
                       className="flex-1 px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium rounded transition-colors disabled:opacity-50"
                     >
-                      크롤링 시작
+                      {multiPageCrawl ? '사이트 전체 크롤링' : '단일 페이지 크롤링'}
                     </button>
                   )}
 
