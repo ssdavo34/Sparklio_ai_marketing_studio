@@ -1310,141 +1310,241 @@ class DataCleanerAgent(AgentBase):
         return outputs
 
     # ========================================================================
-    # Brand Kit 전용 정제 메서드
+    # Brand Kit 전용 정제 메서드 (V2 - 마로솔 골든샘플 기준 대폭 강화)
     # ========================================================================
 
     def _remove_navigation(self, data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
-        네비게이션/메뉴 블럭 제거
+        네비게이션/메뉴 블럭 제거 (V2 강화)
 
+        - "카테고리별 스토어 바로가기" ~ 카테고리 목록 전체 블록 제거
         - "메뉴 바로가기", "카테고리 이동" 등 네비게이션 텍스트 제거
         - "Home > Category > Page" 형태의 브레드크럼 제거
         """
-        nav_patterns = [
-            r'메뉴\s*바로\s*가기',
-            r'전체\s*메뉴',
-            r'카테고리\s*(바로\s*)?가기',
-            r'사이트맵',
-            r'바로가기\s*메뉴',
-            r'Skip\s+to\s+content',
-            r'Skip\s+navigation',
-            r'Main\s+Menu',
-            r'Navigation',
-            # 브레드크럼 패턴
-            r'Home\s*[>»›]\s*\w+(\s*[>»›]\s*\w+)*',
-            r'홈\s*[>»›]\s*\w+(\s*[>»›]\s*\w+)*',
-            # 일반적인 네비게이션 링크 목록
-            r'(로그인|회원가입|마이페이지|장바구니|검색)(\s*[|/·]\s*(로그인|회원가입|마이페이지|장바구니|검색))+',
-        ]
-
         cleaned = []
         for record in data:
             cleaned_record = record.copy()
             for field, value in record.items():
                 if isinstance(value, str):
                     text = value
-                    for pattern in nav_patterns:
-                        text = re.sub(pattern, '', text, flags=re.IGNORECASE | re.MULTILINE)
-                    cleaned_record[field] = text
+                    lines = text.split('\n')
+                    filtered_lines = []
+                    skip_until_empty = False
+
+                    for line in lines:
+                        stripped = line.strip()
+
+                        # "카테고리별 스토어 바로가기" 시작하면 빈 줄 나올 때까지 스킵
+                        if re.search(r'카테고리별\s*(스토어)?\s*바로\s*가기', stripped, re.IGNORECASE):
+                            skip_until_empty = True
+                            continue
+
+                        # 빈 줄이면 스킵 모드 해제
+                        if not stripped:
+                            skip_until_empty = False
+                            filtered_lines.append(line)
+                            continue
+
+                        if skip_until_empty:
+                            continue
+
+                        # 카테고리 나열 패턴 (로봇, 제품 등 여러 항목 나열)
+                        # "휴머노이드 산업용로봇 협동로봇 청소로봇 물류로봇" 같은 패턴
+                        category_keywords = ['로봇', '주변기기', '그리퍼', '센서', '솔루션', '서비스']
+                        keyword_count = sum(1 for kw in category_keywords if kw in stripped)
+                        if keyword_count >= 3 and len(stripped) < 200:
+                            continue
+
+                        # 네비게이션 패턴
+                        nav_patterns = [
+                            r'^메뉴\s*바로\s*가기',
+                            r'^전체\s*메뉴',
+                            r'^카테고리\s*(바로\s*)?가기',
+                            r'^사이트맵',
+                            r'^바로가기\s*메뉴',
+                            r'^Skip\s+to\s+content',
+                            r'^Skip\s+navigation',
+                            r'^Main\s+Menu',
+                            r'^Navigation',
+                            # 브레드크럼 패턴
+                            r'^Home\s*[>»›]',
+                            r'^홈\s*[>»›]',
+                            # 일반적인 네비게이션 링크 목록
+                            r'^(로그인|회원가입|마이페이지|장바구니|검색)(\s*[|/·]\s*(로그인|회원가입|마이페이지|장바구니|검색))+',
+                        ]
+
+                        is_nav = False
+                        for pattern in nav_patterns:
+                            if re.search(pattern, stripped, re.IGNORECASE):
+                                is_nav = True
+                                break
+
+                        if not is_nav:
+                            filtered_lines.append(line)
+
+                    cleaned_record[field] = '\n'.join(filtered_lines)
             cleaned.append(cleaned_record)
         return cleaned
 
     def _remove_catalog_blocks(self, data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
-        카탈로그/상품 목록 블럭 제거
+        카탈로그/상품 목록 블럭 제거 (V2 강화)
 
-        - 가격 정보가 반복되는 패턴 제거 (예: "29,900원", "₩29,900")
-        - 상품 리스트 형태 제거 (예: "상품명 | 가격 | 수량")
-        - "장바구니", "구매하기" 등 쇼핑몰 버튼 텍스트 제거
+        마로솔 골든샘플 기준:
+        - "#청소 로봇 > 인기 추천" ~ "더보기" 블록 전체 제거
+        - "[업계 최저가] 상품명 ... 견적문의 0 점" 라인 제거
+        - 가격이 포함된 카탈로그 라인 제거
+        - "장바구니", "구매하기", "견적문의" 등 쇼핑 버튼 라인 제거
         """
-        catalog_patterns = [
-            # 가격 패턴 (여러 번 반복되는 경우)
-            r'(₩|원|KRW)?\s*\d{1,3}(,\d{3})*\s*(원|₩|KRW)?(\s*(~|-|→)\s*(₩|원|KRW)?\s*\d{1,3}(,\d{3})*\s*(원|₩|KRW)?)?',
-            # 상품 목록 패턴
-            r'(인기|추천|베스트|신상품|할인)\s*(상품|제품)?(\s*보기)?',
-            r'장바구니(\s*(담기|추가|넣기))?',
-            r'(바로\s*)?구매하기',
-            r'위시리스트(\s*(추가|담기))?',
-            r'찜하기',
-            r'관심상품',
-            # 재고/배송 정보
-            r'(품절|재고\s*없음|일시\s*품절)',
-            r'무료\s*배송',
-            r'오늘\s*출발',
-            r'내일\s*도착',
-            # 평점/리뷰
-            r'\d+(\.\d+)?\s*(점|점수)?\s*(\(\d+\s*(개|건)?\s*(리뷰|후기)?\))?',
-            r'★{1,5}',
-            r'리뷰\s*\d+\s*(개|건)?',
-        ]
-
         cleaned = []
         for record in data:
             cleaned_record = record.copy()
             for field, value in record.items():
                 if isinstance(value, str):
                     text = value
-                    # 가격이 3번 이상 반복되는 블럭 제거
-                    price_pattern = r'(₩|원)?\s*\d{1,3}(,\d{3})+'
-                    price_matches = re.findall(price_pattern, text)
-                    if len(price_matches) > 3:
-                        # 가격 목록이 많으면 해당 줄 전체 제거
-                        lines = text.split('\n')
-                        filtered_lines = []
-                        for line in lines:
-                            line_prices = re.findall(price_pattern, line)
-                            if len(line_prices) < 2:  # 줄당 2개 미만의 가격만 허용
-                                filtered_lines.append(line)
-                        text = '\n'.join(filtered_lines)
+                    lines = text.split('\n')
+                    filtered_lines = []
+                    skip_until_more = False  # "#카테고리 > 인기 추천" 블록 스킵
 
-                    for pattern in catalog_patterns:
-                        text = re.sub(pattern, '', text, flags=re.IGNORECASE)
-                    cleaned_record[field] = text
+                    for line in lines:
+                        stripped = line.strip()
+
+                        # "#청소 로봇 > 인기 추천", "#산업용 로봇 > 인기 추천" 등 시작
+                        if re.search(r'^#.+>\s*(인기|추천|베스트|신상품)', stripped):
+                            skip_until_more = True
+                            continue
+
+                        # "더보기"가 나오면 블록 끝
+                        if skip_until_more and re.search(r'^더\s*보기$', stripped, re.IGNORECASE):
+                            skip_until_more = False
+                            continue
+
+                        if skip_until_more:
+                            continue
+
+                        # === 개별 라인 필터링 ===
+
+                        # 1. 가격 패턴이 있는 라인 (25,000,000 원, 월 200만원 등)
+                        price_patterns = [
+                            r'\d{1,3}(,\d{3})+\s*원',  # 25,000,000 원
+                            r'월\s*\d+만?\s*원',  # 월 200만원
+                            r'₩\s*\d{1,3}(,\d{3})+',  # ₩25,000,000
+                            r'\[\s*업계\s*최저가\s*\]',  # [업계 최저가]
+                        ]
+                        has_price = any(re.search(p, stripped) for p in price_patterns)
+
+                        # 2. 카탈로그 키워드 조합 (견적문의 + 리스 + 렌탈 + 0 점 등)
+                        catalog_keywords = ['견적문의', '리스', '렌탈', '할부', '0 점', '0점',
+                                          '장바구니', '구매하기', '찜하기', '품절', '재고']
+                        catalog_count = sum(1 for kw in catalog_keywords if kw in stripped)
+
+                        # 3. 상품명 + 가격 + 견적 형태 (전형적인 카탈로그 라인)
+                        is_catalog_line = (has_price and catalog_count >= 1) or catalog_count >= 2
+
+                        # 4. 짧은 반복 버튼 텍스트
+                        button_patterns = [
+                            r'^더\s*보기$',
+                            r'^자세히\s*보기$',
+                            r'^바로\s*가기$',
+                            r'^상세\s*보기$',
+                            r'^구매하기$',
+                            r'^장바구니$',
+                            r'^견적문의$',
+                        ]
+                        is_button = any(re.match(p, stripped, re.IGNORECASE) for p in button_patterns)
+
+                        # 5. 평점/리뷰 패턴만 있는 라인
+                        is_rating_only = re.match(r'^[\d.]+\s*(점|점수)?\s*(\(\d+\s*(개|건)?\s*(리뷰|후기)?\))?$', stripped)
+
+                        # 6. "인기 추천", "베스트 상품" 등 섹션 헤더
+                        section_headers = [
+                            r'^(인기|추천|베스트|신상품|할인)\s*(상품|제품)?$',
+                            r'^NEW\s*ARRIVAL',
+                            r'^BEST\s*SELLER',
+                            r'^HOT\s*DEAL',
+                        ]
+                        is_section_header = any(re.match(p, stripped, re.IGNORECASE) for p in section_headers)
+
+                        # 필터링 적용
+                        if not (is_catalog_line or is_button or is_rating_only or is_section_header):
+                            filtered_lines.append(line)
+
+                    cleaned_record[field] = '\n'.join(filtered_lines)
             cleaned.append(cleaned_record)
         return cleaned
 
     def _remove_forms(self, data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
-        폼/입력 영역 관련 텍스트 제거
+        폼/입력 영역 관련 텍스트 제거 (V2 강화)
 
-        - 뉴스레터 구독 폼
-        - 문의하기 폼
-        - 개인정보 수집 동의 영역
+        마로솔 골든샘플 기준:
+        - "뉴스레터 구독" ~ "제출" 블록 전체 제거
+        - "개인정보 수집 및 이용" ~ "동의합니다" 블록 제거
+        - 입력 필드 레이블 (소속, 이름, 연락처, 이메일 등) 제거
         """
-        form_patterns = [
-            # 뉴스레터/구독
-            r'뉴스레터\s*(구독|신청|받기)',
-            r'이메일\s*(구독|등록|신청)',
-            r'소식\s*받기',
-            r'Subscribe(\s+to)?(\s+our)?(\s+newsletter)?',
-            # 문의/상담
-            r'(문의|상담|견적)\s*(하기|신청|요청|접수)',
-            r'1:1\s*(문의|상담)',
-            r'고객\s*센터',
-            r'(전화|카카오톡?|카톡)\s*(문의|상담)',
-            # 입력 필드 레이블
-            r'(이름|성명|소속|직책|연락처|휴대폰|전화번호|이메일|주소)(\s*[:：\*]?\s*)?$',
-            r'(필수|선택)\s*(입력|항목)',
-            # 개인정보 동의
-            r'개인\s*정보\s*(수집|이용|처리|제공)(\s*(및|과)\s*(이용|동의))?',
-            r'(필수|선택)\s*동의',
-            r'약관\s*동의',
-            r'마케팅\s*(수신|정보)\s*동의',
-            # 버튼
-            r'(제출|전송|보내기|등록|신청)\s*(하기)?$',
-            r'Submit',
-            r'Send(\s+Message)?',
-        ]
-
         cleaned = []
         for record in data:
             cleaned_record = record.copy()
             for field, value in record.items():
                 if isinstance(value, str):
                     text = value
-                    for pattern in form_patterns:
-                        text = re.sub(pattern, '', text, flags=re.IGNORECASE | re.MULTILINE)
-                    cleaned_record[field] = text
+                    lines = text.split('\n')
+                    filtered_lines = []
+                    skip_form_block = False
+
+                    for line in lines:
+                        stripped = line.strip()
+
+                        # "뉴스레터 구독" 또는 "개인정보 수집" 시작하면 블록 스킵
+                        if re.search(r'(뉴스레터\s*(구독|신청)|개인\s*정보\s*(수집|이용)|Subscribe)', stripped, re.IGNORECASE):
+                            skip_form_block = True
+                            continue
+
+                        # "제출", "동의합니다" 등이 나오면 블록 끝
+                        if skip_form_block and re.search(r'(제출|동의합니다|Submit|Send)', stripped, re.IGNORECASE):
+                            skip_form_block = False
+                            continue
+
+                        if skip_form_block:
+                            continue
+
+                        # === 개별 라인 필터링 ===
+
+                        # 1. 폼 입력 필드 레이블 (짧은 라인)
+                        form_labels = [
+                            r'^(이름|성명|소속|직책|부서|회사명?)[:：\*]?\s*$',
+                            r'^(연락처|휴대폰|전화번호|핸드폰)[:：\*]?\s*$',
+                            r'^(이메일|E-?mail)[:：\*]?\s*$',
+                            r'^(주소|우편번호)[:：\*]?\s*$',
+                            r'^(문의\s*내용|요청\s*사항|메시지)[:：\*]?\s*$',
+                            r'^(필수|선택)\s*(입력|항목|동의)$',
+                        ]
+                        is_form_label = any(re.match(p, stripped, re.IGNORECASE) for p in form_labels)
+
+                        # 2. 동의 관련 문구
+                        consent_patterns = [
+                            r'위\s*내용을?\s*확인',
+                            r'동의합니다',
+                            r'동의\s*여부',
+                            r'개인\s*정보',
+                            r'마케팅\s*(수신|정보)',
+                            r'약관에?\s*동의',
+                        ]
+                        is_consent = any(re.search(p, stripped, re.IGNORECASE) for p in consent_patterns)
+
+                        # 3. 짧은 제출 버튼
+                        submit_buttons = [
+                            r'^(제출|전송|보내기|등록|신청)(\s*하기)?$',
+                            r'^Submit$',
+                            r'^Send(\s+Message)?$',
+                        ]
+                        is_submit = any(re.match(p, stripped, re.IGNORECASE) for p in submit_buttons)
+
+                        # 필터링 적용
+                        if not (is_form_label or is_consent or is_submit):
+                            filtered_lines.append(line)
+
+                    cleaned_record[field] = '\n'.join(filtered_lines)
             cleaned.append(cleaned_record)
         return cleaned
 
@@ -1579,16 +1679,17 @@ class DataCleanerAgent(AgentBase):
 
     def _extract_brand_content(self, data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
-        브랜드 관련 콘텐츠 추출 (핵심)
+        브랜드 관련 콘텐츠 추출 (V2 강화)
 
-        브랜드 스토리, 회사 소개, 비전/미션, 철학 등
-        브랜드 DNA 분석에 유용한 콘텐츠를 우선적으로 보존
+        마로솔 골든샘플 기준:
+        - 케이스 스터디 / 적용 사례 (가중치 높음)
+        - 서비스/제품 카테고리 설명
+        - 브랜드 스토리, 회사 소개, 비전/미션
+        - 고객 문제 해결 사례
 
-        - 브랜드 스토리/히스토리
-        - 비전, 미션, 핵심 가치
-        - 회사/브랜드 소개
-        - 제품/서비스 철학
-        - 타겟 고객 관련 내용
+        버려야 할 것:
+        - 숫자(가격/수량) 비율 높은 문단
+        - 너무 짧은 문단 (5단어 미만)
         """
         # 브랜드 관련 키워드 (가중치 높음)
         brand_keywords = [
@@ -1612,52 +1713,104 @@ class DataCleanerAgent(AgentBase):
             r'(혁신|innovation|innovative)',
         ]
 
+        # 케이스 스터디 / 적용 사례 키워드 (가중치 매우 높음)
+        case_study_keywords = [
+            r'(적용|도입)\s*(사례|현장|케이스)',
+            r'(도입|적용|설치)\s*(완료|성공)',
+            r'(문제|과제).*?(해결|솔루션)',
+            r'(효과|성과|결과)',
+            r'(자동화|효율화|절감)',
+            r'(학교|병원|기업|공장|창고|시설).*?(도입|적용)',
+            r'(청소|물류|제조|안내).*?(로봇|자동화)',
+            r'인건비\s*(절감|절약)',
+            r'(작업|업무)\s*효율',
+            r'ROI|투자\s*대비',
+        ]
+
         cleaned = []
         for record in data:
             cleaned_record = record.copy()
             for field, value in record.items():
                 if isinstance(value, str) and field == 'text':
-                    # 문단 단위로 분리
-                    paragraphs = re.split(r'\n\s*\n', value)
+                    # 문단 단위로 분리 (빈 줄 또는 여러 줄바꿈)
+                    paragraphs = re.split(r'\n\s*\n|\n{2,}', value)
 
                     # 각 문단의 브랜드 관련성 점수 계산
                     scored_paragraphs = []
                     for para in paragraphs:
-                        score = 0
-                        para_lower = para.lower()
+                        para = para.strip()
+                        if not para:
+                            continue
 
-                        # 키워드 매칭으로 점수 계산
+                        score = 0
+
+                        # 1. 케이스 스터디 키워드 (가중치 3점)
+                        for keyword in case_study_keywords:
+                            if re.search(keyword, para, re.IGNORECASE):
+                                score += 3
+
+                        # 2. 브랜드 키워드 (가중치 2점)
                         for keyword in brand_keywords:
                             if re.search(keyword, para, re.IGNORECASE):
                                 score += 2
 
-                        # 문장 길이 가중치 (너무 짧거나 긴 문단 감점)
+                        # 3. 문장 길이 가중치
                         word_count = len(para.split())
-                        if 10 <= word_count <= 200:
+                        if 15 <= word_count <= 150:
+                            score += 2  # 적당한 길이 보너스
+                        elif 10 <= word_count < 15 or 150 < word_count <= 300:
                             score += 1
-                        elif word_count < 5 or word_count > 500:
+                        elif word_count < 5:
+                            score -= 3  # 너무 짧으면 큰 감점
+
+                        # 4. 숫자/기호 비율 (카탈로그 징후)
+                        digit_count = len(re.findall(r'\d', para))
+                        digit_ratio = digit_count / max(len(para), 1)
+                        if digit_ratio > 0.15:
+                            score -= 3  # 숫자 비율 높으면 큰 감점
+                        elif digit_ratio > 0.1:
                             score -= 1
 
-                        # 숫자/기호가 너무 많으면 감점 (카탈로그 가능성)
-                        digit_ratio = len(re.findall(r'\d', para)) / max(len(para), 1)
-                        if digit_ratio > 0.2:
-                            score -= 2
+                        # 5. 가격/카탈로그 패턴이 있으면 강한 감점
+                        catalog_signals = [
+                            r'\d{1,3}(,\d{3})+\s*원',  # 가격
+                            r'견적문의',
+                            r'0\s*점',
+                            r'리스|렌탈|할부',
+                        ]
+                        if any(re.search(p, para) for p in catalog_signals):
+                            score -= 5
+
+                        # 6. 특정 장소/기관 이름이 있으면 케이스 스터디 가능성 높음
+                        institution_patterns = [
+                            r'(초등학교|중학교|고등학교|대학교|대학)',
+                            r'(과학관|박물관|도서관|체육관)',
+                            r'(병원|의원|클리닉)',
+                            r'(공장|창고|물류센터)',
+                            r'(주식회사|㈜|Inc\.|Co\.|Ltd\.)',
+                        ]
+                        if any(re.search(p, para) for p in institution_patterns):
+                            score += 2
 
                         scored_paragraphs.append((para, score))
 
-                    # 점수 기준 정렬 (높은 순) 및 상위 문단 선택
+                    # 점수 기준 정렬 (높은 순)
                     scored_paragraphs.sort(key=lambda x: x[1], reverse=True)
 
-                    # 양성 점수 문단만 선택 (최소 500자 이상 유지)
+                    # 양성 점수 문단만 선택 (최소 300자 이상, 최대 5000자)
                     selected = []
                     total_chars = 0
+                    max_chars = 5000
+
                     for para, score in scored_paragraphs:
-                        if score >= 0 or total_chars < 500:
-                            selected.append(para)
-                            total_chars += len(para)
+                        if score >= 0 or total_chars < 300:
+                            if total_chars + len(para) <= max_chars:
+                                selected.append(para)
+                                total_chars += len(para)
 
                     # 원래 순서대로 재정렬
-                    original_order = {para: i for i, para in enumerate(paragraphs)}
+                    paragraphs_clean = [p.strip() for p in paragraphs if p.strip()]
+                    original_order = {para: i for i, para in enumerate(paragraphs_clean)}
                     selected.sort(key=lambda p: original_order.get(p, 999))
 
                     cleaned_record[field] = '\n\n'.join(selected)
