@@ -435,6 +435,52 @@ export async function deleteBrandDocument(
 }
 
 /**
+ * 브랜드 문서 수정 요청 타입
+ */
+export interface UpdateBrandDocumentRequest {
+  /** 문서 제목 */
+  title?: string;
+  /** 원본 추출 텍스트 */
+  extracted_text?: string;
+  /** 정제된 텍스트 (Brand DNA 분석용) */
+  clean_text?: string;
+  /** 추출된 키워드 목록 */
+  extracted_keywords?: string[];
+}
+
+/**
+ * 브랜드 문서 수정 (크롤링된 텍스트 편집)
+ *
+ * 크롤링된 문서의 텍스트를 수동으로 편집하여 저장합니다.
+ * 잘못 추출된 텍스트를 수정하거나 불필요한 내용을 삭제할 때 사용합니다.
+ *
+ * @param brandId - 브랜드 ID
+ * @param documentId - 수정할 문서 ID
+ * @param updateData - 수정할 필드들
+ */
+export async function updateBrandDocument(
+  brandId: string,
+  documentId: string,
+  updateData: UpdateBrandDocumentRequest
+): Promise<BrandDocument> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/brands/${brandId}/documents/${documentId}`,
+    {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(updateData),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Failed to update document');
+  }
+
+  return response.json();
+}
+
+/**
  * URL 문서 재크롤링 (DataCleanerAgent V2 적용)
  *
  * 기존에 크롤링된 URL 문서를 다시 크롤링하고 최신 정제 로직을 적용합니다.

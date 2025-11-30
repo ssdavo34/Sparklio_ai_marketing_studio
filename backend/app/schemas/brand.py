@@ -78,6 +78,14 @@ class BrandDocumentCreate(BrandDocumentBase):
     document_metadata: Optional[Dict[str, Any]] = None
 
 
+class BrandDocumentUpdate(BaseModel):
+    """브랜드 문서 수정 스키마 (크롤링 텍스트 편집용)"""
+    title: Optional[str] = Field(None, max_length=255)
+    extracted_text: Optional[str] = Field(None, description="수정된 원본 텍스트")
+    clean_text: Optional[str] = Field(None, description="수정된 정제된 텍스트")
+    extracted_keywords: Optional[List[str]] = Field(None, description="수정된 키워드 목록")
+
+
 class BrandDocumentCrawl(BaseModel):
     """브랜드 URL 크롤링 요청 스키마"""
     url: str = Field(..., description="Crawl target URL")

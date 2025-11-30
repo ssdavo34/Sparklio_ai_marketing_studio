@@ -23,7 +23,7 @@ from app.models.user import User
 from app.models.brand import Brand, BrandDocument, DocumentType
 from app.schemas.brand import (
     BrandCreate, BrandUpdate, BrandResponse,
-    BrandDocumentCreate, BrandDocumentCrawl, BrandDocumentResponse,
+    BrandDocumentCreate, BrandDocumentUpdate, BrandDocumentCrawl, BrandDocumentResponse,
     BrandDocumentListResponse
 )
 from app.schemas.brand_analyzer import BrandAnalysisInputV1, BrandDNAOutputV1, BrandDocumentInput
@@ -595,6 +595,85 @@ async def list_brand_documents(
         documents=documents,
         total=total
     )
+
+
+@router.patch("/{brand_id}/documents/{document_id}", response_model=BrandDocumentResponse)
+async def update_brand_document(
+    brand_id: UUID,
+    document_id: UUID,
+    update_data: BrandDocumentUpdate,
+    current_user: User | None = Depends(get_current_user_optional),
+    db: Session = Depends(get_db)
+):
+    """
+    브랜드 문서를 수정합니다 (크롤링된 텍스트 편집).
+
+    수정 가능한 필드:
+    - title: 문서 제목
+    - extracted_text: 원본 크롤링 텍스트
+    - clean_text: 정제된 텍스트 (브랜드 분석용)
+    - extracted_keywords: 키워드 목록
+    """
+    # Demo Brand 처리
+    if not current_user:
+        if brand_id == DEMO_BRAND_ID:
+            brand = get_or_create_demo_brand(db)
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication required"
+            )
+    else:
+        # 브랜드 존재 및 권한 확인
+        brand = db.query(Brand).filter(
+            Brand.id == brand_id,
+            Brand.deleted_at == None
+        ).first()
+
+        if not brand:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Brand not found"
+            )
+
+        if brand.owner_id != current_user.id and current_user.role != "admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not enough permissions"
+            )
+
+    # 문서 조회
+    document = db.query(BrandDocument).filter(
+        BrandDocument.id == document_id,
+        BrandDocument.brand_id == brand_id
+    ).first()
+
+    if not document:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found"
+        )
+
+    # 필드 업데이트
+    update_dict = update_data.model_dump(exclude_unset=True)
+    for key, value in update_dict.items():
+        setattr(document, key, value)
+
+    # 메타데이터에 수정 이력 추가
+    old_metadata = document.document_metadata or {}
+    document.document_metadata = {
+        **old_metadata,
+        "last_edited_by": str(current_user.id) if current_user else "anonymous",
+        "last_edited_at": datetime.utcnow().isoformat(),
+        "manually_edited": True
+    }
+
+    db.commit()
+    db.refresh(document)
+
+    logger.info(f"Document updated: {document_id} for brand {brand_id}, fields: {list(update_dict.keys())}")
+
+    return document
 
 
 @router.delete("/{brand_id}/documents/{document_id}", status_code=status.HTTP_204_NO_CONTENT)

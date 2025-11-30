@@ -35,6 +35,8 @@ import {
   FolderOpen,
   Filter,
   RefreshCw,
+  Pencil,
+  Save,
 } from 'lucide-react';
 import { useWorkspaceStore } from '../../../stores';
 import {
@@ -43,6 +45,7 @@ import {
   listBrandDocuments,
   deleteBrandDocument,
   recrawlBrandDocument,
+  updateBrandDocument,
   analyzeBrand,
   type BrandDocument,
   type BrandDNA,
@@ -102,6 +105,11 @@ export function BrandKitTab() {
 
   // 문서 내용 미리보기 모달
   const [previewDoc, setPreviewDoc] = useState<BrandDocument | null>(null);
+
+  // 문서 편집 모드
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingText, setEditingText] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
 
   // 문서 선택 상태 (체크박스)
   const [selectedDocIds, setSelectedDocIds] = useState<Set<string>>(new Set());
@@ -261,6 +269,46 @@ export function BrandKitTab() {
   const handleRetry = (url: string) => {
     setUrlInput(url);
     handleCrawlUrl(url);
+  };
+
+  // 편집 모드 시작
+  const handleStartEdit = () => {
+    if (!previewDoc) return;
+    // clean_text가 있으면 우선, 없으면 extracted_text 사용
+    setEditingText(previewDoc.clean_text || previewDoc.extracted_text || '');
+    setIsEditing(true);
+  };
+
+  // 편집 취소
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditingText('');
+  };
+
+  // 편집 저장
+  const handleSaveEdit = async () => {
+    if (!brandId || !previewDoc) return;
+
+    setSavingEdit(true);
+    try {
+      const updatedDoc = await updateBrandDocument(brandId, previewDoc.id, {
+        clean_text: editingText,
+      });
+
+      // 문서 목록 및 미리보기 업데이트
+      setDocuments((prev) =>
+        prev.map((d) => (d.id === previewDoc.id ? updatedDoc : d))
+      );
+      setPreviewDoc(updatedDoc);
+      setIsEditing(false);
+      setEditingText('');
+      toast.success('문서가 저장되었습니다.');
+    } catch (error) {
+      console.error('Save failed:', error);
+      toast.error(`저장 실패: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setSavingEdit(false);
+    }
   };
 
   // 분석 진행률 정리
@@ -968,24 +1016,67 @@ export function BrandKitTab() {
                 <h3 className="font-semibold text-gray-900">{previewDoc.title}</h3>
               </div>
               <div className="flex items-center gap-2">
-                {/* 재크롤링 버튼 (URL 문서만) */}
-                {previewDoc.document_type === 'url' && previewDoc.source_url && previewDoc.processed === 'completed' && (
-                  <button
-                    onClick={() => handleRecrawl(previewDoc.id)}
-                    disabled={recrawlingId === previewDoc.id}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors text-xs disabled:opacity-50"
-                    title="재크롤링 (정제 로직 다시 적용)"
-                  >
-                    {recrawlingId === previewDoc.id ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <RefreshCw className="w-3.5 h-3.5" />
+                {/* 편집/저장 버튼 */}
+                {isEditing ? (
+                  <>
+                    <button
+                      onClick={handleCancelEdit}
+                      disabled={savingEdit}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-xs disabled:opacity-50"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                      취소
+                    </button>
+                    <button
+                      onClick={handleSaveEdit}
+                      disabled={savingEdit}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-xs disabled:opacity-50"
+                    >
+                      {savingEdit ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Save className="w-3.5 h-3.5" />
+                      )}
+                      저장
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    {/* 편집 버튼 */}
+                    {previewDoc.processed === 'completed' && (previewDoc.clean_text || previewDoc.extracted_text) && (
+                      <button
+                        onClick={handleStartEdit}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-xs"
+                        title="텍스트 편집"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                        편집
+                      </button>
                     )}
-                    재크롤링
-                  </button>
+                    {/* 재크롤링 버튼 (URL 문서만) */}
+                    {previewDoc.document_type === 'url' && previewDoc.source_url && previewDoc.processed === 'completed' && (
+                      <button
+                        onClick={() => handleRecrawl(previewDoc.id)}
+                        disabled={recrawlingId === previewDoc.id}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors text-xs disabled:opacity-50"
+                        title="재크롤링 (정제 로직 다시 적용)"
+                      >
+                        {recrawlingId === previewDoc.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <RefreshCw className="w-3.5 h-3.5" />
+                        )}
+                        재크롤링
+                      </button>
+                    )}
+                  </>
                 )}
                 <button
-                  onClick={() => setPreviewDoc(null)}
+                  onClick={() => {
+                    setPreviewDoc(null);
+                    setIsEditing(false);
+                    setEditingText('');
+                  }}
                   className="p-1 hover:bg-gray-100 rounded-full transition-colors"
                 >
                   <X className="w-5 h-5 text-gray-500" />
@@ -1040,9 +1131,33 @@ export function BrandKitTab() {
               )}
             </div>
 
-            {/* 문서 내용 (탭으로 원본/정제 전환) */}
+            {/* 문서 내용 (편집 모드 또는 미리보기 모드) */}
             <div className="flex-1 overflow-y-auto">
-              {previewDoc.clean_text ? (
+              {isEditing ? (
+                /* 편집 모드 */
+                <div className="h-full flex flex-col p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-medium text-blue-600 flex items-center gap-1">
+                      <Pencil className="w-3 h-3" />
+                      편집 모드 - 불필요한 내용을 삭제하거나 수정하세요
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      {editingText.length.toLocaleString()}자
+                    </span>
+                  </div>
+                  <textarea
+                    value={editingText}
+                    onChange={(e) => setEditingText(e.target.value)}
+                    className="flex-1 w-full p-4 text-xs font-mono bg-blue-50 border border-blue-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="텍스트를 입력하세요..."
+                    disabled={savingEdit}
+                  />
+                  <p className="text-[10px] text-gray-400 mt-2">
+                    Tip: 브랜드와 관련 없는 텍스트(네비게이션, 푸터, 광고 등)를 삭제하면 Brand DNA 분석 품질이 향상됩니다.
+                  </p>
+                </div>
+              ) : previewDoc.clean_text ? (
+                /* 미리보기 모드 - 정제된 텍스트 있음 */
                 <div className="h-full flex flex-col">
                   {/* 탭 헤더 */}
                   <div className="flex border-b border-gray-200 bg-white sticky top-0">
@@ -1070,27 +1185,31 @@ export function BrandKitTab() {
                   </div>
                 </div>
               ) : previewDoc.extracted_text ? (
+                /* 미리보기 모드 - 원본 텍스트만 있음 */
                 <div className="p-4">
                   <pre className="whitespace-pre-wrap text-xs text-gray-800 font-mono bg-gray-50 p-4 rounded-lg">
                     {previewDoc.extracted_text}
                   </pre>
                 </div>
               ) : (
+                /* 텍스트 없음 */
                 <div className="flex items-center justify-center h-40 text-gray-500 text-sm">
                   추출된 텍스트가 없습니다.
                 </div>
               )}
             </div>
 
-            {/* 모달 푸터 */}
-            <div className="p-4 border-t border-gray-200 flex justify-end">
-              <button
-                onClick={() => setPreviewDoc(null)}
-                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors"
-              >
-                닫기
-              </button>
-            </div>
+            {/* 모달 푸터 (편집 모드에서는 숨김) */}
+            {!isEditing && (
+              <div className="p-4 border-t border-gray-200 flex justify-end">
+                <button
+                  onClick={() => setPreviewDoc(null)}
+                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors"
+                >
+                  닫기
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
