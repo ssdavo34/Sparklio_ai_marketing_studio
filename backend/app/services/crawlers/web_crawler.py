@@ -214,21 +214,40 @@ class WebCrawler:
 
         combined_pattern = '|'.join(boilerplate_patterns)
 
-        # class 기반 제거
+        # class 기반 제거 - 먼저 리스트로 수집 후 삭제 (중첩 요소 문제 방지)
+        elements_to_remove = []
         for element in soup.find_all(class_=re.compile(combined_pattern, re.I)):
+            # None 체크 (이미 삭제된 요소)
+            if element is None or not hasattr(element, 'get'):
+                continue
             # 메인 콘텐츠 영역은 보존
             el_class_list = element.get('class') or []
             el_class = ' '.join(el_class_list) if isinstance(el_class_list, list) else str(el_class_list)
             if re.search(r'content|main|article|body|post', el_class, re.I):
                 continue
-            element.decompose()
+            elements_to_remove.append(element)
+
+        for element in elements_to_remove:
+            try:
+                element.decompose()
+            except Exception:
+                pass  # 이미 삭제된 요소면 무시
 
         # id 기반 제거
+        elements_to_remove = []
         for element in soup.find_all(id=re.compile(combined_pattern, re.I)):
+            if element is None or not hasattr(element, 'get'):
+                continue
             el_id = element.get('id') or ''
             if re.search(r'content|main|article|body|post', el_id, re.I):
                 continue
-            element.decompose()
+            elements_to_remove.append(element)
+
+        for element in elements_to_remove:
+            try:
+                element.decompose()
+            except Exception:
+                pass
 
     def _extract_main_content_from_body(self, body) -> str:
         """
