@@ -106,9 +106,14 @@ export function BrandKitTab() {
   useEffect(() => {
     const checkAuth = () => {
       const token = localStorage.getItem('access_token');
-      if (token && currentWorkspace?.id) {
+
+      // 유효한 JWT 토큰인지 확인 (header.payload.signature 형식)
+      const isValidJwt = token && token !== 'undefined' && token !== 'null' && token.split('.').length === 3;
+
+      if (isValidJwt && currentWorkspace?.id) {
         setBrandId(currentWorkspace.id);
       } else {
+        // Demo 모드: Nil UUID 사용
         setBrandId('00000000-0000-0000-0000-000000000000');
       }
     };
