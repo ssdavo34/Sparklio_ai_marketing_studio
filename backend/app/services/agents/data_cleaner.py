@@ -1914,8 +1914,12 @@ class DataCleanerAgent(AgentBase):
         """
         from .base import AgentRequest
 
-        # 전처리: 줄바꿈이 없는 텍스트에 논리적 줄바꿈 삽입
+        # 1. 텍스트 전처리 (줄바꿈 정규화)
         preprocessed_text = self._normalize_line_breaks(text)
+        
+        logger.info(f"[DataCleaner] Text normalization: {len(text)} -> {len(preprocessed_text)} chars")
+        if len(text) != len(preprocessed_text):
+            logger.info(f"[DataCleaner] Sample normalized: {preprocessed_text[:200]}...")
 
         response = await self.execute(AgentRequest(
             task="clean_data",
@@ -1925,15 +1929,29 @@ class DataCleanerAgent(AgentBase):
             }
         ))
 
-        # 결과 추출
-        result_data = response.outputs[0].value if response.outputs else {}
-        cleaned_data = result_data.get("data", [{}])[0] if result_data.get("data") else {}
-
+        if response.status == "success" and response.data:
+            cleaned_data = response.data.get("cleaned_data", [])
+            if cleaned_data:
+                clean_text = cleaned_data[0].get("text", "")
+                
+                # 상세 로깅
+                logger.info(f"[DataCleaner] Cleaning result: {len(preprocessed_text)} -> {len(clean_text)} chars")
+                actions = response.data.get("actions_performed", [])
+                logger.info(f"[DataCleaner] Actions performed: {actions}")
+                
+                return {
+                    "clean_text": clean_text,
+                    "extracted_keywords": response.data.get("extracted_keywords", []),
+                    "actions_performed": actions,
+                    "quality_improvement": response.meta.get("quality_improvement", 0) if response.meta else 0
+                }
+        
+        # Fallback in case of failure or no cleaned data
         return {
-            "clean_text": cleaned_data.get("text", text),
-            "extracted_keywords": cleaned_data.get("_extracted_keywords", []),
-            "actions_performed": result_data.get("actions_performed", []),
-            "quality_improvement": response.meta.get("quality_improvement", 0) if response.meta else 0
+            "clean_text": text, # Return original text if cleaning fails
+            "extracted_keywords": [],
+            "actions_performed": [],
+            "quality_improvement": 0
         }
 
 
