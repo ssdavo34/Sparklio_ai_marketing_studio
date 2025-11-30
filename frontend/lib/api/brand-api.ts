@@ -509,6 +509,35 @@ export async function recrawlBrandDocument(
 }
 
 /**
+ * 저장된 Brand DNA 조회
+ *
+ * 이전에 분석된 Brand DNA가 있으면 반환, 없으면 null 반환
+ *
+ * @param brandId - 브랜드 ID
+ */
+export async function getBrandDNA(brandId: string): Promise<BrandDNA | null> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/brands/${brandId}/dna`,
+    {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    }
+  );
+
+  if (!response.ok) {
+    // 404는 DNA가 없는 것이므로 null 반환
+    if (response.status === 404) {
+      return null;
+    }
+    const error = await response.json();
+    throw new Error(error.detail || 'Failed to fetch brand DNA');
+  }
+
+  const data = await response.json();
+  return data;  // null일 수 있음
+}
+
+/**
  * Brand DNA 분석 실행
  *
  * 브랜드에 업로드된 문서를 분석하여 Brand DNA Card를 자동 생성합니다.

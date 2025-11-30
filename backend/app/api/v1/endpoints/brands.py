@@ -869,6 +869,56 @@ async def recrawl_brand_document(
         )
 
 
+@router.get("/{brand_id}/dna", response_model=BrandDNAOutputV1 | None)
+async def get_brand_dna(
+    brand_id: UUID,
+    current_user: User | None = Depends(get_current_user_optional),
+    db: Session = Depends(get_db)
+):
+    """
+    저장된 Brand DNA 조회
+
+    이전에 분석된 Brand DNA가 있으면 반환, 없으면 null 반환
+    """
+    # Demo Brand 처리
+    if not current_user:
+        if brand_id == DEMO_BRAND_ID:
+            brand = get_or_create_demo_brand(db)
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication required"
+            )
+    else:
+        # 브랜드 존재 및 권한 확인
+        brand = db.query(Brand).filter(
+            Brand.id == brand_id,
+            Brand.deleted_at == None
+        ).first()
+
+        if not brand:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Brand not found"
+            )
+
+        if brand.owner_id != current_user.id and current_user.role != "admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not enough permissions"
+            )
+
+    # Brand DNA가 없으면 null 반환
+    if not brand.brand_dna:
+        return None
+
+    try:
+        return BrandDNAOutputV1(**brand.brand_dna)
+    except Exception as e:
+        logger.warning(f"Failed to parse brand_dna for brand {brand_id}: {e}")
+        return None
+
+
 @router.post("/{brand_id}/analyze", response_model=BrandDNAOutputV1)
 async def analyze_brand(
     brand_id: UUID,

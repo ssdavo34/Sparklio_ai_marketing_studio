@@ -47,6 +47,7 @@ import {
   recrawlBrandDocument,
   updateBrandDocument,
   analyzeBrand,
+  getBrandDNA,
   type BrandDocument,
   type BrandDNA,
   type CrawlOptions,
@@ -138,6 +139,27 @@ export function BrandKitTab() {
     };
 
     loadDocuments();
+  }, [brandId]);
+
+  // Load saved Brand DNA on mount
+  useEffect(() => {
+    if (!brandId) return;
+
+    const loadBrandDNA = async () => {
+      try {
+        const savedDNA = await getBrandDNA(brandId);
+        if (savedDNA) {
+          setBrandDNA(savedDNA);
+          setShowDNAResult(true);
+          console.log('[BrandKitTab] Loaded saved Brand DNA');
+        }
+      } catch (error) {
+        console.error('Failed to load Brand DNA:', error);
+        // Don't show error toast on mount - just log it
+      }
+    };
+
+    loadBrandDNA();
   }, [brandId]);
 
   // 파일 업로드
