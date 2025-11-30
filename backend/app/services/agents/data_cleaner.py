@@ -197,6 +197,18 @@ class DataCleanerAgent(AgentBase):
         ))
     """
 
+    def __init__(self, llm_gateway=None, media_gateway=None):
+        """
+        DataCleanerAgent 초기화
+
+        이 Agent는 룰 기반 텍스트 정제를 수행하므로 LLM Gateway가 필요 없습니다.
+        불필요한 LLM/Media Gateway 초기화를 건너뜁니다.
+        """
+        # LLM/Media Gateway 초기화 건너뛰기 (룰 기반 Agent)
+        self.llm_gateway = None
+        self.media_gateway = None
+        logger.info(f"{self.name} Agent initialized (rule-based, no LLM)")
+
     @property
     def name(self) -> str:
         return "data_cleaner"
