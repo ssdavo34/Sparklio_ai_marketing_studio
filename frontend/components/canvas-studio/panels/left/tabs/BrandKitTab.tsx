@@ -56,6 +56,43 @@ import { toast } from '@/components/ui/Toast';
 import { useCanvasStore } from '../../../stores/useCanvasStore';
 import { addBrandIdentityToCanvas } from '@/lib/canvas/brandIdentityTemplate';
 
+/**
+ * 값을 안전하게 문자열로 변환
+ * - 객체인 경우 JSON으로 변환 (UI 렌더링 방지)
+ * - null/undefined는 빈 문자열
+ */
+function safeString(value: unknown): string {
+  if (value === null || value === undefined) {
+    return '';
+  }
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (typeof value === 'number') {
+    return String(value);
+  }
+  if (typeof value === 'object') {
+    // 객체를 직접 렌더링하면 React 에러 발생
+    // 디버깅을 위해 JSON 문자열로 변환
+    try {
+      return JSON.stringify(value, null, 2);
+    } catch {
+      return '[Object]';
+    }
+  }
+  return String(value);
+}
+
+/**
+ * 배열을 안전하게 문자열 배열로 변환
+ */
+function safeStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.map((item) => safeString(item));
+}
+
 export function BrandKitTab() {
   // 임시로 workspace에서 브랜드 ID 가져오기
   // 임시로 workspace에서 브랜드 ID 가져오기
@@ -411,7 +448,8 @@ export function BrandKitTab() {
 
       setBrandDNA(dna);
       setShowDNAResult(true);
-      toast.success(`Brand DNA 분석 완료! (신뢰도: ${(dna.confidence_score * 100).toFixed(0)}%)`);
+      // confidence_score는 0-10 범위, 100%로 표시 시 *10
+      toast.success(`Brand DNA 분석 완료! (신뢰도: ${(dna.confidence_score * 10).toFixed(0)}%)`);
     } catch (error: any) {
       cleanupAnalyzeProgress();
 
@@ -955,45 +993,69 @@ export function BrandKitTab() {
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-purple-900">Brand DNA</h3>
               <span className="text-xs text-purple-700">
-                신뢰도: {(brandDNA.confidence_score * 100).toFixed(0)}%
+                신뢰도: {((brandDNA.confidence_score || 0) * 10).toFixed(0)}%
               </span>
             </div>
 
             <div className="space-y-2 text-xs">
-              <div>
-                <p className="font-semibold text-purple-800">톤앤매너</p>
-                <p className="text-purple-900">{brandDNA.tone.primary}</p>
-                <p className="text-purple-700 text-xs">{brandDNA.tone.description}</p>
-              </div>
+              {/* 톤앤매너 */}
+              {brandDNA.tone && (
+                <div>
+                  <p className="font-semibold text-purple-800">톤앤매너</p>
+                  <p className="text-purple-900 whitespace-pre-wrap">{safeString(brandDNA.tone)}</p>
+                </div>
+              )}
 
-              <div>
-                <p className="font-semibold text-purple-800">핵심 메시지</p>
-                <ul className="list-disc list-inside text-purple-900 space-y-1">
-                  {brandDNA.key_messages.map((msg, i) => (
-                    <li key={i}>{msg}</li>
-                  ))}
-                </ul>
-              </div>
+              {/* 타겟 오디언스 */}
+              {brandDNA.target_audience && (
+                <div>
+                  <p className="font-semibold text-purple-800">타겟 오디언스</p>
+                  <p className="text-purple-700 whitespace-pre-wrap">{safeString(brandDNA.target_audience)}</p>
+                </div>
+              )}
 
-              <div>
-                <p className="font-semibold text-purple-800">Do's</p>
-                <ul className="list-disc list-inside text-green-700 space-y-1">
-                  {brandDNA.dos.slice(0, 3).map((item, i) => (
-                    <li key={i}>{item}</li>
-                  ))}
-                </ul>
-              </div>
+              {/* 핵심 메시지 */}
+              {brandDNA.key_messages && safeStringArray(brandDNA.key_messages).length > 0 && (
+                <div>
+                  <p className="font-semibold text-purple-800">핵심 메시지</p>
+                  <ul className="list-disc list-inside text-purple-900 space-y-1">
+                    {safeStringArray(brandDNA.key_messages).map((msg, i) => (
+                      <li key={i}>{msg}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
-              <div>
-                <p className="font-semibold text-purple-800">Don'ts</p>
-                <ul className="list-disc list-inside text-red-700 space-y-1">
-                  {brandDNA.donts.slice(0, 3).map((item, i) => (
-                    <li key={i}>{item}</li>
-                  ))}
-                </ul>
-              </div>
+              {/* Do's */}
+              {brandDNA.dos && safeStringArray(brandDNA.dos).length > 0 && (
+                <div>
+                  <p className="font-semibold text-purple-800">Do's</p>
+                  <ul className="list-disc list-inside text-green-700 space-y-1">
+                    {safeStringArray(brandDNA.dos).slice(0, 3).map((item, i) => (
+                      <li key={i}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
-              <p className="text-xs text-purple-600 italic">{brandDNA.analysis_notes}</p>
+              {/* Don'ts */}
+              {brandDNA.donts && safeStringArray(brandDNA.donts).length > 0 && (
+                <div>
+                  <p className="font-semibold text-purple-800">Don'ts</p>
+                  <ul className="list-disc list-inside text-red-700 space-y-1">
+                    {safeStringArray(brandDNA.donts).slice(0, 3).map((item, i) => (
+                      <li key={i}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* 분석 노트 */}
+              {brandDNA.analysis_notes && (
+                <p className="text-xs text-purple-600 italic whitespace-pre-wrap">
+                  {safeString(brandDNA.analysis_notes)}
+                </p>
+              )}
             </div>
 
             {/* Canvas로 내보내기 버튼 */}

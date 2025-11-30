@@ -73,7 +73,20 @@ function ToolButton({ tool, isActive, onClick }: { tool: Tool; isActive: boolean
 
 export function ActivityBar() {
   const activeTab = useLeftPanelStore((state) => state.activeTab);
+  const panelTab = useLeftPanelStore((state) => state.panelTab);
   const setActiveTab = useLeftPanelStore((state) => state.setActiveTab);
+  const setPanelTab = useLeftPanelStore((state) => state.setPanelTab);
+
+  // 메뉴 클릭 핸들러: activeTab + panelTab 둘 다 변경
+  const handleMenuClick = (tab: LeftPanelTab) => {
+    setActiveTab(tab);
+    setPanelTab(tab); // 패널 컨텐츠도 해당 메뉴로 전환
+  };
+
+  // 현재 패널에서 이 메뉴가 표시 중인지 확인
+  const isMenuActive = (tab: LeftPanelTab) => {
+    return panelTab === tab;
+  };
 
   return (
     <nav className="flex w-14 flex-col border-r border-neutral-800 bg-neutral-950 text-neutral-100">
@@ -83,8 +96,8 @@ export function ActivityBar() {
           <ToolButton
             key={tool.id}
             tool={tool}
-            isActive={activeTab === tool.id}
-            onClick={() => setActiveTab(tool.id)}
+            isActive={isMenuActive(tool.id)}
+            onClick={() => handleMenuClick(tool.id)}
           />
         ))}
       </div>
@@ -98,8 +111,8 @@ export function ActivityBar() {
           <ToolButton
             key={tool.id}
             tool={tool}
-            isActive={activeTab === tool.id}
-            onClick={() => setActiveTab(tool.id)}
+            isActive={isMenuActive(tool.id)}
+            onClick={() => handleMenuClick(tool.id)}
           />
         ))}
       </div>
@@ -113,8 +126,8 @@ export function ActivityBar() {
           <ToolButton
             key={tool.id}
             tool={tool}
-            isActive={activeTab === tool.id}
-            onClick={() => setActiveTab(tool.id)}
+            isActive={isMenuActive(tool.id)}
+            onClick={() => handleMenuClick(tool.id)}
           />
         ))}
       </div>
@@ -128,8 +141,8 @@ export function ActivityBar() {
           <ToolButton
             key={tool.id}
             tool={tool}
-            isActive={activeTab === tool.id}
-            onClick={() => setActiveTab(tool.id)}
+            isActive={isMenuActive(tool.id)}
+            onClick={() => handleMenuClick(tool.id)}
           />
         ))}
       </div>
@@ -140,11 +153,11 @@ export function ActivityBar() {
       {/* 5. 시스템 (하단 고정) */}
       <div className="flex flex-col">
         <button
-          onClick={() => setActiveTab('settings')}
+          onClick={() => handleMenuClick('settings')}
           className={`
             flex h-12 items-center justify-center
             transition-colors duration-200
-            ${activeTab === 'settings'
+            ${isMenuActive('settings')
               ? 'bg-neutral-800 text-white border-l-2 border-purple-500'
               : 'text-neutral-400 hover:bg-neutral-900 hover:text-neutral-100 border-l-2 border-transparent'
             }

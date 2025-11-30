@@ -17,8 +17,8 @@
 
 'use client';
 
-import { useState, useRef } from 'react';
-import { ChevronDown, ChevronUp, Paperclip, X, FileText, FileSpreadsheet, Image as ImageIcon, Video, Music, Sparkles, Search } from 'lucide-react';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { ChevronDown, ChevronUp, Paperclip, X, FileText, FileSpreadsheet, Image as ImageIcon, Video, Music, Sparkles, Search, Upload, MessageCircle, Wand2 } from 'lucide-react';
 import type { GenerateKind } from '@/lib/api/types';
 import { useGenerate } from '../hooks/useGenerate';
 import { useConceptGenerate } from '../../../hooks/useConceptGenerate';
@@ -28,6 +28,7 @@ import { useCanvasStore } from '../stores/useCanvasStore';
 import { useGeneratedAssetsStore } from '../stores/useGeneratedAssetsStore';
 import { useCenterViewStore } from '../stores/useCenterViewStore';
 import { useWorkspaceStore } from '../stores';
+import { useStudioContextStore } from '../stores/useStudioContextStore';
 import { searchBrandContext, searchSimilarConcepts, type EmbeddingSearchResult } from '@/lib/api/vector-db-api';
 import { toast } from '@/components/ui/Toast';
 
@@ -141,8 +142,9 @@ function addGenerateResponseToPolotno(response: any) {
 
   try {
     // 기존 페이지 모두 삭제
-    while (polotnoStore.pages.length > 0) {
-      polotnoStore.pages[0].remove();
+    const pageIds = polotnoStore.pages.map((p: any) => p.id);
+    if (pageIds.length > 0) {
+      polotnoStore.deletePages(pageIds);
     }
 
     // 응답 데이터에서 컨셉 추출
@@ -315,10 +317,28 @@ export function ChatPanel() {
   const error = generateError || conceptError;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dropZoneRef = useRef<HTMLDivElement>(null);
   const currentTheme = useCanvasStore((state) => state.currentTheme);
   const applyThemeToCanvas = useCanvasStore((state) => state.applyThemeToCanvas);
   const { currentWorkspace } = useWorkspaceStore();
   const brandId = currentWorkspace?.id || 'default-brand';
+
+  // Studio Context Store 연동
+  const {
+    conversationPhase,
+    collectedContext,
+    missingInfo,
+    pendingTaskType,
+    setConversationPhase,
+    updateCollectedContext,
+    setMissingInfo,
+    setPendingTaskType,
+    resetConversationContext,
+    getChatContext,
+    selectedElements,
+    activeBrandDNA,
+    currentPage,
+  } = useStudioContextStore();
 
   // Form State
   const [mode, setMode] = useState<'copy' | 'concept'>('copy');
@@ -327,20 +347,61 @@ export function ChatPanel() {
   const [lastResponse, setLastResponse] = useState<any>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(true);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [isDragOver, setIsDragOver] = useState(false);
 
   // Brand Context Search State
   const [useBrandContext, setUseBrandContext] = useState(true); // 기본값 ON
   const [brandContextResults, setBrandContextResults] = useState<EmbeddingSearchResult[]>([]);
   const [isSearchingContext, setIsSearchingContext] = useState(false);
 
+  // Polotno Store 동기화 (선택 요소, 페이지 정보)
+  useEffect(() => {
+    const polotnoStore = getPolotnoStore();
+    if (!polotnoStore) return;
+
+    const syncContext = () => {
+      useStudioContextStore.getState().syncFromPolotnoStore(polotnoStore);
+    };
+
+    // 초기 동기화
+    syncContext();
+
+    // 변경 감지
+    const unsubscribe = polotnoStore.on?.('change', syncContext);
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
+
   // File Upload Handlers
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
+    processFiles(files);
+  };
 
+  // 파일 처리 공통 함수
+  const processFiles = useCallback((files: FileList) => {
     const newFiles: UploadedFile[] = [];
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
+
+      // 이미지 파일인 경우 dataUrl 생성
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const dataUrl = event.target?.result as string;
+          // CollectedContext에 파일 추가
+          updateCollectedContext({
+            files: [
+              ...(collectedContext.files || []),
+              { name: file.name, type: file.type, dataUrl }
+            ]
+          });
+        };
+        reader.readAsDataURL(file);
+      }
+
       newFiles.push({
         id: `file-${Date.now()}-${i}`,
         file,
@@ -356,7 +417,40 @@ export function ChatPanel() {
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-  };
+
+    toast.success(`${newFiles.length}개 파일이 추가되었습니다`);
+  }, [collectedContext.files, updateCollectedContext]);
+
+  // 드래그 앤 드롭 핸들러
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // dropZone 외부로 나갈 때만 상태 변경
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+    setIsDragOver(false);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      processFiles(files);
+    }
+  }, [processFiles]);
 
   const removeFile = (id: string) => {
     setUploadedFiles((prev) => prev.filter((f) => f.id !== id));
@@ -590,15 +684,40 @@ export function ChatPanel() {
   };
 
   return (
-    <div className="flex h-full flex-col">
+    <div
+      ref={dropZoneRef}
+      className={`flex h-full flex-col relative ${isDragOver ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
+      {/* Drag Overlay */}
+      {isDragOver && (
+        <div className="absolute inset-0 z-50 bg-blue-500/10 backdrop-blur-sm flex items-center justify-center pointer-events-none">
+          <div className="bg-white rounded-xl shadow-lg p-6 flex flex-col items-center gap-3">
+            <Upload className="w-12 h-12 text-blue-500" />
+            <p className="text-sm font-medium text-blue-700">파일을 여기에 놓으세요</p>
+            <p className="text-xs text-blue-500">이미지, 문서, 미디어 파일 지원</p>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="border-b border-neutral-200 p-4">
         <div className="mb-1 flex items-center justify-between">
           <div className="flex items-center">
-            <span className="text-2xl">💬</span>
+            <MessageCircle className="w-5 h-5 text-blue-600" />
             <h3 className="ml-2 text-sm font-semibold text-neutral-800">
               Spark Chat
             </h3>
+            {conversationPhase !== 'idle' && (
+              <span className="ml-2 px-2 py-0.5 text-[10px] bg-amber-100 text-amber-700 rounded-full">
+                {conversationPhase === 'gathering' && '정보 수집 중'}
+                {conversationPhase === 'confirming' && '확인 중'}
+                {conversationPhase === 'generating' && '생성 중'}
+              </span>
+            )}
           </div>
           <button
             type="button"
@@ -621,6 +740,27 @@ export function ChatPanel() {
         <p className="text-xs text-neutral-500">
           AI와 대화하여 콘텐츠를 생성하세요
         </p>
+
+        {/* 현재 컨텍스트 표시 */}
+        {(selectedElements.length > 0 || activeBrandDNA || currentPage) && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {selectedElements.length > 0 && (
+              <span className="px-2 py-0.5 text-[10px] bg-indigo-100 text-indigo-700 rounded-full">
+                선택됨: {selectedElements.length}개 ({selectedElements.map(e => e.type).join(', ')})
+              </span>
+            )}
+            {activeBrandDNA && (
+              <span className="px-2 py-0.5 text-[10px] bg-green-100 text-green-700 rounded-full">
+                브랜드 적용됨
+              </span>
+            )}
+            {currentPage && (
+              <span className="px-2 py-0.5 text-[10px] bg-gray-100 text-gray-700 rounded-full">
+                {currentPage.width}×{currentPage.height}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Content */}

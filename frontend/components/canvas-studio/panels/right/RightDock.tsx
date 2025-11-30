@@ -137,15 +137,7 @@ export function RightDock() {
           <Layers className="w-4 h-4" />
           Layers
         </button>
-        <button
-          onClick={() => setActiveTab('ai-settings')}
-          className={`flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors ${activeTab === 'ai-settings'
-            ? 'border-b-2 border-purple-600 text-purple-600 bg-white'
-            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-            }`}
-        >
-          AI
-        </button>
+        {/* AI 탭 삭제 - Settings 탭에 통합됨 */}
       </div>
 
       {/* Content */}
@@ -153,7 +145,7 @@ export function RightDock() {
         {activeTab === 'chat' && <ChatTab />}
         {activeTab === 'inspector' && <InspectorTab element={selectedElement} />}
         {activeTab === 'layers' && <LayersTab />}
-        {activeTab === 'ai-settings' && <AISettingsTab />}
+        {/* AI Settings는 좌측 Settings 탭에 통합됨 */}
       </div>
     </div>
   );

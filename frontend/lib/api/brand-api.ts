@@ -25,6 +25,10 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8
 
 /**
  * 인증 헤더 생성
+ *
+ * Demo 모드 (토큰 없음 또는 무효한 토큰):
+ * - Authorization 헤더 없이 요청 → Backend가 Demo Brand ID로 처리
+ * - 유효한 JWT 토큰이 있으면 Authorization 헤더 추가
  */
 function getAuthHeaders(contentType: string = 'application/json'): HeadersInit {
   const headers: HeadersInit = {
@@ -35,22 +39,22 @@ function getAuthHeaders(contentType: string = 'application/json'): HeadersInit {
     try {
       const token = localStorage.getItem('access_token');
 
-      // Debug logging
-      if (!token) {
-        console.warn('[BrandAPI] No token found in localStorage');
-      } else if (token === 'undefined' || token === 'null') {
-        console.error('[BrandAPI] Invalid token string found:', token);
+      // 토큰이 없거나 무효한 경우 → Demo 모드 (Authorization 헤더 없이 진행)
+      if (!token || token === 'undefined' || token === 'null') {
+        console.info('[BrandAPI] Demo mode - no valid token, using anonymous access');
+        return headers;
+      }
+
+      // JWT 형식 검증 (header.payload.signature)
+      const parts = token.split('.');
+      if (parts.length === 3) {
+        headers['Authorization'] = `Bearer ${token}`;
       } else {
-        // Basic JWT validation (header.payload.signature)
-        const parts = token.split('.');
-        if (parts.length === 3) {
-          headers['Authorization'] = `Bearer ${token}`;
-        } else {
-          console.error('[BrandAPI] Malformed JWT token:', token.substring(0, 10) + '...');
-        }
+        // 무효한 토큰 형식 → Demo 모드로 진행 (에러 로그 대신 info)
+        console.info('[BrandAPI] Demo mode - token format invalid, using anonymous access');
       }
     } catch (error) {
-      console.error('[BrandAPI] Failed to access localStorage:', error);
+      console.warn('[BrandAPI] Failed to access localStorage, using demo mode:', error);
     }
   }
 
@@ -59,6 +63,8 @@ function getAuthHeaders(contentType: string = 'application/json'): HeadersInit {
 
 /**
  * 파일 업로드용 인증 헤더 생성 (Content-Type 제외)
+ *
+ * Demo 모드 지원: 토큰이 없어도 진행 가능
  */
 function getUploadHeaders(): HeadersInit {
   const headers: HeadersInit = {};
@@ -71,13 +77,41 @@ function getUploadHeaders(): HeadersInit {
         if (parts.length === 3) {
           headers['Authorization'] = `Bearer ${token}`;
         }
+        // 무효한 토큰이면 Authorization 헤더 없이 진행 (Demo 모드)
       }
+      // 토큰이 없으면 Demo 모드로 진행
     } catch (error) {
-      console.error('[BrandAPI] Failed to access localStorage:', error);
+      console.warn('[BrandAPI] Failed to access localStorage, using demo mode:', error);
     }
   }
 
   return headers;
+}
+
+/**
+ * API 에러에서 상세 메시지 추출
+ */
+function extractErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === 'object' && error !== null) {
+    // FastAPI 에러 응답: { detail: string } 또는 { detail: { message: string } }
+    const err = error as Record<string, unknown>;
+    if (typeof err.detail === 'string') {
+      return err.detail;
+    }
+    if (typeof err.detail === 'object' && err.detail !== null) {
+      const detail = err.detail as Record<string, unknown>;
+      if (typeof detail.message === 'string') {
+        return detail.message;
+      }
+    }
+    if (typeof err.message === 'string') {
+      return err.message;
+    }
+  }
+  return String(error);
 }
 
 // ============================================================================
@@ -272,39 +306,47 @@ export interface BrandDocumentListResponse {
 }
 
 /**
- * Brand DNA Types
+ * Brand DNA Types (BrandDNAOutputV1 스키마와 일치)
+ *
+ * Backend BrandDNAOutputV1 스키마 기준:
+ * - tone: string (50-200자)
+ * - key_messages: string[] (각 10-50자, 3-5개)
+ * - target_audience: string (50-300자)
+ * - dos: string[] (각 10-100자, 3-5개)
+ * - donts: string[] (각 10-100자, 3-5개)
+ * - sample_copies: string[] (각 20-100자, 3-5개)
+ * - suggested_brand_kit: BrandKitSuggestion
+ * - confidence_score: float (0-10)
+ * - analysis_notes: string (최대 500자)
  */
 export interface BrandDNA {
-  tone: {
-    primary: string;
-    secondary: string[];
-    description: string;
-  };
+  /** 브랜드 톤앤매너 (구체적으로) */
+  tone: string;
+  /** 핵심 메시지 (각 10-50자, 3-5개) */
   key_messages: string[];
-  target_audience: {
-    demographics: string;
-    psychographics: string;
-    pain_points: string[];
-  };
+  /** 타겟 오디언스 페르소나 (상세하게) */
+  target_audience: string;
+  /** Dos 리스트 */
   dos: string[];
+  /** Don'ts 리스트 */
   donts: string[];
-  sample_copies: Array<{
-    type: string;
-    text: string;
-    explanation: string;
-  }>;
+  /** 샘플 카피 (각 20-100자) */
+  sample_copies: string[];
+  /** 제안된 Brand Kit */
   suggested_brand_kit: {
     primary_colors: string[];
     secondary_colors: string[];
     fonts: {
-      headline: string;
-      body: string;
+      primary: string;
+      secondary: string;
     };
     tone_keywords: string[];
     forbidden_expressions: string[];
   };
+  /** 분석 신뢰도 (0-10, 100%로 표시시 *10) */
   confidence_score: number;
-  analysis_notes: string;
+  /** 분석 노트 (추가 인사이트) */
+  analysis_notes?: string;
 }
 
 /**
@@ -333,8 +375,8 @@ export async function uploadBrandDocument(
   );
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || 'Failed to upload document');
+    const error = await response.json().catch(() => ({}));
+    throw new Error(extractErrorMessage(error) || 'Failed to upload document');
   }
 
   return response.json();
@@ -382,8 +424,8 @@ export async function crawlBrandUrl(
   );
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || 'Failed to crawl URL');
+    const error = await response.json().catch(() => ({}));
+    throw new Error(extractErrorMessage(error) || 'Failed to crawl URL');
   }
 
   return response.json();
@@ -406,8 +448,8 @@ export async function listBrandDocuments(
   );
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || 'Failed to fetch documents');
+    const error = await response.json().catch(() => ({}));
+    throw new Error(extractErrorMessage(error) || 'Failed to fetch documents');
   }
 
   return response.json();
@@ -429,8 +471,8 @@ export async function deleteBrandDocument(
   );
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || 'Failed to delete document');
+    const error = await response.json().catch(() => ({}));
+    throw new Error(extractErrorMessage(error) || 'Failed to delete document');
   }
 }
 
@@ -473,8 +515,8 @@ export async function updateBrandDocument(
   );
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || 'Failed to update document');
+    const error = await response.json().catch(() => ({}));
+    throw new Error(extractErrorMessage(error) || 'Failed to update document');
   }
 
   return response.json();
@@ -501,8 +543,8 @@ export async function recrawlBrandDocument(
   );
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || 'Failed to recrawl document');
+    const error = await response.json().catch(() => ({}));
+    throw new Error(extractErrorMessage(error) || 'Failed to recrawl document');
   }
 
   return response.json();
@@ -529,8 +571,8 @@ export async function getBrandDNA(brandId: string): Promise<BrandDNA | null> {
     if (response.status === 404) {
       return null;
     }
-    const error = await response.json();
-    throw new Error(error.detail || 'Failed to fetch brand DNA');
+    const error = await response.json().catch(() => ({}));
+    throw new Error(extractErrorMessage(error) || 'Failed to fetch brand DNA');
   }
 
   const data = await response.json();
@@ -562,8 +604,8 @@ export async function analyzeBrand(
   );
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || 'Failed to analyze brand');
+    const error = await response.json().catch(() => ({}));
+    throw new Error(extractErrorMessage(error) || 'Failed to analyze brand');
   }
 
   return response.json();
@@ -605,29 +647,17 @@ export function getMockBrandDocuments(brandId: string): BrandDocumentListRespons
 }
 
 /**
- * Mock Brand DNA (개발용)
+ * Mock Brand DNA (개발용) - BrandDNAOutputV1 스키마 기준
  */
 export function getMockBrandDNA(): BrandDNA {
   return {
-    tone: {
-      primary: '친근하고 전문적인',
-      secondary: ['신뢰할 수 있는', '혁신적인'],
-      description: '고객과의 친밀한 관계를 유지하면서도 전문성을 잃지 않는 톤',
-    },
+    tone: '친근하고 전문적인 톤, 고객과의 친밀한 관계를 유지하면서도 전문성을 잃지 않는 커뮤니케이션 스타일',
     key_messages: [
       '당신의 마케팅을 더 쉽게',
       'AI 기반 마케팅 솔루션',
       '시간과 비용 절감',
     ],
-    target_audience: {
-      demographics: '25-45세 마케팅 담당자, 스타트업 대표',
-      psychographics: '효율적인 솔루션을 찾는 혁신 지향적 성향',
-      pain_points: [
-        '마케팅 콘텐츠 제작 시간 부족',
-        '전문 디자이너 고용 비용 부담',
-        '일관된 브랜드 메시지 유지 어려움',
-      ],
-    },
+    target_audience: '25-45세 마케팅 담당자, 스타트업 대표. 효율적인 솔루션을 찾는 혁신 지향적 성향을 가진 고객으로, 마케팅 콘텐츠 제작 시간 부족과 전문 디자이너 고용 비용에 부담을 느끼는 사람들',
     dos: [
       '구체적인 수치와 사례 제시',
       '고객의 성공 스토리 강조',
@@ -639,28 +669,21 @@ export function getMockBrandDNA(): BrandDNA {
       '경쟁사 직접 비교 언급 자제',
     ],
     sample_copies: [
-      {
-        type: 'headline',
-        text: 'AI가 만드는 당신만의 마케팅 콘텐츠',
-        explanation: '친근하면서도 AI의 전문성을 강조',
-      },
-      {
-        type: 'cta',
-        text: '지금 무료로 시작하기',
-        explanation: '행동 유도 + 진입 장벽 제거',
-      },
+      'AI가 만드는 당신만의 마케팅 콘텐츠',
+      '지금 무료로 시작하기',
+      '효율과 품질, 두 마리 토끼를 잡다',
     ],
     suggested_brand_kit: {
       primary_colors: ['#6366F1', '#8B5CF6'],
       secondary_colors: ['#EC4899', '#F59E0B'],
       fonts: {
-        headline: 'Pretendard Bold',
-        body: 'Pretendard Regular',
+        primary: 'Pretendard Bold',
+        secondary: 'Pretendard Regular',
       },
       tone_keywords: ['친근한', '전문적인', '혁신적인'],
       forbidden_expressions: ['싸게', '대박', '완전'],
     },
-    confidence_score: 0.85,
+    confidence_score: 8.5,  // 0-10 범위
     analysis_notes: '2개 문서 분석 완료. 추가 문서 업로드 시 정확도 향상',
   };
 }

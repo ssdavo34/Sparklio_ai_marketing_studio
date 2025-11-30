@@ -38,9 +38,9 @@ interface CanvasElement {
 // ============================================================================
 
 /**
- * Brand DNA를 Canvas 페이지로 변환
+ * Brand DNA를 Canvas 페이지로 변환 (V1 - BrandDNAOutputV1 스키마 기준)
  */
-export function createBrandIdentityCanvas(dna: BrandDNA, pageWidth: number = 1920, pageHeight: number = 1080): CanvasElement[] {
+export function createBrandIdentityCanvas(dna: BrandDNAFromAPI, pageWidth: number = 1920, pageHeight: number = 1080): CanvasElement[] {
   const elements: CanvasElement[] = [];
 
   const margin = 60;
@@ -88,28 +88,17 @@ export function createBrandIdentityCanvas(dna: BrandDNA, pageWidth: number = 192
   });
   currentY += 50;
 
+  // tone은 string 타입 (BrandDNAOutputV1 기준)
   elements.push({
     type: 'text',
     x: margin + 20,
     y: currentY,
     width: contentWidth - 40,
-    fontSize: 24,
-    fill: primaryColor,
-    text: dna.tone.primary,
-    fontWeight: 'bold',
-  });
-  currentY += 40;
-
-  elements.push({
-    type: 'text',
-    x: margin + 20,
-    y: currentY,
-    width: contentWidth - 40,
-    fontSize: 18,
+    fontSize: 20,
     fill: '#4B5563',
-    text: dna.tone.description,
+    text: dna.tone,
   });
-  currentY += 60;
+  currentY += 80;
 
   // Key Messages 섹션 (2열 레이아웃)
   const columnWidth = (contentWidth - 40) / 2;
@@ -157,6 +146,7 @@ export function createBrandIdentityCanvas(dna: BrandDNA, pageWidth: number = 192
   });
   rightY += 45;
 
+  // target_audience는 string 타입 (BrandDNAOutputV1 기준)
   elements.push({
     type: 'text',
     x: rightX + 20,
@@ -164,20 +154,9 @@ export function createBrandIdentityCanvas(dna: BrandDNA, pageWidth: number = 192
     width: columnWidth - 40,
     fontSize: 16,
     fill: '#374151',
-    text: `Demographics: ${dna.target_audience.demographics}`,
+    text: dna.target_audience,
   });
-  rightY += 35;
-
-  elements.push({
-    type: 'text',
-    x: rightX + 20,
-    y: rightY,
-    width: columnWidth - 40,
-    fontSize: 16,
-    fill: '#374151',
-    text: `Psychographics: ${dna.target_audience.psychographics}`,
-  });
-  rightY += 60;
+  rightY += 80;
 
   currentY = Math.max(leftY, rightY) + 40;
 
@@ -306,7 +285,7 @@ export function createBrandIdentityCanvas(dna: BrandDNA, pageWidth: number = 192
 
   currentY += colorBoxSize + 50;
 
-  // Footer - Confidence Score
+  // Footer - Confidence Score (0-10 범위, 100%로 표시 시 *10)
   elements.push({
     type: 'text',
     x: margin,
@@ -314,7 +293,7 @@ export function createBrandIdentityCanvas(dna: BrandDNA, pageWidth: number = 192
     width: contentWidth,
     fontSize: 14,
     fill: '#9CA3AF',
-    text: `Analysis Confidence: ${(dna.confidence_score * 100).toFixed(0)}% | ${dna.analysis_notes}`,
+    text: `Analysis Confidence: ${(dna.confidence_score * 10).toFixed(0)}%${dna.analysis_notes ? ` | ${dna.analysis_notes}` : ''}`,
   });
 
   return elements;

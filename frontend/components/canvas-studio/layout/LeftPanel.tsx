@@ -40,11 +40,13 @@ export function LeftPanel() {
       {/* 패널 컨텐츠 */}
       <div className="flex-1 overflow-hidden">
         {/* Editor 모드일 때만 PageManager 표시 */}
-        {activeTab === 'brandkit' && <BrandKitPanel />}
-        {activeTab === 'pages' && <PagesTab />}
+        {currentMode === 'editor' && <PageManager />}
+
+        {/* Planning 모드일 때 BrandKit 표시 */}
+        {currentMode === 'planning' && <BrandKitPanel />}
 
         {/* 다른 모드의 경우 */}
-        {currentMode !== 'editor' && (
+        {currentMode !== 'editor' && currentMode !== 'planning' && (
           <div className="p-4 text-sm text-gray-500">
             <p className="mb-4">현재 모드: {currentMode}</p>
             <p>여기에 모드별 패널이 들어옵니다.</p>

@@ -1,17 +1,16 @@
 /**
  * Studio Layout
  *
- * Canvas Studio v3.1 전체 레이아웃
- * VSCode-style 레이아웃 구조
+ * Canvas Studio v3.3 전체 레이아웃
  * - Top Toolbar (고정, 56px)
- * - Activity Bar (56px, 고정)
- * - Left Panel (가변, 접기/펼치기)
+ * - Activity Bar (검정 바, 56px, 세로 아이콘 메뉴)
+ * - Left Panel (컨텐츠 패널, ActivityBar 메뉴 컨텐츠 + Pages/Editor)
  * - Canvas Area (중앙, Polotno 기반)
  * - Right Dock (가변, 접기/펼치기)
  *
  * @author C팀 (Frontend Team)
- * @version 3.1
- * @date 2025-11-22
+ * @version 3.3
+ * @date 2025-12-01
  */
 
 'use client';
@@ -41,50 +40,15 @@ export function StudioLayout({
   const closeVideo6Modal = useVideo6ModalStore((state) => state.closeModal);
 
   const {
-    leftPanelWidth,
-    isLeftPanelCollapsed,
     rightDockWidth,
     isRightDockCollapsed,
-    activityBarWidth,
     isViewMode,
-    setLeftPanelWidth,
     setRightDockWidth,
-    leftPanelMinWidth,
-    leftPanelMaxWidth,
     rightDockMinWidth,
     rightDockMaxWidth,
   } = useLayoutStore();
 
-  const leftResizeRef = useRef<HTMLDivElement>(null);
   const rightResizeRef = useRef<HTMLDivElement>(null);
-
-  // Left Panel Resize Handler
-  const handleLeftResize = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    const startX = e.clientX;
-    const startWidth = leftPanelWidth;
-
-    const handleMouseMove = (moveEvent: MouseEvent) => {
-      const delta = moveEvent.clientX - startX;
-      const newWidth = Math.max(
-        leftPanelMinWidth,
-        Math.min(startWidth + delta, leftPanelMaxWidth)
-      );
-      setLeftPanelWidth(newWidth);
-    };
-
-    const handleMouseUp = () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-      document.body.style.cursor = 'default';
-      document.body.style.userSelect = 'auto';
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
-  }, [leftPanelWidth, leftPanelMinWidth, leftPanelMaxWidth, setLeftPanelWidth]);
 
   // Right Dock Resize Handler
   const handleRightResize = useCallback((e: React.MouseEvent) => {
@@ -123,33 +87,18 @@ export function StudioLayout({
 
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Activity Bar - Hidden in View Mode */}
+        {/* Activity Bar (검정 바) */}
         {!isViewMode && (
-          <div
-            className="border-r border-gray-200 bg-gray-900 flex-shrink-0"
-            style={{ width: `${activityBarWidth}px` }}
-          >
+          <div className="flex-shrink-0">
             {activityBar}
           </div>
         )}
 
-        {/* Left Panel - Hidden in View Mode */}
-        {!isViewMode && !isLeftPanelCollapsed && (
-          <>
-            <div
-              className="border-r border-gray-200 bg-white flex-shrink-0 overflow-hidden"
-              style={{ width: `${leftPanelWidth}px` }}
-            >
-              {leftPanel}
-            </div>
-            {/* Left Panel Resize Handle */}
-            <div
-              ref={leftResizeRef}
-              onMouseDown={handleLeftResize}
-              className="w-1 bg-transparent hover:bg-purple-400 cursor-col-resize flex-shrink-0 transition-colors"
-              style={{ marginLeft: '-1px' }}
-            />
-          </>
+        {/* Left Panel (컨텐츠 패널) */}
+        {!isViewMode && (
+          <div className="flex-shrink-0 overflow-hidden">
+            {leftPanel}
+          </div>
         )}
 
         {/* Canvas Area */}
