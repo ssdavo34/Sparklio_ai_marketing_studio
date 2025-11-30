@@ -2,17 +2,31 @@
  * Brand DNA Card
  *
  * Brand DNA 분석 결과 표시 컴포넌트
+ * - V1/V2 Brand DNA 지원
+ * - Canvas에 추가 버튼 포함
  *
  * @author C팀 (Frontend Team)
- * @version 1.0
- * @date 2025-11-24
+ * @version 2.0
+ * @date 2025-11-30
  * @reference FRONTEND_MVP_TODO_2025-11-24.md Phase 2.3
  */
 
 'use client';
 
-import { Edit2, Target, MessageSquare, Users, CheckCircle2, XCircle } from 'lucide-react';
+import { useState } from 'react';
+import {
+  Edit2,
+  Target,
+  MessageSquare,
+  Users,
+  CheckCircle2,
+  XCircle,
+  Loader2,
+  PlusCircle,
+  Palette,
+} from 'lucide-react';
 import type { BrandDNA } from '@/types/brand';
+import { useBrandToCanvas } from '@/hooks/useBrandToCanvas';
 
 // ============================================================================
 // Types
@@ -30,6 +44,9 @@ export interface BrandDNACardProps {
 
   /** 편집 버튼 표시 여부 */
   showEditButton?: boolean;
+
+  /** Canvas 추가 버튼 표시 여부 */
+  showAddToCanvasButton?: boolean;
 }
 
 // ============================================================================
@@ -41,7 +58,19 @@ export function BrandDNACard({
   onEdit,
   className = '',
   showEditButton = true,
+  showAddToCanvasButton = true,
 }: BrandDNACardProps) {
+  const { addToCanvasAndNavigate, isLoading, error, clearError } = useBrandToCanvas();
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  const handleAddToCanvas = async () => {
+    clearError();
+    const success = await addToCanvasAndNavigate(brandDNA);
+    if (success) {
+      setShowSuccess(true);
+    }
+  };
+
   return (
     <div className={`bg-white rounded-lg shadow-sm border border-gray-200 ${className}`}>
       {/* Header */}
@@ -52,16 +81,47 @@ export function BrandDNACard({
             AI가 분석한 브랜드의 핵심 아이덴티티
           </p>
         </div>
-        {showEditButton && onEdit && (
-          <button
-            onClick={onEdit}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-          >
-            <Edit2 className="w-4 h-4" />
-            편집
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {showAddToCanvasButton && (
+            <button
+              onClick={handleAddToCanvas}
+              disabled={isLoading}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  이동 중...
+                </>
+              ) : (
+                <>
+                  <Palette className="w-4 h-4" />
+                  Canvas에 추가
+                </>
+              )}
+            </button>
+          )}
+          {showEditButton && onEdit && (
+            <button
+              onClick={onEdit}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+            >
+              <Edit2 className="w-4 h-4" />
+              편집
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Error Alert */}
+      {error && (
+        <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center justify-between">
+          <p className="text-sm text-red-700">{error}</p>
+          <button onClick={clearError} className="text-red-500 hover:text-red-700">
+            <XCircle className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Content */}
       <div className="p-6 space-y-6">

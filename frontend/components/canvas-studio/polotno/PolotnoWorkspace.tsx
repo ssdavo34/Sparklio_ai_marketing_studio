@@ -24,6 +24,7 @@ import {
   isPolotnoStoreInitialized,
 } from './polotnoStoreSingleton';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
+import { processPendingBrandDNA } from '@/hooks/useBrandToCanvas';
 
 interface PolotnoWorkspaceProps {
   apiKey: string;
@@ -33,6 +34,7 @@ export function PolotnoWorkspace({ apiKey }: PolotnoWorkspaceProps) {
   const storeRef = useRef<any>(null);
   const [isMounted, setIsMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const pendingBrandDNAProcessed = useRef(false);
   const setPolotnoStore = useCanvasStore((state) => state.setPolotnoStore);
   const currentTemplate = useCanvasStore((state) => state.currentTemplate);
   const isViewMode = useLayoutStore((state) => state.isViewMode);
@@ -72,6 +74,17 @@ export function PolotnoWorkspace({ apiKey }: PolotnoWorkspaceProps) {
     storeRef.current = store;
     setPolotnoStore(store);
     setIsLoading(false);
+
+    // Pending Brand DNA 처리 (한 번만)
+    if (!pendingBrandDNAProcessed.current) {
+      pendingBrandDNAProcessed.current = true;
+      setTimeout(() => {
+        const processed = processPendingBrandDNA(store);
+        if (processed) {
+          console.log('[PolotnoWorkspace] Pending Brand DNA processed successfully');
+        }
+      }, 500); // Canvas 안정화 후 처리
+    }
 
     // 싱글톤이므로 cleanup에서 store를 파괴하지 않음
     return () => {
