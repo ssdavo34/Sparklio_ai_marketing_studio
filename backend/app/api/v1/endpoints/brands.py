@@ -27,6 +27,7 @@ from app.schemas.brand import (
 )
 from app.schemas.brand_analyzer import BrandAnalysisInputV1, BrandDNAOutputV1, BrandDocumentInput
 from app.services.agents.brand_analyzer import get_brand_analyzer_agent
+from app.services.agents.data_cleaner import get_data_cleaner_agent
 from app.services.agents.base import AgentRequest, AgentError
 from app.services.crawlers import get_web_crawler, WebCrawlerError
 from app.auth.jwt import get_current_user, get_current_user_optional
@@ -402,10 +403,42 @@ async def crawl_brand_url(
                 detail="Not enough permissions"
             )
 
+    # 중복 URL 체크
+    existing_doc = db.query(BrandDocument).filter(
+        BrandDocument.brand_id == brand_id,
+        BrandDocument.source_url == crawl_data.url,
+        BrandDocument.processed == "completed"
+    ).first()
+
+    if existing_doc:
+        logger.info(f"URL already crawled: {crawl_data.url}, returning existing document {existing_doc.id}")
+        return existing_doc
+
     # URL 크롤링 (동기 실행)
     try:
         crawler = get_web_crawler(timeout=30)
         crawl_result = await crawler.crawl(crawl_data.url)
+
+        raw_text = crawl_result.get("extracted_text", "")
+
+        # DataCleanerAgent로 브랜드 분석용 텍스트 정제
+        clean_text = raw_text
+        extracted_keywords = []
+        cleaning_actions = []
+
+        try:
+            cleaner = get_data_cleaner_agent()
+            clean_result = await cleaner.clean_brand_text(raw_text)
+            clean_text = clean_result.get("clean_text", raw_text)
+            extracted_keywords = clean_result.get("extracted_keywords", [])
+            cleaning_actions = clean_result.get("actions_performed", [])
+            logger.info(
+                f"Text cleaned for brand analysis: {len(raw_text)} -> {len(clean_text)} chars, "
+                f"actions: {cleaning_actions}"
+            )
+        except Exception as clean_error:
+            logger.warning(f"Text cleaning failed, using raw text: {str(clean_error)}")
+            # 정제 실패해도 원본 텍스트로 진행
 
         # BrandDocument 생성
         document = BrandDocument(
@@ -413,12 +446,17 @@ async def crawl_brand_url(
             title=crawl_data.title or crawl_result.get("title", f"Crawled from {crawl_data.url}"),
             document_type=DocumentType.URL,
             source_url=crawl_data.url,
-            extracted_text=crawl_result.get("extracted_text", ""),
+            extracted_text=raw_text,  # 원본 텍스트 저장
+            clean_text=clean_text,  # 정제된 텍스트 저장
+            extracted_keywords=extracted_keywords if extracted_keywords else None,
             processed="completed",  # 크롤링 완료
             document_metadata={
                 "crawl_user_id": str(current_user.id) if current_user else "anonymous",
                 "crawl_requested_at": datetime.utcnow().isoformat(),
                 "description": crawl_result.get("description"),
+                "cleaning_actions": cleaning_actions,
+                "raw_text_length": len(raw_text),
+                "clean_text_length": len(clean_text),
                 **crawl_result.get("metadata", {})
             }
         )
@@ -429,7 +467,7 @@ async def crawl_brand_url(
 
         logger.info(
             f"URL crawled successfully: {document.id} for brand {brand_id}, "
-            f"URL: {crawl_data.url}, extracted {len(document.extracted_text)} chars"
+            f"URL: {crawl_data.url}, raw: {len(raw_text)} chars, clean: {len(clean_text)} chars"
         )
 
         return document
@@ -575,14 +613,23 @@ async def delete_brand_document(
 # BrandAnalyzerAgent API (MVP P0-1)
 # ==========================================
 
+class AnalyzeBrandRequest(BaseModel):
+    """Brand DNA 분석 요청 (선택된 문서만 분석)"""
+    document_ids: list[str] | None = None  # None이면 모든 문서 분석
+
+
 @router.post("/{brand_id}/analyze", response_model=BrandDNAOutputV1)
 async def analyze_brand(
     brand_id: UUID,
+    request: AnalyzeBrandRequest | None = None,
     current_user: User | None = Depends(get_current_user_optional),
     db: Session = Depends(get_db)
 ):
     """
     브랜드 분석 및 Brand DNA 자동 생성
+
+    - document_ids가 제공되면 해당 문서만 분석
+    - document_ids가 None이면 모든 문서 분석
     """
     # Demo Brand 처리
     if not current_user:
@@ -612,11 +659,17 @@ async def analyze_brand(
                 detail="Not enough permissions"
             )
 
-    # 문서 조회
-    documents = db.query(BrandDocument).filter(
+    # 문서 조회 (선택된 문서만 또는 전체)
+    query = db.query(BrandDocument).filter(
         BrandDocument.brand_id == brand_id,
         BrandDocument.processed == "completed"  # 완료된 문서만
-    ).all()
+    )
+
+    # document_ids가 제공되면 해당 문서만 필터링
+    if request and request.document_ids:
+        query = query.filter(BrandDocument.id.in_(request.document_ids))
+
+    documents = query.all()
 
     if not documents:
         raise HTTPException(
@@ -625,16 +678,25 @@ async def analyze_brand(
         )
 
     # BrandDocumentInput 변환
+    # clean_text가 있으면 우선 사용 (브랜드 분석에 최적화된 정제된 텍스트)
+    # clean_text가 없으면 원본 extracted_text 사용
     document_inputs = []
     for doc in documents:
-        if doc.extracted_text:  # 텍스트가 있는 문서만
+        # 정제된 텍스트 우선, 없으면 원본 사용
+        text_to_analyze = doc.clean_text if doc.clean_text else doc.extracted_text
+        if text_to_analyze:  # 텍스트가 있는 문서만
             document_inputs.append(
                 BrandDocumentInput(
                     type=doc.document_type.value,
-                    extracted_text=doc.extracted_text,
+                    extracted_text=text_to_analyze,
                     title=doc.title
                 )
             )
+
+    logger.info(
+        f"Analyzing {len(document_inputs)} documents for brand {brand_id}, "
+        f"using clean_text: {sum(1 for d in documents if d.clean_text)}/{len(documents)}"
+    )
 
     if not document_inputs:
         raise HTTPException(

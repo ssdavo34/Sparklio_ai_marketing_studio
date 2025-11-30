@@ -114,7 +114,13 @@ class BrandDocument(Base):
     source_url = Column(Text, nullable=True)  # 크롤링한 URL (document_type=url인 경우)
 
     # 추출된 텍스트 (PDF/이미지 OCR 결과)
-    extracted_text = Column(Text, nullable=True)
+    extracted_text = Column(Text, nullable=True)  # 원본 텍스트 (raw)
+
+    # Brand DNA 분석용 정제된 텍스트
+    clean_text = Column(Text, nullable=True)  # DataCleanerAgent로 정제된 텍스트
+
+    # 정제 시 추출된 키워드
+    extracted_keywords = Column(ARRAY(Text), nullable=True)  # 해시태그, 브랜드 키워드 등
 
     # 파일 메타데이터
     file_size = Column(Integer, nullable=True)  # bytes

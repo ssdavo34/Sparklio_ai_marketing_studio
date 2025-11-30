@@ -349,12 +349,13 @@ class LLMGateway:
         # 사용자 입력
         user_input = self._format_payload(payload)
 
-        # 결합
-        prompt = f"{enhanced_system}\n\n{user_input}"
-
         # OpenAI JSON 모드 요구사항: 프롬프트에 'json' 단어가 포함되어야 함
-        if mode == "json" and "json" not in prompt.lower():
-            prompt += "\n\nIMPORTANT: You must output valid JSON."
+        if mode == "json" and "json" not in enhanced_system.lower():
+            enhanced_system += "\n\nIMPORTANT: You must output valid JSON only. No other text."
+
+        # 결합 (system과 user를 구분자로 분리)
+        # OpenAI Provider에서 이 구분자를 인식하여 system/user 메시지로 분리
+        prompt = f"{enhanced_system}\n\n===USER_INPUT===\n\n{user_input}"
 
         return prompt
 
@@ -2464,6 +2465,10 @@ social media thumbnail, [주제], eye-catching, vibrant colors, bold text, high 
         """
         import json
 
+        # Brand Analyzer 전용 포맷 처리
+        if "brand_name" in payload and "documents" in payload:
+            return self._format_brand_analyzer_payload(payload)
+
         # 사용자 입력 명확히 강조
         lines = [
             "=" * 60,
@@ -2500,10 +2505,19 @@ social media thumbnail, [주제], eye-catching, vibrant colors, bold text, high 
                 f"\n📌 타겟 고객: {payload['target_audience']}"
             )
 
-        # 나머지 필드들
-        lines.append("\n기타 정보:")
-        for key, value in payload.items():
-            if key not in ["prompt", "product_name", "features", "target_audience"]:
+        # 나머지 필드들 (Context Engineering 필드 제외)
+        # Context Engineering 필드는 시스템 프롬프트에서 처리되므로 여기서 제외
+        context_engineering_fields = {
+            "_instruction", "_instructions", "_structure", "_output_structure",
+            "_example", "_example_scenario", "_guidelines", "_constraints",
+            "_tone_guide", "brand_name", "documents", "website_url", "industry"
+        }
+        skip_fields = {"prompt", "product_name", "features", "target_audience"} | context_engineering_fields
+
+        remaining_fields = {k: v for k, v in payload.items() if k not in skip_fields}
+        if remaining_fields:
+            lines.append("\n기타 정보:")
+            for key, value in remaining_fields.items():
                 if isinstance(value, (list, dict)):
                     value_str = json.dumps(
                         value, ensure_ascii=False, indent=2
@@ -2515,6 +2529,61 @@ social media thumbnail, [주제], eye-catching, vibrant colors, bold text, high 
         lines.append("\n" + "=" * 60)
         lines.append("\n⚠️  중요: 사용자가 요청한 제품과 특징을 정확히 반영하세요.")
         lines.append("⚠️  고정된 예시(모바일 충전기, 클린징 장치 등)를 사용하지 마세요.")
+
+        return "\n".join(lines)
+
+    def _format_brand_analyzer_payload(self, payload: Dict[str, Any]) -> str:
+        """
+        Brand Analyzer 전용 Payload 포맷
+
+        Args:
+            payload: brand_name, documents 등을 포함한 입력 데이터
+
+        Returns:
+            Brand 분석에 최적화된 포맷 문자열
+        """
+        import json
+
+        lines = [
+            "=" * 60,
+            "브랜드 분석 요청",
+            "=" * 60,
+        ]
+
+        # 브랜드 이름
+        brand_name = payload.get("brand_name", "알 수 없음")
+        lines.append(f"\n📌 브랜드명: {brand_name}")
+
+        # 산업/업종
+        if payload.get("industry"):
+            lines.append(f"📌 산업/업종: {payload['industry']}")
+
+        # 웹사이트 URL
+        if payload.get("website_url"):
+            lines.append(f"📌 웹사이트: {payload['website_url']}")
+
+        # 문서 내용 (핵심!)
+        documents = payload.get("documents", [])
+        if documents:
+            lines.append(f"\n{'=' * 40}")
+            lines.append(f"분석할 문서 ({len(documents)}개)")
+            lines.append(f"{'=' * 40}")
+
+            for i, doc in enumerate(documents, 1):
+                doc_type = doc.get("type", "unknown")
+                doc_title = doc.get("title", f"문서 {i}")
+                extracted_text = doc.get("extracted_text", "")
+
+                lines.append(f"\n--- 문서 {i}: {doc_title} ({doc_type}) ---")
+                # 텍스트가 너무 길면 앞부분만
+                if len(extracted_text) > 3000:
+                    lines.append(extracted_text[:3000] + "\n... (이하 생략)")
+                else:
+                    lines.append(extracted_text)
+
+        lines.append(f"\n{'=' * 60}")
+        lines.append("\n⚠️ 위 문서들을 종합 분석하여 Brand DNA Card를 생성하세요.")
+        lines.append("⚠️ 반드시 지정된 JSON 형식으로만 응답하세요.")
 
         return "\n".join(lines)
 
@@ -2563,6 +2632,11 @@ social media thumbnail, [주제], eye-catching, vibrant colors, bold text, high 
             for i, example in enumerate(payload["_examples"], 1):
                 enhanced_parts.append(f"\n예시 {i}:")
                 enhanced_parts.append(f"```json\n{str(example)}\n```")
+
+        # 5.5. 재시도 힌트 (_retry_hint) - 이전 시도 실패 시 에러 정보
+        if "_retry_hint" in payload and payload["_retry_hint"]:
+            enhanced_parts.append("\n## 🚨 중요: 재시도 요청")
+            enhanced_parts.append(payload["_retry_hint"])
 
         # 6. 추가 컨텍스트 (_context)
         if "_context" in payload and payload["_context"]:

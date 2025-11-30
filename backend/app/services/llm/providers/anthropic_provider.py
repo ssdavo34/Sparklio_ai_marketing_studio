@@ -84,14 +84,29 @@ class AnthropicProvider(LLMProvider):
         try:
             # Anthropic API 호출
             # Claude는 system과 user 메시지 분리
-            response = self.client.messages.create(
-                model=model,
-                max_tokens=max_tokens,
-                temperature=temperature,
-                messages=[
-                    {"role": "user", "content": prompt}
+            separator = "\n\n===USER_INPUT===\n\n"
+            system_content = None
+            user_content = prompt
+
+            if separator in prompt:
+                system_content, user_content = prompt.split(separator, 1)
+                system_content = system_content.strip()
+                user_content = user_content.strip()
+
+            call_params = {
+                "model": model,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+                "messages": [
+                    {"role": "user", "content": user_content}
                 ]
-            )
+            }
+
+            # system 프롬프트가 있으면 별도로 전달
+            if system_content:
+                call_params["system"] = system_content
+
+            response = self.client.messages.create(**call_params)
 
             content = response.content[0].text
             usage = {

@@ -62,6 +62,54 @@ class CleaningAction(str, Enum):
     VALIDATE_DATA = "validate_data"
     NORMALIZE = "normalize"
     TRIM_SPACES = "trim_spaces"
+    # Brand Kit 전용 정제 액션
+    REMOVE_NAVIGATION = "remove_navigation"
+    REMOVE_CATALOG_BLOCKS = "remove_catalog_blocks"
+    REMOVE_FORMS = "remove_forms"
+    REMOVE_FOOTER = "remove_footer"
+    NORMALIZE_HASHTAGS = "normalize_hashtags"
+    DEDUPLICATE_PARAGRAPHS = "deduplicate_paragraphs"
+    EXTRACT_BRAND_CONTENT = "extract_brand_content"
+
+
+class CleaningProfile(str, Enum):
+    """정제 프로필 (도메인별 기본 액션 세트)"""
+    DEFAULT = "default"
+    BRAND_KIT = "brand_kit"  # 브랜드 분석용
+    PRODUCT_CATALOG = "product_catalog"  # 상품 카탈로그용
+    NEWS_ARTICLE = "news_article"  # 뉴스/기사용
+
+
+# 프로필별 기본 액션 세트
+PROFILE_ACTIONS = {
+    CleaningProfile.DEFAULT: [
+        "trim_spaces",
+        "remove_duplicates",
+        "standardize_format"
+    ],
+    CleaningProfile.BRAND_KIT: [
+        "trim_spaces",
+        "remove_navigation",
+        "remove_catalog_blocks",
+        "remove_forms",
+        "remove_footer",
+        "normalize_hashtags",
+        "deduplicate_paragraphs",
+        "extract_brand_content"
+    ],
+    CleaningProfile.PRODUCT_CATALOG: [
+        "trim_spaces",
+        "remove_navigation",
+        "remove_forms",
+        "standardize_format"
+    ],
+    CleaningProfile.NEWS_ARTICLE: [
+        "trim_spaces",
+        "remove_navigation",
+        "remove_forms",
+        "remove_footer"
+    ]
+}
 
 
 class DataQualityMetrics(BaseModel):
@@ -260,13 +308,23 @@ class DataCleanerAgent(AgentBase):
 
         Args:
             payload: 입력 데이터
+                - data: 정제할 데이터
+                - schema: 데이터 스키마 (선택)
+                - actions: 정제 액션 리스트 (선택)
+                - profile: 정제 프로필 (선택, brand_kit/product_catalog/news_article)
 
         Returns:
             정제된 데이터
         """
         data = payload["data"]
         schema = payload.get("schema", {})
-        actions = payload.get("actions", ["remove_duplicates", "standardize_format"])
+
+        # 프로필이 있으면 프로필의 기본 액션 사용
+        profile = payload.get("profile")
+        if profile and profile in [p.value for p in CleaningProfile]:
+            actions = PROFILE_ACTIONS.get(CleaningProfile(profile), ["trim_spaces"])
+        else:
+            actions = payload.get("actions", ["remove_duplicates", "standardize_format"])
 
         # 리스트로 변환
         if isinstance(data, dict):
@@ -311,6 +369,37 @@ class DataCleanerAgent(AgentBase):
             elif action == "normalize":
                 cleaned_data = self._normalize_data(cleaned_data)
                 actions_performed.append("정규화")
+
+            # ============================================
+            # Brand Kit 전용 정제 액션
+            # ============================================
+            elif action == "remove_navigation":
+                cleaned_data = self._remove_navigation(cleaned_data)
+                actions_performed.append("네비게이션/메뉴 제거")
+
+            elif action == "remove_catalog_blocks":
+                cleaned_data = self._remove_catalog_blocks(cleaned_data)
+                actions_performed.append("카탈로그/상품목록 제거")
+
+            elif action == "remove_forms":
+                cleaned_data = self._remove_forms(cleaned_data)
+                actions_performed.append("폼/입력 영역 제거")
+
+            elif action == "remove_footer":
+                cleaned_data = self._remove_footer(cleaned_data)
+                actions_performed.append("푸터/저작권 정보 제거")
+
+            elif action == "normalize_hashtags":
+                cleaned_data = self._normalize_hashtags(cleaned_data)
+                actions_performed.append("해시태그 정규화")
+
+            elif action == "deduplicate_paragraphs":
+                cleaned_data = self._deduplicate_paragraphs(cleaned_data)
+                actions_performed.append("중복 문단 제거")
+
+            elif action == "extract_brand_content":
+                cleaned_data = self._extract_brand_content(cleaned_data)
+                actions_performed.append("브랜드 관련 콘텐츠 추출")
 
         # 정제 후 품질 평가
         quality_after = self._assess_data_quality(cleaned_data)
@@ -1219,6 +1308,406 @@ class DataCleanerAgent(AgentBase):
             ))
 
         return outputs
+
+    # ========================================================================
+    # Brand Kit 전용 정제 메서드
+    # ========================================================================
+
+    def _remove_navigation(self, data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        네비게이션/메뉴 블럭 제거
+
+        - "메뉴 바로가기", "카테고리 이동" 등 네비게이션 텍스트 제거
+        - "Home > Category > Page" 형태의 브레드크럼 제거
+        """
+        nav_patterns = [
+            r'메뉴\s*바로\s*가기',
+            r'전체\s*메뉴',
+            r'카테고리\s*(바로\s*)?가기',
+            r'사이트맵',
+            r'바로가기\s*메뉴',
+            r'Skip\s+to\s+content',
+            r'Skip\s+navigation',
+            r'Main\s+Menu',
+            r'Navigation',
+            # 브레드크럼 패턴
+            r'Home\s*[>»›]\s*\w+(\s*[>»›]\s*\w+)*',
+            r'홈\s*[>»›]\s*\w+(\s*[>»›]\s*\w+)*',
+            # 일반적인 네비게이션 링크 목록
+            r'(로그인|회원가입|마이페이지|장바구니|검색)(\s*[|/·]\s*(로그인|회원가입|마이페이지|장바구니|검색))+',
+        ]
+
+        cleaned = []
+        for record in data:
+            cleaned_record = record.copy()
+            for field, value in record.items():
+                if isinstance(value, str):
+                    text = value
+                    for pattern in nav_patterns:
+                        text = re.sub(pattern, '', text, flags=re.IGNORECASE | re.MULTILINE)
+                    cleaned_record[field] = text
+            cleaned.append(cleaned_record)
+        return cleaned
+
+    def _remove_catalog_blocks(self, data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        카탈로그/상품 목록 블럭 제거
+
+        - 가격 정보가 반복되는 패턴 제거 (예: "29,900원", "₩29,900")
+        - 상품 리스트 형태 제거 (예: "상품명 | 가격 | 수량")
+        - "장바구니", "구매하기" 등 쇼핑몰 버튼 텍스트 제거
+        """
+        catalog_patterns = [
+            # 가격 패턴 (여러 번 반복되는 경우)
+            r'(₩|원|KRW)?\s*\d{1,3}(,\d{3})*\s*(원|₩|KRW)?(\s*(~|-|→)\s*(₩|원|KRW)?\s*\d{1,3}(,\d{3})*\s*(원|₩|KRW)?)?',
+            # 상품 목록 패턴
+            r'(인기|추천|베스트|신상품|할인)\s*(상품|제품)?(\s*보기)?',
+            r'장바구니(\s*(담기|추가|넣기))?',
+            r'(바로\s*)?구매하기',
+            r'위시리스트(\s*(추가|담기))?',
+            r'찜하기',
+            r'관심상품',
+            # 재고/배송 정보
+            r'(품절|재고\s*없음|일시\s*품절)',
+            r'무료\s*배송',
+            r'오늘\s*출발',
+            r'내일\s*도착',
+            # 평점/리뷰
+            r'\d+(\.\d+)?\s*(점|점수)?\s*(\(\d+\s*(개|건)?\s*(리뷰|후기)?\))?',
+            r'★{1,5}',
+            r'리뷰\s*\d+\s*(개|건)?',
+        ]
+
+        cleaned = []
+        for record in data:
+            cleaned_record = record.copy()
+            for field, value in record.items():
+                if isinstance(value, str):
+                    text = value
+                    # 가격이 3번 이상 반복되는 블럭 제거
+                    price_pattern = r'(₩|원)?\s*\d{1,3}(,\d{3})+'
+                    price_matches = re.findall(price_pattern, text)
+                    if len(price_matches) > 3:
+                        # 가격 목록이 많으면 해당 줄 전체 제거
+                        lines = text.split('\n')
+                        filtered_lines = []
+                        for line in lines:
+                            line_prices = re.findall(price_pattern, line)
+                            if len(line_prices) < 2:  # 줄당 2개 미만의 가격만 허용
+                                filtered_lines.append(line)
+                        text = '\n'.join(filtered_lines)
+
+                    for pattern in catalog_patterns:
+                        text = re.sub(pattern, '', text, flags=re.IGNORECASE)
+                    cleaned_record[field] = text
+            cleaned.append(cleaned_record)
+        return cleaned
+
+    def _remove_forms(self, data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        폼/입력 영역 관련 텍스트 제거
+
+        - 뉴스레터 구독 폼
+        - 문의하기 폼
+        - 개인정보 수집 동의 영역
+        """
+        form_patterns = [
+            # 뉴스레터/구독
+            r'뉴스레터\s*(구독|신청|받기)',
+            r'이메일\s*(구독|등록|신청)',
+            r'소식\s*받기',
+            r'Subscribe(\s+to)?(\s+our)?(\s+newsletter)?',
+            # 문의/상담
+            r'(문의|상담|견적)\s*(하기|신청|요청|접수)',
+            r'1:1\s*(문의|상담)',
+            r'고객\s*센터',
+            r'(전화|카카오톡?|카톡)\s*(문의|상담)',
+            # 입력 필드 레이블
+            r'(이름|성명|소속|직책|연락처|휴대폰|전화번호|이메일|주소)(\s*[:：\*]?\s*)?$',
+            r'(필수|선택)\s*(입력|항목)',
+            # 개인정보 동의
+            r'개인\s*정보\s*(수집|이용|처리|제공)(\s*(및|과)\s*(이용|동의))?',
+            r'(필수|선택)\s*동의',
+            r'약관\s*동의',
+            r'마케팅\s*(수신|정보)\s*동의',
+            # 버튼
+            r'(제출|전송|보내기|등록|신청)\s*(하기)?$',
+            r'Submit',
+            r'Send(\s+Message)?',
+        ]
+
+        cleaned = []
+        for record in data:
+            cleaned_record = record.copy()
+            for field, value in record.items():
+                if isinstance(value, str):
+                    text = value
+                    for pattern in form_patterns:
+                        text = re.sub(pattern, '', text, flags=re.IGNORECASE | re.MULTILINE)
+                    cleaned_record[field] = text
+            cleaned.append(cleaned_record)
+        return cleaned
+
+    def _remove_footer(self, data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        푸터/저작권 정보 제거
+
+        - 저작권 표시 (© 2025 Company)
+        - 사업자 정보 (사업자등록번호, 통신판매업)
+        - SNS 링크 목록
+        """
+        footer_patterns = [
+            # 저작권
+            r'[©ⓒ]\s*\d{4}(\s*[-~]\s*\d{4})?\s*[A-Za-z가-힣\s]+\.?\s*(All\s*Rights?\s*Reserved\.?)?',
+            r'Copyright\s*[©ⓒ]?\s*\d{4}',
+            # 사업자 정보
+            r'사업자\s*(등록\s*)?번호\s*[:：]?\s*\d{3}-\d{2}-\d{5}',
+            r'통신\s*판매\s*(업)?\s*(신고\s*)?(번호)?[:：]?\s*제?\s*\d+',
+            r'대표(\s*이사)?[:：]?\s*[가-힣]{2,4}',
+            r'(주소|소재지)[:：]?\s*[가-힣\s\d\-]+[로길]\s*\d+',
+            r'(전화|TEL|Tel)[:：]?\s*\d{2,4}[-\s]?\d{3,4}[-\s]?\d{4}',
+            r'(팩스|FAX|Fax)[:：]?\s*\d{2,4}[-\s]?\d{3,4}[-\s]?\d{4}',
+            # SNS 링크
+            r'(Facebook|Instagram|Twitter|YouTube|LinkedIn|TikTok|Naver|Kakao)\s*[|/·]?',
+            r'(페이스북|인스타그램|트위터|유튜브|링크드인|틱톡|네이버|카카오)\s*[|/·]?',
+            # 기타 푸터 요소
+            r'이용\s*약관',
+            r'개인\s*정보\s*(처리|보호)\s*방침',
+            r'쿠키\s*정책',
+            r'사이트\s*맵',
+        ]
+
+        cleaned = []
+        for record in data:
+            cleaned_record = record.copy()
+            for field, value in record.items():
+                if isinstance(value, str):
+                    text = value
+                    for pattern in footer_patterns:
+                        text = re.sub(pattern, '', text, flags=re.IGNORECASE | re.MULTILINE)
+                    cleaned_record[field] = text
+            cleaned.append(cleaned_record)
+        return cleaned
+
+    def _normalize_hashtags(self, data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        해시태그 정규화
+
+        - 연속된 해시태그를 키워드 리스트로 압축
+        - 중복 해시태그 제거
+        - 본문에서는 해시태그 최소화
+        """
+        cleaned = []
+        for record in data:
+            cleaned_record = record.copy()
+            extracted_hashtags = set()
+
+            for field, value in record.items():
+                if isinstance(value, str):
+                    # 해시태그 추출
+                    hashtags = re.findall(r'#\s*([가-힣A-Za-z0-9_]+)', value)
+                    extracted_hashtags.update(hashtags)
+
+                    # 본문에서 해시태그 제거 (연속 해시태그 블럭)
+                    # 예: "#마케팅 #브랜딩 #SNS #광고" -> 제거
+                    text = re.sub(r'(#\s*[가-힣A-Za-z0-9_]+\s*){3,}', '', value)
+                    cleaned_record[field] = text
+
+            # 추출된 해시태그를 별도 필드로 저장
+            if extracted_hashtags:
+                cleaned_record['_extracted_keywords'] = list(extracted_hashtags)[:20]  # 최대 20개
+
+            cleaned.append(cleaned_record)
+        return cleaned
+
+    def _deduplicate_paragraphs(self, data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        중복 문단 제거
+
+        - 동일하거나 유사한 문단이 반복되는 경우 제거
+        - 짧은 반복 문구 제거 (예: "더보기", "자세히 보기")
+        """
+        cleaned = []
+        for record in data:
+            cleaned_record = record.copy()
+            for field, value in record.items():
+                if isinstance(value, str):
+                    # 줄 단위로 분리
+                    lines = value.split('\n')
+
+                    # 중복 제거 (순서 유지)
+                    seen = set()
+                    unique_lines = []
+                    for line in lines:
+                        stripped = line.strip()
+                        # 빈 줄이거나 너무 짧은 줄(5자 미만)은 중복 체크 제외
+                        if len(stripped) < 5:
+                            unique_lines.append(line)
+                            continue
+
+                        # 정규화된 형태로 중복 체크
+                        normalized = re.sub(r'\s+', ' ', stripped.lower())
+                        if normalized not in seen:
+                            seen.add(normalized)
+                            unique_lines.append(line)
+
+                    # 짧은 반복 문구 제거
+                    repeat_phrases = [
+                        r'^더\s*보기$',
+                        r'^자세히\s*보기$',
+                        r'^더\s*알아보기$',
+                        r'^View\s*More$',
+                        r'^Read\s*More$',
+                        r'^Learn\s*More$',
+                        r'^See\s*More$',
+                        r'^Click\s*Here$',
+                    ]
+                    filtered_lines = []
+                    for line in unique_lines:
+                        stripped = line.strip()
+                        is_repeat = False
+                        for pattern in repeat_phrases:
+                            if re.match(pattern, stripped, re.IGNORECASE):
+                                is_repeat = True
+                                break
+                        if not is_repeat:
+                            filtered_lines.append(line)
+
+                    cleaned_record[field] = '\n'.join(filtered_lines)
+            cleaned.append(cleaned_record)
+        return cleaned
+
+    def _extract_brand_content(self, data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        브랜드 관련 콘텐츠 추출 (핵심)
+
+        브랜드 스토리, 회사 소개, 비전/미션, 철학 등
+        브랜드 DNA 분석에 유용한 콘텐츠를 우선적으로 보존
+
+        - 브랜드 스토리/히스토리
+        - 비전, 미션, 핵심 가치
+        - 회사/브랜드 소개
+        - 제품/서비스 철학
+        - 타겟 고객 관련 내용
+        """
+        # 브랜드 관련 키워드 (가중치 높음)
+        brand_keywords = [
+            # 브랜드 아이덴티티
+            r'브랜드\s*(스토리|철학|가치|약속|비전)',
+            r'(비전|미션|핵심\s*가치|슬로건)',
+            r'(회사|기업|브랜드)\s*(소개|철학|정신)',
+            r'(창업|설립)\s*(이야기|스토리|정신)',
+            r'(our|brand)\s*(story|vision|mission|values?)',
+            # 차별점
+            r'(차별화|차별점|특장점|강점)',
+            r'(unique|different|special)',
+            r'왜\s*(우리|저희)인가',
+            r'why\s+(us|choose)',
+            # 고객/타겟
+            r'(고객|소비자).*?(위한|위해|생각)',
+            r'(target|customer|audience)',
+            # 품질/가치
+            r'(품질|퀄리티|프리미엄)',
+            r'(신뢰|믿음|정직|진정성)',
+            r'(혁신|innovation|innovative)',
+        ]
+
+        cleaned = []
+        for record in data:
+            cleaned_record = record.copy()
+            for field, value in record.items():
+                if isinstance(value, str) and field == 'text':
+                    # 문단 단위로 분리
+                    paragraphs = re.split(r'\n\s*\n', value)
+
+                    # 각 문단의 브랜드 관련성 점수 계산
+                    scored_paragraphs = []
+                    for para in paragraphs:
+                        score = 0
+                        para_lower = para.lower()
+
+                        # 키워드 매칭으로 점수 계산
+                        for keyword in brand_keywords:
+                            if re.search(keyword, para, re.IGNORECASE):
+                                score += 2
+
+                        # 문장 길이 가중치 (너무 짧거나 긴 문단 감점)
+                        word_count = len(para.split())
+                        if 10 <= word_count <= 200:
+                            score += 1
+                        elif word_count < 5 or word_count > 500:
+                            score -= 1
+
+                        # 숫자/기호가 너무 많으면 감점 (카탈로그 가능성)
+                        digit_ratio = len(re.findall(r'\d', para)) / max(len(para), 1)
+                        if digit_ratio > 0.2:
+                            score -= 2
+
+                        scored_paragraphs.append((para, score))
+
+                    # 점수 기준 정렬 (높은 순) 및 상위 문단 선택
+                    scored_paragraphs.sort(key=lambda x: x[1], reverse=True)
+
+                    # 양성 점수 문단만 선택 (최소 500자 이상 유지)
+                    selected = []
+                    total_chars = 0
+                    for para, score in scored_paragraphs:
+                        if score >= 0 or total_chars < 500:
+                            selected.append(para)
+                            total_chars += len(para)
+
+                    # 원래 순서대로 재정렬
+                    original_order = {para: i for i, para in enumerate(paragraphs)}
+                    selected.sort(key=lambda p: original_order.get(p, 999))
+
+                    cleaned_record[field] = '\n\n'.join(selected)
+
+            cleaned.append(cleaned_record)
+        return cleaned
+
+    # ========================================================================
+    # Brand Kit 텍스트 정제 편의 메서드
+    # ========================================================================
+
+    async def clean_brand_text(self, text: str) -> Dict[str, Any]:
+        """
+        브랜드킷용 텍스트 정제 편의 메서드
+
+        Args:
+            text: 정제할 원본 텍스트
+
+        Returns:
+            Dict with:
+                - clean_text: 정제된 텍스트
+                - extracted_keywords: 추출된 키워드
+                - actions_performed: 수행된 작업 목록
+                - quality_improvement: 품질 개선도
+
+        Usage:
+            cleaner = DataCleanerAgent()
+            result = await cleaner.clean_brand_text(crawled_text)
+            clean_text = result["clean_text"]
+        """
+        from .base import AgentRequest
+
+        response = await self.execute(AgentRequest(
+            task="clean_data",
+            payload={
+                "data": [{"text": text}],
+                "profile": "brand_kit"
+            }
+        ))
+
+        # 결과 추출
+        result_data = response.outputs[0].value if response.outputs else {}
+        cleaned_data = result_data.get("data", [{}])[0] if result_data.get("data") else {}
+
+        return {
+            "clean_text": cleaned_data.get("text", text),
+            "extracted_keywords": cleaned_data.get("_extracted_keywords", []),
+            "actions_performed": result_data.get("actions_performed", []),
+            "quality_improvement": response.meta.get("quality_improvement", 0) if response.meta else 0
+        }
 
 
 # ============================================================================

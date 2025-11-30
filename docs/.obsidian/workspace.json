@@ -27,12 +27,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "presentation/구현 계획 - Sparklio 비전 프리젠테이션.md",
+                "file": "requests/2025-11-16_B팀_작업지시_회신.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "구현 계획 - Sparklio 비전 프리젠테이션"
+              "title": "2025-11-16_B팀_작업지시_회신"
             }
           }
         ],
@@ -89,7 +89,8 @@
               "title": "북마크"
             }
           }
-        ]
+        ],
+        "currentTab": 1
       }
     ],
     "direction": "horizontal",
@@ -198,10 +199,10 @@
       "bases:새 베이스 생성하기": false
     }
   },
-  "active": "2ab8856fccf2d677",
+  "active": "4e090a48c803d51d",
   "lastOpenFiles": [
-    "TEST_REPORT_GEMINI.md",
     "presentation/구현 계획 - Sparklio 비전 프리젠테이션.md",
+    "TEST_REPORT_GEMINI.md",
     "presentation/프리젠테이션 현황 및 개발 제안에 대한 평가 gpt.md",
     "presentation/프리젠테이션 현황 및 개발 제안 검토.md",
     "presentation",

@@ -241,6 +241,7 @@ class BrandAnalyzerAgent(AgentBase):
         max_retries = 3
         base_temperature = 0.3  # Brand analysis는 창의성과 일관성 균형 (0.3 → 0.4 → 0.5)
         validator = OutputValidator()
+        last_validation_error = None  # 마지막 검증 에러 저장
 
         for attempt in range(max_retries):
             try:
@@ -251,16 +252,25 @@ class BrandAnalyzerAgent(AgentBase):
                     f"(temperature={current_temp})"
                 )
 
-                # LLM 호출
+                # LLM 호출 (Brand DNA 응답은 길 수 있으므로 max_tokens 증가)
                 llm_options = {
                     **(request.options or {}),
-                    "temperature": current_temp
+                    "temperature": current_temp,
+                    "max_tokens": 4000  # 기본 2000에서 증가
                 }
+
+                # 이전 시도에서 검증 에러가 있으면 payload에 힌트 추가
+                retry_payload = enhanced_payload.copy()
+                if last_validation_error and attempt > 0:
+                    retry_payload["_retry_hint"] = (
+                        f"이전 시도에서 다음 오류가 발생했습니다: {last_validation_error}. "
+                        "반드시 모든 필드를 포함한 완전한 JSON을 반환하세요."
+                    )
 
                 llm_response = await self.llm_gateway.generate(
                     role=self.name,
                     task=request.task,
-                    payload=enhanced_payload,
+                    payload=retry_payload,
                     mode="json",
                     options=llm_options
                 )
@@ -300,6 +310,7 @@ class BrandAnalyzerAgent(AgentBase):
 
                 # Validation 실패 시 재시도
                 if not validation_result.passed:
+                    last_validation_error = ', '.join(validation_result.errors)
                     if attempt < max_retries - 1:
                         logger.warning(
                             f"Validation failed (attempt {attempt + 1}), retrying... "
@@ -310,7 +321,7 @@ class BrandAnalyzerAgent(AgentBase):
                         # 최종 실패
                         raise AgentError(
                             f"Validation failed after {max_retries} attempts: "
-                            f"{', '.join(validation_result.errors)}",
+                            f"{last_validation_error}",
                             agent=self.name
                         )
 
@@ -358,6 +369,7 @@ class BrandAnalyzerAgent(AgentBase):
             except AgentError:
                 raise
             except Exception as e:
+                last_validation_error = str(e)
                 if attempt < max_retries - 1:
                     logger.warning(
                         f"BrandAnalyzerAgent execution failed (attempt {attempt + 1}), "

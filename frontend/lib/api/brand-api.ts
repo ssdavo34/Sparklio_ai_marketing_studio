@@ -257,7 +257,9 @@ export interface BrandDocument {
   source_url?: string;
   file_size?: number;
   mime_type?: string;
-  extracted_text?: string;
+  extracted_text?: string;  // 원본 텍스트
+  clean_text?: string;  // 정제된 텍스트 (Brand DNA 분석용)
+  extracted_keywords?: string[];  // 추출된 키워드
   processed: 'pending' | 'completed' | 'failed';
   document_metadata?: Record<string, any>;
   created_at: string;
@@ -411,15 +413,24 @@ export async function deleteBrandDocument(
 /**
  * Brand DNA 분석 실행
  *
- * 브랜드에 업로드된 모든 문서를 분석하여 Brand DNA Card를 자동 생성합니다.
+ * 브랜드에 업로드된 문서를 분석하여 Brand DNA Card를 자동 생성합니다.
  * 생성된 Brand DNA는 자동으로 DB에 저장됩니다.
+ *
+ * @param brandId - 브랜드 ID
+ * @param documentIds - 분석할 문서 ID 배열 (없으면 모든 문서 분석)
  */
-export async function analyzeBrand(brandId: string): Promise<BrandDNA> {
+export async function analyzeBrand(
+  brandId: string,
+  documentIds?: string[]
+): Promise<BrandDNA> {
   const response = await fetch(
     `${API_BASE_URL}/api/v1/brands/${brandId}/analyze`,
     {
       method: 'POST',
       headers: getAuthHeaders(),
+      body: JSON.stringify({
+        document_ids: documentIds && documentIds.length > 0 ? documentIds : null,
+      }),
     }
   );
 

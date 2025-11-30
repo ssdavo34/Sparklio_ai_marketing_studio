@@ -26,6 +26,14 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
+  Eye,
+  X,
+  Check,
+  Square,
+  CheckSquare,
+  FolderPlus,
+  FolderOpen,
+  Filter,
 } from 'lucide-react';
 import { useWorkspaceStore } from '../../../stores';
 import {
@@ -84,6 +92,16 @@ export function BrandKitTab() {
   const [analyzeProgress, setAnalyzeProgress] = useState(0);
   const [analyzeStatus, setAnalyzeStatus] = useState<'idle' | 'analyzing' | 'completed' | 'failed'>('idle');
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
+
+  // 문서 내용 미리보기 모달
+  const [previewDoc, setPreviewDoc] = useState<BrandDocument | null>(null);
+
+  // 문서 선택 상태 (체크박스)
+  const [selectedDocIds, setSelectedDocIds] = useState<Set<string>>(new Set());
+
+  // 프로젝트 저장 모달
+  const [showProjectModal, setShowProjectModal] = useState(false);
+  const [projectName, setProjectName] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -210,8 +228,13 @@ export function BrandKitTab() {
   const handleAnalyze = async () => {
     if (!brandId) return;
 
-    if (documents.length === 0) {
-      toast.warning('먼저 브랜드 문서를 업로드해주세요.');
+    // 선택된 문서가 있으면 선택된 것만, 없으면 전체 분석
+    const docsToAnalyze = selectedDocIds.size > 0
+      ? documents.filter((d) => selectedDocIds.has(d.id))
+      : documents;
+
+    if (docsToAnalyze.length === 0) {
+      toast.warning('분석할 문서가 없습니다. 먼저 문서를 업로드하거나 선택해주세요.');
       return;
     }
 
@@ -259,8 +282,11 @@ export function BrandKitTab() {
     }, 100);
 
     try {
-      // 실제 API 호출
-      const dna = await analyzeBrand(brandId);
+      // 실제 API 호출 (선택된 문서만 분석)
+      const documentIdsToAnalyze = selectedDocIds.size > 0
+        ? Array.from(selectedDocIds)
+        : undefined;
+      const dna = await analyzeBrand(brandId, documentIdsToAnalyze);
 
       cleanupAnalyzeProgress();
       setAnalyzeProgress(100);
@@ -317,10 +343,124 @@ export function BrandKitTab() {
       await deleteBrandDocument(brandId, docId);
 
       setDocuments((prev) => prev.filter((d) => d.id !== docId));
+      setSelectedDocIds((prev) => {
+        const next = new Set(prev);
+        next.delete(docId);
+        return next;
+      });
       toast.success('문서 삭제 완료');
     } catch (error) {
       console.error('Delete failed:', error);
       toast.error(`삭제 실패: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
+  // 문서 선택/해제 토글
+  const toggleDocSelection = (docId: string) => {
+    setSelectedDocIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(docId)) {
+        next.delete(docId);
+      } else {
+        next.add(docId);
+      }
+      return next;
+    });
+  };
+
+  // 전체 선택/해제
+  const toggleSelectAll = () => {
+    if (selectedDocIds.size === documents.length) {
+      setSelectedDocIds(new Set());
+    } else {
+      setSelectedDocIds(new Set(documents.map((d) => d.id)));
+    }
+  };
+
+  // 선택된 문서 일괄 삭제
+  const handleDeleteSelected = async () => {
+    if (selectedDocIds.size === 0) {
+      toast.warning('선택된 문서가 없습니다.');
+      return;
+    }
+
+    if (!confirm(`선택한 ${selectedDocIds.size}개 문서를 삭제하시겠습니까?`)) return;
+
+    try {
+      const deletePromises = Array.from(selectedDocIds).map((docId) =>
+        deleteBrandDocument(brandId, docId)
+      );
+      await Promise.all(deletePromises);
+
+      setDocuments((prev) => prev.filter((d) => !selectedDocIds.has(d.id)));
+      setSelectedDocIds(new Set());
+      toast.success(`${selectedDocIds.size}개 문서 삭제 완료`);
+    } catch (error) {
+      console.error('Batch delete failed:', error);
+      toast.error(`삭제 실패: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
+  // 선택된 문서로 프로젝트 생성 (MVP: localStorage에 저장)
+  const handleSaveAsProject = () => {
+    if (selectedDocIds.size === 0) {
+      toast.warning('먼저 문서를 선택해주세요.');
+      return;
+    }
+    setShowProjectModal(true);
+    setProjectName(`브랜드 분석 ${new Date().toLocaleDateString('ko-KR')}`);
+  };
+
+  // 프로젝트 저장 확인
+  const confirmSaveProject = () => {
+    if (!projectName.trim()) {
+      toast.warning('프로젝트 이름을 입력해주세요.');
+      return;
+    }
+
+    const selectedDocs = documents.filter((d) => selectedDocIds.has(d.id));
+    const project = {
+      id: `project-${Date.now()}`,
+      name: projectName,
+      documents: selectedDocs,
+      brandId,
+      createdAt: new Date().toISOString(),
+    };
+
+    // localStorage에 저장 (MVP)
+    const existingProjects = JSON.parse(localStorage.getItem('brandProjects') || '[]');
+    existingProjects.push(project);
+    localStorage.setItem('brandProjects', JSON.stringify(existingProjects));
+
+    toast.success(`프로젝트 "${projectName}" 저장 완료!`);
+    setShowProjectModal(false);
+    setProjectName('');
+    setSelectedDocIds(new Set());
+  };
+
+  // 프로젝트 불러오기
+  const handleLoadProject = () => {
+    const existingProjects = JSON.parse(localStorage.getItem('brandProjects') || '[]');
+    if (existingProjects.length === 0) {
+      toast.info('저장된 프로젝트가 없습니다.');
+      return;
+    }
+
+    // 간단한 선택 (MVP: 가장 최근 프로젝트)
+    const latestProject = existingProjects[existingProjects.length - 1];
+    if (confirm(`"${latestProject.name}" 프로젝트를 불러오시겠습니까?`)) {
+      // 기존 문서와 병합 (중복 제거)
+      const existingIds = new Set(documents.map((d) => d.id));
+      const newDocs = latestProject.documents.filter(
+        (d: BrandDocument) => !existingIds.has(d.id)
+      );
+
+      if (newDocs.length > 0) {
+        setDocuments((prev) => [...prev, ...newDocs]);
+        toast.success(`${newDocs.length}개 문서가 추가되었습니다.`);
+      } else {
+        toast.info('이미 모든 문서가 로드되어 있습니다.');
+      }
     }
   };
 
@@ -460,14 +600,81 @@ export function BrandKitTab() {
           {/* 문서 목록 */}
           {documents.length > 0 && (
             <div className="space-y-2">
-              <p className="text-xs text-gray-500">업로드된 문서 ({documents.length}개)</p>
+              {/* 문서 목록 헤더 + 액션 버튼 */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {/* 전체 선택 체크박스 */}
+                  <button
+                    onClick={toggleSelectAll}
+                    className="p-0.5 hover:bg-gray-200 rounded transition-colors"
+                    title={selectedDocIds.size === documents.length ? '전체 해제' : '전체 선택'}
+                  >
+                    {selectedDocIds.size === documents.length && documents.length > 0 ? (
+                      <CheckSquare className="w-4 h-4 text-purple-600" />
+                    ) : (
+                      <Square className="w-4 h-4 text-gray-400" />
+                    )}
+                  </button>
+                  <p className="text-xs text-gray-500">
+                    문서 ({documents.length}개)
+                    {selectedDocIds.size > 0 && (
+                      <span className="text-purple-600 ml-1">• {selectedDocIds.size}개 선택됨</span>
+                    )}
+                  </p>
+                </div>
+
+                {/* 액션 버튼 */}
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={handleLoadProject}
+                    className="p-1.5 hover:bg-gray-200 rounded transition-colors"
+                    title="프로젝트 불러오기"
+                  >
+                    <FolderOpen className="w-3.5 h-3.5 text-gray-600" />
+                  </button>
+                  {selectedDocIds.size > 0 && (
+                    <>
+                      <button
+                        onClick={handleSaveAsProject}
+                        className="p-1.5 hover:bg-purple-100 rounded transition-colors"
+                        title="프로젝트로 저장"
+                      >
+                        <FolderPlus className="w-3.5 h-3.5 text-purple-600" />
+                      </button>
+                      <button
+                        onClick={handleDeleteSelected}
+                        className="p-1.5 hover:bg-red-100 rounded transition-colors"
+                        title="선택 삭제"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* 문서 리스트 */}
               {documents.map((doc) => (
                 <div
                   key={doc.id}
-                  className="flex flex-col p-2 bg-gray-50 rounded text-xs gap-1"
+                  className={`flex flex-col p-2 rounded text-xs gap-1 cursor-pointer transition-colors ${
+                    selectedDocIds.has(doc.id)
+                      ? 'bg-purple-50 border border-purple-200'
+                      : 'bg-gray-50 hover:bg-gray-100'
+                  }`}
+                  onClick={() => toggleDocSelection(doc.id)}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 flex-1 min-w-0">
+                      {/* 체크박스 */}
+                      <div className="flex-shrink-0">
+                        {selectedDocIds.has(doc.id) ? (
+                          <CheckSquare className="w-4 h-4 text-purple-600" />
+                        ) : (
+                          <Square className="w-4 h-4 text-gray-400" />
+                        )}
+                      </div>
+                      {/* 상태 아이콘 */}
                       {doc.processed === 'completed' ? (
                         <CheckCircle className="w-3 h-3 text-green-600 flex-shrink-0" />
                       ) : doc.processed === 'failed' ? (
@@ -475,9 +682,23 @@ export function BrandKitTab() {
                       ) : (
                         <AlertCircle className="w-3 h-3 text-yellow-600 flex-shrink-0" />
                       )}
+                      {/* 정제 상태 아이콘 */}
+                      {doc.clean_text && (
+                        <Filter className="w-3 h-3 text-purple-500 flex-shrink-0" title="정제됨" />
+                      )}
                       <span className="text-gray-700 truncate font-medium">{doc.title}</span>
                     </div>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                      {/* 미리보기 버튼 */}
+                      {doc.extracted_text && (
+                        <button
+                          onClick={() => setPreviewDoc(doc)}
+                          className="p-1 hover:bg-blue-100 rounded transition-colors flex-shrink-0"
+                          title="문서 내용 보기"
+                        >
+                          <Eye className="w-3 h-3 text-blue-600" />
+                        </button>
+                      )}
                       {doc.processed === 'failed' && doc.source_url && (
                         <button
                           onClick={() => handleRetry(doc.source_url!)}
@@ -494,6 +715,16 @@ export function BrandKitTab() {
                       </button>
                     </div>
                   </div>
+
+                  {/* 추출된 텍스트 미리보기 (짧게) */}
+                  {doc.extracted_text && (
+                    <div
+                      className="text-[10px] text-gray-500 pl-5 line-clamp-2 cursor-pointer hover:text-gray-700"
+                      onClick={() => setPreviewDoc(doc)}
+                    >
+                      {doc.extracted_text.substring(0, 100)}...
+                    </div>
+                  )}
 
                   {/* 실패 사유 표시 */}
                   {doc.processed === 'failed' && doc.document_metadata?.error && (
@@ -564,7 +795,9 @@ export function BrandKitTab() {
                 className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
               >
                 <Sparkles className="w-4 h-4" />
-                Brand DNA 자동 분석
+                {selectedDocIds.size > 0
+                  ? `선택된 ${selectedDocIds.size}개 문서 분석`
+                  : 'Brand DNA 자동 분석 (전체)'}
               </button>
             )}
           </div>
@@ -647,6 +880,195 @@ export function BrandKitTab() {
           <p className="text-xs text-gray-400 mt-2">Click to add to canvas</p>
         </div>
       </div>
+
+      {/* 문서 내용 미리보기 모달 */}
+      {previewDoc && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] flex flex-col">
+            {/* 모달 헤더 */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <div className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-purple-600" />
+                <h3 className="font-semibold text-gray-900">{previewDoc.title}</h3>
+              </div>
+              <button
+                onClick={() => setPreviewDoc(null)}
+                className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            {/* 문서 메타정보 */}
+            <div className="px-4 py-2 bg-gray-50 border-b border-gray-200 text-xs text-gray-600 space-y-1">
+              <div className="flex gap-4 flex-wrap">
+                <span>유형: <strong className="text-gray-800">{previewDoc.document_type}</strong></span>
+                <span>상태: <strong className={previewDoc.processed === 'completed' ? 'text-green-600' : 'text-yellow-600'}>
+                  {previewDoc.processed}
+                </strong></span>
+                {previewDoc.clean_text && (
+                  <span className="flex items-center gap-1">
+                    <Filter className="w-3 h-3 text-purple-500" />
+                    <strong className="text-purple-600">정제됨</strong>
+                  </span>
+                )}
+              </div>
+              {previewDoc.source_url && (
+                <div>
+                  출처: <a href={previewDoc.source_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">
+                    {previewDoc.source_url}
+                  </a>
+                </div>
+              )}
+              <div className="flex gap-4">
+                {previewDoc.extracted_text && (
+                  <span>원본: <strong className="text-gray-800">{previewDoc.extracted_text.length.toLocaleString()}자</strong></span>
+                )}
+                {previewDoc.clean_text && (
+                  <span>정제: <strong className="text-purple-600">{previewDoc.clean_text.length.toLocaleString()}자</strong>
+                    <span className="text-gray-400 ml-1">
+                      ({Math.round((1 - previewDoc.clean_text.length / previewDoc.extracted_text!.length) * 100)}% 감소)
+                    </span>
+                  </span>
+                )}
+              </div>
+              {previewDoc.extracted_keywords && previewDoc.extracted_keywords.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {previewDoc.extracted_keywords.slice(0, 10).map((kw, i) => (
+                    <span key={i} className="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-[10px]">
+                      #{kw}
+                    </span>
+                  ))}
+                  {previewDoc.extracted_keywords.length > 10 && (
+                    <span className="text-gray-400 text-[10px]">+{previewDoc.extracted_keywords.length - 10}</span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* 문서 내용 (탭으로 원본/정제 전환) */}
+            <div className="flex-1 overflow-y-auto">
+              {previewDoc.clean_text ? (
+                <div className="h-full flex flex-col">
+                  {/* 탭 헤더 */}
+                  <div className="flex border-b border-gray-200 bg-white sticky top-0">
+                    <button
+                      onClick={() => {}}
+                      className="flex-1 px-4 py-2 text-xs font-medium text-purple-600 border-b-2 border-purple-600 bg-purple-50"
+                    >
+                      정제된 텍스트 (Brand DNA 분석용)
+                    </button>
+                  </div>
+                  <div className="flex-1 p-4 overflow-y-auto">
+                    <pre className="whitespace-pre-wrap text-xs text-gray-800 font-mono bg-purple-50 p-4 rounded-lg border border-purple-200">
+                      {previewDoc.clean_text}
+                    </pre>
+                    {previewDoc.extracted_text && previewDoc.extracted_text !== previewDoc.clean_text && (
+                      <details className="mt-4">
+                        <summary className="text-xs text-gray-500 cursor-pointer hover:text-gray-700">
+                          원본 텍스트 보기 ({previewDoc.extracted_text.length.toLocaleString()}자)
+                        </summary>
+                        <pre className="whitespace-pre-wrap text-xs text-gray-600 font-mono bg-gray-50 p-4 rounded-lg mt-2">
+                          {previewDoc.extracted_text}
+                        </pre>
+                      </details>
+                    )}
+                  </div>
+                </div>
+              ) : previewDoc.extracted_text ? (
+                <div className="p-4">
+                  <pre className="whitespace-pre-wrap text-xs text-gray-800 font-mono bg-gray-50 p-4 rounded-lg">
+                    {previewDoc.extracted_text}
+                  </pre>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-40 text-gray-500 text-sm">
+                  추출된 텍스트가 없습니다.
+                </div>
+              )}
+            </div>
+
+            {/* 모달 푸터 */}
+            <div className="p-4 border-t border-gray-200 flex justify-end">
+              <button
+                onClick={() => setPreviewDoc(null)}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 프로젝트 저장 모달 */}
+      {showProjectModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            {/* 모달 헤더 */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <div className="flex items-center gap-2">
+                <FolderPlus className="w-5 h-5 text-purple-600" />
+                <h3 className="font-semibold text-gray-900">프로젝트로 저장</h3>
+              </div>
+              <button
+                onClick={() => setShowProjectModal(false)}
+                className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            {/* 모달 내용 */}
+            <div className="p-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  프로젝트 이름
+                </label>
+                <input
+                  type="text"
+                  value={projectName}
+                  onChange={(e) => setProjectName(e.target.value)}
+                  placeholder="프로젝트 이름을 입력하세요"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  autoFocus
+                />
+              </div>
+
+              <div className="bg-gray-50 rounded-lg p-3 text-xs text-gray-600">
+                <p className="font-medium text-gray-700 mb-1">저장할 문서 ({selectedDocIds.size}개)</p>
+                <ul className="list-disc list-inside space-y-0.5">
+                  {documents
+                    .filter((d) => selectedDocIds.has(d.id))
+                    .slice(0, 3)
+                    .map((doc) => (
+                      <li key={doc.id} className="truncate">{doc.title}</li>
+                    ))}
+                  {selectedDocIds.size > 3 && (
+                    <li className="text-gray-400">외 {selectedDocIds.size - 3}개...</li>
+                  )}
+                </ul>
+              </div>
+            </div>
+
+            {/* 모달 푸터 */}
+            <div className="p-4 border-t border-gray-200 flex justify-end gap-2">
+              <button
+                onClick={() => setShowProjectModal(false)}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={confirmSaveProject}
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-colors"
+              >
+                저장
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

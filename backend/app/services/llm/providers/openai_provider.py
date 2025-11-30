@@ -55,7 +55,7 @@ class OpenAIProvider(LLMProvider):
         OpenAI API 호출
 
         Args:
-            prompt: 프롬프트
+            prompt: 프롬프트 (system과 user가 구분자로 분리될 수 있음)
             role: Agent 역할 (copywriter, strategist 등)
             task: 작업 유형 (product_detail, brand_kit 등)
             mode: 출력 모드 ('json' | 'text')
@@ -78,12 +78,23 @@ class OpenAIProvider(LLMProvider):
         )
 
         try:
+            # 프롬프트에서 system/user 분리 (구분자: "\n\n===USER_INPUT===\n\n")
+            messages = []
+            separator = "\n\n===USER_INPUT===\n\n"
+            if separator in prompt:
+                system_part, user_part = prompt.split(separator, 1)
+                messages = [
+                    {"role": "system", "content": system_part.strip()},
+                    {"role": "user", "content": user_part.strip()}
+                ]
+            else:
+                # 구분자가 없으면 전체를 user로
+                messages = [{"role": "user", "content": prompt}]
+
             # OpenAI API 호출
             call_params = {
                 "model": model,
-                "messages": [
-                    {"role": "user", "content": prompt}
-                ],
+                "messages": messages,
                 "temperature": temperature,
                 "max_tokens": max_tokens,
             }
