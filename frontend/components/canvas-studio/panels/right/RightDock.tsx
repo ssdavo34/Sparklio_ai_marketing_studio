@@ -21,9 +21,8 @@ import { useCenterViewStore } from '../../stores/useCenterViewStore';
 import { useGeneratedAssetsStore } from '../../stores/useGeneratedAssetsStore';
 import { useMeetingStore } from '../../stores/useMeetingStore';
 import { useConceptGenerate, type ConceptOutput } from '../../../../hooks/useConceptGenerate';
-import type { NextAction } from '@/types/demo';
-import { AGENT_INFO, TASK_INFO, TEXT_LLM_INFO, IMAGE_LLM_INFO, VIDEO_LLM_INFO } from '../../stores/types/llm';
-import type { AgentRole, TaskType, CostMode, TextLLMProvider, ImageLLMProvider, VideoLLMProvider } from '../../stores/types/llm';
+import { AGENT_INFO, TASK_INFO, TEXT_LLM_INFO, IMAGE_LLM_INFO } from '../../stores/types/llm';
+import type { AgentRole, TaskType, CostMode, TextLLMProvider, ImageLLMProvider } from '../../stores/types/llm';
 import { MessageSquare, Layers, Settings, ChevronDown, ChevronUp, Paperclip, X, FileText, FileSpreadsheet, Image as ImageIcon, Video, Music, RefreshCw, Search } from 'lucide-react';
 import { ErrorMessage } from '../../components/ErrorMessage';
 import { getImageMetadata, canRegenerate, isNanoBananaImage, isUnsplashImage, updateImageSource, incrementRegenerationCount } from '@/lib/canvas/image-metadata';
@@ -66,7 +65,7 @@ export function RightDock() {
       <div className="flex border-b border-gray-200 bg-gray-50">
         <button
           onClick={() => setActiveTab('chat')}
-          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors ${activeTab === 'chat'
+          className={`flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors ${activeTab === 'chat'
             ? 'border-b-2 border-purple-600 text-purple-600 bg-white'
             : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
             }`}
@@ -76,7 +75,7 @@ export function RightDock() {
         </button>
         <button
           onClick={() => setActiveTab('inspector')}
-          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors ${activeTab === 'inspector'
+          className={`flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors ${activeTab === 'inspector'
             ? 'border-b-2 border-purple-600 text-purple-600 bg-white'
             : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
             }`}
@@ -86,13 +85,22 @@ export function RightDock() {
         </button>
         <button
           onClick={() => setActiveTab('layers')}
-          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors ${activeTab === 'layers'
+          className={`flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors ${activeTab === 'layers'
             ? 'border-b-2 border-purple-600 text-purple-600 bg-white'
             : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
             }`}
         >
           <Layers className="w-4 h-4" />
           Layers
+        </button>
+        <button
+          onClick={() => setActiveTab('ai-settings')}
+          className={`flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors ${activeTab === 'ai-settings'
+            ? 'border-b-2 border-purple-600 text-purple-600 bg-white'
+            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+            }`}
+        >
+          AI
         </button>
       </div>
 
@@ -101,6 +109,7 @@ export function RightDock() {
         {activeTab === 'chat' && <ChatTab />}
         {activeTab === 'inspector' && <InspectorTab element={selectedElement} />}
         {activeTab === 'layers' && <LayersTab />}
+        {activeTab === 'ai-settings' && <AISettingsTab />}
       </div>
     </div>
   );
@@ -124,9 +133,6 @@ function ChatTab() {
     setRole,
     setTask,
     setCostMode,
-    setTextLLM,
-    setImageLLM,
-    setVideoLLM,
   } = useChatStore();
 
   const { generateConcepts, isLoading: isConceptLoading } = useConceptGenerate();
@@ -135,20 +141,8 @@ function ChatTab() {
   // Meeting Store - 회의 분석 결과 가져오기
   const { currentMeeting, analysisResult: meetingAnalysis } = useMeetingStore();
 
-  // CenterView Store 연동
-  const {
-    currentView,
-    openConceptBoard,
-    openSlidesPreview,
-    openDetailPreview,
-    openInstagramPreview,
-    openShortsPreview,
-    backToCanvas,
-  } = useCenterViewStore();
-
   // Generated Assets Store - 생성된 컨셉 데이터 가져오기
   const conceptBoardData = useGeneratedAssetsStore((state) => state.conceptBoardData);
-  const firstConceptId = conceptBoardData?.concepts?.[0]?.concept_id || 'no-concept';
 
   const [input, setInput] = useState('');
   const [isMounted, setIsMounted] = useState(false);
@@ -385,9 +379,6 @@ Campaign Ideas: ${meetingAnalysis.campaign_ideas.join(', ')}
           <>
             {/* Mode Selector */}
             <div className="mb-3">
-              <label className="text-xs font-semibold text-gray-700 uppercase mb-1 block">
-                모드 선택
-              </label>
               <div className="flex gap-2 p-1 bg-gray-100 rounded-lg">
                 <button
                   onClick={() => setMode('chat')}
@@ -412,166 +403,77 @@ Campaign Ideas: ${meetingAnalysis.campaign_ideas.join(', ')}
 
             {mode === 'chat' && (
               <>
-                {/* Agent Role Selector */}
-                <div className="mb-2">
-                  <label className="text-xs font-semibold text-gray-700 uppercase mb-1 block">
-                    에이전트 역할
-                  </label>
-                  <select
-                    value={chatConfig.role}
-                    onChange={(e) => setRole(e.target.value as AgentRole)}
-                    className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  >
-                    {Object.entries(AGENT_INFO).map(([key, info]) => (
-                      <option key={key} value={key}>
-                        {info.name} - {info.description}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Task Selector */}
-                <div className="mb-2">
-                  <label className="text-xs font-semibold text-gray-700 uppercase mb-1 block">
-                    작업 유형
-                  </label>
-                  <select
-                    value={chatConfig.task}
-                    onChange={(e) => setTask(e.target.value as TaskType)}
-                    className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  >
-                    {Object.entries(TASK_INFO).map(([taskId, taskInfo]) => (
-                      <option key={taskId} value={taskId}>
-                        {taskInfo.name} - {taskInfo.description}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Cost Mode Selector */}
-                <div className="flex gap-2 mb-2">
-                  {(['fast', 'balanced', 'quality'] as CostMode[]).map((mode) => (
-                    <button
-                      key={mode}
-                      onClick={() => setCostMode(mode)}
-                      className={`flex-1 px-2 py-1.5 text-xs font-medium rounded transition-colors ${chatConfig.costMode === mode
-                          ? 'bg-purple-600 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
-                    >
-                      {mode === 'fast' && '⚡ 빠름'}
-                      {mode === 'balanced' && '⚖️ 균형'}
-                      {mode === 'quality' && '✨ 품질'}
-                    </button>
-                  ))}
-                </div>
-
-                {/* LLM Provider Selectors */}
-                <div className="space-y-2 pt-2 border-t border-gray-200">
-                  {/* Text LLM Selector */}
+                {/* Agent Role & Task Selectors - 업무 컨텍스트 설정 */}
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  {/* Agent Role Selector */}
                   <div>
-                    <label className="text-xs font-semibold text-gray-700 uppercase mb-1 block">
-                      텍스트 LLM
+                    <label className="text-[10px] font-medium text-gray-500 uppercase mb-1 block">
+                      역할
                     </label>
                     <select
-                      value={chatConfig.textLLM || 'auto'}
-                      onChange={(e) => setTextLLM(e.target.value as TextLLMProvider)}
-                      className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      value={chatConfig.role}
+                      onChange={(e) => setRole(e.target.value as AgentRole)}
+                      className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
                     >
-                      {Object.entries(TEXT_LLM_INFO).map(([key, info]) => (
+                      {Object.entries(AGENT_INFO).map(([key, info]) => (
                         <option key={key} value={key}>
-                          {info.name} - {info.description}
+                          {info.name}
                         </option>
                       ))}
                     </select>
                   </div>
 
-                  {/* Image LLM Selector */}
+                  {/* Task Selector */}
                   <div>
-                    <label className="text-xs font-semibold text-gray-700 uppercase mb-1 block">
-                      이미지 LLM
+                    <label className="text-[10px] font-medium text-gray-500 uppercase mb-1 block">
+                      작업
                     </label>
                     <select
-                      value={chatConfig.imageLLM || 'auto'}
-                      onChange={(e) => setImageLLM(e.target.value as ImageLLMProvider)}
-                      className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      value={chatConfig.task}
+                      onChange={(e) => setTask(e.target.value as TaskType)}
+                      className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
                     >
-                      {Object.entries(IMAGE_LLM_INFO).map(([key, info]) => (
-                        <option key={key} value={key}>
-                          {info.name} - {info.description}
+                      {Object.entries(TASK_INFO).map(([taskId, taskInfo]) => (
+                        <option key={taskId} value={taskId}>
+                          {taskInfo.name}
                         </option>
                       ))}
                     </select>
                   </div>
+                </div>
+
+                {/* Quality Toggle - 품질 프로필 */}
+                <div className="mb-3">
+                  <label className="text-[10px] font-medium text-gray-500 uppercase mb-1 block">
+                    품질
+                  </label>
+                  <div className="flex gap-1 p-0.5 bg-gray-100 rounded-lg">
+                    {(['fast', 'balanced', 'quality'] as CostMode[]).map((costMode) => (
+                      <button
+                        key={costMode}
+                        onClick={() => setCostMode(costMode)}
+                        className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-colors ${chatConfig.costMode === costMode
+                            ? 'bg-white text-purple-600 shadow-sm'
+                            : 'text-gray-500 hover:text-gray-700'
+                          }`}
+                      >
+                        {costMode === 'fast' && '⚡ 빠름'}
+                        {costMode === 'balanced' && '● 균형'}
+                        {costMode === 'quality' && '★ 품질'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* LLM Info Badge - 읽기 전용 (Settings에서 변경) */}
+                <div className="flex items-center justify-between px-2 py-1.5 bg-gray-50 rounded text-[10px] text-gray-500">
+                  <span>LLM: {TEXT_LLM_INFO[chatConfig.textLLM || 'auto']?.name || 'Smart Router'}</span>
+                  <span className="text-gray-400">Settings에서 변경</span>
                 </div>
               </>
             )}
           </>
         )}
-      </div>
-
-      {/* DEMO: Quick View Switch Buttons */}
-      <div className="p-2 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-indigo-50">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-semibold text-purple-700">DEMO 뷰 전환</span>
-          <span className="text-xs text-gray-500">현재: {currentView}</span>
-        </div>
-        <div className="flex flex-wrap gap-1">
-          <button
-            onClick={() => backToCanvas()}
-            className={`px-2 py-1 text-xs rounded transition-colors ${currentView === 'canvas'
-                ? 'bg-purple-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-purple-100 border border-gray-200'
-              }`}
-          >
-            Canvas
-          </button>
-          <button
-            onClick={() => openConceptBoard()}
-            className={`px-2 py-1 text-xs rounded transition-colors ${currentView === 'concept_board'
-                ? 'bg-purple-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-purple-100 border border-gray-200'
-              }`}
-          >
-            Concept Board
-          </button>
-          <button
-            onClick={() => openSlidesPreview(firstConceptId, 'pres-1')}
-            className={`px-2 py-1 text-xs rounded transition-colors ${currentView === 'slides_preview'
-                ? 'bg-purple-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-purple-100 border border-gray-200'
-              }`}
-          >
-            Slides
-          </button>
-          <button
-            onClick={() => openDetailPreview(firstConceptId, 'detail-1')}
-            className={`px-2 py-1 text-xs rounded transition-colors ${currentView === 'detail_preview'
-                ? 'bg-purple-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-purple-100 border border-gray-200'
-              }`}
-          >
-            Detail
-          </button>
-          <button
-            onClick={() => openInstagramPreview(firstConceptId, 'insta-1')}
-            className={`px-2 py-1 text-xs rounded transition-colors ${currentView === 'instagram_preview'
-                ? 'bg-purple-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-purple-100 border border-gray-200'
-              }`}
-          >
-            Instagram
-          </button>
-          <button
-            onClick={() => openShortsPreview(firstConceptId, 'shorts-1')}
-            className={`px-2 py-1 text-xs rounded transition-colors ${currentView === 'shorts_preview'
-                ? 'bg-purple-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-purple-100 border border-gray-200'
-              }`}
-          >
-            Shorts
-          </button>
-        </div>
       </div>
 
       {/* Messages */}
@@ -1172,6 +1074,226 @@ function LayersTab() {
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+// AI Settings Tab Component - LLM 및 모델 설정
+function AISettingsTab() {
+  const {
+    chatConfig,
+    setTextLLM,
+    setImageLLM,
+    setSmartRouterEnabled,
+    setTextPriority,
+    setImagePriority,
+  } = useChatStore();
+
+  const smartRouter = chatConfig.smartRouter || {
+    enabled: true,
+    textPriority: ['gpt-4o', 'claude', 'gemini', 'llama'],
+    imagePriority: ['comfyui', 'nanobanana', 'dalle', 'stable-diffusion'],
+    videoPriority: ['veo3', 'kling', 'sora2', 'runway'],
+  };
+
+  // 우선순위 변경 핸들러
+  const moveTextPriority = (index: number, direction: 'up' | 'down') => {
+    const newPriority = [...smartRouter.textPriority];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= newPriority.length) return;
+    [newPriority[index], newPriority[targetIndex]] = [newPriority[targetIndex], newPriority[index]];
+    setTextPriority(newPriority);
+  };
+
+  const moveImagePriority = (index: number, direction: 'up' | 'down') => {
+    const newPriority = [...smartRouter.imagePriority];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= newPriority.length) return;
+    [newPriority[index], newPriority[targetIndex]] = [newPriority[targetIndex], newPriority[index]];
+    setImagePriority(newPriority);
+  };
+
+  return (
+    <div className="p-4 space-y-6">
+      {/* Header */}
+      <div>
+        <h3 className="text-sm font-semibold text-gray-900">AI & 모델 설정</h3>
+        <p className="text-xs text-gray-500 mt-1">
+          백엔드에서 사용할 AI 모델을 설정합니다
+        </p>
+      </div>
+
+      {/* Smart Router ON/OFF Toggle */}
+      <div className="p-4 bg-purple-50 border border-purple-100 rounded-lg">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <div className="p-2 bg-purple-100 rounded-lg">
+              <Settings className="w-4 h-4 text-purple-600" />
+            </div>
+            <div>
+              <h4 className="text-sm font-medium text-purple-900">스마트 라우터</h4>
+              <p className="text-[10px] text-purple-600">자동 모델 선택 및 폴백</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setSmartRouterEnabled(!smartRouter.enabled)}
+            className={`relative w-12 h-6 rounded-full transition-colors ${
+              smartRouter.enabled ? 'bg-purple-600' : 'bg-gray-300'
+            }`}
+          >
+            <span
+              className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                smartRouter.enabled ? 'left-7' : 'left-1'
+              }`}
+            />
+          </button>
+        </div>
+        {smartRouter.enabled && (
+          <ul className="text-xs text-purple-600 space-y-1 ml-12">
+            <li>• 비용/속도 최적화</li>
+            <li>• 작업 유형별 모델 매칭</li>
+            <li>• 자동 폴백 처리</li>
+          </ul>
+        )}
+      </div>
+
+      {/* Text LLM Section */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 bg-purple-500 rounded-full" />
+          <h4 className="text-xs font-semibold text-gray-700 uppercase">기본 텍스트 LLM</h4>
+        </div>
+        <p className="text-xs text-gray-500">
+          텍스트 생성, 분석, 대화에 사용되는 기본 모델입니다.
+        </p>
+        <select
+          value={chatConfig.textLLM || 'auto'}
+          onChange={(e) => setTextLLM(e.target.value as TextLLMProvider)}
+          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+        >
+          {Object.entries(TEXT_LLM_INFO).map(([key, info]) => (
+            <option key={key} value={key}>
+              {info.name} - {info.description}
+            </option>
+          ))}
+        </select>
+
+        {/* Text LLM Priority (스마트 라우터 ON일 때만) */}
+        {smartRouter.enabled && (
+          <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+            <p className="text-xs font-medium text-gray-700 mb-2">텍스트 LLM 우선순위</p>
+            <div className="space-y-1">
+              {smartRouter.textPriority.map((provider, index) => (
+                <div key={provider} className="flex items-center justify-between px-2 py-1.5 bg-white rounded border border-gray-200">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-400 w-4">{index + 1}.</span>
+                    <span className="text-xs font-medium text-gray-700">
+                      {TEXT_LLM_INFO[provider]?.name || provider}
+                    </span>
+                  </div>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => moveTextPriority(index, 'up')}
+                      disabled={index === 0}
+                      className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30"
+                    >
+                      ▲
+                    </button>
+                    <button
+                      onClick={() => moveTextPriority(index, 'down')}
+                      disabled={index === smartRouter.textPriority.length - 1}
+                      className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30"
+                    >
+                      ▼
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Profile Mapping Info */}
+        <div className="p-3 bg-gray-50 rounded-lg text-xs space-y-1">
+          <p className="font-medium text-gray-700">품질 프로필별 모델 매핑:</p>
+          <div className="flex justify-between text-gray-600">
+            <span>⚡ 빠름</span>
+            <span>GPT-4o-mini / Claude Haiku</span>
+          </div>
+          <div className="flex justify-between text-gray-600">
+            <span>● 균형</span>
+            <span>GPT-4o / Claude Sonnet</span>
+          </div>
+          <div className="flex justify-between text-gray-600">
+            <span>★ 품질</span>
+            <span>GPT-4o / Claude Opus</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Image LLM Section */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 bg-green-500 rounded-full" />
+          <h4 className="text-xs font-semibold text-gray-700 uppercase">기본 이미지 LLM</h4>
+        </div>
+        <p className="text-xs text-gray-500">
+          이미지 생성에 사용되는 기본 모델입니다.
+        </p>
+        <select
+          value={chatConfig.imageLLM || 'auto'}
+          onChange={(e) => setImageLLM(e.target.value as ImageLLMProvider)}
+          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+        >
+          {Object.entries(IMAGE_LLM_INFO).map(([key, info]) => (
+            <option key={key} value={key}>
+              {info.name} - {info.description}
+            </option>
+          ))}
+        </select>
+
+        {/* Image LLM Priority (스마트 라우터 ON일 때만) */}
+        {smartRouter.enabled && (
+          <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+            <p className="text-xs font-medium text-gray-700 mb-2">이미지 LLM 우선순위</p>
+            <div className="space-y-1">
+              {smartRouter.imagePriority.map((provider, index) => (
+                <div key={provider} className="flex items-center justify-between px-2 py-1.5 bg-white rounded border border-gray-200">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-400 w-4">{index + 1}.</span>
+                    <span className="text-xs font-medium text-gray-700">
+                      {IMAGE_LLM_INFO[provider]?.name || provider}
+                    </span>
+                  </div>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => moveImagePriority(index, 'up')}
+                      disabled={index === 0}
+                      className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30"
+                    >
+                      ▲
+                    </button>
+                    <button
+                      onClick={() => moveImagePriority(index, 'down')}
+                      disabled={index === smartRouter.imagePriority.length - 1}
+                      className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30"
+                    >
+                      ▼
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Advanced Settings Placeholder */}
+      <div className="pt-4 border-t border-gray-200">
+        <p className="text-xs text-gray-400">
+          고급 설정 (API 키, 토큰 제한, 비용 상한)은 추후 추가 예정
+        </p>
+      </div>
     </div>
   );
 }

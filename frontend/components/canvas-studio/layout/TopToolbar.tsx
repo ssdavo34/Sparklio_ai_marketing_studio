@@ -20,7 +20,6 @@ import { useWorkspaceStore, useProjectStore } from '../stores';
 import { Layout, Maximize2, MessageSquare, ChevronDown, Eye, Edit3, Download, FolderOpen, Building2 } from 'lucide-react';
 import type { StudioMode, ViewMode } from '../stores/types';
 import { useState, useEffect, useRef } from 'react';
-import { TemplateSelector } from './TemplateSelector';
 import { ThemeSelector } from './ThemeSelector';
 import { SaveStatusIndicator } from '../components/SaveStatusIndicator';
 import { toast } from '@/components/ui/Toast';
@@ -321,9 +320,6 @@ export function TopToolbar() {
         </button>
 
         <div className="h-6 w-px bg-gray-300" />
-
-        {/* Template Selector */}
-        <TemplateSelector />
 
         {/* Theme Selector */}
         <ThemeSelector />

@@ -15,8 +15,8 @@
 
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
-import type { AgentRole, TaskType, ChatConfig, CostMode, TextLLMProvider, ImageLLMProvider, VideoLLMProvider } from './types/llm';
-import { DEFAULT_CHAT_CONFIG } from './types/llm';
+import type { AgentRole, TaskType, ChatConfig, CostMode, TextLLMProvider, ImageLLMProvider, VideoLLMProvider, SmartRouterConfig } from './types/llm';
+import { DEFAULT_CHAT_CONFIG, DEFAULT_SMART_ROUTER_CONFIG } from './types/llm';
 import { sendChatMessage, generateImage, gatewayClient, generateConcepts } from '@/lib/llm-gateway-client';
 import { useCanvasStore } from './useCanvasStore';
 import { useBrandStore } from './useBrandStore';
@@ -715,6 +715,12 @@ export interface ChatState {
   setImageLLM: (provider: ImageLLMProvider) => void;
   setVideoLLM: (provider: VideoLLMProvider) => void;
 
+  // Smart Router Configuration
+  setSmartRouterEnabled: (enabled: boolean) => void;
+  setTextPriority: (priority: TextLLMProvider[]) => void;
+  setImagePriority: (priority: ImageLLMProvider[]) => void;
+  setVideoPriority: (priority: VideoLLMProvider[]) => void;
+
   // Agent Actions
   sendMessage: (content: string) => Promise<void>;
   generateImageFromPrompt: (prompt: string) => Promise<void>;
@@ -940,6 +946,66 @@ export const useChatStore = create<ChatState>()(
             chatConfig: {
               ...state.chatConfig,
               videoLLM: provider,
+            },
+          }));
+        },
+
+        /**
+         * 스마트 라우터 ON/OFF 설정
+         */
+        setSmartRouterEnabled: (enabled) => {
+          set((state) => ({
+            chatConfig: {
+              ...state.chatConfig,
+              smartRouter: {
+                ...(state.chatConfig.smartRouter || DEFAULT_SMART_ROUTER_CONFIG),
+                enabled,
+              },
+            },
+          }));
+        },
+
+        /**
+         * 텍스트 LLM 우선순위 설정
+         */
+        setTextPriority: (priority) => {
+          set((state) => ({
+            chatConfig: {
+              ...state.chatConfig,
+              smartRouter: {
+                ...(state.chatConfig.smartRouter || DEFAULT_SMART_ROUTER_CONFIG),
+                textPriority: priority,
+              },
+            },
+          }));
+        },
+
+        /**
+         * 이미지 LLM 우선순위 설정
+         */
+        setImagePriority: (priority) => {
+          set((state) => ({
+            chatConfig: {
+              ...state.chatConfig,
+              smartRouter: {
+                ...(state.chatConfig.smartRouter || DEFAULT_SMART_ROUTER_CONFIG),
+                imagePriority: priority,
+              },
+            },
+          }));
+        },
+
+        /**
+         * 동영상 LLM 우선순위 설정
+         */
+        setVideoPriority: (priority) => {
+          set((state) => ({
+            chatConfig: {
+              ...state.chatConfig,
+              smartRouter: {
+                ...(state.chatConfig.smartRouter || DEFAULT_SMART_ROUTER_CONFIG),
+                videoPriority: priority,
+              },
             },
           }));
         },

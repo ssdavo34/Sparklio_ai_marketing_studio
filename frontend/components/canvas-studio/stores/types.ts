@@ -139,4 +139,4 @@ export interface Document {
 /**
  * Right Dock 탭 ID
  */
-export type RightDockTabId = 'chat' | 'inspector' | 'layers' | 'data' | 'brand';
+export type RightDockTabId = 'chat' | 'inspector' | 'layers' | 'data' | 'brand' | 'ai-settings';

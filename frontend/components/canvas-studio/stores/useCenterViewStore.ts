@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import type { CenterViewType, ConceptBoardData, ConceptData } from '@/types/demo';
+import type { CenterViewType, ConceptBoardData, ConceptData, PresentationData } from '@/types/demo';
 
 interface CenterViewState {
   // 현재 뷰
@@ -14,6 +14,7 @@ interface CenterViewState {
   // 캐시된 데이터
   conceptBoardData: ConceptBoardData | null;
   selectedConcept: ConceptData | null;
+  presentationData: PresentationData | null;  // 프리젠테이션 데이터 (2025-11-30)
 
   // 로딩 상태
   isLoading: boolean;
@@ -25,6 +26,7 @@ interface CenterViewState {
   setAssetId: (assetId: string) => void;
   setConceptBoardData: (data: ConceptBoardData) => void;
   setSelectedConcept: (concept: ConceptData) => void;
+  setPresentationData: (data: PresentationData) => void;  // 프리젠테이션 데이터 설정 (2025-11-30)
   setLoading: (loading: boolean) => void;
 
   // 뷰 전환 헬퍼
@@ -50,6 +52,7 @@ export const useCenterViewStore = create<CenterViewState>()(
       selectedAssetId: null,
       conceptBoardData: null,
       selectedConcept: null,
+      presentationData: null,
       isLoading: false,
 
       // 기본 액션
@@ -59,6 +62,7 @@ export const useCenterViewStore = create<CenterViewState>()(
       setAssetId: (assetId) => set({ selectedAssetId: assetId }),
       setConceptBoardData: (data) => set({ conceptBoardData: data }),
       setSelectedConcept: (concept) => set({ selectedConcept: concept }),
+      setPresentationData: (data) => set({ presentationData: data }),
       setLoading: (loading) => set({ isLoading: loading }),
 
       // 뷰 전환 헬퍼
@@ -141,6 +145,7 @@ export const useCenterViewStore = create<CenterViewState>()(
         selectedAssetId: null,
         conceptBoardData: null,
         selectedConcept: null,
+        presentationData: null,
         isLoading: false,
       }),
     }),

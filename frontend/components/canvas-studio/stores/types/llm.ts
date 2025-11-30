@@ -41,6 +41,7 @@ export type TaskType =
   | 'content_plan'        // Content planning
   | 'headline'            // Headline generation
   | 'ad_copy'             // Advertisement copy
+  | 'presentation'        // Presentation slides (2025-11-30)
   | 'review'              // Content review
   | 'optimize'            // Content optimization
   | 'proofread'           // Proofreading
@@ -150,6 +151,16 @@ export interface LLMGatewayResponse {
 // ============================================================================
 
 /**
+ * 스마트 라우터 설정
+ */
+export interface SmartRouterConfig {
+  enabled: boolean;                    // 스마트 라우터 ON/OFF
+  textPriority: TextLLMProvider[];     // 텍스트 LLM 우선순위 (첫 번째가 최우선)
+  imagePriority: ImageLLMProvider[];   // 이미지 LLM 우선순위
+  videoPriority: VideoLLMProvider[];   // 동영상 LLM 우선순위
+}
+
+/**
  * Chat configuration for UI
  */
 export interface ChatConfig {
@@ -162,6 +173,7 @@ export interface ChatConfig {
   textLLM?: TextLLMProvider;      // 텍스트 LLM 선택
   imageLLM?: ImageLLMProvider;    // 이미지 LLM 선택
   videoLLM?: VideoLLMProvider;    // 동영상 LLM 선택
+  smartRouter?: SmartRouterConfig; // 스마트 라우터 설정
 }
 
 // ============================================================================
@@ -285,6 +297,11 @@ export const TASK_INFO: Record<TaskType, TaskInfo> = {
     id: 'ad_copy',
     name: '광고 카피',
     description: '광고 문구 작성',
+  },
+  presentation: {
+    id: 'presentation',
+    name: '프리젠테이션',
+    description: 'AI 슬라이드 생성',
   },
   review: {
     id: 'review',
@@ -437,6 +454,16 @@ export const VIDEO_LLM_INFO: Record<VideoLLMProvider, LLMProviderInfo> = {
 };
 
 /**
+ * Default Smart Router configuration
+ */
+export const DEFAULT_SMART_ROUTER_CONFIG: SmartRouterConfig = {
+  enabled: true,
+  textPriority: ['gpt-4o', 'claude', 'gemini', 'llama'],
+  imagePriority: ['comfyui', 'nanobanana', 'dalle', 'stable-diffusion'],
+  videoPriority: ['veo3', 'kling', 'sora2', 'runway'],
+};
+
+/**
  * Default chat configuration
  */
 export const DEFAULT_CHAT_CONFIG: ChatConfig = {
@@ -449,4 +476,5 @@ export const DEFAULT_CHAT_CONFIG: ChatConfig = {
   textLLM: 'auto',
   imageLLM: 'auto',
   videoLLM: 'auto',
+  smartRouter: DEFAULT_SMART_ROUTER_CONFIG,
 };
