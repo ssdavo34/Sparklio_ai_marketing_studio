@@ -150,37 +150,128 @@ class WebCrawler:
         1. <main> 태그
         2. <article> 태그
         3. <div class="content"> 또는 유사한 컨테이너
-        4. <body> 전체
+        4. <body> 전체 (불필요한 div 추가 제거 후)
+
+        개선 사항 (2025-11-30):
+        - separator='\n'으로 변경하여 줄바꿈 보존
+        - class 기반 불필요 요소 추가 제거
+        - 텍스트 밀도 기반 필터링
         """
+        # 추가 정리: class 기반 네비게이션/푸터 제거
+        self._remove_boilerplate_by_class(soup)
+
         # main 태그 우선
         main_content = soup.find('main')
         if main_content:
-            text = main_content.get_text(separator=' ', strip=True)
+            text = main_content.get_text(separator='\n', strip=True)
             if len(text) > 100:  # 충분한 텍스트가 있으면
-                return self._clean_text(text)
+                return self._clean_text_preserve_lines(text)
 
         # article 태그
         article = soup.find('article')
         if article:
-            text = article.get_text(separator=' ', strip=True)
+            text = article.get_text(separator='\n', strip=True)
             if len(text) > 100:
-                return self._clean_text(text)
+                return self._clean_text_preserve_lines(text)
 
         # content 관련 div
         content_div = soup.find('div', class_=re.compile(r'content|main|body', re.I))
         if content_div:
-            text = content_div.get_text(separator=' ', strip=True)
+            text = content_div.get_text(separator='\n', strip=True)
             if len(text) > 100:
-                return self._clean_text(text)
+                return self._clean_text_preserve_lines(text)
 
-        # body 전체
+        # body 전체 (텍스트 밀도 기반 추출)
         body = soup.find('body')
         if body:
-            text = body.get_text(separator=' ', strip=True)
-            return self._clean_text(text)
+            text = self._extract_main_content_from_body(body)
+            return self._clean_text_preserve_lines(text)
 
         # fallback: 전체 HTML
-        return self._clean_text(soup.get_text(separator=' ', strip=True))
+        return self._clean_text_preserve_lines(soup.get_text(separator='\n', strip=True))
+
+    def _remove_boilerplate_by_class(self, soup: BeautifulSoup) -> None:
+        """
+        class/id 기반 불필요 요소 제거
+
+        시맨틱 태그를 사용하지 않는 사이트를 위한 추가 정리
+        """
+        # 제거할 class/id 패턴
+        boilerplate_patterns = [
+            # 네비게이션
+            r'nav|navigation|menu|sidebar|breadcrumb',
+            # 헤더/푸터
+            r'header|footer|foot|copyright',
+            # 광고/배너
+            r'ad|ads|advertisement|banner|promo|popup|modal',
+            # 위젯
+            r'widget|social|share|follow|subscribe|newsletter',
+            # 검색/필터
+            r'search|filter|sort|pagination',
+            # 기타 UI
+            r'cookie|consent|notice|alert|toast',
+        ]
+
+        combined_pattern = '|'.join(boilerplate_patterns)
+
+        # class 기반 제거
+        for element in soup.find_all(class_=re.compile(combined_pattern, re.I)):
+            # 메인 콘텐츠 영역은 보존
+            el_class = ' '.join(element.get('class', []))
+            if re.search(r'content|main|article|body|post', el_class, re.I):
+                continue
+            element.decompose()
+
+        # id 기반 제거
+        for element in soup.find_all(id=re.compile(combined_pattern, re.I)):
+            el_id = element.get('id', '')
+            if re.search(r'content|main|article|body|post', el_id, re.I):
+                continue
+            element.decompose()
+
+    def _extract_main_content_from_body(self, body) -> str:
+        """
+        body에서 텍스트 밀도가 높은 영역만 추출
+
+        쇼핑몰처럼 상품 목록이 많은 페이지에서
+        카탈로그 블록을 제외하고 설명 텍스트만 추출
+        """
+        # 각 div의 텍스트 밀도 계산
+        paragraphs = []
+
+        # p, h1-h6 태그에서 텍스트 추출 (가장 의미 있는 콘텐츠)
+        for tag in body.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6']):
+            text = tag.get_text(strip=True)
+            # 최소 길이 필터 (너무 짧은 텍스트 제외)
+            if len(text) > 20:
+                paragraphs.append(text)
+
+        # p/h 태그가 충분하면 사용
+        if len(paragraphs) >= 3:
+            return '\n\n'.join(paragraphs)
+
+        # 부족하면 div에서 긴 텍스트 블록 찾기
+        for div in body.find_all('div'):
+            # 하위 div가 많은 컨테이너는 스킵
+            if len(div.find_all('div')) > 5:
+                continue
+
+            text = div.get_text(strip=True)
+            # 길이와 단어 수 기준
+            word_count = len(text.split())
+            if len(text) > 100 and word_count > 20:
+                # 가격, 상품코드 패턴이 많으면 스킵
+                if re.search(r'\d{1,3}(,\d{3})+\s*원', text):
+                    price_matches = len(re.findall(r'\d{1,3}(,\d{3})+\s*원', text))
+                    if price_matches > 3:  # 가격이 3개 이상이면 상품 목록
+                        continue
+                paragraphs.append(text)
+
+        if paragraphs:
+            return '\n\n'.join(paragraphs)
+
+        # 최후의 수단: body 전체
+        return body.get_text(separator='\n', strip=True)
 
     def _clean_text(self, text: str) -> str:
         """텍스트 정리 (중복 공백, 줄바꿈 제거)"""
@@ -189,6 +280,29 @@ class WebCrawler:
         # 앞뒤 공백 제거
         text = text.strip()
         return text
+
+    def _clean_text_preserve_lines(self, text: str) -> str:
+        """
+        텍스트 정리 (줄바꿈 보존)
+
+        DataCleanerAgent가 줄 단위로 정제하므로
+        논리적인 줄바꿈을 유지합니다.
+        """
+        lines = text.split('\n')
+        cleaned_lines = []
+
+        for line in lines:
+            # 줄 내 연속 공백 정리
+            line = re.sub(r'[ \t]+', ' ', line).strip()
+            # 빈 줄 제외
+            if line:
+                cleaned_lines.append(line)
+
+        # 연속 빈 줄은 하나로 (2줄 이상 줄바꿈 → 2줄로)
+        result = '\n'.join(cleaned_lines)
+        result = re.sub(r'\n{3,}', '\n\n', result)
+
+        return result
 
     def _extract_title(self, soup: BeautifulSoup) -> Optional[str]:
         """페이지 제목 추출"""
