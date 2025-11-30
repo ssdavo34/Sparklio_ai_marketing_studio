@@ -115,11 +115,24 @@ class StrategistAgent(AgentBase):
                         logger.info(f"🐛 Parsed Output Type: {type(outputs[0].value).__name__ if outputs else 'None'}")
 
                     # Validation Pipeline
-                    validation_result = validator.validate(
-                        output=outputs[0].value,
-                        task=request.task,
-                        input_data=request.payload
-                    )
+                    # chat task는 자유 형식 응답이므로 validation 건너뛰기
+                    skip_validation = request.task in ['chat', 'free_chat', 'general_chat']
+
+                    if skip_validation:
+                        logger.info(f"⏭️ Skipping validation for task: {request.task}")
+                        validation_result = type('ValidationResult', (), {
+                            'passed': True,
+                            'overall_score': 10.0,
+                            'stage_results': [],
+                            'errors': [],
+                            'warnings': []
+                        })()
+                    else:
+                        validation_result = validator.validate(
+                            output=outputs[0].value,
+                            task=request.task,
+                            input_data=request.payload
+                        )
 
                     if not validation_result.passed:
                         logger.warning(
@@ -419,6 +432,17 @@ class StrategistAgent(AgentBase):
                         "formats": "콘텐츠 포맷"
                     }
                 }
+            },
+            # Chat task: 자유 형식 대화
+            "chat": {
+                "instruction": (
+                    "사용자의 질문에 친절하고 도움이 되게 응답하세요. "
+                    "마케팅, 브랜딩, 콘텐츠 전략에 대한 전문적인 조언을 제공하세요. "
+                    "응답은 간결하고 실용적이어야 합니다."
+                ),
+                "structure": {
+                    "response": "사용자 질문에 대한 응답"
+                }
             }
         }
 
@@ -457,7 +481,8 @@ class StrategistAgent(AgentBase):
                 "campaign": "campaign_plan",
                 "target_analysis": "target_insights",
                 "positioning": "positioning_strategy",
-                "content_strategy": "content_plan"
+                "content_strategy": "content_plan",
+                "chat": "chat_response"  # Chat task 지원
             }
 
             output_name = output_names.get(task, "strategy")

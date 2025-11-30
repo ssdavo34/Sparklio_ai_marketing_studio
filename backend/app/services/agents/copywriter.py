@@ -113,11 +113,24 @@ class CopywriterAgent(AgentBase):
                     logger.info(f"🐛 Parsed Output: {outputs[0].value}")
 
                     # Validation Pipeline
-                    validation_result = validator.validate(
-                        output=outputs[0].value,
-                        task=request.task,
-                        input_data=request.payload
-                    )
+                    # chat task는 자유 형식 응답이므로 validation 건너뛰기
+                    skip_validation = request.task in ['chat', 'free_chat', 'general_chat']
+
+                    if skip_validation:
+                        logger.info(f"⏭️ Skipping validation for task: {request.task}")
+                        validation_result = type('ValidationResult', (), {
+                            'passed': True,
+                            'overall_score': 10.0,
+                            'stage_results': [],
+                            'errors': [],
+                            'warnings': []
+                        })()
+                    else:
+                        validation_result = validator.validate(
+                            output=outputs[0].value,
+                            task=request.task,
+                            input_data=request.payload
+                        )
 
                     if not validation_result.passed:
                         logger.warning(
@@ -284,6 +297,17 @@ class CopywriterAgent(AgentBase):
                     "headline": "광고 헤드라인",
                     "body": "광고 본문 (50-100자)",
                     "cta": "행동 유도 문구"
+                }
+            },
+            # Chat task: 자유 형식 대화
+            "chat": {
+                "instruction": (
+                    "사용자의 질문에 친절하고 도움이 되게 응답하세요. "
+                    "마케팅, 카피라이팅, 브랜딩에 대한 전문적인 조언을 제공하세요. "
+                    "응답은 간결하고 실용적이어야 합니다."
+                ),
+                "structure": {
+                    "response": "사용자 질문에 대한 응답"
                 }
             },
             "product_detail_full": {
@@ -492,6 +516,14 @@ class CopywriterAgent(AgentBase):
                     name="ad_copy",
                     value=content,
                     meta={"format": "advertising"}
+                ))
+            elif task == "chat":
+                # Chat 응답 (자유 형식)
+                outputs.append(self._create_output(
+                    output_type="json",
+                    name="chat_response",
+                    value=content,
+                    meta={"format": "chat"}
                 ))
             elif task == "product_detail_full":
                 # Product Detail Full (Canvas JSON 변환 전 원본)
