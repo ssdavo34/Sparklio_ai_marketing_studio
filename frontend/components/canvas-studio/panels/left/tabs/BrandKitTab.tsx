@@ -34,6 +34,7 @@ import {
   FolderPlus,
   FolderOpen,
   Filter,
+  RefreshCw,
 } from 'lucide-react';
 import { useWorkspaceStore } from '../../../stores';
 import {
@@ -41,6 +42,7 @@ import {
   crawlBrandUrl,
   listBrandDocuments,
   deleteBrandDocument,
+  recrawlBrandDocument,
   analyzeBrand,
   type BrandDocument,
   type BrandDNA,
@@ -82,6 +84,7 @@ export function BrandKitTab() {
   const [brandDNA, setBrandDNA] = useState<BrandDNA | null>(null);
   const [uploading, setUploading] = useState(false);
   const [crawling, setCrawling] = useState(false);
+  const [recrawlingId, setRecrawlingId] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [urlInput, setUrlInput] = useState('');
   const [showUrlForm, setShowUrlForm] = useState(false);
@@ -207,6 +210,34 @@ export function BrandKitTab() {
       setCrawling(false);
       setProgress(0);
       toast.info('사용자에 의해 크롤링이 중지되었습니다.');
+    }
+  };
+
+  // URL 문서 재크롤링 (DataCleanerAgent V2 적용)
+  const handleRecrawl = async (docId: string) => {
+    if (!brandId || recrawlingId) return;
+
+    setRecrawlingId(docId);
+    try {
+      const updatedDoc = await recrawlBrandDocument(brandId, docId);
+      setDocuments((prev) =>
+        prev.map((d) => (d.id === docId ? updatedDoc : d))
+      );
+
+      // 미리보기 모달이 열려있으면 업데이트
+      if (previewDoc?.id === docId) {
+        setPreviewDoc(updatedDoc);
+      }
+
+      const reduction = updatedDoc.extracted_text && updatedDoc.clean_text
+        ? Math.round((1 - updatedDoc.clean_text.length / updatedDoc.extracted_text.length) * 100)
+        : 0;
+      toast.success(`재크롤링 완료! (${reduction}% 감소)`);
+    } catch (error) {
+      console.error('Recrawl failed:', error);
+      toast.error(`재크롤링 실패: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setRecrawlingId(null);
     }
   };
 
@@ -707,6 +738,21 @@ export function BrandKitTab() {
                           재시도
                         </button>
                       )}
+                      {/* 재크롤링 버튼 (URL 문서만) */}
+                      {doc.document_type === 'url' && doc.source_url && doc.processed === 'completed' && (
+                        <button
+                          onClick={() => handleRecrawl(doc.id)}
+                          disabled={recrawlingId === doc.id}
+                          className="p-1 hover:bg-purple-100 rounded transition-colors flex-shrink-0 disabled:opacity-50"
+                          title="재크롤링 (정제 로직 다시 적용)"
+                        >
+                          {recrawlingId === doc.id ? (
+                            <Loader2 className="w-3 h-3 text-purple-600 animate-spin" />
+                          ) : (
+                            <RefreshCw className="w-3 h-3 text-purple-600" />
+                          )}
+                        </button>
+                      )}
                       <button
                         onClick={() => handleDelete(doc.id)}
                         className="p-1 hover:bg-gray-200 rounded transition-colors flex-shrink-0"
@@ -891,12 +937,30 @@ export function BrandKitTab() {
                 <FileText className="w-5 h-5 text-purple-600" />
                 <h3 className="font-semibold text-gray-900">{previewDoc.title}</h3>
               </div>
-              <button
-                onClick={() => setPreviewDoc(null)}
-                className="p-1 hover:bg-gray-100 rounded-full transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
+              <div className="flex items-center gap-2">
+                {/* 재크롤링 버튼 (URL 문서만) */}
+                {previewDoc.document_type === 'url' && previewDoc.source_url && previewDoc.processed === 'completed' && (
+                  <button
+                    onClick={() => handleRecrawl(previewDoc.id)}
+                    disabled={recrawlingId === previewDoc.id}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors text-xs disabled:opacity-50"
+                    title="재크롤링 (정제 로직 다시 적용)"
+                  >
+                    {recrawlingId === previewDoc.id ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <RefreshCw className="w-3.5 h-3.5" />
+                    )}
+                    재크롤링
+                  </button>
+                )}
+                <button
+                  onClick={() => setPreviewDoc(null)}
+                  className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
             </div>
 
             {/* 문서 메타정보 */}

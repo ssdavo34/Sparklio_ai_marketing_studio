@@ -411,6 +411,34 @@ export async function deleteBrandDocument(
 }
 
 /**
+ * URL 문서 재크롤링 (DataCleanerAgent V2 적용)
+ *
+ * 기존에 크롤링된 URL 문서를 다시 크롤링하고 최신 정제 로직을 적용합니다.
+ *
+ * @param brandId - 브랜드 ID
+ * @param documentId - 재크롤링할 문서 ID
+ */
+export async function recrawlBrandDocument(
+  brandId: string,
+  documentId: string
+): Promise<BrandDocument> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/brands/${brandId}/documents/${documentId}/recrawl`,
+    {
+      method: 'POST',
+      headers: getAuthHeaders(),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Failed to recrawl document');
+  }
+
+  return response.json();
+}
+
+/**
  * Brand DNA 분석 실행
  *
  * 브랜드에 업로드된 문서를 분석하여 Brand DNA Card를 자동 생성합니다.

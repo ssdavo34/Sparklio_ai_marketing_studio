@@ -625,6 +625,136 @@ class AnalyzeBrandRequest(BaseModel):
     document_ids: list[str] | None = None  # None이면 모든 문서 분석
 
 
+class RecrawlRequest(BaseModel):
+    """URL 재크롤링 요청"""
+    document_id: str
+
+
+@router.post("/{brand_id}/documents/{document_id}/recrawl", response_model=BrandDocumentResponse)
+async def recrawl_brand_document(
+    brand_id: UUID,
+    document_id: UUID,
+    current_user: User | None = Depends(get_current_user_optional),
+    db: Session = Depends(get_db)
+):
+    """
+    기존 URL 문서를 재크롤링하여 정제 로직을 다시 적용합니다.
+
+    - DataCleanerAgent V2로 정제된 텍스트 업데이트
+    - 원본 URL은 유지하고 텍스트만 새로 추출/정제
+    """
+    # Demo Brand 처리
+    if not current_user:
+        if brand_id == DEMO_BRAND_ID:
+            brand = get_or_create_demo_brand(db)
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication required"
+            )
+    else:
+        # 브랜드 존재 및 권한 확인
+        brand = db.query(Brand).filter(
+            Brand.id == brand_id,
+            Brand.deleted_at == None
+        ).first()
+
+        if not brand:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Brand not found"
+            )
+
+        if brand.owner_id != current_user.id and current_user.role != "admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not enough permissions"
+            )
+
+    # 기존 문서 조회
+    document = db.query(BrandDocument).filter(
+        BrandDocument.id == document_id,
+        BrandDocument.brand_id == brand_id
+    ).first()
+
+    if not document:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found"
+        )
+
+    if document.document_type != DocumentType.URL or not document.source_url:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only URL documents can be recrawled"
+        )
+
+    url = document.source_url
+    logger.info(f"Recrawling document {document_id}: {url}")
+
+    # URL 재크롤링
+    try:
+        crawler = get_web_crawler(timeout=30)
+        crawl_result = await crawler.crawl(url)
+
+        raw_text = crawl_result.get("extracted_text", "")
+
+        # DataCleanerAgent로 브랜드 분석용 텍스트 정제
+        clean_text = raw_text
+        extracted_keywords = []
+        cleaning_actions = []
+
+        try:
+            cleaner = get_data_cleaner_agent()
+            clean_result = await cleaner.clean_brand_text(raw_text)
+            clean_text = clean_result.get("clean_text", raw_text)
+            extracted_keywords = clean_result.get("extracted_keywords", [])
+            cleaning_actions = clean_result.get("actions_performed", [])
+            logger.info(
+                f"Text recleaned for brand analysis: {len(raw_text)} -> {len(clean_text)} chars, "
+                f"actions: {cleaning_actions}"
+            )
+        except Exception as clean_error:
+            logger.warning(f"Text cleaning failed, using raw text: {str(clean_error)}")
+
+        # 문서 업데이트
+        document.extracted_text = raw_text
+        document.clean_text = clean_text
+        document.extracted_keywords = extracted_keywords if extracted_keywords else None
+        document.processed = "completed"
+        document.title = crawl_result.get("title", document.title)
+
+        # 메타데이터 업데이트
+        old_metadata = document.document_metadata or {}
+        document.document_metadata = {
+            **old_metadata,
+            "recrawl_user_id": str(current_user.id) if current_user else "anonymous",
+            "recrawled_at": datetime.utcnow().isoformat(),
+            "description": crawl_result.get("description"),
+            "cleaning_actions": cleaning_actions,
+            "raw_text_length": len(raw_text),
+            "clean_text_length": len(clean_text),
+            **crawl_result.get("metadata", {})
+        }
+
+        db.commit()
+        db.refresh(document)
+
+        logger.info(
+            f"Document recrawled successfully: {document_id}, "
+            f"raw: {len(raw_text)} chars, clean: {len(clean_text)} chars"
+        )
+
+        return document
+
+    except WebCrawlerError as e:
+        logger.error(f"Recrawling failed for {url}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Recrawling failed: {str(e)}"
+        )
+
+
 @router.post("/{brand_id}/analyze", response_model=BrandDNAOutputV1)
 async def analyze_brand(
     brand_id: UUID,
