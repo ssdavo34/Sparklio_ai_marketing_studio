@@ -10,8 +10,8 @@ URL에서 텍스트를 추출하는 크롤링 서비스
 
 import logging
 import re
-from typing import Optional, Dict, Any, TYPE_CHECKING
-from urllib.parse import urlparse
+from typing import Optional, Dict, Any, List, Set, TYPE_CHECKING
+from urllib.parse import urlparse, urljoin
 import asyncio
 
 if TYPE_CHECKING:
@@ -368,6 +368,282 @@ class WebCrawler:
             metadata['author'] = author['content'].strip()
 
         return metadata
+
+    # ========================================================================
+    # 다중 페이지 크롤링 (Brand DNA용)
+    # ========================================================================
+
+    # 브랜드 정보를 담고 있을 가능성이 높은 페이지 경로 패턴
+    IMPORTANT_PAGE_PATTERNS = [
+        # 회사 소개
+        r'/about',
+        r'/company',
+        r'/introduction',
+        r'/소개',
+        r'/회사소개',
+        # 서비스/제품
+        r'/service',
+        r'/product',
+        r'/solution',
+        r'/서비스',
+        r'/제품',
+        # 브랜드/비전
+        r'/brand',
+        r'/vision',
+        r'/mission',
+        r'/value',
+        r'/philosophy',
+        # 연혁/역사
+        r'/history',
+        r'/story',
+        r'/연혁',
+    ]
+
+    async def crawl_brand_site(
+        self,
+        url: str,
+        max_pages: int = 5,
+        include_categories: bool = True
+    ) -> Dict[str, Any]:
+        """
+        브랜드 사이트 다중 페이지 크롤링
+
+        메인 페이지에서 시작하여 회사 소개, 서비스 페이지 등
+        브랜드 정보가 담긴 중요 페이지를 자동으로 찾아 크롤링합니다.
+
+        Args:
+            url: 메인 페이지 URL
+            max_pages: 최대 크롤링 페이지 수 (기본 5)
+            include_categories: 카테고리 정보 포함 여부 (제품 카테고리명만 추출)
+
+        Returns:
+            Dict with:
+                - pages: 각 페이지별 크롤링 결과 리스트
+                - combined_text: 모든 페이지 텍스트 합본
+                - categories: 발견된 카테고리 목록 (include_categories=True인 경우)
+                - metadata: 전체 사이트 메타데이터
+        """
+        parsed_url = urlparse(url)
+        base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
+
+        logger.info(f"Starting multi-page crawl for brand site: {url}, max_pages={max_pages}")
+
+        # 1. 메인 페이지 크롤링
+        main_result = await self.crawl(url)
+        pages = [{
+            "url": url,
+            "page_type": "main",
+            "title": main_result.get("title"),
+            "text": main_result.get("extracted_text", ""),
+            "description": main_result.get("description"),
+        }]
+
+        # 2. 메인 페이지에서 중요 링크 추출
+        async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=True) as client:
+            response = await client.get(url, headers=self.headers)
+            soup = BeautifulSoup(response.text, 'html.parser')
+
+        important_links = self._find_important_links(soup, base_url)
+        category_links = []
+
+        if include_categories:
+            category_links = self._find_category_links(soup, base_url)
+
+        logger.info(
+            f"Found {len(important_links)} important links, "
+            f"{len(category_links)} category links"
+        )
+
+        # 3. 중요 페이지 크롤링 (max_pages - 1개)
+        crawled_urls: Set[str] = {url}
+        pages_to_crawl = important_links[:max_pages - 1]
+
+        for link_info in pages_to_crawl:
+            link_url = link_info["url"]
+            if link_url in crawled_urls:
+                continue
+
+            try:
+                page_result = await self.crawl(link_url)
+                pages.append({
+                    "url": link_url,
+                    "page_type": link_info["type"],
+                    "title": page_result.get("title"),
+                    "text": page_result.get("extracted_text", ""),
+                    "description": page_result.get("description"),
+                })
+                crawled_urls.add(link_url)
+                logger.info(f"Crawled {link_info['type']} page: {link_url}")
+            except Exception as e:
+                logger.warning(f"Failed to crawl {link_url}: {str(e)}")
+
+        # 4. 카테고리 정보 추출 (상세 페이지는 크롤링하지 않고 카테고리명만)
+        categories = []
+        if include_categories and category_links:
+            categories = [link["name"] for link in category_links[:20]]  # 최대 20개
+            logger.info(f"Extracted {len(categories)} categories: {categories[:5]}...")
+
+        # 5. 결과 합본
+        combined_text = self._combine_page_texts(pages)
+
+        return {
+            "pages": pages,
+            "combined_text": combined_text,
+            "categories": categories,
+            "page_count": len(pages),
+            "metadata": {
+                "base_url": base_url,
+                "main_title": main_result.get("title"),
+                "main_description": main_result.get("description"),
+                "crawled_urls": list(crawled_urls),
+                "category_count": len(categories),
+            }
+        }
+
+    def _find_important_links(self, soup: BeautifulSoup, base_url: str) -> List[Dict[str, str]]:
+        """
+        브랜드 정보가 담긴 중요 페이지 링크 찾기
+
+        회사 소개, 서비스, 비전 등 브랜드 DNA 분석에 유용한 페이지
+        """
+        important_links = []
+        seen_urls: Set[str] = set()
+
+        for a_tag in soup.find_all('a', href=True):
+            href = a_tag.get('href', '')
+            link_text = a_tag.get_text(strip=True).lower()
+
+            # 상대 경로를 절대 경로로
+            full_url = urljoin(base_url, href)
+            parsed = urlparse(full_url)
+
+            # 같은 도메인만
+            if parsed.netloc != urlparse(base_url).netloc:
+                continue
+
+            # 이미 본 URL 스킵
+            if full_url in seen_urls:
+                continue
+
+            # 파일 링크 제외
+            if re.search(r'\.(pdf|jpg|png|gif|doc|zip)$', parsed.path, re.I):
+                continue
+
+            # 중요 패턴 매칭
+            path_lower = parsed.path.lower()
+            page_type = None
+
+            for pattern in self.IMPORTANT_PAGE_PATTERNS:
+                if re.search(pattern, path_lower, re.I):
+                    if 'about' in pattern or 'company' in pattern or '소개' in pattern:
+                        page_type = "about"
+                    elif 'service' in pattern or 'product' in pattern or 'solution' in pattern:
+                        page_type = "service"
+                    elif 'brand' in pattern or 'vision' in pattern or 'mission' in pattern:
+                        page_type = "brand"
+                    elif 'history' in pattern or 'story' in pattern or '연혁' in pattern:
+                        page_type = "history"
+                    else:
+                        page_type = "info"
+                    break
+
+            # 링크 텍스트로도 판단
+            if not page_type:
+                if any(kw in link_text for kw in ['회사소개', '소개', 'about', 'company']):
+                    page_type = "about"
+                elif any(kw in link_text for kw in ['서비스', '제품', 'service', 'product']):
+                    page_type = "service"
+                elif any(kw in link_text for kw in ['브랜드', '비전', 'brand', 'vision']):
+                    page_type = "brand"
+
+            if page_type:
+                important_links.append({
+                    "url": full_url,
+                    "type": page_type,
+                    "text": link_text,
+                })
+                seen_urls.add(full_url)
+
+        # 중요도 순서로 정렬 (about > service > brand > history > info)
+        priority = {"about": 0, "service": 1, "brand": 2, "history": 3, "info": 4}
+        important_links.sort(key=lambda x: priority.get(x["type"], 5))
+
+        return important_links
+
+    def _find_category_links(self, soup: BeautifulSoup, base_url: str) -> List[Dict[str, str]]:
+        """
+        제품/서비스 카테고리 링크 찾기
+
+        상세 페이지는 크롤링하지 않고 카테고리명만 추출
+        """
+        category_links = []
+        seen_names: Set[str] = set()
+
+        # 카테고리를 포함할 가능성이 높은 영역
+        category_containers = soup.find_all(
+            ['nav', 'ul', 'div'],
+            class_=re.compile(r'category|menu|product|service|gnb|lnb', re.I)
+        )
+
+        for container in category_containers:
+            for a_tag in container.find_all('a', href=True):
+                name = a_tag.get_text(strip=True)
+
+                # 이름이 너무 짧거나 길면 스킵
+                if len(name) < 2 or len(name) > 30:
+                    continue
+
+                # 중복 제거
+                if name.lower() in seen_names:
+                    continue
+
+                # 일반적인 메뉴 항목 제외
+                skip_keywords = ['홈', 'home', '로그인', 'login', '회원가입', '장바구니', 'cart', '검색']
+                if any(kw in name.lower() for kw in skip_keywords):
+                    continue
+
+                href = a_tag.get('href', '')
+                full_url = urljoin(base_url, href)
+
+                category_links.append({
+                    "url": full_url,
+                    "name": name,
+                })
+                seen_names.add(name.lower())
+
+        return category_links
+
+    def _combine_page_texts(self, pages: List[Dict[str, Any]]) -> str:
+        """
+        여러 페이지의 텍스트를 하나로 합침
+
+        각 페이지 구분을 위한 헤더 포함
+        """
+        sections = []
+
+        for page in pages:
+            page_type = page.get("page_type", "unknown")
+            title = page.get("title", "Untitled")
+            text = page.get("text", "")
+
+            if not text:
+                continue
+
+            # 페이지 타입 한글 변환
+            type_labels = {
+                "main": "메인 페이지",
+                "about": "회사 소개",
+                "service": "서비스/제품",
+                "brand": "브랜드",
+                "history": "연혁",
+                "info": "정보",
+            }
+            type_label = type_labels.get(page_type, page_type)
+
+            section = f"=== [{type_label}] {title} ===\n\n{text}"
+            sections.append(section)
+
+        return "\n\n" + "\n\n".join(sections)
 
 
 # Singleton instance

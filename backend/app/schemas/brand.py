@@ -82,6 +82,21 @@ class BrandDocumentCrawl(BaseModel):
     """브랜드 URL 크롤링 요청 스키마"""
     url: str = Field(..., description="Crawl target URL")
     title: Optional[str] = Field(None, max_length=255)
+    # 다중 페이지 크롤링 옵션
+    multi_page: bool = Field(
+        default=False,
+        description="Enable multi-page crawling (about, service, brand pages)"
+    )
+    max_pages: int = Field(
+        default=5,
+        ge=1,
+        le=10,
+        description="Maximum pages to crawl (1-10)"
+    )
+    include_categories: bool = Field(
+        default=True,
+        description="Include product/service category names"
+    )
 
 
 class BrandDocumentResponse(BrandDocumentBase):

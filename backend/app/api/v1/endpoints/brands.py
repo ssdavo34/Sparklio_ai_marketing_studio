@@ -424,9 +424,40 @@ async def crawl_brand_url(
     # URL 크롤링 (동기 실행)
     try:
         crawler = get_web_crawler(timeout=30)
-        crawl_result = await crawler.crawl(url)
 
-        raw_text = crawl_result.get("extracted_text", "")
+        # 다중 페이지 크롤링 또는 단일 페이지 크롤링
+        if crawl_data.multi_page:
+            logger.info(f"Multi-page crawling enabled: max_pages={crawl_data.max_pages}")
+            crawl_result = await crawler.crawl_brand_site(
+                url,
+                max_pages=crawl_data.max_pages,
+                include_categories=crawl_data.include_categories
+            )
+            raw_text = crawl_result.get("combined_text", "")
+            title_from_crawl = crawl_result.get("metadata", {}).get("main_title", f"Brand Site: {url}")
+            description = crawl_result.get("metadata", {}).get("main_description")
+            categories = crawl_result.get("categories", [])
+            page_count = crawl_result.get("page_count", 1)
+            crawled_urls = crawl_result.get("metadata", {}).get("crawled_urls", [url])
+
+            extra_metadata = {
+                "multi_page": True,
+                "page_count": page_count,
+                "crawled_urls": crawled_urls,
+                "categories": categories,
+                "pages": [
+                    {"url": p["url"], "type": p["page_type"], "title": p["title"]}
+                    for p in crawl_result.get("pages", [])
+                ]
+            }
+        else:
+            crawl_result = await crawler.crawl(url)
+            raw_text = crawl_result.get("extracted_text", "")
+            title_from_crawl = crawl_result.get("title", f"Crawled from {url}")
+            description = crawl_result.get("description")
+            categories = []
+            page_count = 1
+            extra_metadata = {"multi_page": False}
 
         # DataCleanerAgent로 브랜드 분석용 텍스트 정제
         clean_text = raw_text
@@ -447,10 +478,14 @@ async def crawl_brand_url(
             logger.warning(f"Text cleaning failed, using raw text: {str(clean_error)}")
             # 정제 실패해도 원본 텍스트로 진행
 
+        # 카테고리를 키워드에 추가
+        if categories:
+            extracted_keywords = list(set(extracted_keywords + categories))
+
         # BrandDocument 생성
         document = BrandDocument(
             brand_id=brand_id,
-            title=crawl_data.title or crawl_result.get("title", f"Crawled from {url}"),
+            title=crawl_data.title or title_from_crawl,
             document_type=DocumentType.URL,
             source_url=url,
             extracted_text=raw_text,  # 원본 텍스트 저장
@@ -460,11 +495,11 @@ async def crawl_brand_url(
             document_metadata={
                 "crawl_user_id": str(current_user.id) if current_user else "anonymous",
                 "crawl_requested_at": datetime.utcnow().isoformat(),
-                "description": crawl_result.get("description"),
+                "description": description,
                 "cleaning_actions": cleaning_actions,
                 "raw_text_length": len(raw_text),
                 "clean_text_length": len(clean_text),
-                **crawl_result.get("metadata", {})
+                **extra_metadata
             }
         )
 
@@ -474,7 +509,7 @@ async def crawl_brand_url(
 
         logger.info(
             f"URL crawled successfully: {document.id} for brand {brand_id}, "
-            f"URL: {url}, raw: {len(raw_text)} chars, clean: {len(clean_text)} chars"
+            f"URL: {url}, pages: {page_count}, raw: {len(raw_text)} chars, clean: {len(clean_text)} chars"
         )
 
         return document

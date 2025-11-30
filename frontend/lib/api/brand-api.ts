@@ -341,19 +341,43 @@ export async function uploadBrandDocument(
 }
 
 /**
+ * URL 크롤링 옵션
+ */
+export interface CrawlOptions {
+  /** 다중 페이지 크롤링 (회사 소개, 서비스 페이지 등 자동 탐색) */
+  multiPage?: boolean;
+  /** 최대 크롤링 페이지 수 (1-10, 기본 5) */
+  maxPages?: number;
+  /** 제품/서비스 카테고리 포함 여부 */
+  includeCategories?: boolean;
+}
+
+/**
  * URL 크롤링하여 브랜드 문서 생성
+ *
+ * @param brandId - 브랜드 ID
+ * @param url - 크롤링할 URL
+ * @param title - 문서 제목 (선택)
+ * @param options - 크롤링 옵션 (다중 페이지, 카테고리 등)
  */
 export async function crawlBrandUrl(
   brandId: string,
   url: string,
-  title?: string
+  title?: string,
+  options?: CrawlOptions
 ): Promise<BrandDocument> {
   const response = await fetch(
     `${API_BASE_URL}/api/v1/brands/${brandId}/documents/crawl`,
     {
       method: 'POST',
       headers: getAuthHeaders(),
-      body: JSON.stringify({ url, title }),
+      body: JSON.stringify({
+        url,
+        title,
+        multi_page: options?.multiPage ?? false,
+        max_pages: options?.maxPages ?? 5,
+        include_categories: options?.includeCategories ?? true,
+      }),
     }
   );
 
