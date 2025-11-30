@@ -1951,6 +1951,19 @@ class DataCleanerAgent(AgentBase):
 
         actions = result.get("actions_performed", [])
 
+        # 4. 과도한 정제 방지: 정제 결과가 원본의 10% 미만이면 원본 사용
+        #    (쇼핑몰 등 카탈로그 사이트에서 모든 텍스트가 삭제되는 것 방지)
+        min_retention_ratio = 0.1  # 최소 10% 유지
+        if len(clean_text) < len(preprocessed_text) * min_retention_ratio:
+            logger.warning(
+                f"[DataCleaner] Over-aggressive cleaning detected: "
+                f"{len(preprocessed_text)} -> {len(clean_text)} chars "
+                f"({round(len(clean_text) / max(len(preprocessed_text), 1) * 100, 1)}% retained). "
+                f"Using preprocessed text instead."
+            )
+            clean_text = preprocessed_text
+            actions.append("과도한_정제_롤백")
+
         # 4. 상세 로깅
         logger.info(
             f"[DataCleaner] BRAND_KIT cleaned: {len(preprocessed_text)} -> {len(clean_text)} chars "
