@@ -12,10 +12,11 @@ MVP P0-1 Brand OS Module:
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 from datetime import datetime
 import logging
+from pydantic import BaseModel
 
 from app.core.database import get_db
 from app.models.user import User
