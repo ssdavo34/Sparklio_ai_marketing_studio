@@ -1907,7 +1907,11 @@ class DataCleanerAgent(AgentBase):
 
     async def clean_brand_text(self, text: str) -> Dict[str, Any]:
         """
-        브랜드킷용 텍스트 정제 편의 메서드
+        Brand Kit용 텍스트 정제 전용 편의 메서드
+
+        ⚠️ 중요: 이 메서드는 execute() / AgentResponse를 사용하지 않습니다.
+        순수 룰 기반 정제만 수행하며, LLM은 사용하지 않습니다.
+        LLM 기반 분석은 BrandAnalyzerAgent에서 담당합니다.
 
         Args:
             text: 정제할 원본 텍스트
@@ -1917,58 +1921,50 @@ class DataCleanerAgent(AgentBase):
                 - clean_text: 정제된 텍스트
                 - extracted_keywords: 추출된 키워드
                 - actions_performed: 수행된 작업 목록
-                - quality_improvement: 품질 개선도
+                - quality_improvement: 품질 개선도 (현재 0 고정)
 
         Usage:
             cleaner = DataCleanerAgent()
             result = await cleaner.clean_brand_text(crawled_text)
             clean_text = result["clean_text"]
         """
-        from .base import AgentRequest
-
         # 1. 텍스트 전처리 (줄바꿈 정규화)
         preprocessed_text = self._normalize_line_breaks(text)
-        
+
         logger.info(f"[DataCleaner] Text normalization: {len(text)} -> {len(preprocessed_text)} chars")
         if len(text) != len(preprocessed_text):
-            logger.info(f"[DataCleaner] Sample normalized: {preprocessed_text[:200]}...")
+            logger.info(f"[DataCleaner] Sample normalized (first 300): {preprocessed_text[:300]}...")
 
-        response = await self.execute(AgentRequest(
-            task="clean_data",
-            payload={
-                "data": [{"text": preprocessed_text}],
-                "profile": "brand_kit"
-            }
-        ))
+        # 2. 브랜드킷 프로파일로 직접 정제 (_clean_data 직접 호출, execute() 우회)
+        #    execute()를 타지 않으므로 AgentResponse 관련 문제 완전 회피
+        result = await self._clean_data({
+            "data": [{"text": preprocessed_text}],
+            "profile": "brand_kit"
+        })
 
-        # AgentResponse 구조에 맞게 수정
-        if response and response.outputs:
-            # 첫 번째 출력물에서 결과 추출
-            result_data = response.outputs[0].value
-            # _clean_data()가 반환하는 실제 키는 "data"
-            cleaned_data = result_data.get("data", [])
-            
-            if cleaned_data:
-                clean_text = cleaned_data[0].get("text", "")
-                
-                # 상세 로깅
-                logger.info(f"[DataCleaner] Cleaning result: {len(preprocessed_text)} -> {len(clean_text)} chars")
-                actions = result_data.get("actions_performed", [])
-                logger.info(f"[DataCleaner] Actions performed: {actions}")
-                
-                return {
-                    "clean_text": clean_text,
-                    "extracted_keywords": result_data.get("extracted_keywords", []),
-                    "actions_performed": actions,
-                    "quality_improvement": response.meta.get("quality_improvement", 0)
-                }
-        
-        # Fallback in case of failure or no cleaned data
+        # 3. 결과 추출
+        cleaned_list = result.get("data", [])
+        if cleaned_list:
+            clean_text = cleaned_list[0].get("text", "") or ""
+        else:
+            clean_text = preprocessed_text
+
+        actions = result.get("actions_performed", [])
+
+        # 4. 상세 로깅
+        logger.info(
+            f"[DataCleaner] BRAND_KIT cleaned: {len(preprocessed_text)} -> {len(clean_text)} chars "
+            f"(reduced {len(preprocessed_text) - len(clean_text)} chars, "
+            f"{round((1 - len(clean_text) / max(len(preprocessed_text), 1)) * 100, 1)}%), "
+            f"actions={actions}"
+        )
+
         return {
-            "clean_text": text, # Return original text if cleaning fails
-            "extracted_keywords": [],
-            "actions_performed": [],
-            "quality_improvement": 0
+            "clean_text": clean_text,
+            "extracted_keywords": result.get("extracted_keywords", []),
+            "actions_performed": actions,
+            # 품질 평가는 나중에 필요하면 추가, 현재는 0 고정
+            "quality_improvement": 0,
         }
 
 
