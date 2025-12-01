@@ -388,12 +388,19 @@ class BrandAnalyzerAgent(AgentBase):
             raise AgentError(f"No instruction found for task: {request.task}", agent=self.name)
 
         # Payload 강화 (instruction + structure)
+        # NOTE: _example은 제거 - LLM이 예시를 그대로 복사하는 문제 방지
         enhanced_payload = {
             **request.payload,
             "_instruction": task_config["instruction"],
             "_structure": task_config["structure"],
-            "_example": task_config.get("example_scenario"),
-            "_guidelines": task_config.get("guidelines")
+            "_guidelines": task_config.get("guidelines"),
+            # 영문 문서도 한글로 분석하도록 명시
+            "_context": (
+                "⚠️ 중요: 제공된 문서가 영어로 작성되어 있더라도, 반드시 한국어로 분석 결과를 작성하세요. "
+                "문서의 내용을 정확히 이해하고, 해당 브랜드의 실제 정보를 기반으로 분석하세요. "
+                "절대로 예시나 가상의 브랜드 정보를 사용하지 마세요. "
+                "실제 문서에 없는 정보는 추론하지 말고, 문서에 있는 내용만 사용하세요."
+            )
         }
 
         # Retry Logic with progressive temperature
@@ -426,12 +433,22 @@ class BrandAnalyzerAgent(AgentBase):
                         "반드시 모든 필드를 포함한 완전한 JSON을 반환하세요."
                     )
 
+                # LLM Provider 선택 (request.llm_provider가 지정되면 사용)
+                llm_selection = None
+                if request.llm_provider:
+                    from app.schemas.llm import LLMSelection
+                    llm_selection = LLMSelection(
+                        mode="manual",
+                        text=request.llm_provider
+                    )
+
                 llm_response = await self.llm_gateway.generate(
                     role=self.name,
                     task=request.task,
                     payload=retry_payload,
                     mode="json",
-                    options=llm_options
+                    options=llm_options,
+                    llm_selection=llm_selection
                 )
 
                 # Parse output

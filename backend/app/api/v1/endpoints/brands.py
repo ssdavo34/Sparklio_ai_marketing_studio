@@ -756,6 +756,7 @@ async def delete_brand_document(
 class AnalyzeBrandRequest(BaseModel):
     """Brand DNA 분석 요청 (선택된 문서만 분석)"""
     document_ids: list[str] | None = None  # None이면 모든 문서 분석
+    llm_provider: str | None = None  # LLM 선택: ollama, openai, anthropic, gemini (None이면 자동 선택)
 
 
 class RecrawlRequest(BaseModel):
@@ -888,16 +889,20 @@ async def recrawl_brand_document(
         )
 
 
-@router.get("/{brand_id}/dna", response_model=BrandDNAOutputV1 | None)
+@router.get("/{brand_id}/dna")
 async def get_brand_dna(
     brand_id: UUID,
     current_user: User | None = Depends(get_current_user_optional),
     db: Session = Depends(get_db)
 ):
     """
-    저장된 Brand DNA 조회
+    저장된 Brand DNA 조회 (이력 포함)
 
     이전에 분석된 Brand DNA가 있으면 반환, 없으면 null 반환
+
+    응답 구조:
+    - 새 구조: { current: {...}, history: [...] }
+    - 기존 구조 (하위 호환): { current: 기존데이터, history: [기존데이터] }
     """
     # Demo Brand 처리
     if not current_user:
@@ -932,7 +937,23 @@ async def get_brand_dna(
         return None
 
     try:
-        return BrandDNAOutputV1(**brand.brand_dna)
+        dna_data = brand.brand_dna
+
+        # 새 구조 (history 키가 있는 경우) 그대로 반환
+        if isinstance(dna_data, dict) and "history" in dna_data:
+            return dna_data
+
+        # 기존 구조 (단일 분석 결과) -> 새 구조로 변환
+        if isinstance(dna_data, dict):
+            import uuid as uuid_module
+            if "analysis_id" not in dna_data:
+                dna_data["analysis_id"] = str(uuid_module.uuid4())
+            return {
+                "current": dna_data,
+                "history": [dna_data]
+            }
+
+        return None
     except Exception as e:
         logger.warning(f"Failed to parse brand_dna for brand {brand_id}: {e}")
         return None
@@ -1036,12 +1057,13 @@ async def analyze_brand(
     # BrandAnalyzerAgent 실행
     try:
         agent = get_brand_analyzer_agent()
-        request = AgentRequest(
+        agent_request = AgentRequest(
             task="brand_dna_generation",
-            payload=analysis_input.model_dump()
+            payload=analysis_input.model_dump(),
+            llm_provider=request.llm_provider if request else None
         )
 
-        response = await agent.execute(request)
+        response = await agent.execute(agent_request)
 
         # Output 추출
         if not response.outputs or len(response.outputs) == 0:
@@ -1057,8 +1079,41 @@ async def analyze_brand(
             brand_dna_output.llm_provider = response.meta.get("llm_provider")
             brand_dna_output.llm_model = response.meta.get("llm_model")
 
-        # Brand DNA를 DB에 저장 (LLM 정보 포함)
-        brand.brand_dna = brand_dna_output.model_dump()
+        # 분석 결과에 ID, 타임스탬프 추가
+        import uuid as uuid_module
+        analysis_result = brand_dna_output.model_dump()
+        analysis_result["analysis_id"] = str(uuid_module.uuid4())
+        analysis_result["analyzed_at"] = datetime.utcnow().isoformat()
+
+        # Brand DNA 이력을 배열로 저장 (기존 + 새 분석 결과)
+        # brand_dna가 dict인 경우 (기존 단일 분석) -> 배열로 변환
+        # brand_dna가 dict이고 "history" 키가 있는 경우 -> 기존 이력에 추가
+        existing_dna = brand.brand_dna or {}
+
+        if isinstance(existing_dna, dict) and "history" in existing_dna:
+            # 이미 이력 구조가 있는 경우
+            history = existing_dna.get("history", [])
+        elif isinstance(existing_dna, dict) and existing_dna:
+            # 기존 단일 분석 결과가 있는 경우 -> 이력으로 변환
+            # (기존 데이터에 analysis_id가 없으면 생성)
+            if "analysis_id" not in existing_dna:
+                existing_dna["analysis_id"] = str(uuid_module.uuid4())
+                existing_dna["analyzed_at"] = existing_dna.get("analyzed_at", datetime.utcnow().isoformat())
+            history = [existing_dna]
+        else:
+            # 처음 분석
+            history = []
+
+        # 새 분석 결과 추가 (최대 10개 유지)
+        history.append(analysis_result)
+        if len(history) > 10:
+            history = history[-10:]  # 최신 10개만 유지
+
+        # brand_dna 저장 구조: { "current": 현재 선택된 분석, "history": 이력 배열 }
+        brand.brand_dna = {
+            "current": analysis_result,
+            "history": history
+        }
 
         # suggested_brand_kit을 brand_kit에 병합 (기존 값 유지)
         if not brand.brand_kit:

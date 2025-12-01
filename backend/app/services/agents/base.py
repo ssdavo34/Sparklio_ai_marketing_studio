@@ -167,6 +167,7 @@ class AgentRequest(BaseModel):
     options: Optional[Dict[str, Any]] = Field(None, description="추가 옵션")
     goal: Optional[AgentGoal] = Field(None, description="에이전트 목표 (고도화)")
     context: Optional[Dict[str, Any]] = Field(None, description="컨텍스트 (ConceptV1, BrandKit 등)")
+    llm_provider: Optional[str] = Field(None, description="LLM Provider 선택 (ollama, openai, anthropic, gemini)")
 
     class Config:
         json_schema_extra = {

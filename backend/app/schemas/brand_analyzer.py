@@ -314,6 +314,16 @@ class BrandDNAOutputV1(BaseModel):
         description="분석에 사용된 LLM 모델 (예: gpt-4o, claude-3-sonnet)"
     )
 
+    # 분석 이력 관리용 필드
+    analysis_id: Optional[str] = Field(
+        None,
+        description="분석 고유 ID"
+    )
+    analyzed_at: Optional[str] = Field(
+        None,
+        description="분석 일시 (ISO 8601)"
+    )
+
     class Config:
         json_schema_extra = {
             "example": {
@@ -353,6 +363,27 @@ class BrandDNAOutputV1(BaseModel):
                 "analysis_notes": "브랜드 문서 2개 분석 완료. 추가 문서가 있으면 더 정확한 분석 가능"
             }
         }
+
+
+# ==========================================
+# Brand DNA History Response (이력 포함)
+# ==========================================
+
+class BrandDNAHistoryResponse(BaseModel):
+    """
+    Brand DNA 이력 포함 응답
+
+    current: 현재 선택된 분석 결과
+    history: 분석 이력 배열 (최대 10개)
+    """
+    current: Optional[dict] = Field(
+        None,
+        description="현재 선택된 Brand DNA 분석 결과"
+    )
+    history: List[dict] = Field(
+        default_factory=list,
+        description="분석 이력 (최신순, 최대 10개)"
+    )
 
 
 # ==========================================

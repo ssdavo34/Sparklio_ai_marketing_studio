@@ -347,7 +347,37 @@ export interface BrandDNA {
   confidence_score: number;
   /** 분석 노트 (추가 인사이트) */
   analysis_notes?: string;
+  /** LLM Provider (예: openai, anthropic, ollama, gemini) */
+  llm_provider?: string;
+  /** LLM 모델 (예: gpt-4o-mini, claude-3-5-haiku) */
+  llm_model?: string;
+  /** 분석 고유 ID */
+  analysis_id?: string;
+  /** 분석 일시 (ISO 8601) */
+  analyzed_at?: string;
 }
+
+/**
+ * Brand DNA 이력 포함 응답
+ */
+export interface BrandDNAHistoryResponse {
+  /** 현재 선택된 Brand DNA */
+  current: BrandDNA | null;
+  /** 분석 이력 (최신순, 최대 10개) */
+  history: BrandDNA[];
+}
+
+/**
+ * LLM Provider 목록 (Brand DNA 분석용)
+ */
+export const LLM_PROVIDERS = [
+  { id: 'ollama', name: 'Llama 3.2', model: 'llama3.2:latest' },
+  { id: 'openai', name: 'GPT-4o Mini', model: 'gpt-4o-mini' },
+  { id: 'anthropic', name: 'Claude 3.5 Haiku', model: 'claude-3-5-haiku-20241022' },
+  { id: 'gemini', name: 'Gemini 2.5 Flash', model: 'gemini-2.5-flash' },
+] as const;
+
+export type LLMProviderId = typeof LLM_PROVIDERS[number]['id'];
 
 /**
  * 브랜드 문서 업로드 (PDF, 이미지 등)
@@ -587,10 +617,12 @@ export async function getBrandDNA(brandId: string): Promise<BrandDNA | null> {
  *
  * @param brandId - 브랜드 ID
  * @param documentIds - 분석할 문서 ID 배열 (없으면 모든 문서 분석)
+ * @param llmProvider - LLM Provider 선택 (ollama, openai, anthropic, gemini)
  */
 export async function analyzeBrand(
   brandId: string,
-  documentIds?: string[]
+  documentIds?: string[],
+  llmProvider?: LLMProviderId
 ): Promise<BrandDNA> {
   const response = await fetch(
     `${API_BASE_URL}/api/v1/brands/${brandId}/analyze`,
@@ -599,6 +631,7 @@ export async function analyzeBrand(
       headers: getAuthHeaders(),
       body: JSON.stringify({
         document_ids: documentIds && documentIds.length > 0 ? documentIds : null,
+        llm_provider: llmProvider || null,
       }),
     }
   );

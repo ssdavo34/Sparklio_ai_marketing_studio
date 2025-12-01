@@ -6,28 +6,33 @@
  * - Meeting AI 연동
  * - 풀셋 생성 시작점
  * - 각 채널별 산출물 프리뷰 연결
+ * - Brand DNA 표시 (BrandKitTab에서 전송)
  *
  * @author C팀 (Frontend Team)
- * @version 1.1
- * @date 2025-11-30
+ * @version 1.2
+ * @date 2025-12-01
  */
 
 'use client';
 
 import { useState } from 'react';
-import { Sparkles, Plus, Send, Presentation, FileText, Instagram, Video, ChevronDown, ChevronUp, Eye } from 'lucide-react';
+import { Sparkles, Plus, Send, Presentation, FileText, Instagram, Video, ChevronDown, ChevronUp, Eye, X, Target, MessageSquare, CheckCircle, XCircle } from 'lucide-react';
 import { useCenterViewStore } from '../../../stores/useCenterViewStore';
 import { useGeneratedAssetsStore } from '../../../stores/useGeneratedAssetsStore';
+import { LLM_PROVIDERS } from '@/lib/api/brand-api';
 
 export function ConceptBoardTab() {
   const [expandedCard, setExpandedCard] = useState<string | null>('concept-1');
+  const [showBrandDNA, setShowBrandDNA] = useState(true);
 
-  // CenterView Store - 각 채널 프리뷰 열기
+  // CenterView Store - 각 채널 프리뷰 열기 + Brand DNA
   const {
     openSlidesPreview,
     openDetailPreview,
     openInstagramPreview,
     openShortsPreview,
+    sharedBrandDNA,
+    setSharedBrandDNA,
   } = useCenterViewStore();
 
   // Generated Assets Store - 컨셉 데이터
@@ -52,6 +57,101 @@ export function ConceptBoardTab() {
       <p className="text-sm text-neutral-600 mb-4">
         콘셉트 카드를 생성하고 관리합니다. Meeting AI에서 추출한 인사이트를 기반으로 마케팅 콘셉트를 정리하세요.
       </p>
+
+      {/* Brand DNA 표시 섹션 */}
+      {sharedBrandDNA && showBrandDNA && (
+        <div className="mb-4 p-3 bg-gradient-to-br from-purple-50 to-indigo-50 rounded-lg border border-purple-200">
+          {/* 헤더 */}
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Target className="w-4 h-4 text-purple-600" />
+              <span className="text-sm font-semibold text-purple-900">Brand DNA</span>
+              {sharedBrandDNA.llm_provider && (
+                <span className="px-1.5 py-0.5 bg-purple-200 text-purple-800 text-[10px] rounded">
+                  {LLM_PROVIDERS.find(p => p.id === sharedBrandDNA.llm_provider)?.name || sharedBrandDNA.llm_provider}
+                </span>
+              )}
+            </div>
+            <button
+              onClick={() => {
+                setSharedBrandDNA(null);
+                setShowBrandDNA(false);
+              }}
+              className="p-1 hover:bg-purple-100 rounded transition-colors"
+              title="닫기"
+            >
+              <X className="w-3.5 h-3.5 text-purple-600" />
+            </button>
+          </div>
+
+          {/* 간략한 Brand DNA 내용 */}
+          <div className="space-y-2 text-xs">
+            {/* 톤앤매너 */}
+            {sharedBrandDNA.tone && (
+              <div className="flex items-start gap-2">
+                <MessageSquare className="w-3.5 h-3.5 text-purple-500 mt-0.5 flex-shrink-0" />
+                <div>
+                  <span className="font-medium text-purple-800">톤앤매너:</span>
+                  <span className="text-purple-700 ml-1">
+                    {typeof sharedBrandDNA.tone === 'string'
+                      ? sharedBrandDNA.tone.slice(0, 100) + (sharedBrandDNA.tone.length > 100 ? '...' : '')
+                      : JSON.stringify(sharedBrandDNA.tone).slice(0, 100)}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* 타겟 오디언스 */}
+            {sharedBrandDNA.target_audience && (
+              <div className="flex items-start gap-2">
+                <Target className="w-3.5 h-3.5 text-purple-500 mt-0.5 flex-shrink-0" />
+                <div>
+                  <span className="font-medium text-purple-800">타겟:</span>
+                  <span className="text-purple-700 ml-1">
+                    {typeof sharedBrandDNA.target_audience === 'string'
+                      ? sharedBrandDNA.target_audience.slice(0, 80) + (sharedBrandDNA.target_audience.length > 80 ? '...' : '')
+                      : JSON.stringify(sharedBrandDNA.target_audience).slice(0, 80)}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Do's (최대 2개) */}
+            {sharedBrandDNA.dos && Array.isArray(sharedBrandDNA.dos) && sharedBrandDNA.dos.length > 0 && (
+              <div className="flex items-start gap-2">
+                <CheckCircle className="w-3.5 h-3.5 text-green-500 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <span className="font-medium text-green-700">Do's:</span>
+                  <ul className="list-disc list-inside text-green-600 mt-0.5">
+                    {(sharedBrandDNA.dos as string[]).slice(0, 2).map((item, i) => (
+                      <li key={i} className="truncate">{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+
+            {/* Don'ts (최대 2개) */}
+            {sharedBrandDNA.donts && Array.isArray(sharedBrandDNA.donts) && sharedBrandDNA.donts.length > 0 && (
+              <div className="flex items-start gap-2">
+                <XCircle className="w-3.5 h-3.5 text-red-500 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <span className="font-medium text-red-700">Don'ts:</span>
+                  <ul className="list-disc list-inside text-red-600 mt-0.5">
+                    {(sharedBrandDNA.donts as string[]).slice(0, 2).map((item, i) => (
+                      <li key={i} className="truncate">{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <p className="text-[10px] text-purple-500 mt-2">
+            💡 콘셉트 생성 시 이 Brand DNA가 자동으로 적용됩니다.
+          </p>
+        </div>
+      )}
 
       {/* 콘셉트 카드 목록 */}
       <div className="space-y-3 flex-1 overflow-y-auto">

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import type { CenterViewType, ConceptBoardData, ConceptData, PresentationData } from '@/types/demo';
+import type { BrandDNA } from '@/lib/api/brand-api';
 
 interface CenterViewState {
   // 현재 뷰
@@ -15,6 +16,7 @@ interface CenterViewState {
   conceptBoardData: ConceptBoardData | null;
   selectedConcept: ConceptData | null;
   presentationData: PresentationData | null;  // 프리젠테이션 데이터 (2025-11-30)
+  sharedBrandDNA: BrandDNA | null;  // BrandKitTab에서 공유된 Brand DNA (2025-12-01)
 
   // 로딩 상태
   isLoading: boolean;
@@ -27,6 +29,7 @@ interface CenterViewState {
   setConceptBoardData: (data: ConceptBoardData) => void;
   setSelectedConcept: (concept: ConceptData) => void;
   setPresentationData: (data: PresentationData) => void;  // 프리젠테이션 데이터 설정 (2025-11-30)
+  setSharedBrandDNA: (dna: BrandDNA | null) => void;  // Brand DNA 공유 (2025-12-01)
   setLoading: (loading: boolean) => void;
 
   // 뷰 전환 헬퍼
@@ -53,6 +56,7 @@ export const useCenterViewStore = create<CenterViewState>()(
       conceptBoardData: null,
       selectedConcept: null,
       presentationData: null,
+      sharedBrandDNA: null,
       isLoading: false,
 
       // 기본 액션
@@ -63,6 +67,7 @@ export const useCenterViewStore = create<CenterViewState>()(
       setConceptBoardData: (data) => set({ conceptBoardData: data }),
       setSelectedConcept: (concept) => set({ selectedConcept: concept }),
       setPresentationData: (data) => set({ presentationData: data }),
+      setSharedBrandDNA: (dna) => set({ sharedBrandDNA: dna }),
       setLoading: (loading) => set({ isLoading: loading }),
 
       // 뷰 전환 헬퍼
@@ -146,6 +151,7 @@ export const useCenterViewStore = create<CenterViewState>()(
         conceptBoardData: null,
         selectedConcept: null,
         presentationData: null,
+        sharedBrandDNA: null,
         isLoading: false,
       }),
     }),

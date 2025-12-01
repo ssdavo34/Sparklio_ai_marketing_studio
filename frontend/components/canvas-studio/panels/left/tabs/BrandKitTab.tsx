@@ -37,8 +37,12 @@ import {
   RefreshCw,
   Pencil,
   Save,
+  ChevronDown,
+  Clock,
+  Send,
 } from 'lucide-react';
 import { useWorkspaceStore } from '../../../stores';
+import { useCenterViewStore } from '../../../stores/useCenterViewStore';
 import {
   uploadBrandDocument,
   crawlBrandUrl,
@@ -50,7 +54,10 @@ import {
   getBrandDNA,
   type BrandDocument,
   type BrandDNA,
+  type BrandDNAHistoryResponse,
   type CrawlOptions,
+  type LLMProviderId,
+  LLM_PROVIDERS,
 } from '@/lib/api/brand-api';
 import { toast } from '@/components/ui/Toast';
 import { useCanvasStore } from '../../../stores/useCanvasStore';
@@ -127,15 +134,27 @@ export function BrandKitTab() {
   const polotnoStore = useCanvasStore((state) => state.polotnoStore);
   const currentTemplate = useCanvasStore((state) => state.currentTemplate);
 
+  // Store에서 Brand DNA 가져오기 (탭 전환 시 유지)
+  const sharedBrandDNA = useCenterViewStore((state) => state.sharedBrandDNA);
+  const setSharedBrandDNAStore = useCenterViewStore((state) => state.setSharedBrandDNA);
+
   const [documents, setDocuments] = useState<BrandDocument[]>([]);
-  const [brandDNA, setBrandDNA] = useState<BrandDNA | null>(null);
+  // sharedBrandDNA가 있으면 초기값으로 사용
+  const [brandDNA, setBrandDNAState] = useState<BrandDNA | null>(sharedBrandDNA);
+
+  // brandDNA setter를 래핑하여 store에도 저장
+  const setBrandDNA = (dna: BrandDNA | null) => {
+    setBrandDNAState(dna);
+    setSharedBrandDNAStore(dna);
+  };
   const [uploading, setUploading] = useState(false);
   const [crawling, setCrawling] = useState(false);
   const [recrawlingId, setRecrawlingId] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [urlInput, setUrlInput] = useState('');
   const [showUrlForm, setShowUrlForm] = useState(false);
-  const [showDNAResult, setShowDNAResult] = useState(false);
+  // sharedBrandDNA가 있으면 결과 표시
+  const [showDNAResult, setShowDNAResult] = useState(!!sharedBrandDNA);
   const [progress, setProgress] = useState(0);
 
   // 다중 페이지 크롤링 옵션
@@ -161,6 +180,11 @@ export function BrandKitTab() {
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [projectName, setProjectName] = useState('');
 
+  // LLM 선택 및 이력 관리
+  const [selectedLLM, setSelectedLLM] = useState<LLMProviderId | ''>('');
+  const [dnaHistory, setDnaHistory] = useState<BrandDNA[]>([]);
+  const [showHistoryDropdown, setShowHistoryDropdown] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const analyzeAbortRef = useRef<AbortController | null>(null);
@@ -183,17 +207,30 @@ export function BrandKitTab() {
     loadDocuments();
   }, [brandId]);
 
-  // Load saved Brand DNA on mount
+  // Load saved Brand DNA on mount (with history support)
   useEffect(() => {
     if (!brandId) return;
 
     const loadBrandDNA = async () => {
       try {
-        const savedDNA = await getBrandDNA(brandId);
-        if (savedDNA) {
-          setBrandDNA(savedDNA);
-          setShowDNAResult(true);
-          console.log('[BrandKitTab] Loaded saved Brand DNA');
+        const savedData = await getBrandDNA(brandId);
+        if (savedData) {
+          // 새 구조: { current, history } 형식
+          if ('history' in savedData && Array.isArray((savedData as unknown as BrandDNAHistoryResponse).history)) {
+            const historyResponse = savedData as unknown as BrandDNAHistoryResponse;
+            if (historyResponse.current) {
+              setBrandDNA(historyResponse.current);
+              setShowDNAResult(true);
+            }
+            setDnaHistory(historyResponse.history || []);
+            console.log('[BrandKitTab] Loaded Brand DNA with history:', historyResponse.history?.length, 'items');
+          } else {
+            // 기존 구조 (하위 호환)
+            setBrandDNA(savedData as BrandDNA);
+            setDnaHistory([savedData as BrandDNA]);
+            setShowDNAResult(true);
+            console.log('[BrandKitTab] Loaded legacy Brand DNA');
+          }
         }
       } catch (error) {
         console.error('Failed to load Brand DNA:', error);
@@ -441,11 +478,12 @@ export function BrandKitTab() {
     }, 100);
 
     try {
-      // 실제 API 호출 (선택된 문서만 분석)
+      // 실제 API 호출 (선택된 문서만 분석, LLM 선택 전달)
       const documentIdsToAnalyze = selectedDocIds.size > 0
         ? Array.from(selectedDocIds)
         : undefined;
-      const dna = await analyzeBrand(brandId, documentIdsToAnalyze);
+      const llmToUse = selectedLLM || undefined;
+      const dna = await analyzeBrand(brandId, documentIdsToAnalyze, llmToUse);
 
       cleanupAnalyzeProgress();
       setAnalyzeProgress(100);
@@ -453,8 +491,16 @@ export function BrandKitTab() {
 
       setBrandDNA(dna);
       setShowDNAResult(true);
+
+      // 이력에 새 분석 결과 추가
+      setDnaHistory(prev => [...prev, dna]);
+
+      // LLM 정보 표시
+      const llmInfo = dna.llm_provider
+        ? LLM_PROVIDERS.find(p => p.id === dna.llm_provider)?.name || dna.llm_provider
+        : '자동';
       // confidence_score는 0-10 범위, 100%로 표시 시 *10
-      toast.success(`Brand DNA 분석 완료! (신뢰도: ${(dna.confidence_score * 10).toFixed(0)}%)`);
+      toast.success(`Brand DNA 분석 완료! (${llmInfo}, 신뢰도: ${(dna.confidence_score * 10).toFixed(0)}%)`);
     } catch (error: any) {
       cleanupAnalyzeProgress();
 
@@ -648,6 +694,18 @@ export function BrandKitTab() {
       console.error('Failed to create canvas:', error);
       toast.error(`Canvas 생성 실패: ${error instanceof Error ? error.message : String(error)}`);
     }
+  };
+
+  // Brand DNA → ConceptBoard로 전송
+  // 이미 brandDNA가 변경될 때 store에 저장되므로, 여기서는 toast만 표시
+  const handleSendToConceptBoard = () => {
+    if (!brandDNA) {
+      toast.error('Brand DNA가 없습니다. 먼저 분석을 진행해주세요.');
+      return;
+    }
+
+    // brandDNA는 이미 store에 동기화되어 있음
+    toast.success('Brand DNA가 ConceptBoard로 전송되었습니다! ConceptBoard 탭에서 확인하세요.');
   };
 
   return (
@@ -858,7 +916,9 @@ export function BrandKitTab() {
                       )}
                       {/* 정제 상태 아이콘 */}
                       {doc.clean_text && (
-                        <Filter className="w-3 h-3 text-purple-500 flex-shrink-0" title="정제됨" />
+                        <span title="정제됨">
+                          <Filter className="w-3 h-3 text-purple-500 flex-shrink-0" />
+                        </span>
                       )}
                       <span className="text-gray-700 truncate font-medium">{doc.title}</span>
                     </div>
@@ -978,16 +1038,35 @@ export function BrandKitTab() {
                 </button>
               </div>
             ) : (
-              <button
-                onClick={handleAnalyze}
-                disabled={documents.length === 0}
-                className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
-              >
-                <Sparkles className="w-4 h-4" />
-                {selectedDocIds.size > 0
-                  ? `선택된 ${selectedDocIds.size}개 문서 분석`
-                  : 'Brand DNA 자동 분석 (전체)'}
-              </button>
+              <div className="space-y-2">
+                {/* LLM 선택 드롭다운 */}
+                <div className="flex items-center gap-2">
+                  <select
+                    value={selectedLLM}
+                    onChange={(e) => setSelectedLLM(e.target.value as LLMProviderId | '')}
+                    className="flex-1 px-2 py-1.5 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                  >
+                    <option value="">자동 (기본 LLM)</option>
+                    {LLM_PROVIDERS.map((provider) => (
+                      <option key={provider.id} value={provider.id}>
+                        {provider.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* 분석 버튼 */}
+                <button
+                  onClick={handleAnalyze}
+                  disabled={documents.length === 0}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  {selectedDocIds.size > 0
+                    ? `선택된 ${selectedDocIds.size}개 문서 분석`
+                    : 'Brand DNA 자동 분석 (전체)'}
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -995,12 +1074,69 @@ export function BrandKitTab() {
         {/* Brand DNA 결과 */}
         {showDNAResult && brandDNA && (
           <div className="space-y-3 p-3 bg-gradient-to-br from-purple-50 to-indigo-50 rounded-lg border border-purple-200">
+            {/* 헤더: LLM 정보 + 신뢰도 */}
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-purple-900">Brand DNA</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-purple-900">Brand DNA</h3>
+                {brandDNA.llm_provider && (
+                  <span className="px-1.5 py-0.5 bg-purple-200 text-purple-800 text-[10px] rounded">
+                    {LLM_PROVIDERS.find(p => p.id === brandDNA.llm_provider)?.name || brandDNA.llm_provider}
+                  </span>
+                )}
+              </div>
               <span className="text-xs text-purple-700">
                 신뢰도: {((brandDNA.confidence_score || 0) * 10).toFixed(0)}%
               </span>
             </div>
+
+            {/* 분석 이력 드롭다운 */}
+            {dnaHistory.length > 1 && (
+              <div className="relative">
+                <button
+                  onClick={() => setShowHistoryDropdown(!showHistoryDropdown)}
+                  className="w-full flex items-center justify-between px-2 py-1.5 text-xs bg-white border border-purple-200 rounded-lg hover:bg-purple-50 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-3.5 h-3.5 text-purple-600" />
+                    <span>분석 이력 ({dnaHistory.length}개)</span>
+                  </div>
+                  <ChevronDown className={`w-3.5 h-3.5 text-purple-600 transition-transform ${showHistoryDropdown ? 'rotate-180' : ''}`} />
+                </button>
+
+                {showHistoryDropdown && (
+                  <div className="absolute z-10 mt-1 w-full bg-white border border-purple-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                    {dnaHistory.map((dna, index) => {
+                      const llmName = dna.llm_provider
+                        ? LLM_PROVIDERS.find(p => p.id === dna.llm_provider)?.name || dna.llm_provider
+                        : '자동';
+                      const isSelected = dna.analysis_id === brandDNA.analysis_id;
+                      const analyzedDate = dna.analyzed_at
+                        ? new Date(dna.analyzed_at).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                        : '';
+
+                      return (
+                        <button
+                          key={dna.analysis_id || index}
+                          onClick={() => {
+                            setBrandDNA(dna);
+                            setShowHistoryDropdown(false);
+                          }}
+                          className={`w-full px-3 py-2 text-left text-xs hover:bg-purple-50 transition-colors ${isSelected ? 'bg-purple-100' : ''}`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium">분석 {index + 1}: {llmName}</span>
+                            {isSelected && <Check className="w-3.5 h-3.5 text-purple-600" />}
+                          </div>
+                          {analyzedDate && (
+                            <span className="text-[10px] text-gray-500">{analyzedDate}</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="space-y-2 text-xs">
               {/* 톤앤매너 */}
@@ -1063,14 +1199,25 @@ export function BrandKitTab() {
               )}
             </div>
 
-            {/* Canvas로 내보내기 버튼 */}
-            <button
-              onClick={handleSendToCanvas}
-              className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-medium rounded-lg transition-colors"
-            >
-              <Sparkles className="w-4 h-4" />
-              Canvas로 내보내기
-            </button>
+            {/* 버튼 그룹 */}
+            <div className="flex gap-2">
+              {/* Canvas로 내보내기 버튼 */}
+              <button
+                onClick={handleSendToCanvas}
+                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-medium rounded-lg transition-colors"
+              >
+                <Sparkles className="w-4 h-4" />
+                Canvas
+              </button>
+              {/* ConceptBoard로 전송 버튼 */}
+              <button
+                onClick={handleSendToConceptBoard}
+                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white text-xs font-medium rounded-lg transition-colors"
+              >
+                <Send className="w-4 h-4" />
+                ConceptBoard
+              </button>
+            </div>
           </div>
         )}
 
