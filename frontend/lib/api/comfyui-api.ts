@@ -772,15 +772,21 @@ export interface UnifiedImageRequest {
 export async function generateImage(
   request: UnifiedImageRequest
 ): Promise<{ image_url: string; model: ImageGenerationModel }> {
+  console.log(`[generateImage] Model selected: ${request.model}`);
+  console.log(`[generateImage] Prompt: ${request.prompt.substring(0, 80)}...`);
+
   if (request.model === 'nanobanana') {
+    console.log('[generateImage] Using NanoBanana for image generation');
     const result = await generateImageWithNanoBanana({
       prompt: request.prompt,
       negative_prompt: request.negative_prompt,
       width: request.width,
       height: request.height,
     });
+    console.log(`[generateImage] NanoBanana result: ${result.image_url.substring(0, 80)}`);
     return { image_url: result.image_url, model: 'nanobanana' };
   } else {
+    console.log('[generateImage] Using ComfyUI for image generation');
     const result = await generateImageWithComfyUI({
       prompt: request.prompt,
       negative_prompt: request.negative_prompt,

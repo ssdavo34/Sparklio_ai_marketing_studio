@@ -432,6 +432,9 @@ export function Video6PanelV2({ onClose, className = '', projectId: initialProje
       setLocalPlanDraft(updatedPlan);
       setImageGenStatus('완료!');
       setStep('IMAGE_REVIEW');
+
+      // StepProgressIndicator 업데이트
+      dispatch({ type: 'SET_STATUS', payload: 'images_ready' });
     } catch (error) {
       console.error('[Video6PanelV2] Image generation failed:', error);
       setRenderError(error instanceof Error ? error.message : '이미지 생성에 실패했습니다.');
@@ -564,6 +567,9 @@ export function Video6PanelV2({ onClose, className = '', projectId: initialProje
 
     setLocalPlanDraft(updatedPlan);
     setStep('MOTION_REVIEW');
+
+    // StepProgressIndicator 업데이트를 위해 status도 변경
+    dispatch({ type: 'SET_STATUS', payload: 'motion_ready' });
   }, [localPlanDraft]);
 
   // Step 3: 모션 승인 → FFMPEG 렌더링 시작
@@ -575,16 +581,25 @@ export function Video6PanelV2({ onClose, className = '', projectId: initialProje
     setStep('RENDERING');
     setRenderProgress(0);
 
+    // StepProgressIndicator 업데이트
+    dispatch({ type: 'SET_STATUS', payload: 'rendering' });
+
     try {
       // FFMPEG.wasm으로 프론트엔드에서 비디오 합성
       const videoUrl = await renderVideoWithFFmpeg(localPlanDraft.scenes);
 
       setLocalVideoUrl(videoUrl);
       setStep('COMPLETE');
+
+      // StepProgressIndicator 업데이트
+      dispatch({ type: 'SET_STATUS', payload: 'completed' });
     } catch (error) {
       console.error('[Video6PanelV2] FFMPEG render failed:', error);
       setRenderError(error instanceof Error ? error.message : String(error));
       setStep('MOTION_REVIEW');
+
+      // 실패 시 상태 복원
+      dispatch({ type: 'SET_STATUS', payload: 'motion_ready' });
     }
   }, [localPlanDraft]);
 
@@ -1038,8 +1053,9 @@ export function Video6PanelV2({ onClose, className = '', projectId: initialProje
 
         setRenderProgress(20 + Math.floor(((currentSceneIdx + 1) / scenes.length) * 70));
 
-        // 자막 텍스트 (caption은 짧은 자막, script는 TTS용 나레이션)
-        const caption = scene.caption || ''; // 화면에 표시되는 짧은 자막
+        // 자막 텍스트 - script(나레이션)가 있으면 script 사용, 없으면 caption 사용
+        // script는 TTS와 동일한 긴 나레이션, caption은 짧은 자막
+        const caption = scene.script || scene.caption || ''; // TTS 나레이션과 동일한 자막 표시
 
         // TTS 오디오 재생 (Backend EdgeTTS)
         if (ttsBuffer && audioContext && ttsGainNode) {
