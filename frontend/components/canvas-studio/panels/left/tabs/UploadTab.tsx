@@ -1,9 +1,12 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { Upload, X, Image as ImageIcon, Sparkles, Loader2, Link as LinkIcon, FileText, Globe, File } from 'lucide-react';
+import { Upload, X, Image as ImageIcon, Sparkles, Loader2, Link as LinkIcon, FileText, Globe, File, Send, ArrowRight } from 'lucide-react';
 import { useCanvasStore } from '../../../stores/useCanvasStore';
-import { getMockBrandDNA } from '@/lib/api/brand-api';
+import { useLeftPanelStore } from '../../../stores/useLeftPanelStore';
+import { useBrandStore } from '../../../stores/useBrandStore';
+import { toast } from '@/components/ui/Toast';
+import type { BrandDNA } from '@/types/brand';
 
 type UploadedFile = {
   id: string;
@@ -20,7 +23,11 @@ export function UploadTab() {
   const [urlInput, setUrlInput] = useState('');
   const [loadingUrl, setLoadingUrl] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
-  const polotnoStore = useCanvasStore((state) => state.polotnoStore);
+  const [analysisResult, setAnalysisResult] = useState<BrandDNA | null>(null);
+
+  const polotnoStore = useCanvasStore((state) => state.canvases.get(state.activeCanvasType) || null);
+  const setActiveTab = useLeftPanelStore((state) => state.setActiveTab);
+  const { setSharedBrandDNA } = useBrandStore();
 
   const handleClick = () => {
     fileInputRef.current?.click();
@@ -179,193 +186,95 @@ export function UploadTab() {
 
   const handleAnalyze = async () => {
     if (uploadedFiles.length === 0) {
-      alert('먼저 파일을 업로드해주세요.');
-      return;
-    }
-
-    if (!polotnoStore) {
-      alert('캔버스가 준비되지 않았습니다.');
+      toast.error('먼저 파일을 업로드해주세요.');
       return;
     }
 
     setAnalyzing(true);
+    setAnalysisResult(null);
+
     try {
-      // 실제 API 호출 (현재는 Mock 사용)
-      // const dna = await analyzeBrandFiles(uploadedFiles);
+      // URL 또는 파일에서 컨텐츠 추출
+      const webpageFile = uploadedFiles.find(f => f.type === 'webpage');
 
-      // Mock 응답
-      const mockDNA = getMockBrandDNA();
+      let requestBody: any = {};
 
-      // 중앙 캔버스에 Brand DNA 결과 표시
-      const page = polotnoStore.activePage;
-      if (!page) {
-        alert('활성 페이지가 없습니다.');
+      if (webpageFile) {
+        // URL 기반 분석
+        requestBody = {
+          url: webpageFile.url,
+          brand_name: '', // 익명 분석
+        };
+      } else {
+        // 파일 기반 분석 - 현재는 URL만 지원
+        toast.error('현재 URL 기반 분석만 지원됩니다. 웹페이지 URL을 추가해주세요.');
+        setAnalyzing(false);
         return;
       }
 
-      // 기존 요소 모두 제거
-      page.children.forEach((child: any) => child.remove());
-
-      const pageWidth = page.width;
-      const pageHeight = page.height;
-      const margin = 40;
-      const contentWidth = pageWidth - margin * 2;
-      let currentY = margin;
-
-      // 제목
-      page.addElement({
-        type: 'text',
-        x: margin,
-        y: currentY,
-        width: contentWidth,
-        fontSize: 48,
-        fontWeight: 'bold',
-        fill: '#7C3AED',
-        text: '🧬 Brand DNA 분석 결과',
-      });
-      currentY += 80;
-
-      // 신뢰도
-      page.addElement({
-        type: 'text',
-        x: margin,
-        y: currentY,
-        width: contentWidth,
-        fontSize: 20,
-        fill: '#6B7280',
-        text: `신뢰도: ${(mockDNA.confidence_score * 100).toFixed(0)}%`,
-      });
-      currentY += 60;
-
-      // 톤앤매너
-      page.addElement({
-        type: 'text',
-        x: margin,
-        y: currentY,
-        width: contentWidth,
-        fontSize: 28,
-        fontWeight: 'bold',
-        fill: '#1F2937',
-        text: '📣 톤앤매너',
-      });
-      currentY += 45;
-
-      page.addElement({
-        type: 'text',
-        x: margin,
-        y: currentY,
-        width: contentWidth,
-        fontSize: 24,
-        fill: '#4B5563',
-        text: mockDNA.tone.primary,
-      });
-      currentY += 40;
-
-      page.addElement({
-        type: 'text',
-        x: margin,
-        y: currentY,
-        width: contentWidth,
-        fontSize: 18,
-        fill: '#6B7280',
-        text: mockDNA.tone.description,
-      });
-      currentY += 60;
-
-      // 핵심 메시지
-      page.addElement({
-        type: 'text',
-        x: margin,
-        y: currentY,
-        width: contentWidth,
-        fontSize: 28,
-        fontWeight: 'bold',
-        fill: '#1F2937',
-        text: '💡 핵심 메시지',
-      });
-      currentY += 45;
-
-      mockDNA.key_messages.slice(0, 3).forEach((msg: string, index: number) => {
-        page.addElement({
-          type: 'text',
-          x: margin,
-          y: currentY,
-          width: contentWidth,
-          fontSize: 20,
-          fill: '#4B5563',
-          text: `${index + 1}. ${msg}`,
-        });
-        currentY += 35;
-      });
-      currentY += 30;
-
-      // Do's & Don'ts (나란히 배치)
-      const halfWidth = (contentWidth - 20) / 2;
-
-      // Do's
-      page.addElement({
-        type: 'text',
-        x: margin,
-        y: currentY,
-        width: halfWidth,
-        fontSize: 28,
-        fontWeight: 'bold',
-        fill: '#059669',
-        text: '✓ Do\'s',
+      // Backend API 호출
+      const response = await fetch('http://100.123.51.5:8000/api/v1/brand-analyzer/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
       });
 
-      // Don'ts
-      page.addElement({
-        type: 'text',
-        x: margin + halfWidth + 20,
-        y: currentY,
-        width: halfWidth,
-        fontSize: 28,
-        fontWeight: 'bold',
-        fill: '#DC2626',
-        text: '✗ Don\'ts',
-      });
-      currentY += 45;
-
-      const maxItems = Math.max(
-        mockDNA.dos.slice(0, 3).length,
-        mockDNA.donts.slice(0, 3).length
-      );
-
-      for (let i = 0; i < maxItems; i++) {
-        if (mockDNA.dos[i]) {
-          page.addElement({
-            type: 'text',
-            x: margin,
-            y: currentY,
-            width: halfWidth,
-            fontSize: 18,
-            fill: '#047857',
-            text: `✓ ${mockDNA.dos[i]}`,
-          });
-        }
-
-        if (mockDNA.donts[i]) {
-          page.addElement({
-            type: 'text',
-            x: margin + halfWidth + 20,
-            y: currentY,
-            width: halfWidth,
-            fontSize: 18,
-            fill: '#B91C1C',
-            text: `✗ ${mockDNA.donts[i]}`,
-          });
-        }
-        currentY += 35;
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `API Error: ${response.status}`);
       }
 
-      alert(`✅ Brand DNA 분석 완료! 캔버스에 결과가 표시되었습니다.`);
-    } catch (error) {
+      const result = await response.json();
+      console.log('[UploadTab] Brand DNA analysis result:', result);
+
+      // 결과 저장 (캔버스에 직접 그리지 않음)
+      setAnalysisResult(result);
+      toast.success('Brand DNA 분석 완료! 아래에서 결과를 확인하세요.');
+
+    } catch (error: any) {
       console.error('Analysis failed:', error);
-      alert('❌ 분석 실패');
+      toast.error(error.message || '분석에 실패했습니다.');
     } finally {
       setAnalyzing(false);
     }
+  };
+
+  /**
+   * Brand Kit 탭으로 결과 전송
+   */
+  const handleSendToBrandKit = () => {
+    if (!analysisResult) {
+      toast.error('먼저 분석을 실행해주세요.');
+      return;
+    }
+
+    // Brand Store에 저장
+    setSharedBrandDNA(analysisResult);
+
+    // Brand Kit 탭으로 이동 (자동으로 brand-dna 캔버스로 전환됨)
+    setActiveTab('brandkit');
+
+    toast.success('Brand Kit으로 이동합니다.');
+  };
+
+  /**
+   * ConceptBoard 탭으로 결과 전송
+   */
+  const handleSendToConceptBoard = () => {
+    if (!analysisResult) {
+      toast.error('먼저 분석을 실행해주세요.');
+      return;
+    }
+
+    // Brand Store에 저장
+    setSharedBrandDNA(analysisResult);
+
+    // ConceptBoard 탭으로 이동
+    setActiveTab('conceptboard');
+
+    toast.success('ConceptBoard로 이동합니다.');
   };
 
   const getFileIcon = (type: UploadedFile['type']) => {
@@ -551,6 +460,54 @@ export function UploadTab() {
             </div>
           </div>
         </div>
+
+        {/* Analysis Result */}
+        {analysisResult && (
+          <div className="mt-4 p-4 bg-white border border-green-200 rounded-lg">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              <h3 className="text-sm font-semibold text-green-800">분석 완료</h3>
+            </div>
+
+            {/* 간단한 결과 요약 */}
+            <div className="space-y-2 mb-4">
+              <div className="text-xs text-gray-600">
+                <span className="font-medium">톤앤매너:</span>{' '}
+                {'tone' in analysisResult && typeof analysisResult.tone === 'object'
+                  ? (analysisResult.tone as any).primary
+                  : String(analysisResult.tone || '분석됨')}
+              </div>
+              <div className="text-xs text-gray-600">
+                <span className="font-medium">핵심 메시지:</span>{' '}
+                {analysisResult.key_messages?.length || 0}개
+              </div>
+              <div className="text-xs text-gray-600">
+                <span className="font-medium">신뢰도:</span>{' '}
+                {((analysisResult.confidence_score || 0) * 100).toFixed(0)}%
+              </div>
+            </div>
+
+            {/* 전송 버튼들 */}
+            <div className="space-y-2">
+              <button
+                onClick={handleSendToBrandKit}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium rounded-lg transition-colors"
+              >
+                <Send className="w-4 h-4" />
+                Brand Kit으로 보내기
+                <ArrowRight className="w-3 h-3" />
+              </button>
+              <button
+                onClick={handleSendToConceptBoard}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded-lg transition-colors"
+              >
+                <Send className="w-4 h-4" />
+                ConceptBoard로 보내기
+                <ArrowRight className="w-3 h-3" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
