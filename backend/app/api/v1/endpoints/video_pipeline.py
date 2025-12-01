@@ -34,6 +34,7 @@ from app.schemas.video_timeline import (
     VideoGenerationMode,
     VideoProjectStatus,
     ScriptStatus,
+    ImageApprovalStatus,
     VideoPlanDraftV1,
     SceneDraft,
     VideoPlanRequest,
@@ -45,6 +46,25 @@ from app.schemas.video_timeline import (
     VideoProjectCreateResponse,
     RenderMode,
     VideoRenderError,
+    # Step 1: Script
+    ScriptApproveRequest,
+    ScriptApproveResponse,
+    # Step 2: Images
+    ImageGenerateRequest,
+    ImageGenerateResponse,
+    ImageApproveRequest,
+    ImageApproveResponse,
+    SceneImageApproval,
+    ImageRegenerateRequest,
+    ImageRegenerateResponse,
+    # Step 3: Motion
+    MotionGenerateRequest,
+    MotionGenerateResponse,
+    MotionApproveRequest,
+    MotionApproveResponse,
+    SceneMotionApproval,
+    MotionRegenerateRequest,
+    MotionRegenerateResponse,
 )
 from app.services.video.cost_guard import get_cost_guard
 from app.services.agents.video_director import (
@@ -668,6 +688,649 @@ async def get_asset_pool(
         ],
         "total": len(assets),
     }
+
+
+# =============================================================================
+# Step 1: Script Approve API
+# =============================================================================
+
+@router.post("/{video_project_id}/script/approve", response_model=ScriptApproveResponse)
+async def approve_script(
+    video_project_id: str,
+    request: ScriptApproveRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Step 1: 스크립트 승인
+
+    유저가 확인/수정한 스크립트를 승인하고 이미지 생성 단계로 진행합니다.
+    """
+    project = _get_project_from_db(db, video_project_id)
+    project_data = _get_project_data(project)
+
+    # 상태 체크
+    if project_data["status"] not in [
+        VideoProjectStatus.SCRIPT_READY.value,
+        VideoProjectStatus.NOT_STARTED.value
+    ]:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Cannot approve script in status: {project_data['status']}"
+        )
+
+    # 플랜 업데이트
+    plan_draft_data = request.plan_draft.model_dump()
+    plan_draft_data["script_status"] = ScriptStatus.APPROVED.value
+    plan_draft_data["project_id"] = video_project_id
+
+    _update_project_in_db(db, project, {
+        "status": VideoProjectStatus.SCRIPT_APPROVED.value,
+        "plan_draft": plan_draft_data,
+        "script_status": ScriptStatus.APPROVED.value
+    })
+
+    logger.info(f"[VideoPipeline] Script approved: {video_project_id}")
+
+    return ScriptApproveResponse(
+        project_id=video_project_id,
+        status=VideoProjectStatus.SCRIPT_APPROVED,
+        message="스크립트가 승인되었습니다. 이미지 생성을 시작합니다."
+    )
+
+
+# =============================================================================
+# Step 2: Images Generate/Approve/Regenerate APIs
+# =============================================================================
+
+@router.post("/{video_project_id}/images/generate", response_model=ImageGenerateResponse)
+async def generate_images(
+    video_project_id: str,
+    request: ImageGenerateRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    """
+    Step 2: 이미지 생성 시작
+
+    스크립트 승인 후 각 씬의 이미지를 생성합니다.
+    generate_new_image=True인 씬만 새로 생성됩니다.
+    """
+    project = _get_project_from_db(db, video_project_id)
+    project_data = _get_project_data(project)
+
+    # 상태 체크
+    if project_data["status"] not in [
+        VideoProjectStatus.SCRIPT_APPROVED.value,
+        VideoProjectStatus.IMAGES_READY.value,  # 재생성 허용
+    ]:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Cannot generate images in status: {project_data['status']}"
+        )
+
+    # 상태 업데이트
+    _update_project_in_db(db, project, {
+        "status": VideoProjectStatus.GENERATING_IMAGES.value,
+        "plan_draft": request.plan_draft.model_dump()
+    })
+
+    # 백그라운드에서 이미지 생성
+    background_tasks.add_task(
+        _generate_images_background,
+        str(project.id),
+        video_project_id,
+        request.plan_draft.model_dump()
+    )
+
+    logger.info(f"[VideoPipeline] Image generation started: {video_project_id}")
+
+    return ImageGenerateResponse(
+        project_id=video_project_id,
+        status=VideoProjectStatus.GENERATING_IMAGES,
+        plan_draft=request.plan_draft,
+        message="이미지 생성을 시작합니다."
+    )
+
+
+async def _generate_images_background(
+    db_id: str,
+    video_project_id: str,
+    plan_draft_data: dict
+):
+    """백그라운드 이미지 생성"""
+    from app.core.database import SessionLocal
+
+    logger.info(f"[VideoPipeline] === IMAGE GENERATION START ===")
+
+    db = SessionLocal()
+    try:
+        project = db.query(ProjectOutput).filter(ProjectOutput.id == db_id).first()
+        if not project:
+            logger.error(f"[VideoPipeline] Project not found: {db_id}")
+            return
+
+        media_gateway = get_media_gateway()
+        scenes = plan_draft_data.get("scenes", [])
+
+        # generate_new_image=True인 씬만 생성
+        for scene in scenes:
+            if scene.get("generate_new_image") and scene.get("image_prompt"):
+                try:
+                    result = await media_gateway.generate_image(
+                        prompt=scene["image_prompt"],
+                        width=1080,
+                        height=1920,
+                    )
+                    scene["image_url"] = result.get("url") or result.get("base64")
+                    scene["image_approval_status"] = ImageApprovalStatus.GENERATED.value
+                    scene["generation_attempts"] = scene.get("generation_attempts", 0) + 1
+                    logger.info(f"[VideoPipeline] Scene {scene['scene_index']} image generated")
+                except Exception as e:
+                    logger.error(f"[VideoPipeline] Scene {scene['scene_index']} image failed: {e}")
+                    scene["image_approval_status"] = ImageApprovalStatus.PENDING.value
+
+        # 상태 업데이트
+        plan_draft_data["scenes"] = scenes
+        _update_project_in_db(db, project, {
+            "status": VideoProjectStatus.IMAGES_READY.value,
+            "plan_draft": plan_draft_data
+        })
+
+        logger.info(f"[VideoPipeline] Image generation complete: {video_project_id}")
+
+    except Exception as e:
+        logger.error(f"[VideoPipeline] Image generation failed: {e}")
+        try:
+            project = db.query(ProjectOutput).filter(ProjectOutput.id == db_id).first()
+            if project:
+                _update_project_in_db(db, project, {
+                    "status": VideoProjectStatus.FAILED.value,
+                    "error_message": str(e)
+                })
+        except Exception:
+            pass
+    finally:
+        db.close()
+
+
+@router.post("/{video_project_id}/images/approve", response_model=ImageApproveResponse)
+async def approve_images(
+    video_project_id: str,
+    request: ImageApproveRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Step 2: 이미지 승인
+
+    유저가 각 씬의 이미지를 확인하고 승인/거부합니다.
+    거부된 이미지는 재생성이 필요합니다.
+    """
+    project = _get_project_from_db(db, video_project_id)
+    project_data = _get_project_data(project)
+
+    # 상태 체크
+    if project_data["status"] != VideoProjectStatus.IMAGES_READY.value:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Cannot approve images in status: {project_data['status']}"
+        )
+
+    plan_draft_data = project_data.get("plan_draft", {})
+    scenes = plan_draft_data.get("scenes", [])
+
+    # 승인 상태 업데이트
+    needs_regeneration = False
+    regenerating_scenes = []
+
+    for approval in request.scene_approvals:
+        for scene in scenes:
+            if scene["scene_index"] == approval.scene_index:
+                if approval.approved:
+                    scene["image_approval_status"] = ImageApprovalStatus.APPROVED.value
+                else:
+                    scene["image_approval_status"] = ImageApprovalStatus.REJECTED.value
+                    scene["regenerate_reason"] = approval.regenerate_reason
+                    needs_regeneration = True
+                    regenerating_scenes.append(approval.scene_index)
+                break
+
+    plan_draft_data["scenes"] = scenes
+
+    # 상태 결정
+    if needs_regeneration:
+        new_status = VideoProjectStatus.IMAGES_READY  # 재생성 필요하면 그대로 유지
+    else:
+        new_status = VideoProjectStatus.IMAGES_APPROVED
+
+    _update_project_in_db(db, project, {
+        "status": new_status.value,
+        "plan_draft": plan_draft_data
+    })
+
+    logger.info(f"[VideoPipeline] Images {'partially ' if needs_regeneration else ''}approved: {video_project_id}")
+
+    return ImageApproveResponse(
+        project_id=video_project_id,
+        status=new_status,
+        plan_draft=VideoPlanDraftV1(**plan_draft_data),
+        needs_regeneration=needs_regeneration,
+        regenerating_scenes=regenerating_scenes
+    )
+
+
+@router.post("/{video_project_id}/images/regenerate", response_model=ImageRegenerateResponse)
+async def regenerate_image(
+    video_project_id: str,
+    request: ImageRegenerateRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    """
+    이미지 재생성
+
+    특정 씬의 이미지를 새로 생성합니다.
+    """
+    project = _get_project_from_db(db, video_project_id)
+    project_data = _get_project_data(project)
+
+    # 상태 체크
+    if project_data["status"] not in [
+        VideoProjectStatus.IMAGES_READY.value,
+        VideoProjectStatus.IMAGES_APPROVED.value,
+    ]:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Cannot regenerate image in status: {project_data['status']}"
+        )
+
+    plan_draft_data = project_data.get("plan_draft", {})
+    scenes = plan_draft_data.get("scenes", [])
+
+    # 해당 씬 찾기
+    target_scene = None
+    for scene in scenes:
+        if scene["scene_index"] == request.scene_index:
+            target_scene = scene
+            scene["image_approval_status"] = ImageApprovalStatus.REGENERATING.value
+            if request.new_prompt:
+                scene["image_prompt"] = request.new_prompt
+            break
+
+    if not target_scene:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Scene {request.scene_index} not found"
+        )
+
+    plan_draft_data["scenes"] = scenes
+    _update_project_in_db(db, project, {
+        "plan_draft": plan_draft_data
+    })
+
+    # 백그라운드에서 재생성
+    background_tasks.add_task(
+        _regenerate_image_background,
+        str(project.id),
+        video_project_id,
+        request.scene_index,
+        target_scene.get("image_prompt", "")
+    )
+
+    logger.info(f"[VideoPipeline] Image regeneration started: scene {request.scene_index}")
+
+    return ImageRegenerateResponse(
+        project_id=video_project_id,
+        scene_index=request.scene_index,
+        new_image_url="",  # 백그라운드에서 업데이트됨
+        generation_attempts=target_scene.get("generation_attempts", 0) + 1,
+        message="이미지 재생성을 시작합니다."
+    )
+
+
+async def _regenerate_image_background(
+    db_id: str,
+    video_project_id: str,
+    scene_index: int,
+    prompt: str
+):
+    """백그라운드 이미지 재생성"""
+    from app.core.database import SessionLocal
+
+    db = SessionLocal()
+    try:
+        project = db.query(ProjectOutput).filter(ProjectOutput.id == db_id).first()
+        if not project:
+            return
+
+        media_gateway = get_media_gateway()
+
+        result = await media_gateway.generate_image(
+            prompt=prompt,
+            width=1080,
+            height=1920,
+        )
+
+        plan_draft_data = dict(project.source_metadata.get("plan_draft", {}))
+        scenes = plan_draft_data.get("scenes", [])
+
+        for scene in scenes:
+            if scene["scene_index"] == scene_index:
+                scene["image_url"] = result.get("url") or result.get("base64")
+                scene["image_approval_status"] = ImageApprovalStatus.GENERATED.value
+                scene["generation_attempts"] = scene.get("generation_attempts", 0) + 1
+                break
+
+        plan_draft_data["scenes"] = scenes
+        _update_project_in_db(db, project, {
+            "plan_draft": plan_draft_data
+        })
+
+        logger.info(f"[VideoPipeline] Image regenerated: scene {scene_index}")
+
+    except Exception as e:
+        logger.error(f"[VideoPipeline] Image regeneration failed: {e}")
+    finally:
+        db.close()
+
+
+# =============================================================================
+# Step 3: Motion Generate/Approve/Regenerate APIs
+# =============================================================================
+
+@router.post("/{video_project_id}/motion/generate", response_model=MotionGenerateResponse)
+async def generate_motion_prompts(
+    video_project_id: str,
+    request: MotionGenerateRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    """
+    Step 3: 모션 프롬프트 생성
+
+    이미지 승인 후 AI 영상용 모션 프롬프트를 생성합니다.
+    use_ai_video=True인 씬에 대해서만 생성됩니다.
+    """
+    project = _get_project_from_db(db, video_project_id)
+    project_data = _get_project_data(project)
+
+    # 상태 체크
+    if project_data["status"] not in [
+        VideoProjectStatus.IMAGES_APPROVED.value,
+        VideoProjectStatus.MOTION_READY.value,  # 재생성 허용
+    ]:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Cannot generate motion prompts in status: {project_data['status']}"
+        )
+
+    # 상태 업데이트
+    _update_project_in_db(db, project, {
+        "status": VideoProjectStatus.GENERATING_MOTION.value,
+        "plan_draft": request.plan_draft.model_dump()
+    })
+
+    # 백그라운드에서 모션 프롬프트 생성
+    background_tasks.add_task(
+        _generate_motion_prompts_background,
+        str(project.id),
+        video_project_id,
+        request.plan_draft.model_dump()
+    )
+
+    logger.info(f"[VideoPipeline] Motion prompt generation started: {video_project_id}")
+
+    return MotionGenerateResponse(
+        project_id=video_project_id,
+        status=VideoProjectStatus.GENERATING_MOTION,
+        plan_draft=request.plan_draft,
+        message="모션 프롬프트 생성을 시작합니다."
+    )
+
+
+async def _generate_motion_prompts_background(
+    db_id: str,
+    video_project_id: str,
+    plan_draft_data: dict
+):
+    """백그라운드 모션 프롬프트 생성"""
+    from app.core.database import SessionLocal
+    from app.services.agents.motion_prompt import get_motion_prompt_agent
+
+    logger.info(f"[VideoPipeline] === MOTION PROMPT GENERATION START ===")
+
+    db = SessionLocal()
+    try:
+        project = db.query(ProjectOutput).filter(ProjectOutput.id == db_id).first()
+        if not project:
+            return
+
+        llm_gateway = get_llm_gateway()
+        motion_agent = get_motion_prompt_agent(llm_gateway=llm_gateway)
+
+        scenes = plan_draft_data.get("scenes", [])
+
+        # use_ai_video=True인 씬에 대해 모션 프롬프트 생성
+        for scene in scenes:
+            if scene.get("use_ai_video") and not scene.get("motion_prompt"):
+                try:
+                    from app.services.agents.base import AgentRequest
+
+                    response = await motion_agent.execute(AgentRequest(
+                        task="generate_single_prompt",
+                        payload={
+                            "image_url": scene.get("image_url", ""),
+                            "scene_index": scene["scene_index"],
+                            "total_scenes": len(scenes),
+                            "script": scene.get("script", ""),
+                            "caption": scene.get("caption", ""),
+                            "duration_sec": scene.get("duration_sec", 3.0),
+                            "motion_style": "cinematic",
+                        }
+                    ))
+
+                    result = response.outputs[0].value
+                    scene["motion_prompt"] = result.get("motion_prompt", "")
+                    scene["motion_prompt_ko"] = result.get("motion_prompt_ko", "")
+                    logger.info(f"[VideoPipeline] Scene {scene['scene_index']} motion prompt generated")
+
+                except Exception as e:
+                    logger.error(f"[VideoPipeline] Scene {scene['scene_index']} motion prompt failed: {e}")
+                    # 기본 모션 프롬프트 설정
+                    scene["motion_prompt"] = "Gentle camera movement with subtle zoom"
+                    scene["motion_prompt_ko"] = "부드러운 카메라 움직임과 미세한 줌"
+
+        plan_draft_data["scenes"] = scenes
+        _update_project_in_db(db, project, {
+            "status": VideoProjectStatus.MOTION_READY.value,
+            "plan_draft": plan_draft_data
+        })
+
+        logger.info(f"[VideoPipeline] Motion prompt generation complete: {video_project_id}")
+
+    except Exception as e:
+        logger.error(f"[VideoPipeline] Motion prompt generation failed: {e}")
+        try:
+            project = db.query(ProjectOutput).filter(ProjectOutput.id == db_id).first()
+            if project:
+                _update_project_in_db(db, project, {
+                    "status": VideoProjectStatus.FAILED.value,
+                    "error_message": str(e)
+                })
+        except Exception:
+            pass
+    finally:
+        db.close()
+
+
+@router.post("/{video_project_id}/motion/approve", response_model=MotionApproveResponse)
+async def approve_motion_prompts(
+    video_project_id: str,
+    request: MotionApproveRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Step 3: 모션 프롬프트 승인
+
+    유저가 모션 프롬프트를 확인/수정하고 승인합니다.
+    수정된 프롬프트는 그대로 저장됩니다.
+    """
+    project = _get_project_from_db(db, video_project_id)
+    project_data = _get_project_data(project)
+
+    # 상태 체크
+    if project_data["status"] != VideoProjectStatus.MOTION_READY.value:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Cannot approve motion prompts in status: {project_data['status']}"
+        )
+
+    plan_draft_data = project_data.get("plan_draft", {})
+    scenes = plan_draft_data.get("scenes", [])
+
+    # 모션 프롬프트 업데이트
+    for approval in request.scene_approvals:
+        for scene in scenes:
+            if scene["scene_index"] == approval.scene_index:
+                if approval.motion_prompt:
+                    scene["motion_prompt"] = approval.motion_prompt
+                if approval.motion_prompt_ko:
+                    scene["motion_prompt_ko"] = approval.motion_prompt_ko
+                break
+
+    plan_draft_data["scenes"] = scenes
+
+    _update_project_in_db(db, project, {
+        "status": VideoProjectStatus.MOTION_APPROVED.value,
+        "plan_draft": plan_draft_data
+    })
+
+    logger.info(f"[VideoPipeline] Motion prompts approved: {video_project_id}")
+
+    return MotionApproveResponse(
+        project_id=video_project_id,
+        status=VideoProjectStatus.MOTION_APPROVED,
+        plan_draft=VideoPlanDraftV1(**plan_draft_data),
+        message="모션 프롬프트가 승인되었습니다. 영상 렌더링을 시작할 수 있습니다."
+    )
+
+
+@router.post("/{video_project_id}/motion/regenerate", response_model=MotionRegenerateResponse)
+async def regenerate_motion_prompt(
+    video_project_id: str,
+    request: MotionRegenerateRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    """
+    모션 프롬프트 재생성
+
+    특정 씬의 모션 프롬프트를 새로 생성합니다.
+    """
+    project = _get_project_from_db(db, video_project_id)
+    project_data = _get_project_data(project)
+
+    # 상태 체크
+    if project_data["status"] not in [
+        VideoProjectStatus.MOTION_READY.value,
+        VideoProjectStatus.MOTION_APPROVED.value,
+    ]:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Cannot regenerate motion prompt in status: {project_data['status']}"
+        )
+
+    plan_draft_data = project_data.get("plan_draft", {})
+    scenes = plan_draft_data.get("scenes", [])
+
+    # 해당 씬 찾기
+    target_scene = None
+    for scene in scenes:
+        if scene["scene_index"] == request.scene_index:
+            target_scene = scene
+            break
+
+    if not target_scene:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Scene {request.scene_index} not found"
+        )
+
+    # 백그라운드에서 재생성
+    background_tasks.add_task(
+        _regenerate_motion_prompt_background,
+        str(project.id),
+        video_project_id,
+        request.scene_index,
+        request.guidance
+    )
+
+    logger.info(f"[VideoPipeline] Motion prompt regeneration started: scene {request.scene_index}")
+
+    return MotionRegenerateResponse(
+        project_id=video_project_id,
+        scene_index=request.scene_index,
+        motion_prompt="",  # 백그라운드에서 업데이트됨
+        motion_prompt_ko="",
+        message="모션 프롬프트 재생성을 시작합니다."
+    )
+
+
+async def _regenerate_motion_prompt_background(
+    db_id: str,
+    video_project_id: str,
+    scene_index: int,
+    guidance: Optional[str]
+):
+    """백그라운드 모션 프롬프트 재생성"""
+    from app.core.database import SessionLocal
+    from app.services.agents.motion_prompt import get_motion_prompt_agent
+
+    db = SessionLocal()
+    try:
+        project = db.query(ProjectOutput).filter(ProjectOutput.id == db_id).first()
+        if not project:
+            return
+
+        llm_gateway = get_llm_gateway()
+        motion_agent = get_motion_prompt_agent(llm_gateway=llm_gateway)
+
+        plan_draft_data = dict(project.source_metadata.get("plan_draft", {}))
+        scenes = plan_draft_data.get("scenes", [])
+
+        for scene in scenes:
+            if scene["scene_index"] == scene_index:
+                from app.services.agents.base import AgentRequest
+
+                response = await motion_agent.execute(AgentRequest(
+                    task="generate_single_prompt",
+                    payload={
+                        "image_url": scene.get("image_url", ""),
+                        "scene_index": scene["scene_index"],
+                        "total_scenes": len(scenes),
+                        "script": scene.get("script", ""),
+                        "caption": scene.get("caption", ""),
+                        "duration_sec": scene.get("duration_sec", 3.0),
+                        "motion_style": "cinematic",
+                        "guidance": guidance,  # 재생성 가이드
+                    }
+                ))
+
+                result = response.outputs[0].value
+                scene["motion_prompt"] = result.get("motion_prompt", "")
+                scene["motion_prompt_ko"] = result.get("motion_prompt_ko", "")
+                break
+
+        plan_draft_data["scenes"] = scenes
+        _update_project_in_db(db, project, {
+            "plan_draft": plan_draft_data
+        })
+
+        logger.info(f"[VideoPipeline] Motion prompt regenerated: scene {scene_index}")
+
+    except Exception as e:
+        logger.error(f"[VideoPipeline] Motion prompt regeneration failed: {e}")
+    finally:
+        db.close()
 
 
 # =============================================================================
