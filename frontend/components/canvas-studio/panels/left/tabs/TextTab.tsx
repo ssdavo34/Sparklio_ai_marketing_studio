@@ -4,7 +4,7 @@ import { useCanvasStore } from '../../../stores/useCanvasStore';
 import { Type } from 'lucide-react';
 
 export function TextTab() {
-  const polotnoStore = useCanvasStore((state) => state.polotnoStore);
+  const polotnoStore = useCanvasStore((state) => state.canvases.get(state.activeCanvasType) || null);
 
   const addText = () => {
     if (!polotnoStore) return;

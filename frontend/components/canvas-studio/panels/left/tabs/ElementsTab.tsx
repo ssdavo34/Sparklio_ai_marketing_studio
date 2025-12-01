@@ -4,7 +4,7 @@ import { useCanvasStore } from '../../../stores/useCanvasStore';
 import { Square, Circle, Triangle, Star } from 'lucide-react';
 
 export function ElementsTab() {
-  const polotnoStore = useCanvasStore((state) => state.polotnoStore);
+  const polotnoStore = useCanvasStore((state) => state.canvases.get(state.activeCanvasType) || null);
 
   const addRectangle = () => {
     if (!polotnoStore) return;

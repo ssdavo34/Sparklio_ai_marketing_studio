@@ -3,15 +3,21 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Edit, Save, Download, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCenterViewStore } from '../stores/useCenterViewStore';
-import { useGeneratedAssetsStore } from '../stores/useGeneratedAssetsStore';
 import { useCanvasStore } from '../stores/useCanvasStore';
 import { addSlidesToCanvas } from '@/lib/canvas/slidesTemplate';
 import { toast } from '@/components/ui/Toast';
 import type { PresentationData, SlideData, SlideLayout } from '@/types/demo';
 
 export function SlidesPreviewView() {
-  const { selectedConcept, backToConceptBoard, backToCanvas, setView } = useCenterViewStore();
-  const { slidesData: generatedSlidesData, setSlidesData } = useGeneratedAssetsStore();
+  const {
+    selectedConcept,
+    backToConceptBoard,
+    backToCanvas,
+    setView,
+    presentationData,
+    setPresentationData
+  } = useCenterViewStore();
+
   const polotnoStore = useCanvasStore((state) => state.canvases.get(state.activeCanvasType) || null);
 
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
@@ -23,9 +29,9 @@ export function SlidesPreviewView() {
 
   // Initialize local slides from store
   useEffect(() => {
-    if (generatedSlidesData?.slides) {
+    if (presentationData?.slides) {
       // Ensure compatibility with SlideData type
-      const mappedSlides: SlideData[] = generatedSlidesData.slides.map(s => ({
+      const mappedSlides: SlideData[] = presentationData.slides.map(s => ({
         ...s,
         slide_number: s.slide_number || 0, // Ensure slide_number exists
         slide_type: (s.slide_type as any) || 'default',
@@ -33,7 +39,7 @@ export function SlidesPreviewView() {
       } as SlideData));
       setLocalSlides(mappedSlides);
     }
-  }, [generatedSlidesData]);
+  }, [presentationData]);
 
   const currentSlide = localSlides[currentSlideIndex];
   const totalSlides = localSlides.length;
@@ -48,9 +54,9 @@ export function SlidesPreviewView() {
     setLocalSlides(updatedSlides);
 
     // Sync to global store immediately for "Single Source of Truth"
-    if (generatedSlidesData) {
-      setSlidesData({
-        ...generatedSlidesData,
+    if (presentationData) {
+      setPresentationData({
+        ...presentationData,
         slides: updatedSlides as any // Casting to satisfy the store's type which might be slightly different
       });
     }
@@ -78,31 +84,77 @@ export function SlidesPreviewView() {
     }
   };
 
-  // 저장 핸들러 (Mock)
+  // 저장 핸들러
   const handleSave = async () => {
+    if (!presentationData?.id) {
+      toast.error('저장할 프레젠테이션 데이터가 없습니다.');
+      return;
+    }
+
     setIsSaving(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // API 호출
+      const response = await fetch(`/api/v1/presentations/${presentationData.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: presentationData.title, // 제목도 업데이트 가능하도록
+          slides: localSlides,
+        }),
+      });
 
-      // In a real app, we would POST to /api/v1/presentations
-      // For now, we just ensure the store is updated (which is done in updateSlideField)
+      if (!response.ok) {
+        throw new Error('저장에 실패했습니다.');
+      }
+
+      const updatedData = await response.json();
+
+      // Store 업데이트
+      setPresentationData({
+        ...presentationData,
+        ...updatedData
+      });
 
       toast.success('프레젠테이션이 저장되었습니다');
     } catch (error) {
+      console.error('[SlidesPreview] Save failed:', error);
       toast.error('저장 중 오류가 발생했습니다');
     } finally {
       setIsSaving(false);
     }
   };
 
-  // 내보내기 핸들러 (Mock)
+  // 내보내기 핸들러 (JSON 다운로드)
   const handleExport = () => {
-    toast.success('내보내기 준비 중... (PNG 다운로드)');
-    // TODO: Implement actual export logic re-using ExportDialog
+    if (!presentationData) return;
+
+    try {
+      const exportData = {
+        ...presentationData,
+        slides: localSlides,
+        exportedAt: new Date().toISOString(),
+      };
+
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${presentationData.title || 'presentation'}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast.success('프레젠테이션을 JSON으로 내보냈습니다.');
+    } catch (error) {
+      console.error('[SlidesPreview] Export failed:', error);
+      toast.error('내보내기에 실패했습니다.');
+    }
   };
 
-  if (!generatedSlidesData && localSlides.length === 0) {
+  if (!presentationData && localSlides.length === 0) {
     return (
       <div className="h-full flex items-center justify-center bg-gray-100">
         <div className="text-center">
@@ -133,10 +185,10 @@ export function SlidesPreviewView() {
           </button>
           <span className="text-gray-300">|</span>
           <h2 className="font-semibold text-gray-900">
-            {generatedSlidesData?.title || '프레젠테이션 미리보기'}
+            {presentationData?.title || '프레젠테이션 미리보기'}
           </h2>
           <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">
-            Light Editor
+            간편 편집기
           </span>
         </div>
 
@@ -183,10 +235,10 @@ export function SlidesPreviewView() {
               {/* 슬라이드 타입/레이아웃 표시 (Hover 시) */}
               <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
                 <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded border">
-                  Type: {currentSlide.slide_type}
+                  유형: {currentSlide.slide_type}
                 </span>
                 <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded border">
-                  Layout: {currentSlide.layout}
+                  레이아웃: {currentSlide.layout}
                 </span>
               </div>
 
@@ -250,7 +302,7 @@ export function SlidesPreviewView() {
             {/* 발표자 노트 에디터 */}
             <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
               <label className="block text-xs font-bold text-yellow-800 mb-2 uppercase tracking-wide">
-                Speaker Notes
+                발표자 노트
               </label>
               <textarea
                 value={currentSlide.speakerNotes || ''}

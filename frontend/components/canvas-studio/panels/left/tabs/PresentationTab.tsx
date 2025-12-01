@@ -18,6 +18,7 @@ import { Presentation, Sparkles, Loader2, FileText, ChevronRight, Plus, LayoutGr
 import { useCenterViewStore } from '../../../stores/useCenterViewStore';
 import { useGeneratedAssetsStore } from '../../../stores/useGeneratedAssetsStore';
 import { useCanvasStore } from '../../../stores/useCanvasStore';
+import { useChatStore } from '../../../stores/useChatStore';
 import { CANVAS_CONFIGS, type CanvasPreset } from '../../../stores/types';
 import { toast } from '@/components/ui/Toast';
 
@@ -99,16 +100,16 @@ export function PresentationTab() {
 
     try {
       // Backend PresentationAgent 호출
-      const response = await fetch('/api/v1/generate/presentation', {
+      const response = await fetch('/api/v1/presentations/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           topic: topic.trim(),
-          presentation_type: presentationType,
+          deck_type: presentationType,
           slide_count: slideCount,
-          language: 'ko',
+          aspect_ratio: selectedAspectRatio,
         }),
       });
 
@@ -141,6 +142,18 @@ export function PresentationTab() {
         });
 
         openSlidesPreview('generated', data.id || `pres-${Date.now()}`);
+
+        // 챗봇에 알림 추가
+        try {
+          useChatStore.getState().addMessage({
+            id: Date.now().toString(),
+            role: 'assistant',
+            content: `✅ **${data.title}** 프레젠테이션이 생성되었습니다. (${data.slides.length}장)`,
+            timestamp: new Date().toISOString(),
+          });
+        } catch (e) {
+          console.warn('[PresentationTab] Failed to add chat message', e);
+        }
       }
 
       // 입력 초기화
@@ -201,11 +214,10 @@ export function PresentationTab() {
                   key={type.id}
                   onClick={() => setPresentationType(type.id)}
                   disabled={isGenerating}
-                  className={`flex items-center gap-3 p-2 rounded-lg border transition-colors text-left ${
-                    presentationType === type.id
-                      ? 'border-purple-500 bg-purple-50 text-purple-700'
-                      : 'border-gray-200 hover:border-purple-300 hover:bg-gray-50'
-                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  className={`flex items-center gap-3 p-2 rounded-lg border transition-colors text-left ${presentationType === type.id
+                    ? 'border-purple-500 bg-purple-50 text-purple-700'
+                    : 'border-gray-200 hover:border-purple-300 hover:bg-gray-50'
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   <span className="text-lg">{type.icon}</span>
                   <div className="flex-1 min-w-0">
@@ -231,11 +243,10 @@ export function PresentationTab() {
                   key={count}
                   onClick={() => setSlideCount(count)}
                   disabled={isGenerating}
-                  className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-                    slideCount === count
-                      ? 'bg-purple-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-colors ${slideCount === count
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   {count}장
                 </button>
@@ -256,18 +267,15 @@ export function PresentationTab() {
                     key={ratio.id}
                     onClick={() => handleAspectRatioSelect(ratio.id)}
                     disabled={isGenerating}
-                    className={`w-full flex items-center gap-3 p-2 rounded-lg border transition-colors text-left ${
-                      selectedAspectRatio === ratio.id
-                        ? 'border-purple-500 bg-purple-50 text-purple-700'
-                        : 'border-gray-200 hover:border-purple-300 hover:bg-gray-50'
-                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                    className={`w-full flex items-center gap-3 p-2 rounded-lg border transition-colors text-left ${selectedAspectRatio === ratio.id
+                      ? 'border-purple-500 bg-purple-50 text-purple-700'
+                      : 'border-gray-200 hover:border-purple-300 hover:bg-gray-50'
+                      } disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
-                    <div className={`w-8 h-8 rounded flex items-center justify-center ${
-                      selectedAspectRatio === ratio.id ? 'bg-purple-100' : 'bg-gray-100'
-                    }`}>
-                      <Icon className={`w-4 h-4 ${
-                        selectedAspectRatio === ratio.id ? 'text-purple-600' : 'text-gray-500'
-                      }`} />
+                    <div className={`w-8 h-8 rounded flex items-center justify-center ${selectedAspectRatio === ratio.id ? 'bg-purple-100' : 'bg-gray-100'
+                      }`}>
+                      <Icon className={`w-4 h-4 ${selectedAspectRatio === ratio.id ? 'text-purple-600' : 'text-gray-500'
+                        }`} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-medium">{ratio.name}</p>

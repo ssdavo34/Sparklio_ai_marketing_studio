@@ -205,7 +205,7 @@ export function createSlideElements(
     width: contentWidth,
     fontSize: 16,
     fill: colors.textLight,
-    text: 'Created with Sparklio AI',
+    text: 'Sparklio AI로 생성됨',
     fontFamily: fonts.body,
     align: 'left',
   });
@@ -358,7 +358,7 @@ function renderTwoColumnLayout(elements: CanvasElement[], slide: SlideData, star
       x: margin + colWidth + 80 + colWidth / 2,
       y: startY + 300,
       fontSize: 40,
-      text: 'Visual / Chart Area',
+      text: '비주얼 / 차트 영역',
       align: 'center',
       fill: colors.textLight,
     });

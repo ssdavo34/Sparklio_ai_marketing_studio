@@ -36,7 +36,7 @@ export function PagesTab() {
   const shortsData = useGeneratedAssetsStore((state) => state.shortsData);
 
   // Polotno Store (canvas 뷰용)
-  const zustandPolotnoStore = useCanvasStore((state) => state.polotnoStore);
+  const zustandPolotnoStore = useCanvasStore((state) => state.canvases.get(state.activeCanvasType) || null);
   const currentTemplate = useCanvasStore((state) => state.currentTemplate);
   const currentTheme = useCanvasStore((state) => state.currentTheme);
   const applyThemeToCanvas = useCanvasStore((state) => state.applyThemeToCanvas);

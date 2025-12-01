@@ -30,9 +30,14 @@ const nextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: 'http://127.0.0.1:8000/api/:path*',
+        destination: 'http://100.123.51.5:8000/api/:path*',
       },
     ]
+  },
+
+  // Proxy timeout 설정 (LLM 호출 등 긴 작업 지원)
+  experimental: {
+    proxyTimeout: 120000, // 2분
   },
 }
 

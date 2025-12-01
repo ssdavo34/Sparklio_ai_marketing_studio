@@ -98,11 +98,40 @@ export function createBrandIdentityCanvas(dna: BrandDNAFromAPI, pageWidth: numbe
 
   const margin = 60;
   const contentWidth = pageWidth - margin * 2;
-  let currentY = margin;
 
   // 브랜드 색상 추출
   const primaryColor = dna.suggested_brand_kit.primary_colors[0] || '#6366F1';
   const secondaryColor = dna.suggested_brand_kit.secondary_colors[0] || '#8B5CF6';
+
+  // 일정한 섹션 간 여백
+  const sectionGap = 50;
+
+  // ========================================
+  // 콘텐츠 높이 미리 계산 (수직 중앙 정렬용)
+  // ========================================
+  const titleHeight = 70;
+  const toneHeight = 50 + 80; // 제목 + 내용
+  const keyMsgCount = Math.min(dna.key_messages.length, 4);
+  const keyMsgHeight = 50 + keyMsgCount * 38;
+  const audienceHeight = 50 + 80;
+  const dosCount = Math.min(dna.dos.length, 5);
+  const dosBoxHeight = 80 + dosCount * 42;
+  const dontsCount = Math.min(dna.donts.length, 5);
+  const dontsBoxHeight = 80 + dontsCount * 42;
+  const colorsHeight = 50 + 130;
+  const footerHeight = 40;
+
+  const totalContentHeight = titleHeight + sectionGap
+    + toneHeight + sectionGap
+    + keyMsgHeight + sectionGap
+    + audienceHeight + sectionGap
+    + dosBoxHeight + sectionGap
+    + dontsBoxHeight + sectionGap
+    + colorsHeight + sectionGap
+    + footerHeight;
+
+  // 시작 Y 위치 (수직 중앙 정렬)
+  let currentY = Math.max(margin, (pageHeight - totalContentHeight) / 2);
 
   // 배경 그라디언트 (SVG 사용)
   elements.push({
@@ -120,14 +149,14 @@ export function createBrandIdentityCanvas(dna: BrandDNAFromAPI, pageWidth: numbe
     x: margin,
     y: currentY,
     width: contentWidth,
-    fontSize: 48,
+    fontSize: 52,
     fontWeight: 'bold',
     fill: primaryColor,
     text: 'Brand Identity Canvas',
     fontFamily: 'Pretendard',
     align: 'center',
   });
-  currentY += 80;
+  currentY += titleHeight + sectionGap;
 
   // ========================================
   // Tone & Manner 섹션
@@ -137,25 +166,26 @@ export function createBrandIdentityCanvas(dna: BrandDNAFromAPI, pageWidth: numbe
     x: margin,
     y: currentY,
     width: contentWidth,
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: 'bold',
     fill: '#1F2937',
     text: '🎨 Tone & Manner',
+    align: 'center',
   });
-  currentY += 45;
+  currentY += 50;
 
-  // tone은 string 타입 (BrandDNAOutputV1 기준)
   elements.push({
     type: 'text',
-    x: margin + 16,
+    x: margin + 20,
     y: currentY,
-    width: contentWidth - 32,
-    fontSize: 18,
+    width: contentWidth - 40,
+    fontSize: 20,
     fill: '#4B5563',
     text: dna.tone,
     lineHeight: 1.5,
+    align: 'center',
   });
-  currentY += 100;
+  currentY += 80 + sectionGap;
 
   // ========================================
   // Key Messages 섹션
@@ -165,27 +195,28 @@ export function createBrandIdentityCanvas(dna: BrandDNAFromAPI, pageWidth: numbe
     x: margin,
     y: currentY,
     width: contentWidth,
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: 'bold',
     fill: '#1F2937',
     text: '💬 Key Messages',
+    align: 'center',
   });
-  currentY += 45;
+  currentY += 50;
 
   dna.key_messages.slice(0, 4).forEach((msg, idx) => {
     elements.push({
       type: 'text',
-      x: margin + 16,
+      x: margin + 20,
       y: currentY,
-      width: contentWidth - 32,
-      fontSize: 16,
+      width: contentWidth - 40,
+      fontSize: 20,
       fill: '#374151',
       text: `${idx + 1}. ${msg}`,
       lineHeight: 1.4,
     });
-    currentY += 40;
+    currentY += 38;
   });
-  currentY += 30;
+  currentY += sectionGap;
 
   // ========================================
   // Target Audience 섹션
@@ -195,107 +226,106 @@ export function createBrandIdentityCanvas(dna: BrandDNAFromAPI, pageWidth: numbe
     x: margin,
     y: currentY,
     width: contentWidth,
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: 'bold',
     fill: '#1F2937',
     text: '👥 Target Audience',
+    align: 'center',
   });
-  currentY += 45;
+  currentY += 50;
 
-  // target_audience는 string 타입 (BrandDNAOutputV1 기준)
   elements.push({
     type: 'text',
-    x: margin + 16,
+    x: margin + 20,
     y: currentY,
-    width: contentWidth - 32,
-    fontSize: 18,
+    width: contentWidth - 40,
+    fontSize: 20,
     fill: '#374151',
     text: dna.target_audience,
     lineHeight: 1.5,
+    align: 'center',
   });
-  currentY += 100;
+  currentY += 80 + sectionGap;
 
   // ========================================
   // Do's 섹션
   // ========================================
-  // Do's 배경 박스
-  const dosBoxHeight = Math.max(180, dna.dos.length * 36 + 60);
+  const actualDosBoxHeight = 80 + dosCount * 42;
   elements.push({
     type: 'svg',
     x: margin,
     y: currentY,
     width: contentWidth,
-    height: dosBoxHeight,
-    src: createRoundedBoxSvg(contentWidth, dosBoxHeight, '#ECFDF5', 12, 1),
+    height: actualDosBoxHeight,
+    src: createRoundedBoxSvg(contentWidth, actualDosBoxHeight, '#ECFDF5', 16, 1),
   });
 
   elements.push({
     type: 'text',
-    x: margin + 20,
-    y: currentY + 20,
-    width: contentWidth - 40,
-    fontSize: 24,
+    x: margin + 24,
+    y: currentY + 22,
+    width: contentWidth - 48,
+    fontSize: 28,
     fontWeight: 'bold',
     fill: '#059669',
     text: '✅ Do\'s',
   });
 
-  let doY = currentY + 55;
+  let doY = currentY + 60;
   dna.dos.slice(0, 5).forEach((item) => {
     elements.push({
       type: 'text',
-      x: margin + 24,
+      x: margin + 28,
       y: doY,
-      width: contentWidth - 48,
-      fontSize: 15,
+      width: contentWidth - 56,
+      fontSize: 20,
       fill: '#047857',
       text: `• ${item}`,
       lineHeight: 1.3,
     });
-    doY += 34;
+    doY += 42;
   });
-  currentY += dosBoxHeight + 20;
+  currentY += actualDosBoxHeight + sectionGap;
 
   // ========================================
   // Don'ts 섹션
   // ========================================
-  // Don'ts 배경 박스
-  const dontsBoxHeight = Math.max(180, dna.donts.length * 36 + 60);
+  const actualDontsBoxHeight = 80 + dontsCount * 42;
   elements.push({
     type: 'svg',
     x: margin,
     y: currentY,
     width: contentWidth,
-    height: dontsBoxHeight,
-    src: createRoundedBoxSvg(contentWidth, dontsBoxHeight, '#FEF2F2', 12, 1),
+    height: actualDontsBoxHeight,
+    src: createRoundedBoxSvg(contentWidth, actualDontsBoxHeight, '#FEF2F2', 16, 1),
   });
 
   elements.push({
     type: 'text',
-    x: margin + 20,
-    y: currentY + 20,
-    width: contentWidth - 40,
-    fontSize: 24,
+    x: margin + 24,
+    y: currentY + 22,
+    width: contentWidth - 48,
+    fontSize: 28,
     fontWeight: 'bold',
     fill: '#DC2626',
     text: '❌ Don\'ts',
   });
 
-  let dontY = currentY + 55;
+  let dontY = currentY + 60;
   dna.donts.slice(0, 5).forEach((item) => {
     elements.push({
       type: 'text',
-      x: margin + 24,
+      x: margin + 28,
       y: dontY,
-      width: contentWidth - 48,
-      fontSize: 15,
+      width: contentWidth - 56,
+      fontSize: 20,
       fill: '#B91C1C',
       text: `• ${item}`,
       lineHeight: 1.3,
     });
-    dontY += 34;
+    dontY += 42;
   });
-  currentY += dontsBoxHeight + 40;
+  currentY += actualDontsBoxHeight + sectionGap;
 
   // ========================================
   // Brand Colors 섹션
@@ -305,10 +335,11 @@ export function createBrandIdentityCanvas(dna: BrandDNAFromAPI, pageWidth: numbe
     x: margin,
     y: currentY,
     width: contentWidth,
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: 'bold',
     fill: '#1F2937',
     text: '🎨 Brand Colors',
+    align: 'center',
   });
   currentY += 50;
 
@@ -318,9 +349,9 @@ export function createBrandIdentityCanvas(dna: BrandDNAFromAPI, pageWidth: numbe
     ...dna.suggested_brand_kit.secondary_colors,
   ];
   const colorCount = allColors.length;
-  const colorGap = 16;
-  const maxColorBoxSize = 100;
-  const availableWidth = contentWidth - 32;
+  const colorGap = 20;
+  const maxColorBoxSize = 90;
+  const availableWidth = contentWidth - 40;
   const colorBoxSize = Math.min(maxColorBoxSize, (availableWidth - (colorCount - 1) * colorGap) / colorCount);
 
   // 색상 박스들을 가운데 정렬
@@ -328,37 +359,40 @@ export function createBrandIdentityCanvas(dna: BrandDNAFromAPI, pageWidth: numbe
   let colorX = margin + (contentWidth - totalColorWidth) / 2;
 
   // Primary Colors 라벨
+  const primaryCount = dna.suggested_brand_kit.primary_colors.length;
+  const primaryWidth = primaryCount * colorBoxSize + (primaryCount - 1) * colorGap;
+  const primaryStartX = colorX;
+
   elements.push({
     type: 'text',
-    x: margin + 16,
+    x: primaryStartX,
     y: currentY,
-    width: contentWidth - 32,
+    width: primaryWidth,
     fontSize: 14,
     fontWeight: 'bold',
     fill: '#6B7280',
     text: 'PRIMARY',
+    align: 'center',
   });
-  currentY += 25;
+  currentY += 28;
 
   // Primary Colors
   let primaryColorX = colorX;
   dna.suggested_brand_kit.primary_colors.forEach((color) => {
-    // 색상 박스 (SVG 사용)
     elements.push({
       type: 'svg',
       x: primaryColorX,
       y: currentY,
       width: colorBoxSize,
       height: colorBoxSize,
-      src: createColorBoxSvg(colorBoxSize, colorBoxSize, color, 10),
+      src: createColorBoxSvg(colorBoxSize, colorBoxSize, color, 12),
     });
-    // 색상 코드
     elements.push({
       type: 'text',
       x: primaryColorX,
-      y: currentY + colorBoxSize + 8,
+      y: currentY + colorBoxSize + 10,
       width: colorBoxSize,
-      fontSize: 11,
+      fontSize: 13,
       fill: '#6B7280',
       text: color,
       align: 'center',
@@ -368,35 +402,36 @@ export function createBrandIdentityCanvas(dna: BrandDNAFromAPI, pageWidth: numbe
 
   // Secondary Colors 라벨 및 박스 (Primary 옆에)
   if (dna.suggested_brand_kit.secondary_colors.length > 0) {
-    // Secondary 라벨
+    const secondaryCount = dna.suggested_brand_kit.secondary_colors.length;
+    const secondaryWidth = secondaryCount * colorBoxSize + (secondaryCount - 1) * colorGap;
+
     elements.push({
       type: 'text',
-      x: primaryColorX + 10,
-      y: currentY - 25,
-      width: 100,
+      x: primaryColorX,
+      y: currentY - 28,
+      width: secondaryWidth,
       fontSize: 14,
       fontWeight: 'bold',
       fill: '#6B7280',
       text: 'SECONDARY',
+      align: 'center',
     });
 
     dna.suggested_brand_kit.secondary_colors.forEach((color) => {
-      // 색상 박스 (SVG 사용)
       elements.push({
         type: 'svg',
         x: primaryColorX,
         y: currentY,
         width: colorBoxSize,
         height: colorBoxSize,
-        src: createColorBoxSvg(colorBoxSize, colorBoxSize, color, 10),
+        src: createColorBoxSvg(colorBoxSize, colorBoxSize, color, 12),
       });
-      // 색상 코드
       elements.push({
         type: 'text',
         x: primaryColorX,
-        y: currentY + colorBoxSize + 8,
+        y: currentY + colorBoxSize + 10,
         width: colorBoxSize,
-        fontSize: 11,
+        fontSize: 13,
         fill: '#6B7280',
         text: color,
         align: 'center',
@@ -405,7 +440,7 @@ export function createBrandIdentityCanvas(dna: BrandDNAFromAPI, pageWidth: numbe
     });
   }
 
-  currentY += colorBoxSize + 60;
+  currentY += colorBoxSize + sectionGap;
 
   // ========================================
   // Footer - Confidence Score
@@ -413,7 +448,7 @@ export function createBrandIdentityCanvas(dna: BrandDNAFromAPI, pageWidth: numbe
   elements.push({
     type: 'text',
     x: margin,
-    y: pageHeight - margin - 30,
+    y: currentY,
     width: contentWidth,
     fontSize: 14,
     fill: '#9CA3AF',

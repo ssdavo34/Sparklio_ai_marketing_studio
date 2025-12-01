@@ -87,7 +87,7 @@ export function MeetingTab() {
   const [pollingMeetings, setPollingMeetings] = useState<Set<string>>(new Set());
   const [selectedForDelete, setSelectedForDelete] = useState<Set<string>>(new Set());
   const [isSelectMode, setIsSelectMode] = useState(false);
-  const polotnoStore = useCanvasStore((state) => state.polotnoStore);
+  const polotnoStore = useCanvasStore((state) => state.canvases.get(state.activeCanvasType) || null);
   const setGlobalAnalysis = useMeetingStore((state) => state.setAnalysisResult);
   const setBrief = useBriefStore((state) => state.setBrief);
 
