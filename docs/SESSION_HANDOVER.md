@@ -7,7 +7,7 @@
 ## 현재 상태
 
 - **브랜치**: `feature/editor-migration-polotno`
-- **최신 커밋**: `4602781` - Canvas Size Preset UI (SNS, Presentation, Video)
+- **최신 커밋**: `fe9acea` - BrandKit 캔버스 크기 및 Colors UI 개선
 - **Mac Mini 배포**: ❌ 미배포 (새 커밋 있음)
 - **서버 상태**: ✅ healthy
 
@@ -15,23 +15,34 @@
 
 ## 오늘 완료한 작업 (2025-12-01)
 
+### C팀 - BrandKit 캔버스 및 Colors UI 개선 (fe9acea)
+
+**세 가지 문제 수정:**
+
+1. **캔버스 크기 문제 수정**
+   - Brand Kit에서 "Canvas로 보내기" 시 정사각형 캔버스가 생성되던 문제 해결
+   - `currentTemplate` 대신 `CANVAS_CONFIGS[activeCanvasType]` 사용
+   - brand-dna 캔버스 기본 크기 1080x1920 (세로) 유지
+
+2. **Brand Colors UI 개선**
+   - Brand DNA에서 추출된 색상을 시각적으로 표시 (컬러 박스 + 코드)
+   - Primary/Secondary/Accent Colors 구분 표시
+   - 색상 클릭 시 클립보드 복사 기능 추가
+
+3. **분석 이력-문서 연결 (Frontend 로컬)**
+   - 분석 시 사용된 문서 ID/이름을 로컬 저장
+   - 이력 드롭다운에 분석에 사용된 문서 표시
+   - 선택된 문서에 해당하는 이력만 필터링
+
+---
+
 ### C팀 - Canvas Size Preset UI (4602781)
 
 **SNS, Presentation, Video 탭에 캔버스 크기 프리셋 UI 추가:**
 
 1. **SNSTab**: 플랫폼별 크기 템플릿 선택 시 캔버스 자동 변경
-   - Instagram, Facebook, Twitter, LinkedIn, YouTube 템플릿
-   - 사용자 정의 크기 입력 지원
-
-2. **PresentationTab**: 슬라이드 비율 선택 UI
-   - 16:9 와이드 (1920×1080)
-   - 4:3 표준 (1024×768)
-   - 9:16 세로 (모바일)
-
-3. **VideoTab**: 영상 비율 선택 UI
-   - 9:16 세로 (쇼츠, 릴스)
-   - 16:9 가로 (YouTube)
-   - 1:1 정사각 (Instagram)
+2. **PresentationTab**: 슬라이드 비율 선택 UI (16:9, 4:3, 9:16)
+3. **VideoTab**: 영상 비율 선택 UI (9:16, 16:9, 1:1)
 
 ---
 
@@ -105,7 +116,7 @@
 
 | 이슈 | 상태 | 비고 |
 |------|------|------|
-| Brand DNA 이력-문서 연결 | 🔴 미구현 | Phase 2에서 구현 |
+| Brand DNA 이력-문서 연결 | ✅ Frontend 로컬 구현 | Backend Phase 2에서 완전 지원 |
 | Multi-Canvas Mac Mini 배포 | ❌ 미배포 | git pull 필요 |
 | Alembic multiple heads | ⚠️ 존재 | `demo_20251126`과 `2025_11_30_project_outputs` 두 head |
 | Video6 In-Memory Storage | ⚠️ MVP | 추후 DB로 이관 필요 |
@@ -121,7 +132,7 @@
 
 ### P1 (High)
 4. ~~**SNS 크기 프리셋 UI**~~ ✅ 완료
-5. **문서-분석 이력 연결**: BrandKitTab UI 개선
+5. ~~**문서-분석 이력 연결**~~ ✅ Frontend 로컬 구현 완료 (fe9acea)
 
 ### P2 (Medium)
 6. **Video Pipeline V2 E2E 테스트**
