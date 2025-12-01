@@ -7,13 +7,33 @@
 ## 현재 상태
 
 - **브랜치**: `feature/editor-migration-polotno`
-- **최신 커밋**: `5f5572e` - Multi-Canvas Architecture Phase 1
+- **최신 커밋**: `4602781` - Canvas Size Preset UI (SNS, Presentation, Video)
 - **Mac Mini 배포**: ❌ 미배포 (새 커밋 있음)
 - **서버 상태**: ✅ healthy
 
 ---
 
 ## 오늘 완료한 작업 (2025-12-01)
+
+### C팀 - Canvas Size Preset UI (4602781)
+
+**SNS, Presentation, Video 탭에 캔버스 크기 프리셋 UI 추가:**
+
+1. **SNSTab**: 플랫폼별 크기 템플릿 선택 시 캔버스 자동 변경
+   - Instagram, Facebook, Twitter, LinkedIn, YouTube 템플릿
+   - 사용자 정의 크기 입력 지원
+
+2. **PresentationTab**: 슬라이드 비율 선택 UI
+   - 16:9 와이드 (1920×1080)
+   - 4:3 표준 (1024×768)
+   - 9:16 세로 (모바일)
+
+3. **VideoTab**: 영상 비율 선택 UI
+   - 9:16 세로 (쇼츠, 릴스)
+   - 16:9 가로 (YouTube)
+   - 1:1 정사각 (Instagram)
+
+---
 
 ### C팀 - Multi-Canvas Architecture Phase 1 (5f5572e)
 
@@ -74,8 +94,8 @@
    - 선택된 문서에 해당하는 분석 이력만 표시
    - 이력에 분석 문서 이름 표시
 
-2. **SNS/Presentation 크기 프리셋 UI** (P1)
-   - 캔버스 크기 선택 드롭다운 추가
+2. ~~**SNS/Presentation 크기 프리셋 UI** (P1)~~ ✅ 완료 (4602781)
+   - SNS, Presentation, Video 탭에 프리셋 UI 추가됨
 
 **관련 설계 문서:** `docs/ARCHITECTURE_REDESIGN_PLAN.md`
 
@@ -100,7 +120,7 @@
 3. **Backend Phase 2**: document_ids, project_id 추가
 
 ### P1 (High)
-4. **SNS 크기 프리셋 UI**: 플랫폼별 크기 선택 드롭다운
+4. ~~**SNS 크기 프리셋 UI**~~ ✅ 완료
 5. **문서-분석 이력 연결**: BrandKitTab UI 개선
 
 ### P2 (Medium)
