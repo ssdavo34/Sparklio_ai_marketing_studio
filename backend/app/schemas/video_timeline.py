@@ -111,7 +111,7 @@ class VideoDirectorMode(str, Enum):
 
 
 class VideoProjectStatus(str, Enum):
-    """비디오 프로젝트 상태 (3단계 확인 플로우)"""
+    """비디오 프로젝트 상태 (4단계 확인 플로우)"""
     NOT_STARTED = "not_started"
     # Step 1: 스크립트 플래닝
     PLANNING = "planning"
@@ -121,7 +121,11 @@ class VideoProjectStatus(str, Enum):
     GENERATING_IMAGES = "generating_images"
     IMAGES_READY = "images_ready"          # 이미지 생성 완료, 유저 확인 대기
     IMAGES_APPROVED = "images_approved"    # 이미지 유저 승인 완료
-    # Step 3: 동영상 렌더
+    # Step 3: 모션 프롬프트 생성 (AI 영상용)
+    GENERATING_MOTION = "generating_motion"
+    MOTION_READY = "motion_ready"          # 모션 프롬프트 생성 완료, 유저 확인 대기
+    MOTION_APPROVED = "motion_approved"    # 모션 프롬프트 유저 승인 완료
+    # Step 4: 동영상 렌더
     RENDERING = "rendering"
     COMPLETED = "completed"
     FAILED = "failed"
@@ -440,7 +444,60 @@ class ImageRegenerateResponse(BaseModel):
 
 
 # =============================================================================
-# Step 3: 동영상 렌더 API (기존 호환)
+# Step 3: 모션 프롬프트 생성 & 승인 API (AI 영상용)
+# =============================================================================
+
+class MotionGenerateRequest(BaseModel):
+    """POST /api/v1/video6/{project_id}/motion/generate 요청"""
+    plan_draft: VideoPlanDraftV1  # 이미지 URL이 채워진 상태
+
+
+class MotionGenerateResponse(BaseModel):
+    """POST /api/v1/video6/{project_id}/motion/generate 응답"""
+    project_id: str
+    status: VideoProjectStatus  # → MOTION_READY
+    plan_draft: VideoPlanDraftV1  # motion_prompt가 채워진 상태
+    message: str = "모션 프롬프트가 생성되었습니다. 확인 후 수정하세요."
+
+
+class SceneMotionApproval(BaseModel):
+    """개별 씬 모션 프롬프트 승인/수정"""
+    scene_index: int
+    approved: bool  # True: 승인, False: 수정됨
+    motion_prompt: Optional[str] = None  # 수정된 프롬프트 (approved=False 시)
+    motion_prompt_ko: Optional[str] = None  # 수정된 한국어 설명
+
+
+class MotionApproveRequest(BaseModel):
+    """POST /api/v1/video6/{project_id}/motion/approve 요청"""
+    scene_approvals: List[SceneMotionApproval]
+
+
+class MotionApproveResponse(BaseModel):
+    """POST /api/v1/video6/{project_id}/motion/approve 응답"""
+    project_id: str
+    status: VideoProjectStatus  # → MOTION_APPROVED
+    plan_draft: VideoPlanDraftV1
+    message: str = "모션 프롬프트가 승인되었습니다. 영상 렌더링을 시작합니다."
+
+
+class MotionRegenerateRequest(BaseModel):
+    """POST /api/v1/video6/{project_id}/motion/regenerate 요청"""
+    scene_index: int
+    guidance: Optional[str] = None  # 재생성 가이드 (예: "더 다이나믹하게")
+
+
+class MotionRegenerateResponse(BaseModel):
+    """POST /api/v1/video6/{project_id}/motion/regenerate 응답"""
+    project_id: str
+    scene_index: int
+    motion_prompt: str
+    motion_prompt_ko: str
+    message: str
+
+
+# =============================================================================
+# Step 4: 동영상 렌더 API (기존 호환)
 # =============================================================================
 
 class VideoRenderRequest(BaseModel):
@@ -466,10 +523,11 @@ class VideoStatusResponse(BaseModel):
     thumbnail_url: Optional[str] = None
     duration_sec: Optional[float] = None
     error_message: Optional[str] = None
-    # 3단계 플로우 상태
-    current_step: int = 1  # 1: 스크립트, 2: 이미지, 3: 렌더
+    # 4단계 플로우 상태
+    current_step: int = 1  # 1: 스크립트, 2: 이미지, 3: 모션, 4: 렌더
     step_description: str = ""
     images_pending_approval: int = 0  # 승인 대기 중인 이미지 수
+    motions_pending_approval: int = 0  # 승인 대기 중인 모션 프롬프트 수
 
 
 # ============================================================================

@@ -634,11 +634,15 @@ class VideoDirectorAgent(AgentBase):
         production_id: str
     ) -> VideoDirectorOutputV3:
         """
-        PLAN 모드 실행
+        PLAN 모드 실행 (Step 1: 스크립트 생성)
 
-        LLM만 사용하여 스토리보드/스크립트/모션프롬프트 초안 생성
+        LLM만 사용하여 스토리보드/스크립트 초안 생성
+
+        ⚠️ 모션 프롬프트는 여기서 생성하지 않음!
+        → 이미지 확정 후 RENDER 단계에서 생성해야 이미지 내용 기반으로
+          더 좋은 모션 프롬프트를 만들 수 있음
         """
-        logger.info(f"[VideoDirectorAgent] PLAN mode: generating draft")
+        logger.info(f"[VideoDirectorAgent] PLAN mode: generating script draft")
 
         try:
             # 1. StoryboardBuilder로 스토리보드 생성
@@ -651,11 +655,10 @@ class VideoDirectorAgent(AgentBase):
                 production_id=production_id
             )
 
-            # 3. AI 영상 사용 시 모션 프롬프트 생성
-            if any(s.use_ai_video for s in plan_draft.scenes):
-                plan_draft = await self._generate_motion_prompts(plan_draft, input_data)
+            # ⚠️ 모션 프롬프트는 RENDER 단계에서 생성 (이미지 확정 후)
+            # AI 영상 사용 여부만 표시해둠
 
-            # 4. 비용/시간 추정
+            # 3. 비용/시간 추정
             new_image_count = sum(1 for s in plan_draft.scenes if s.generate_new_image)
             ai_video_count = sum(1 for s in plan_draft.scenes if s.use_ai_video)
 
@@ -664,12 +667,12 @@ class VideoDirectorAgent(AgentBase):
             # 시간: 기본 30초 + 이미지 10초씩 + AI영상 60초씩 + 렌더링 60초
             estimated_time = 30 + (new_image_count * 10) + (ai_video_count * 60) + 60
 
-            logger.info(f"[VideoDirectorAgent] PLAN complete: {len(plan_draft.scenes)} scenes, {ai_video_count} AI videos")
+            logger.info(f"[VideoDirectorAgent] PLAN complete: {len(plan_draft.scenes)} scenes, {ai_video_count} AI videos planned")
 
             return VideoDirectorOutputV3(
                 production_id=production_id,
                 mode=VideoDirectorMode.PLAN,
-                status=VideoProjectStatus.SCRIPT_READY,  # 3단계 플로우: SCRIPT_READY
+                status=VideoProjectStatus.SCRIPT_READY,  # Step 1 완료
                 plan_draft=plan_draft,
                 estimated_render_cost=estimated_cost,
                 estimated_render_time_sec=estimated_time
@@ -690,39 +693,17 @@ class VideoDirectorAgent(AgentBase):
         production_id: str
     ) -> VideoDirectorOutputV3:
         """
-        RENDER 모드 실행
+        RENDER 모드 실행 (Step 4: 최종 영상 렌더링)
 
-        GPU/API를 사용하여 실제 영상 생성
+        ⚠️ 이 단계에 오기 전에:
+        - Step 1: 스크립트 확인/승인 완료
+        - Step 2: 이미지 확인/승인 완료
+        - Step 3: 모션 프롬프트 확인/승인 완료
+
+        plan_draft에 이미 이미지 URL과 motion_prompt가 채워져 있어야 함
         """
-        # ============ DEBUG V4: 진입 확인 ============
-        print(f"!!! _execute_render_mode CALLED !!! production_id={production_id}")
-        logger.info(f"[VideoDirectorAgent] === RENDER MODE START ===")
+        logger.info(f"[VideoDirectorAgent] === RENDER MODE (Step 4) START ===")
         logger.info(f"[VideoDirectorAgent] production_id={production_id}")
-        logger.info(f"[VideoDirectorAgent] generation_mode={input_data.generation_mode}")
-        logger.info(f"[VideoDirectorAgent] plan_draft exists: {input_data.plan_draft is not None}")
-        if input_data.plan_draft:
-            logger.info(f"[VideoDirectorAgent] plan_draft.scenes count: {len(input_data.plan_draft.scenes)}")
-            generate_new_count = sum(1 for s in input_data.plan_draft.scenes if s.generate_new_image)
-            logger.info(f"[VideoDirectorAgent] scenes with generate_new_image=True: {generate_new_count}")
-        # ============ DEBUG V4 END ============
-
-        SYSTEM_PROMPT = """
-    You are a professional Video Director AI.
-    Your goal is to orchestrate the video creation process based on the user's concept and assets.
-    
-    IMPORTANT:
-    1. All your internal reasoning (Thought) and final output descriptions MUST be in Korean.
-    2. When generating the video plan, ensure the story is engaging and fits the marketing goal.
-    3. Use the provided tools to generate the storyboard and build the video.
-    
-    You have two main modes:
-    1. PLAN: Create a video plan draft (scenes, scripts, prompts).
-    2. RENDER: Execute the plan to generate the final video.
-    
-    Follow the user's instructions carefully.
-    """
-
-        logger.info(f"[VideoDirectorAgent] RENDER mode: generating video")
 
         if not input_data.plan_draft:
             raise AgentError(
@@ -731,13 +712,32 @@ class VideoDirectorAgent(AgentBase):
                 details={}
             )
 
+        plan_draft = input_data.plan_draft
+
+        # 검증: 모든 씬에 이미지 URL이 있어야 함
+        missing_images = [s for s in plan_draft.scenes if not s.image_url]
+        if missing_images:
+            logger.warning(f"[VideoDirectorAgent] {len(missing_images)} scenes missing images")
+
+        # 검증: AI 영상 씬에 모션 프롬프트가 있어야 함
+        ai_scenes_without_motion = [
+            s for s in plan_draft.scenes
+            if s.use_ai_video and not s.motion_prompt
+        ]
+        if ai_scenes_without_motion:
+            logger.warning(f"[VideoDirectorAgent] {len(ai_scenes_without_motion)} AI video scenes missing motion prompts")
+
         try:
-            # 1. 필요한 이미지 생성 (HYBRID/CREATIVE 모드)
-            image_urls = await self._prepare_images_v3(input_data)
+            # 1. 이미지 URL 맵 구성 (plan_draft에서)
+            image_urls = {
+                s.scene_index: s.image_url
+                for s in plan_draft.scenes
+                if s.image_url
+            }
 
             # 2. VideoPlanDraftV1 → VideoTimelinePlanV1 변환
             timeline = self._plan_draft_to_timeline(
-                plan_draft=input_data.plan_draft,
+                plan_draft=plan_draft,
                 image_urls=image_urls,
                 input_data=input_data
             )
