@@ -183,9 +183,13 @@ export function createSlideElements(
   });
   currentY += 60;
 
-  // 레이아웃별 콘텐츠 배치
-  if (layout === 'two_column') {
+  // V2 레이아웃별 콘텐츠 배치 (5종 템플릿)
+  if (layout === 'title_center') {
+    renderTitleCenterLayout(elements, slide, currentY, contentWidth, margin, colors, fonts);
+  } else if (layout === 'two_column') {
     renderTwoColumnLayout(elements, slide, currentY, contentWidth, margin, colors, fonts);
+  } else if (layout === 'three_bullets') {
+    renderThreeBulletsLayout(elements, slide, currentY, contentWidth, margin, colors, fonts);
   } else if (layout === 'full_image') {
     renderFullImageLayout(elements, slide, currentY, contentWidth, margin, colors, fonts);
   } else if (layout === 'stats') {
@@ -193,8 +197,8 @@ export function createSlideElements(
   } else if (layout === 'process') {
     renderProcessLayout(elements, slide, currentY, contentWidth, margin, colors, fonts);
   } else {
-    // Standard Layout (Default)
-    renderStandardLayout(elements, slide, currentY, contentWidth, margin, colors, fonts);
+    // Standard Layout (Default) - two_column fallback
+    renderTwoColumnLayout(elements, slide, currentY, contentWidth, margin, colors, fonts);
   }
 
   // 하단 푸터
@@ -214,8 +218,93 @@ export function createSlideElements(
 }
 
 // ============================================================================
-// Layout Renderers
+// Layout Renderers (V2 - 5종 템플릿)
 // ============================================================================
+
+/**
+ * V2: title_center - 표지/CTA용 중앙 정렬 레이아웃
+ */
+function renderTitleCenterLayout(elements: CanvasElement[], slide: SlideData, _startY: number, contentWidth: number, margin: number, colors: any, fonts: any) {
+  const centerY = PAGE_CONFIG.height / 2;
+
+  // 중앙 정렬 - 제목은 이미 위에서 렌더링됨, 여기선 추가 콘텐츠만
+  if (slide.bullets && slide.bullets.length > 0) {
+    slide.bullets.forEach((bullet, idx) => {
+      elements.push({
+        type: 'text',
+        x: margin,
+        y: centerY + 50 + idx * 50,
+        width: contentWidth,
+        fontSize: 28,
+        fill: colors.textLight,
+        text: bullet,
+        fontFamily: fonts.body,
+        align: 'center',
+      });
+    });
+  }
+}
+
+/**
+ * V2: three_bullets - 3개 컬럼 핵심 포인트 레이아웃
+ */
+function renderThreeBulletsLayout(elements: CanvasElement[], slide: SlideData, startY: number, contentWidth: number, margin: number, colors: any, fonts: any) {
+  const colWidth = (contentWidth - 60) / 3;
+
+  if (slide.bullets && slide.bullets.length > 0) {
+    slide.bullets.slice(0, 3).forEach((bullet, idx) => {
+      const x = margin + (colWidth + 30) * idx;
+
+      // Card Box
+      elements.push({
+        type: 'rect',
+        x: x,
+        y: startY,
+        width: colWidth,
+        height: 400,
+        fill: colors.accent,
+        cornerRadius: 16,
+      });
+
+      // 아이콘 영역 (숫자로 대체)
+      elements.push({
+        type: 'rect',
+        x: x + colWidth / 2 - 40,
+        y: startY + 40,
+        width: 80,
+        height: 80,
+        fill: colors.primary,
+        cornerRadius: 40,
+      });
+
+      elements.push({
+        type: 'text',
+        x: x + colWidth / 2,
+        y: startY + 60,
+        fontSize: 36,
+        fontWeight: 'bold',
+        fill: '#FFFFFF',
+        text: `${idx + 1}`,
+        align: 'center',
+        fontFamily: fonts.body,
+      });
+
+      // 불릿 텍스트
+      elements.push({
+        type: 'text',
+        x: x + 20,
+        y: startY + 160,
+        width: colWidth - 40,
+        fontSize: 24,
+        fill: colors.text,
+        text: bullet,
+        fontFamily: fonts.body,
+        align: 'center',
+        lineHeight: 1.4,
+      });
+    });
+  }
+}
 
 function renderStandardLayout(elements: CanvasElement[], slide: SlideData, startY: number, contentWidth: number, margin: number, colors: any, fonts: any) {
   let currentY = startY;
@@ -365,7 +454,7 @@ function renderTwoColumnLayout(elements: CanvasElement[], slide: SlideData, star
   }
 }
 
-function renderFullImageLayout(elements: CanvasElement[], slide: SlideData, startY: number, contentWidth: number, margin: number, colors: any, fonts: any) {
+function renderFullImageLayout(elements: CanvasElement[], slide: SlideData, _startY: number, contentWidth: number, _margin: number, colors: any, fonts: any) {
   // 전체 배경 이미지 처리
   const imageUrl = slide.background_image_url;
   if (imageUrl) {

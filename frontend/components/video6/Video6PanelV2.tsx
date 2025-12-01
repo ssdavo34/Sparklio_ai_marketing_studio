@@ -600,22 +600,35 @@ export function Video6PanelV2({ onClose, className = '', projectId: initialProje
     canvas.height = 1080;
     const ctx = canvas.getContext('2d')!;
 
-    // 3. AudioContext 설정 (TTS + BGM 믹싱용)
-    const audioContext = new AudioContext();
-    const audioDestination = audioContext.createMediaStreamDestination();
-
-    // 4. MediaRecorder로 비디오 녹화 (비디오 + 오디오)
+    // 3. MediaRecorder로 비디오 녹화 (비디오만, 오디오는 추후 추가)
     const videoStream = canvas.captureStream(30);
 
-    // 오디오 트랙 추가
-    const audioTracks = audioDestination.stream.getAudioTracks();
-    audioTracks.forEach(track => videoStream.addTrack(track));
+    // 지원되는 mimeType 찾기
+    const mimeTypes = [
+      'video/webm;codecs=vp9',
+      'video/webm;codecs=vp8',
+      'video/webm',
+      'video/mp4',
+    ];
+    let selectedMimeType = 'video/webm';
+    for (const mimeType of mimeTypes) {
+      if (MediaRecorder.isTypeSupported(mimeType)) {
+        selectedMimeType = mimeType;
+        console.log(`[Video6PanelV2] Using mimeType: ${mimeType}`);
+        break;
+      }
+    }
 
-    const mediaRecorder = new MediaRecorder(videoStream, {
-      mimeType: 'video/webm;codecs=vp9,opus',
-      videoBitsPerSecond: 5000000,
-      audioBitsPerSecond: 128000,
-    });
+    let mediaRecorder: MediaRecorder;
+    try {
+      mediaRecorder = new MediaRecorder(videoStream, {
+        mimeType: selectedMimeType,
+        videoBitsPerSecond: 5000000,
+      });
+    } catch (e) {
+      console.warn('[Video6PanelV2] MediaRecorder with options failed, using default');
+      mediaRecorder = new MediaRecorder(videoStream);
+    }
 
     const chunks: Blob[] = [];
     mediaRecorder.ondataavailable = (e) => {
@@ -626,18 +639,18 @@ export function Video6PanelV2({ onClose, className = '', projectId: initialProje
 
     return new Promise((resolve, reject) => {
       mediaRecorder.onstop = () => {
-        const blob = new Blob(chunks, { type: 'video/webm' });
+        const blob = new Blob(chunks, { type: selectedMimeType });
         const url = URL.createObjectURL(blob);
-        console.log('[Video6PanelV2] Render complete, blob size:', blob.size);
-        audioContext.close();
+        console.log('[Video6PanelV2] Render complete, blob size:', blob.size, 'bytes');
         resolve(url);
       };
 
-      mediaRecorder.onerror = (e) => {
-        audioContext.close();
-        reject(e);
+      mediaRecorder.onerror = (e: Event) => {
+        console.error('[Video6PanelV2] MediaRecorder error:', e);
+        reject(new Error('MediaRecorder error'));
       };
 
+      console.log('[Video6PanelV2] Starting MediaRecorder...');
       mediaRecorder.start(100); // 100ms 간격으로 데이터 수집
 
       // Ken Burns 효과 적용하여 이미지 그리기

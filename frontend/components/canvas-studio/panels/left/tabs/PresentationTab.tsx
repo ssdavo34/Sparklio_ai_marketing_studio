@@ -21,6 +21,8 @@ import { useCanvasStore } from '../../../stores/useCanvasStore';
 import { useChatStore } from '../../../stores/useChatStore';
 import { CANVAS_CONFIGS, type CanvasPreset } from '../../../stores/types';
 import { toast } from '@/components/ui/Toast';
+import { addSlidesToCanvas } from '@/lib/canvas/slidesTemplate';
+import { getPolotnoStore } from '../../../polotno/polotnoStoreSingleton';
 
 // 프리젠테이션 타입
 type PresentationType = 'pitch' | 'sales' | 'internal' | 'investor' | 'vision';
@@ -51,12 +53,13 @@ export function PresentationTab() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { openSlidesPreview } = useCenterViewStore();
+  const { openSlidesPreview, setView } = useCenterViewStore();
   const conceptBoardData = useGeneratedAssetsStore((state) => state.conceptBoardData);
 
   // Canvas Store
   const resizeCanvas = useCanvasStore((state) => state.resizeCanvas);
   const getActiveCanvas = useCanvasStore((state) => state.getActiveCanvas);
+  const setActiveCanvasType = useCanvasStore((state) => state.setActiveCanvasType);
 
   /**
    * 캔버스 크기 적용
@@ -121,7 +124,7 @@ export function PresentationTab() {
       const data = await response.json();
       console.log('[PresentationTab] Generated presentation:', data);
 
-      // SlidesPreviewView 열기
+      // V2: 바로 Polotno Canvas에 슬라이드 추가
       if (data.slides && data.slides.length > 0) {
         // CenterViewStore에 슬라이드 데이터 설정
         useCenterViewStore.getState().setPresentationData({
@@ -132,23 +135,60 @@ export function PresentationTab() {
           created_at: new Date().toISOString(),
           slides: data.slides,
           style: {
-            primary_color: '#6366F1',
-            secondary_color: '#8B5CF6',
-            font_family: 'Pretendard',
+            primary_color: data.design_guidelines?.primary_color || '#6366F1',
+            secondary_color: data.design_guidelines?.secondary_color || '#8B5CF6',
+            font_family: data.design_guidelines?.font_style || 'Pretendard',
             theme: presentationType,
           },
           export_formats: ['pdf', 'pptx'],
           download_url: '',
         });
 
-        openSlidesPreview('generated', data.id || `pres-${Date.now()}`);
+        // V2: Polotno Store에 슬라이드 바로 추가 (Canvas 뷰로 전환)
+        try {
+          const polotnoStore = getPolotnoStore();
+          if (polotnoStore) {
+            // 캔버스 타입을 presentation으로 변경
+            setActiveCanvasType('presentation');
+
+            // 기존 페이지 모두 제거 (첫 페이지 제외)
+            while (polotnoStore.pages.length > 1) {
+              polotnoStore.pages[polotnoStore.pages.length - 1].remove();
+            }
+            // 첫 페이지도 제거
+            if (polotnoStore.pages.length === 1) {
+              polotnoStore.pages[0].remove();
+            }
+
+            // 슬라이드 데이터를 Polotno 형식으로 변환하여 추가
+            const theme = {
+              primaryColor: data.design_guidelines?.primary_color || '#6366F1',
+              secondaryColor: data.design_guidelines?.secondary_color || '#8B5CF6',
+              fontFamily: data.design_guidelines?.font_style || 'Pretendard',
+            };
+
+            addSlidesToCanvas(polotnoStore, data.slides, theme);
+
+            // Canvas 뷰로 전환
+            setView('canvas');
+
+            toast.success(`${data.slides.length}장 슬라이드가 Canvas에 추가되었습니다. 자유롭게 편집하세요!`);
+          } else {
+            // Polotno 없으면 기존 방식 (Preview)
+            openSlidesPreview('generated', data.id || `pres-${Date.now()}`);
+          }
+        } catch (canvasError) {
+          console.error('[PresentationTab] Canvas 추가 실패:', canvasError);
+          // 실패 시 Preview로 fallback
+          openSlidesPreview('generated', data.id || `pres-${Date.now()}`);
+        }
 
         // 챗봇에 알림 추가
         try {
           useChatStore.getState().addMessage({
             id: Date.now().toString(),
             role: 'assistant',
-            content: `✅ **${data.title}** 프레젠테이션이 생성되었습니다. (${data.slides.length}장)`,
+            content: `✅ **${data.title}** 프레젠테이션이 생성되었습니다. (${data.slides.length}장)\n\n왼쪽 Pages 탭에서 슬라이드를 선택하고 편집하세요.`,
             timestamp: new Date().toISOString(),
           });
         } catch (e) {

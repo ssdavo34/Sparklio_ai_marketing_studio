@@ -121,7 +121,10 @@ export type SlideLayout =
   | 'two_column'
   | 'full_image'
   | 'stats'
-  | 'process';
+  | 'process'
+  // V2 템플릿 (5종)
+  | 'title_center'
+  | 'three_bullets';
 
 export interface FeatureItem {
   feature: string;
