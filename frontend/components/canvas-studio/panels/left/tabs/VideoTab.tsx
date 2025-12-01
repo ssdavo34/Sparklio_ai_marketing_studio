@@ -12,11 +12,58 @@
 
 'use client';
 
-import { Video, Plus, Play, Clock, Sparkles } from 'lucide-react';
+import { useState, useCallback } from 'react';
+import { Video, Plus, Play, Clock, Sparkles, Monitor, Smartphone, Square, Check } from 'lucide-react';
 import { useVideo6ModalStore } from '../../../stores/useVideo6ModalStore';
+import { useCanvasStore } from '../../../stores/useCanvasStore';
+import { CANVAS_CONFIGS } from '../../../stores/types';
+import { toast } from '@/components/ui/Toast';
+
+// 영상 비율 프리셋
+const VIDEO_ASPECT_RATIOS = [
+  { id: '9:16', name: '세로 (9:16)', width: 1080, height: 1920, icon: Smartphone, description: '쇼츠, 릴스, TikTok' },
+  { id: '16:9', name: '가로 (16:9)', width: 1920, height: 1080, icon: Monitor, description: 'YouTube, Vimeo' },
+  { id: '1:1', name: '정사각 (1:1)', width: 1080, height: 1080, icon: Square, description: 'Instagram 피드' },
+];
 
 export function VideoTab() {
   const openVideo6Modal = useVideo6ModalStore((state) => state.openModal);
+  const [selectedAspectRatio, setSelectedAspectRatio] = useState('9:16');
+
+  // Canvas Store
+  const resizeCanvas = useCanvasStore((state) => state.resizeCanvas);
+  const getActiveCanvas = useCanvasStore((state) => state.getActiveCanvas);
+
+  /**
+   * 캔버스 크기 적용
+   */
+  const applyCanvasSize = useCallback((width: number, height: number) => {
+    try {
+      const activeCanvas = getActiveCanvas();
+      if (!activeCanvas) {
+        console.warn('[VideoTab] Canvas not ready');
+        return;
+      }
+
+      resizeCanvas(width, height);
+      toast.success(`캔버스 크기가 ${width} × ${height}px로 변경되었습니다.`);
+    } catch (error) {
+      console.error('[VideoTab] Failed to apply canvas size:', error);
+      toast.error('캔버스 크기 변경에 실패했습니다.');
+    }
+  }, [getActiveCanvas, resizeCanvas]);
+
+  /**
+   * 비율 선택 핸들러
+   */
+  const handleAspectRatioSelect = (ratioId: string) => {
+    setSelectedAspectRatio(ratioId);
+
+    const ratio = VIDEO_ASPECT_RATIOS.find(r => r.id === ratioId);
+    if (ratio) {
+      applyCanvasSize(ratio.width, ratio.height);
+    }
+  };
 
   return (
     <div className="flex flex-col h-full p-4">
@@ -39,6 +86,42 @@ export function VideoTab() {
         <Sparkles className="w-5 h-5" />
         <span className="font-medium">새 영상 만들기</span>
       </button>
+
+      {/* 영상 비율 선택 */}
+      <div className="mb-4">
+        <h3 className="text-sm font-medium text-neutral-700 mb-2">영상 비율</h3>
+        <div className="space-y-2">
+          {VIDEO_ASPECT_RATIOS.map((ratio) => {
+            const Icon = ratio.icon;
+            return (
+              <button
+                key={ratio.id}
+                onClick={() => handleAspectRatioSelect(ratio.id)}
+                className={`w-full flex items-center gap-3 p-2.5 rounded-lg border transition-colors text-left ${
+                  selectedAspectRatio === ratio.id
+                    ? 'border-red-500 bg-red-50 text-red-700'
+                    : 'border-neutral-200 hover:border-red-300 hover:bg-neutral-50'
+                }`}
+              >
+                <div className={`w-8 h-8 rounded flex items-center justify-center ${
+                  selectedAspectRatio === ratio.id ? 'bg-red-100' : 'bg-neutral-100'
+                }`}>
+                  <Icon className={`w-4 h-4 ${
+                    selectedAspectRatio === ratio.id ? 'text-red-600' : 'text-neutral-500'
+                  }`} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium">{ratio.name}</p>
+                  <p className="text-[10px] text-neutral-500">{ratio.width} × {ratio.height}px · {ratio.description}</p>
+                </div>
+                {selectedAspectRatio === ratio.id && (
+                  <Check className="w-4 h-4 text-red-500" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       {/* 영상 타입 선택 */}
       <div className="mb-4">

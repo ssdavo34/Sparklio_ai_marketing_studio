@@ -13,10 +13,13 @@
 
 'use client';
 
-import { useState } from 'react';
-import { Presentation, Sparkles, Loader2, FileText, ChevronRight, Plus, LayoutGrid } from 'lucide-react';
+import { useState, useCallback } from 'react';
+import { Presentation, Sparkles, Loader2, FileText, ChevronRight, Plus, LayoutGrid, Monitor, Smartphone, Square } from 'lucide-react';
 import { useCenterViewStore } from '../../../stores/useCenterViewStore';
 import { useGeneratedAssetsStore } from '../../../stores/useGeneratedAssetsStore';
+import { useCanvasStore } from '../../../stores/useCanvasStore';
+import { CANVAS_CONFIGS, type CanvasPreset } from '../../../stores/types';
+import { toast } from '@/components/ui/Toast';
 
 // 프리젠테이션 타입
 type PresentationType = 'pitch' | 'sales' | 'internal' | 'investor' | 'vision';
@@ -32,15 +35,58 @@ const PRESENTATION_TYPES: { id: PresentationType; name: string; description: str
 // 슬라이드 수 옵션
 const SLIDE_COUNT_OPTIONS = [6, 8, 10, 12, 15];
 
+// 슬라이드 비율 프리셋 (CANVAS_CONFIGS에서 가져오거나 확장)
+const SLIDE_ASPECT_RATIOS = [
+  { id: '16:9', name: '16:9 와이드', width: 1920, height: 1080, icon: Monitor, description: '표준 프리젠테이션' },
+  { id: '4:3', name: '4:3 표준', width: 1024, height: 768, icon: Square, description: '클래식 비율' },
+  { id: '9:16', name: '9:16 세로', width: 1080, height: 1920, icon: Smartphone, description: '모바일/스토리' },
+];
+
 export function PresentationTab() {
   const [topic, setTopic] = useState('');
   const [presentationType, setPresentationType] = useState<PresentationType>('pitch');
   const [slideCount, setSlideCount] = useState(12);
+  const [selectedAspectRatio, setSelectedAspectRatio] = useState('16:9');
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const { openSlidesPreview } = useCenterViewStore();
   const conceptBoardData = useGeneratedAssetsStore((state) => state.conceptBoardData);
+
+  // Canvas Store
+  const resizeCanvas = useCanvasStore((state) => state.resizeCanvas);
+  const getActiveCanvas = useCanvasStore((state) => state.getActiveCanvas);
+
+  /**
+   * 캔버스 크기 적용
+   */
+  const applyCanvasSize = useCallback((width: number, height: number) => {
+    try {
+      const activeCanvas = getActiveCanvas();
+      if (!activeCanvas) {
+        console.warn('[PresentationTab] Canvas not ready');
+        return;
+      }
+
+      resizeCanvas(width, height);
+      toast.success(`캔버스 크기가 ${width} × ${height}px로 변경되었습니다.`);
+    } catch (error) {
+      console.error('[PresentationTab] Failed to apply canvas size:', error);
+      toast.error('캔버스 크기 변경에 실패했습니다.');
+    }
+  }, [getActiveCanvas, resizeCanvas]);
+
+  /**
+   * 비율 선택 핸들러
+   */
+  const handleAspectRatioSelect = (ratioId: string) => {
+    setSelectedAspectRatio(ratioId);
+
+    const ratio = SLIDE_ASPECT_RATIOS.find(r => r.id === ratioId);
+    if (ratio) {
+      applyCanvasSize(ratio.width, ratio.height);
+    }
+  };
 
   const handleGeneratePresentation = async () => {
     if (!topic.trim()) {
@@ -194,6 +240,45 @@ export function PresentationTab() {
                   {count}장
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* 슬라이드 비율 선택 */}
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-2">
+              슬라이드 비율
+            </label>
+            <div className="space-y-2">
+              {SLIDE_ASPECT_RATIOS.map((ratio) => {
+                const Icon = ratio.icon;
+                return (
+                  <button
+                    key={ratio.id}
+                    onClick={() => handleAspectRatioSelect(ratio.id)}
+                    disabled={isGenerating}
+                    className={`w-full flex items-center gap-3 p-2 rounded-lg border transition-colors text-left ${
+                      selectedAspectRatio === ratio.id
+                        ? 'border-purple-500 bg-purple-50 text-purple-700'
+                        : 'border-gray-200 hover:border-purple-300 hover:bg-gray-50'
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  >
+                    <div className={`w-8 h-8 rounded flex items-center justify-center ${
+                      selectedAspectRatio === ratio.id ? 'bg-purple-100' : 'bg-gray-100'
+                    }`}>
+                      <Icon className={`w-4 h-4 ${
+                        selectedAspectRatio === ratio.id ? 'text-purple-600' : 'text-gray-500'
+                      }`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium">{ratio.name}</p>
+                      <p className="text-[10px] text-gray-500">{ratio.width} × {ratio.height}px · {ratio.description}</p>
+                    </div>
+                    {selectedAspectRatio === ratio.id && (
+                      <div className="w-2 h-2 rounded-full bg-purple-500" />
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
 

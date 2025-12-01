@@ -13,8 +13,10 @@
 
 'use client';
 
-import { useState } from 'react';
-import { Share2, Plus, Instagram, Facebook, Twitter, Linkedin, Youtube, Settings2, Check } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Share2, Plus, Instagram, Facebook, Twitter, Linkedin, Youtube, Settings2, Check, RefreshCw } from 'lucide-react';
+import { useCanvasStore } from '../../../stores/useCanvasStore';
+import { toast } from '@/components/ui/Toast';
 
 // 플랫폼별 사이즈 템플릿 정의
 interface SizeTemplate {
@@ -112,18 +114,65 @@ export function SNSTab() {
   const [customWidth, setCustomWidth] = useState<number>(1080);
   const [customHeight, setCustomHeight] = useState<number>(1080);
   const [showCustomSize, setShowCustomSize] = useState<boolean>(false);
+  const [isApplying, setIsApplying] = useState<boolean>(false);
+
+  // Canvas Store
+  const resizeCanvas = useCanvasStore((state) => state.resizeCanvas);
+  const getActiveCanvas = useCanvasStore((state) => state.getActiveCanvas);
 
   const currentPlatform = PLATFORMS.find(p => p.id === selectedPlatform);
   const currentTemplate = currentPlatform?.templates.find(t => t.id === selectedTemplate);
 
+  /**
+   * 캔버스 크기 적용
+   */
+  const applyCanvasSize = useCallback((width: number, height: number) => {
+    setIsApplying(true);
+    try {
+      const activeCanvas = getActiveCanvas();
+      if (!activeCanvas) {
+        toast.error('캔버스가 준비되지 않았습니다.');
+        return;
+      }
+
+      resizeCanvas(width, height);
+      toast.success(`캔버스 크기가 ${width} × ${height}px로 변경되었습니다.`);
+    } catch (error) {
+      console.error('[SNSTab] Failed to apply canvas size:', error);
+      toast.error('캔버스 크기 변경에 실패했습니다.');
+    } finally {
+      setIsApplying(false);
+    }
+  }, [getActiveCanvas, resizeCanvas]);
+
+  /**
+   * 템플릿 선택 시 자동으로 캔버스 크기 적용
+   */
   const handleTemplateSelect = (templateId: string) => {
     setSelectedTemplate(templateId);
     setShowCustomSize(false);
+
+    // 선택한 템플릿의 크기로 캔버스 변경
+    const template = currentPlatform?.templates.find(t => t.id === templateId);
+    if (template) {
+      applyCanvasSize(template.width, template.height);
+    }
   };
 
   const handleCustomSize = () => {
     setShowCustomSize(true);
     setSelectedTemplate('');
+  };
+
+  /**
+   * 사용자 정의 크기 적용
+   */
+  const handleApplyCustomSize = () => {
+    if (customWidth >= 100 && customWidth <= 4096 && customHeight >= 100 && customHeight <= 4096) {
+      applyCanvasSize(customWidth, customHeight);
+    } else {
+      toast.error('크기는 100 ~ 4096px 범위여야 합니다.');
+    }
   };
 
   return (
@@ -273,6 +322,20 @@ export function SNSTab() {
                   />
                 </div>
               </div>
+              <button
+                onClick={handleApplyCustomSize}
+                disabled={isApplying}
+                className="w-full mt-3 px-3 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+              >
+                {isApplying ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    적용 중...
+                  </>
+                ) : (
+                  '크기 적용'
+                )}
+              </button>
             </div>
           )}
         </div>
