@@ -1,4 +1,4 @@
-# 세션 인수인계 (2025-12-01 기준)
+# 세션 인수인계 (2025-12-01 21:00 기준)
 
 > **다음 Claude는 이 파일과 CLAUDE.md를 먼저 읽으세요**
 
@@ -7,136 +7,81 @@
 ## 현재 상태
 
 - **브랜치**: `feature/editor-migration-polotno`
-- **최신 커밋**: `fe9acea` - BrandKit 캔버스 크기 및 Colors UI 개선
-- **Mac Mini 배포**: ❌ 미배포 (새 커밋 있음)
+- **최신 커밋**: `08a8561` - Polotno element compatibility - rect to svg conversion
+- **Mac Mini 배포**: ⏳ 동기화 필요
 - **서버 상태**: ✅ healthy
 
 ---
 
 ## 오늘 완료한 작업 (2025-12-01)
 
-### C팀 - BrandKit 캔버스 및 Colors UI 개선 (fe9acea)
+### B팀 - Presentation Agent V2 고도화
 
-**세 가지 문제 수정:**
+1. **LLM 프롬프트 개선** (`backend/app/services/agents/presentation.py`)
+   - 제목 10자 이내, 불릿 15자 이내 규칙 추가
+   - 5종 레이아웃 템플릿 정의 (title_center, two_column, three_bullets, full_image, stats)
+   - 슬라이드별 레이아웃 매핑 가이드 추가
 
-1. **캔버스 크기 문제 수정**
-   - Brand Kit에서 "Canvas로 보내기" 시 정사각형 캔버스가 생성되던 문제 해결
-   - `currentTemplate` 대신 `CANVAS_CONFIGS[activeCanvasType]` 사용
-   - brand-dna 캔버스 기본 크기 1080x1920 (세로) 유지
+2. **API 응답 개선** (`backend/app/api/v1/endpoints/presentations.py`)
+   - `visual_hint` 필드 추가 (Unsplash 이미지 검색용)
+   - `design_guidelines` 필드 추가 (primary_color, secondary_color, font_style)
+   - 레이아웃 정규화 로직 (기존 레이아웃 → 5종 템플릿 매핑)
 
-2. **Brand Colors UI 개선**
-   - Brand DNA에서 추출된 색상을 시각적으로 표시 (컬러 박스 + 코드)
-   - Primary/Secondary/Accent Colors 구분 표시
-   - 색상 클릭 시 클립보드 복사 기능 추가
+### C팀 - Presentation Canvas 통합
 
-3. **분석 이력-문서 연결 (Frontend 로컬)**
-   - 분석 시 사용된 문서 ID/이름을 로컬 저장
-   - 이력 드롭다운에 분석에 사용된 문서 표시
-   - 선택된 문서에 해당하는 이력만 필터링
+1. **Polotno 요소 호환성 수정** (`frontend/lib/canvas/slidesTemplate.ts`)
+   - **문제**: Polotno는 `type: 'rect'`를 직접 지원하지 않음
+   - **해결**: `createRectSvg()` 헬퍼 함수로 모든 rect → svg 변환
+   - 배경, 구분선, 카드박스, 원형 아이콘 등 모두 SVG로 변환
 
----
+2. **상세 에러 로깅 추가** (`frontend/lib/canvas/slidesTemplate.ts:603-666`)
+   - 각 슬라이드/요소 추가 시 콘솔 로그
+   - 에러 발생 시 어느 요소에서 실패했는지 추적 가능
 
-### C팀 - Canvas Size Preset UI (4602781)
-
-**SNS, Presentation, Video 탭에 캔버스 크기 프리셋 UI 추가:**
-
-1. **SNSTab**: 플랫폼별 크기 템플릿 선택 시 캔버스 자동 변경
-2. **PresentationTab**: 슬라이드 비율 선택 UI (16:9, 4:3, 9:16)
-3. **VideoTab**: 영상 비율 선택 UI (9:16, 16:9, 1:1)
-
----
-
-### C팀 - Multi-Canvas Architecture Phase 1 (5f5572e)
-
-**문제점 해결:**
-- 모든 탭(Brand DNA, Meeting AI, ConceptBoard 등)이 하나의 캔버스를 공유하여 컨텐츠 혼합됨
-- 예: Brand DNA 분석 결과와 Presentation 슬라이드가 같은 캔버스에 표시
-
-**구현 내용:**
-
-1. **CanvasType 정의** (`types.ts`)
-   - 8개 캔버스 타입: brand-dna, meeting, concept, presentation, detail, sns, video, image
-   - 각 타입별 기본 크기 및 프리셋 설정 (CANVAS_CONFIGS)
-
-2. **useCanvasStore 멀티캔버스 지원** (`useCanvasStore.ts`)
-   - `canvases: Map<CanvasType, StoreType>` 구조
-   - `activeCanvasType` 상태 추가
-   - `getCanvas()`, `setCanvas()`, `setActiveCanvas()`, `getActiveCanvas()` 액션
-   - Selector: `selectActivePolotnoStore`, `selectCanvasByType`
-
-3. **polotnoStoreSingleton 멀티캔버스 지원** (`polotnoStoreSingleton.ts`)
-   - 기존 싱글톤 → 캔버스 타입별 Store 관리
-   - `getOrCreateCanvasStore(type, apiKey)` 새 API
-
-4. **PolotnoWorkspace 동적 렌더링** (`PolotnoWorkspace.tsx`)
-   - `activeCanvasType` 변경 시 해당 캔버스로 자동 전환
-
-5. **탭-캔버스 자동 연결** (`useLeftPanelStore.ts`)
-   - `TAB_TO_CANVAS_MAP`: 탭별 캔버스 매핑
-   - `setActiveTab()` 호출 시 자동으로 `setActiveCanvas()` 호출
-
-6. **polotnoStore 참조 업데이트** (20+ 파일)
-   - 모든 `state.polotnoStore` → `state.canvases.get(state.activeCanvasType)` 변경
-
-### 이전 완료 작업 (Brand DNA 분석 개선)
-
-- Brand DNA 분석 품질 개선 (문서 내용 기반 분석)
-- Brand DNA 탭 전환 시 유지 (sharedBrandDNA)
-- 문서 선택 변경 시 결과 숨김
-- 익명 브랜드 분석 지원
+3. **PresentationTab 개선** (`frontend/components/canvas-studio/panels/left/tabs/PresentationTab.tsx`)
+   - 페이지 삭제 로직 개선 (remove/delete 호환)
+   - 단계별 콘솔 로깅 추가
+   - 에러 시 토스트 메시지 표시
 
 ---
 
-## 🔴 다음에 반드시 수정해야 할 사항 (PENDING TASKS)
+## 🔴 현재 알려진 문제 (BLOCKING)
 
-### P0 - Multi-Canvas Architecture Phase 2
+### Presentation 12장 생성 ✅, 그러나 Canvas 연동 ❌
 
-**Backend 작업 (B팀):**
-1. **BrandDNA에 document_ids 추가**
-   - `backend/app/schemas/brand_analyzer.py`에 `document_ids: list[str]` 필드 추가
-   - 분석 시 사용된 문서 ID들 저장
+**현상:**
+- 프레젠테이션 생성 API 호출 성공 (12장 슬라이드 반환)
+- Pages 패널에 12개 페이지 썸네일 안 보임 (1개만 표시)
+- 슬라이드 내 스크롤 발생 (페이지에 맞지 않음)
+- Canvas에서 요소 편집 불가 (Polotno 연동 안됨)
+- Chat ↔ Canvas 연결 안됨
 
-2. **Document에 project_id 추가**
-   - `backend/app/models/document.py`에 `project_id: str | None` 필드 추가
-   - 문서가 속한 프로젝트 연결 (null = "기타")
+**추정 원인:**
+1. `getPolotnoStore()` deprecated 경고 → `getCanvasStore(type)` 사용 필요
+2. Polotno Workspace size 0 경고 → 레이아웃/렌더링 문제
+3. `addSlidesToCanvas` 호출 후 `[SlidesTemplate] ✅ Successfully added` 로그 안 나옴
 
-**Frontend 작업 (C팀):**
-1. **문서별 분석 이력 필터링**
-   - 선택된 문서에 해당하는 분석 이력만 표시
-   - 이력에 분석 문서 이름 표시
-
-2. ~~**SNS/Presentation 크기 프리셋 UI** (P1)~~ ✅ 완료 (4602781)
-   - SNS, Presentation, Video 탭에 프리셋 UI 추가됨
-
-**관련 설계 문서:** `docs/ARCHITECTURE_REDESIGN_PLAN.md`
-
----
-
-## 알려진 이슈
-
-| 이슈 | 상태 | 비고 |
-|------|------|------|
-| Brand DNA 이력-문서 연결 | ✅ Frontend 로컬 구현 | Backend Phase 2에서 완전 지원 |
-| Multi-Canvas Mac Mini 배포 | ❌ 미배포 | git pull 필요 |
-| Alembic multiple heads | ⚠️ 존재 | `demo_20251126`과 `2025_11_30_project_outputs` 두 head |
-| Video6 In-Memory Storage | ⚠️ MVP | 추후 DB로 이관 필요 |
+**디버깅 로그 위치:**
+- 콘솔에서 `[PresentationTab]`, `[SlidesTemplate]` 로그 확인
+- 어느 단계에서 실패하는지 추적 가능
 
 ---
 
 ## 다음 작업 우선순위
 
-### P0 (Critical)
-1. **Mac Mini 배포**: Multi-Canvas 커밋 배포
-2. **E2E 테스트**: 탭 전환 시 캔버스 분리 확인
-3. **Backend Phase 2**: document_ids, project_id 추가
+### P0 (Critical) - Presentation Canvas 연동 수정
+1. `getPolotnoStore()` → `getCanvasStore('presentation')` 마이그레이션
+2. Polotno Workspace 크기 문제 해결
+3. Pages 패널에 12개 썸네일 표시
+4. 슬라이드 요소 편집 가능하게
 
 ### P1 (High)
-4. ~~**SNS 크기 프리셋 UI**~~ ✅ 완료
-5. ~~**문서-분석 이력 연결**~~ ✅ Frontend 로컬 구현 완료 (fe9acea)
+5. Chat ↔ Canvas 연결
+6. 슬라이드 내 스크롤 제거 (페이지에 맞게)
 
 ### P2 (Medium)
-6. **Video Pipeline V2 E2E 테스트**
-7. **레거시 에셋 마이그레이션**
+7. Unsplash 이미지 자동 삽입 (visual_hint 활용)
+8. 디자인 가이드라인 적용 (design_guidelines 활용)
 
 ---
 
@@ -144,12 +89,11 @@
 
 | 파일 | 용도 |
 |------|------|
-| `docs/ARCHITECTURE_REDESIGN_PLAN.md` | 멀티캔버스 설계 문서 |
-| `frontend/components/canvas-studio/stores/types.ts` | CanvasType, CANVAS_CONFIGS |
-| `frontend/components/canvas-studio/stores/useCanvasStore.ts` | 멀티캔버스 Store |
-| `frontend/components/canvas-studio/stores/useLeftPanelStore.ts` | 탭-캔버스 매핑 |
-| `frontend/components/canvas-studio/polotno/PolotnoWorkspace.tsx` | 캔버스 렌더링 |
-| `frontend/components/canvas-studio/polotno/polotnoStoreSingleton.ts` | 캔버스 타입별 Store 관리 |
+| `frontend/lib/canvas/slidesTemplate.ts` | 슬라이드 → Polotno 변환 |
+| `frontend/components/canvas-studio/panels/left/tabs/PresentationTab.tsx` | 프레젠테이션 생성 UI |
+| `frontend/components/canvas-studio/polotno/polotnoStoreSingleton.ts` | Polotno Store 관리 |
+| `backend/app/services/agents/presentation.py` | PresentationAgent (LLM) |
+| `backend/app/api/v1/endpoints/presentations.py` | /generate API |
 
 ---
 
@@ -158,7 +102,6 @@
 ```bash
 # Mac Mini 배포
 ssh woosun@100.123.51.5 "cd ~/sparklio_ai_marketing_studio && git pull origin feature/editor-migration-polotno"
-ssh woosun@100.123.51.5 "/usr/local/bin/docker compose -f ~/sparklio_ai_marketing_studio/docker/mac-mini/docker-compose.yml restart backend"
 
 # 헬스체크
 curl http://100.123.51.5:8000/health
@@ -166,4 +109,4 @@ curl http://100.123.51.5:8000/health
 
 ---
 
-**마지막 업데이트**: 2025-12-01 by C팀
+**마지막 업데이트**: 2025-12-01 21:00 by C팀/B팀
