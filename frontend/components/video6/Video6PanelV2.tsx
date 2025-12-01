@@ -141,8 +141,11 @@ export function Video6PanelV2({ onClose, className = '', projectId: initialProje
   const [isSavingVideo, setIsSavingVideo] = useState(false);
   const [savedVideoUrl, setSavedVideoUrl] = useState<string | null>(null);
 
+  // StepProgressIndicator를 위한 로컬 상태 (dispatch 대신 사용)
+  const [localStatus, setLocalStatus] = useState<VideoProjectStatusV2>('not_started');
+
   // V2 상태 직접 사용 (localPlanDraft fallback 포함)
-  const projectStatus = state.status;
+  const projectStatus = localStatus || state.status;
   const planDraft = state.planDraft || localPlanDraft;
   const costEstimate = state.costEstimate;
 
@@ -287,6 +290,8 @@ export function Video6PanelV2({ onClose, className = '', projectId: initialProje
 
       setLocalPlanDraft(planAsV2);
       setStep('SCRIPT_REVIEW');
+      // StepProgressIndicator 업데이트
+      setLocalStatus('script_ready');
     } catch (error) {
       console.error('[Video6PanelV2] Plan generation failed:', error);
       setRenderError(
@@ -434,7 +439,7 @@ export function Video6PanelV2({ onClose, className = '', projectId: initialProje
       setStep('IMAGE_REVIEW');
 
       // StepProgressIndicator 업데이트
-      dispatch({ type: 'SET_STATUS', payload: 'images_ready' });
+      setLocalStatus('images_ready');
     } catch (error) {
       console.error('[Video6PanelV2] Image generation failed:', error);
       setRenderError(error instanceof Error ? error.message : '이미지 생성에 실패했습니다.');
@@ -569,7 +574,7 @@ export function Video6PanelV2({ onClose, className = '', projectId: initialProje
     setStep('MOTION_REVIEW');
 
     // StepProgressIndicator 업데이트를 위해 status도 변경
-    dispatch({ type: 'SET_STATUS', payload: 'motion_ready' });
+    setLocalStatus('motion_ready');
   }, [localPlanDraft]);
 
   // Step 3: 모션 승인 → FFMPEG 렌더링 시작
@@ -582,7 +587,7 @@ export function Video6PanelV2({ onClose, className = '', projectId: initialProje
     setRenderProgress(0);
 
     // StepProgressIndicator 업데이트
-    dispatch({ type: 'SET_STATUS', payload: 'rendering' });
+    setLocalStatus('rendering');
 
     try {
       // FFMPEG.wasm으로 프론트엔드에서 비디오 합성
@@ -592,14 +597,14 @@ export function Video6PanelV2({ onClose, className = '', projectId: initialProje
       setStep('COMPLETE');
 
       // StepProgressIndicator 업데이트
-      dispatch({ type: 'SET_STATUS', payload: 'completed' });
+      setLocalStatus('completed');
     } catch (error) {
       console.error('[Video6PanelV2] FFMPEG render failed:', error);
       setRenderError(error instanceof Error ? error.message : String(error));
       setStep('MOTION_REVIEW');
 
       // 실패 시 상태 복원
-      dispatch({ type: 'SET_STATUS', payload: 'motion_ready' });
+      setLocalStatus('motion_ready');
     }
   }, [localPlanDraft]);
 

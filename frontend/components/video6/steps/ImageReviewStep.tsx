@@ -159,9 +159,9 @@ function ImageCard({
 
       {/* 정보 및 액션 */}
       <div className="p-3 space-y-3">
-        {/* 자막 */}
+        {/* 자막 - script(나레이션)가 있으면 우선 사용, 없으면 caption */}
         <p className="text-sm text-gray-700 line-clamp-2">
-          {scene.caption || '(자막 없음)'}
+          {scene.script || scene.caption || '(자막 없음)'}
         </p>
 
         {/* 재생성 시도 횟수 */}

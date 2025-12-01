@@ -103,9 +103,9 @@ function MotionPromptCard({
             )}
           </div>
 
-          {/* 자막 */}
+          {/* 자막 - script(나레이션)가 있으면 우선 사용, 없으면 caption */}
           <p className="text-sm text-gray-600 line-clamp-1 mb-2">
-            {scene.caption}
+            {scene.script || scene.caption || '(자막 없음)'}
           </p>
 
           {/* AI 영상 토글 */}
