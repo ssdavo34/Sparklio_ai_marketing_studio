@@ -640,6 +640,23 @@ async def get_project_status(
         except Exception:
             pass
 
+    # Cost Guard에서 일일 비용 정보 조회
+    cost_guard = get_cost_guard()
+    daily_cost_used = await cost_guard.get_daily_cost(
+        brand_id=str(project.brand_id) if project.brand_id else None
+    )
+    daily_cost_limit = cost_guard.daily_cost_limit
+
+    # 예상 비용 계산 (plan_draft가 있는 경우)
+    estimated_cost = None
+    if plan_draft:
+        estimate = cost_guard.estimate_cost(
+            plan_draft=plan_draft,
+            render_mode=RenderMode(project_data.get("render_mode", "mock")),
+            provider="veo"
+        )
+        estimated_cost = estimate.total_cost
+
     return VideoStatusResponse(
         project_id=video_project_id,
         status=VideoProjectStatus(project_data["status"]),
@@ -648,7 +665,11 @@ async def get_project_status(
         video_url=project_data.get("video_url"),
         thumbnail_url=project_data.get("thumbnail_url"),
         duration_sec=project_data.get("duration_sec"),
-        error_message=project_data.get("error_message")
+        error_message=project_data.get("error_message"),
+        # 비용 정보 추가
+        daily_cost_used=daily_cost_used,
+        daily_cost_limit=daily_cost_limit,
+        estimated_cost=estimated_cost
     )
 
 

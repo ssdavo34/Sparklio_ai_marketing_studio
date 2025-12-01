@@ -585,6 +585,10 @@ class VideoStatusResponse(BaseModel):
     # 렌더 정보
     render_mode: Optional[RenderMode] = None
     job_id: Optional[str] = None
+    # 비용 정보 (4단계 확인 플로우)
+    daily_cost_used: Optional[float] = None  # 오늘 사용한 비용 ($)
+    daily_cost_limit: Optional[float] = None  # 일일 비용 한도 ($)
+    estimated_cost: Optional[float] = None  # 예상 렌더 비용 ($)
 
 
 # ============================================================================
