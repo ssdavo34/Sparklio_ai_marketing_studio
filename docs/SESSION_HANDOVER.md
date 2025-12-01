@@ -7,61 +7,77 @@
 ## 현재 상태
 
 - **브랜치**: `feature/editor-migration-polotno`
-- **최신 커밋**: `4f6b661` - Brand DNA 분석 품질 개선 및 탭 전환 시 유지
-- **Mac Mini 배포**: ✅ 완료
+- **최신 커밋**: `5f5572e` - Multi-Canvas Architecture Phase 1
+- **Mac Mini 배포**: ❌ 미배포 (새 커밋 있음)
 - **서버 상태**: ✅ healthy
 
 ---
 
 ## 오늘 완료한 작업 (2025-12-01)
 
-### C팀 - Brand DNA 분석 기능 개선
+### C팀 - Multi-Canvas Architecture Phase 1 (5f5572e)
 
-1. **Brand DNA 분석 품질 개선** (54ed8dc, 4f6b661)
-   - Backend: `_example` 제거, `_context`에 분석 지침 추가
-   - LLM이 문서 내용 기반으로만 분석하도록 instruction 강화
-   - 일반적 마케팅 문구 사용 금지 규칙 추가
+**문제점 해결:**
+- 모든 탭(Brand DNA, Meeting AI, ConceptBoard 등)이 하나의 캔버스를 공유하여 컨텐츠 혼합됨
+- 예: Brand DNA 분석 결과와 Presentation 슬라이드가 같은 캔버스에 표시
 
-2. **Brand DNA 탭 전환 시 유지** (54ed8dc)
-   - `useCenterViewStore`에 `sharedBrandDNA` 상태 추가
-   - BrandKitTab → ConceptBoardTab 간 Brand DNA 공유
-   - ConceptBoardTab에 Brand DNA 표시 섹션 추가
+**구현 내용:**
 
-3. **문서 선택 변경 시 결과 숨김** (4f6b661)
-   - `toggleDocSelection`, `toggleSelectAll` 시 `setShowDNAResult(false)` 호출
-   - 다른 문서 선택 시 이전 분석 결과가 계속 표시되는 문제 해결
+1. **CanvasType 정의** (`types.ts`)
+   - 8개 캔버스 타입: brand-dna, meeting, concept, presentation, detail, sns, video, image
+   - 각 타입별 기본 크기 및 프리셋 설정 (CANVAS_CONFIGS)
 
-4. **익명 브랜드 분석 지원** (1aeb773)
-   - 특정 브랜드 없이도 문서만으로 분석 가능
+2. **useCanvasStore 멀티캔버스 지원** (`useCanvasStore.ts`)
+   - `canvases: Map<CanvasType, StoreType>` 구조
+   - `activeCanvasType` 상태 추가
+   - `getCanvas()`, `setCanvas()`, `setActiveCanvas()`, `getActiveCanvas()` 액션
+   - Selector: `selectActivePolotnoStore`, `selectCanvasByType`
+
+3. **polotnoStoreSingleton 멀티캔버스 지원** (`polotnoStoreSingleton.ts`)
+   - 기존 싱글톤 → 캔버스 타입별 Store 관리
+   - `getOrCreateCanvasStore(type, apiKey)` 새 API
+
+4. **PolotnoWorkspace 동적 렌더링** (`PolotnoWorkspace.tsx`)
+   - `activeCanvasType` 변경 시 해당 캔버스로 자동 전환
+
+5. **탭-캔버스 자동 연결** (`useLeftPanelStore.ts`)
+   - `TAB_TO_CANVAS_MAP`: 탭별 캔버스 매핑
+   - `setActiveTab()` 호출 시 자동으로 `setActiveCanvas()` 호출
+
+6. **polotnoStore 참조 업데이트** (20+ 파일)
+   - 모든 `state.polotnoStore` → `state.canvases.get(state.activeCanvasType)` 변경
+
+### 이전 완료 작업 (Brand DNA 분석 개선)
+
+- Brand DNA 분석 품질 개선 (문서 내용 기반 분석)
+- Brand DNA 탭 전환 시 유지 (sharedBrandDNA)
+- 문서 선택 변경 시 결과 숨김
+- 익명 브랜드 분석 지원
 
 ---
 
 ## 🔴 다음에 반드시 수정해야 할 사항 (PENDING TASKS)
 
-### P0 - Brand DNA 분석 이력과 문서 연결
+### P0 - Multi-Canvas Architecture Phase 2
 
-**현재 문제점:**
-- 분석 이력이 브랜드 단위로만 저장되고, **어떤 문서를 분석했는지 기록되지 않음**
-- 다른 문서를 선택해도 이전 분석 이력이 그대로 표시됨
-- 이력에서 선택 시 해당 분석에 사용된 문서를 알 수 없음
+**Backend 작업 (B팀):**
+1. **BrandDNA에 document_ids 추가**
+   - `backend/app/schemas/brand_analyzer.py`에 `document_ids: list[str]` 필드 추가
+   - 분석 시 사용된 문서 ID들 저장
 
-**수정 필요 사항:**
-1. **분석 이력에 document_ids 저장**
-   - `BrandDNA` 타입에 `document_ids: string[]` 필드 추가
-   - 분석 시 사용된 문서 ID들을 함께 저장
+2. **Document에 project_id 추가**
+   - `backend/app/models/document.py`에 `project_id: str | None` 필드 추가
+   - 문서가 속한 프로젝트 연결 (null = "기타")
 
-2. **문서별 분석 이력 필터링**
-   - 선택된 문서에 해당하는 분석 이력만 드롭다운에 표시
-   - `history.filter(h => h.document_ids와 selectedDocIds 일치)` 로직 필요
+**Frontend 작업 (C팀):**
+1. **문서별 분석 이력 필터링**
+   - 선택된 문서에 해당하는 분석 이력만 표시
+   - 이력에 분석 문서 이름 표시
 
-3. **분석 이력 선택 시 문서 정보 표시**
-   - 이력 항목에 분석에 사용된 문서 이름 표시
-   - 예: "2025-12-01 14:30 (Polotno SDK 외 2개)"
+2. **SNS/Presentation 크기 프리셋 UI** (P1)
+   - 캔버스 크기 선택 드롭다운 추가
 
-**관련 파일:**
-- `frontend/lib/api/brand-api.ts` - BrandDNA 타입 정의
-- `frontend/components/canvas-studio/panels/left/tabs/BrandKitTab.tsx` - 이력 UI
-- `backend/app/schemas/brand_analyzer.py` - 백엔드 스키마
+**관련 설계 문서:** `docs/ARCHITECTURE_REDESIGN_PLAN.md`
 
 ---
 
@@ -69,7 +85,8 @@
 
 | 이슈 | 상태 | 비고 |
 |------|------|------|
-| Brand DNA 이력-문서 연결 | 🔴 미구현 | 위 PENDING TASKS 참조 |
+| Brand DNA 이력-문서 연결 | 🔴 미구현 | Phase 2에서 구현 |
+| Multi-Canvas Mac Mini 배포 | ❌ 미배포 | git pull 필요 |
 | Alembic multiple heads | ⚠️ 존재 | `demo_20251126`과 `2025_11_30_project_outputs` 두 head |
 | Video6 In-Memory Storage | ⚠️ MVP | 추후 DB로 이관 필요 |
 
@@ -78,15 +95,17 @@
 ## 다음 작업 우선순위
 
 ### P0 (Critical)
-1. **Brand DNA 이력-문서 연결**: 위 PENDING TASKS 참조
+1. **Mac Mini 배포**: Multi-Canvas 커밋 배포
+2. **E2E 테스트**: 탭 전환 시 캔버스 분리 확인
+3. **Backend Phase 2**: document_ids, project_id 추가
 
 ### P1 (High)
-2. **E2E 테스트**: Video Pipeline V2 전체 플로우 테스트
-3. **Video6 DB 저장**: In-Memory → project_outputs 테이블 연동
+4. **SNS 크기 프리셋 UI**: 플랫폼별 크기 선택 드롭다운
+5. **문서-분석 이력 연결**: BrandKitTab UI 개선
 
 ### P2 (Medium)
-4. **레거시 에셋 마이그레이션**: `migrate_asset_thumbnails.py` 실행
-5. **Ken Burns 효과 튜닝**: FFmpeg zoompan 파라미터 최적화
+6. **Video Pipeline V2 E2E 테스트**
+7. **레거시 에셋 마이그레이션**
 
 ---
 
@@ -94,10 +113,12 @@
 
 | 파일 | 용도 |
 |------|------|
-| `frontend/components/canvas-studio/panels/left/tabs/BrandKitTab.tsx` | Brand DNA UI |
-| `frontend/components/canvas-studio/stores/useCenterViewStore.ts` | Brand DNA 공유 상태 |
-| `backend/app/services/agents/brand_analyzer.py` | BrandAnalyzerAgent |
-| `backend/app/schemas/brand_analyzer.py` | Brand DNA 스키마 |
+| `docs/ARCHITECTURE_REDESIGN_PLAN.md` | 멀티캔버스 설계 문서 |
+| `frontend/components/canvas-studio/stores/types.ts` | CanvasType, CANVAS_CONFIGS |
+| `frontend/components/canvas-studio/stores/useCanvasStore.ts` | 멀티캔버스 Store |
+| `frontend/components/canvas-studio/stores/useLeftPanelStore.ts` | 탭-캔버스 매핑 |
+| `frontend/components/canvas-studio/polotno/PolotnoWorkspace.tsx` | 캔버스 렌더링 |
+| `frontend/components/canvas-studio/polotno/polotnoStoreSingleton.ts` | 캔버스 타입별 Store 관리 |
 
 ---
 
