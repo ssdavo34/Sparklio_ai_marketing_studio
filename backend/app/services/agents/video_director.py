@@ -186,7 +186,7 @@ class VideoDirectorOutputV3(BaseModel):
     """VideoDirectorAgent V3 출력"""
     production_id: str = Field(..., description="제작 ID")
     mode: VideoDirectorMode = Field(..., description="실행 모드")
-    status: VideoProjectStatus = Field(default=VideoProjectStatus.PLAN_READY, description="상태")
+    status: VideoProjectStatus = Field(default=VideoProjectStatus.SCRIPT_READY, description="상태")
 
     # PLAN 모드 결과
     plan_draft: Optional[VideoPlanDraftV1] = Field(None, description="플랜 초안")

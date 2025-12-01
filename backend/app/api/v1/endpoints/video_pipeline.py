@@ -284,7 +284,7 @@ async def execute_plan_mode(
             plan_draft["mode"] = request.mode.value  # RENDER 시 이미지 생성 모드 결정에 필요
 
         _update_project_in_db(db, project, {
-            "status": VideoProjectStatus.PLAN_READY.value,
+            "status": VideoProjectStatus.SCRIPT_READY.value,
             "plan_draft": plan_draft,
             "script_status": ScriptStatus.DRAFT.value
         })
@@ -334,7 +334,7 @@ async def update_plan_draft(
 
     # 상태 체크
     if project_data["status"] not in [
-        VideoProjectStatus.PLAN_READY.value,
+        VideoProjectStatus.SCRIPT_READY.value,
         VideoProjectStatus.NOT_STARTED.value
     ]:
         raise HTTPException(
