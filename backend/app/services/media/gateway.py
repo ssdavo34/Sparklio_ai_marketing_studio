@@ -93,6 +93,32 @@ class MediaGateway:
             except Exception as e:
                 logger.warning(f"Edge TTS Provider skipped: {e}")
 
+            # Luma AI Provider (Image-to-Video)
+            try:
+                luma_api_key = getattr(settings, 'LUMA_API_KEY', None)
+                if luma_api_key:
+                    from .providers.luma_provider import LumaProvider
+                    logger.info("Initializing Luma AI Provider...")
+                    self.providers["luma"] = LumaProvider(api_key=luma_api_key)
+                    logger.info("Luma AI Provider initialized successfully")
+                else:
+                    logger.info("Luma AI Provider skipped (LUMA_API_KEY not set)")
+            except Exception as e:
+                logger.warning(f"Luma AI Provider skipped: {e}")
+
+            # Runway Gen-3 Provider (Image-to-Video)
+            try:
+                runway_api_key = getattr(settings, 'RUNWAY_API_KEY', None)
+                if runway_api_key:
+                    from .providers.runway_provider import RunwayProvider
+                    logger.info("Initializing Runway Gen-3 Provider...")
+                    self.providers["runway"] = RunwayProvider(api_key=runway_api_key)
+                    logger.info("Runway Gen-3 Provider initialized successfully")
+                else:
+                    logger.info("Runway Gen-3 Provider skipped (RUNWAY_API_KEY not set)")
+            except Exception as e:
+                logger.warning(f"Runway Gen-3 Provider skipped: {e}")
+
             logger.info(f"All Media Providers initialized: {list(self.providers.keys())}")
 
         except Exception as e:
@@ -204,9 +230,14 @@ class MediaGateway:
             else:
                 provider_name = "comfyui"
         elif media_type == "video":
-            # 추후 비디오 Provider 추가
-            logger.warning("Video provider not implemented, falling back to mock")
-            return "mock", self.providers["mock"]
+            # AI 영상 생성 Provider 선택 (Luma 우선, Runway 대안)
+            if "luma" in self.providers:
+                provider_name = "luma"
+            elif "runway" in self.providers:
+                provider_name = "runway"
+            else:
+                logger.warning("No video provider available, falling back to mock")
+                return "mock", self.providers["mock"]
         elif media_type == "audio":
             if "edge_tts" in self.providers:
                 return "edge_tts", self.providers["edge_tts"]

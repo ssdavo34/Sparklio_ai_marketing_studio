@@ -34,6 +34,7 @@ from dataclasses import dataclass
 from app.schemas.video_timeline import (
     VideoTimelinePlanV1,
     SceneConfig,
+    SceneType,
     MotionType,
     TransitionType,
     EasingType,
@@ -247,52 +248,78 @@ class VideoBuilderV2:
             raise
 
     async def _generate_voiceovers(self, ctx: RenderContext):
-        """TTS 오디오 생성"""
+        """TTS 오디오 생성 및 타임라인 동기화"""
         from app.services.media.gateway import get_media_gateway
         gateway = get_media_gateway()
-        
-        ctx.voiceover_paths = {} # scene_index -> path
+
+        ctx.voiceover_paths = {}  # scene_index -> path
+        ctx.voiceover_durations = {}  # scene_index -> duration (TTS 실제 길이)
 
         logger.info(f"[VideoBuilderV2] Generating voiceovers for {len(ctx.timeline.scenes)} scenes")
 
         for scene in ctx.timeline.scenes:
             script = scene.script
-            if not script:
+            if not script or not script.strip():
                 continue
-                
+
             try:
-                # TTS 생성 요청
+                # TTS 생성 요청 (한국어 기본, 속도/피치 조정 가능)
+                voice_options = {
+                    "voice": "ko-KR-SunHiNeural",
+                    "rate": "-5%",  # 약간 느리게 (명확성 향상)
+                    "pitch": "+0Hz"
+                }
+
                 response = await gateway.generate(
                     prompt=script,
                     task="voiceover",
                     media_type="audio",
-                    options={"voice": "ko-KR-SunHiNeural"}
+                    options=voice_options
                 )
-                
-                if response.outputs:
+
+                if response.outputs and response.outputs[0].data:
                     import base64
                     audio_data = base64.b64decode(response.outputs[0].data)
-                    
+
+                    # 파일 크기 검증 (최소 1KB)
+                    if len(audio_data) < 1024:
+                        logger.warning(f"[VideoBuilderV2] TTS output too small for scene {scene.scene_index}, skipping")
+                        continue
+
                     output_path = ctx.workdir / f"voice_{scene.scene_index}.mp3"
                     with open(output_path, "wb") as f:
                         f.write(audio_data)
-                        
+
                     ctx.voiceover_paths[scene.scene_index] = str(output_path)
-                    
+
                     # 오디오 길이 측정 및 씬 길이 업데이트
-                    duration = await self._get_audio_duration(str(output_path))
-                    if duration > 0:
-                        # 씬 길이를 오디오 길이 + 0.5초(여유)로 조정
+                    audio_duration = await self._get_audio_duration(str(output_path))
+                    if audio_duration > 0:
+                        ctx.voiceover_durations[scene.scene_index] = audio_duration
+
+                        # 씬 길이를 오디오 길이 + 여유 시간으로 조정
                         # 기존 duration보다 짧아지지 않도록 max 사용
                         min_duration = scene.end_sec - scene.start_sec
-                        new_duration = max(min_duration, duration + 0.5)
-                        
-                        # 타임라인 업데이트 (단순화를 위해 scene 객체의 duration만 변경한다고 가정)
-                        scene.duration_override = new_duration 
-                        logger.info(f"[VideoBuilderV2] Scene {scene.scene_index} duration updated to {new_duration:.2f}s (TTS: {duration:.2f}s)")
+                        padding = 0.8  # 음성 끝난 후 여유 시간
+                        new_duration = max(min_duration, audio_duration + padding)
+
+                        # Pydantic 모델은 불변이므로 별도 저장
+                        scene.duration_override = new_duration
+                        logger.info(
+                            f"[VideoBuilderV2] Scene {scene.scene_index} duration: "
+                            f"{min_duration:.2f}s → {new_duration:.2f}s (TTS: {audio_duration:.2f}s)"
+                        )
+                    else:
+                        logger.warning(f"[VideoBuilderV2] Could not measure TTS duration for scene {scene.scene_index}")
 
             except Exception as e:
-                logger.error(f"[VideoBuilderV2] TTS failed for scene {scene.scene_index}: {e}")
+                logger.error(f"[VideoBuilderV2] TTS failed for scene {scene.scene_index}: {e}", exc_info=True)
+
+        # 전체 TTS 생성 결과 로깅
+        logger.info(
+            f"[VideoBuilderV2] TTS generation complete: "
+            f"{len(ctx.voiceover_paths)}/{len(ctx.timeline.scenes)} scenes with voiceover"
+        )
 
     async def _get_audio_duration(self, audio_path: str) -> float:
         """오디오 파일 길이 측정 (ffprobe)"""
@@ -362,7 +389,7 @@ class VideoBuilderV2:
                     logger.warning(f"[VideoBuilderV2] Failed to download image for scene {scene.scene_index}: {e}")
 
     async def _render_scene_clips(self, ctx: RenderContext):
-        """씬별 클립 생성 (Ken Burns 포함)"""
+        """씬별 클립 생성 (Ken Burns 또는 AI 영상)"""
         logger.info(f"[VideoBuilderV2] Rendering scene clips")
 
         for scene in ctx.timeline.scenes:
@@ -376,27 +403,127 @@ class VideoBuilderV2:
                 duration = scene.duration_override
             else:
                 duration = scene.end_sec - scene.start_sec
-            
+
             output_path = ctx.workdir / f"scene_{scene.scene_index}.mp4"
 
-            # FFmpeg 필터 구성
-            filters = self._build_scene_filters(ctx, scene, duration)
+            # AI 영상 생성 모드 확인
+            if scene.type == SceneType.AI_VIDEO or scene.motion.type == MotionType.AI_MOTION:
+                # AI 기반 영상 생성 (Luma/Runway)
+                success = await self._render_ai_video_clip(
+                    ctx=ctx,
+                    scene=scene,
+                    image_path=image_path,
+                    duration=duration,
+                    output_path=str(output_path)
+                )
+            else:
+                # 기존 Ken Burns 방식
+                filters = self._build_scene_filters(ctx, scene, duration)
+                cmd = self._build_scene_ffmpeg_cmd(
+                    image_path=image_path,
+                    duration=duration,
+                    filters=filters,
+                    output_path=str(output_path),
+                    fps=ctx.timeline.canvas.fps
+                )
+                success = await self._run_ffmpeg(cmd)
 
-            # FFmpeg 명령
-            cmd = self._build_scene_ffmpeg_cmd(
-                image_path=image_path,
-                duration=duration,
-                filters=filters,
-                output_path=str(output_path),
-                fps=ctx.timeline.canvas.fps
-            )
-
-            # 실행
-            success = await self._run_ffmpeg(cmd)
             if success and output_path.exists():
                 ctx.scene_clips.append(str(output_path))
             else:
                 logger.error(f"[VideoBuilderV2] Failed to render scene {scene.scene_index}")
+                # Fallback: Ken Burns로 대체 시도
+                if scene.type == SceneType.AI_VIDEO or scene.motion.type == MotionType.AI_MOTION:
+                    logger.info(f"[VideoBuilderV2] Falling back to Ken Burns for scene {scene.scene_index}")
+                    filters = self._build_scene_filters(ctx, scene, duration)
+                    cmd = self._build_scene_ffmpeg_cmd(
+                        image_path=image_path,
+                        duration=duration,
+                        filters=filters,
+                        output_path=str(output_path),
+                        fps=ctx.timeline.canvas.fps
+                    )
+                    if await self._run_ffmpeg(cmd) and output_path.exists():
+                        ctx.scene_clips.append(str(output_path))
+
+    async def _render_ai_video_clip(
+        self,
+        ctx: RenderContext,
+        scene,
+        image_path: str,
+        duration: float,
+        output_path: str
+    ) -> bool:
+        """AI 기반 영상 클립 생성 (Luma/Runway)"""
+        from app.services.media.gateway import get_media_gateway
+
+        try:
+            gateway = get_media_gateway()
+
+            # 이미지를 URL 또는 Base64로 변환
+            # MinIO 업로드 후 presigned URL 사용
+            import base64
+            with open(image_path, "rb") as f:
+                image_base64 = base64.b64encode(f.read()).decode()
+
+            # 모션 프롬프트 생성 (씬의 script 또는 기본 프롬프트 사용)
+            motion_prompt = scene.script or "Subtle camera movement, gentle parallax effect"
+
+            logger.info(f"[VideoBuilderV2] Generating AI video for scene {scene.scene_index}: '{motion_prompt[:50]}...'")
+
+            # AI 영상 생성 요청
+            response = await gateway.generate(
+                prompt=motion_prompt,
+                task="image_to_video",
+                media_type="video",
+                options={
+                    "image_base64": image_base64,
+                    "aspect_ratio": "9:16",  # 세로 영상
+                    "duration": min(5, duration)  # 대부분 AI는 5초 제한
+                }
+            )
+
+            if response.outputs and response.outputs[0].data:
+                video_url = response.outputs[0].data
+
+                # 영상 다운로드
+                import httpx
+                async with httpx.AsyncClient(timeout=120, follow_redirects=True) as client:
+                    dl_response = await client.get(video_url)
+                    dl_response.raise_for_status()
+
+                    # AI 영상은 보통 5초이므로, 필요하면 루프/연장
+                    ai_video_path = ctx.workdir / f"ai_scene_{scene.scene_index}_raw.mp4"
+                    with open(ai_video_path, "wb") as f:
+                        f.write(dl_response.content)
+
+                # 필요한 길이로 조정 (5초보다 길면 루프)
+                ai_duration = await self._get_video_duration(str(ai_video_path))
+                if duration > ai_duration + 0.5:
+                    # 루프 처리
+                    loop_count = int(duration / ai_duration) + 1
+                    cmd = (
+                        f'ffmpeg -y -stream_loop {loop_count} -i "{ai_video_path}" '
+                        f'-t {duration} -c:v libx264 -preset fast -pix_fmt yuv420p '
+                        f'"{output_path}"'
+                    )
+                else:
+                    # 길이 조정만
+                    cmd = (
+                        f'ffmpeg -y -i "{ai_video_path}" '
+                        f'-t {duration} -c:v libx264 -preset fast -pix_fmt yuv420p '
+                        f'"{output_path}"'
+                    )
+
+                return await self._run_ffmpeg(cmd)
+
+            else:
+                logger.warning(f"[VideoBuilderV2] AI video generation returned no output")
+                return False
+
+        except Exception as e:
+            logger.error(f"[VideoBuilderV2] AI video generation failed: {e}", exc_info=True)
+            return False
 
     def _build_scene_filters(
         self,
@@ -521,10 +648,13 @@ class VideoBuilderV2:
         return str(output_path)
 
     async def _concatenate_with_xfade(self, ctx: RenderContext) -> str:
-        """xfade 기반 연결"""
+        """xfade 기반 연결 (누적 offset 방식으로 앞뒤 짤림 방지)"""
         # MVP: 2개씩 순차적으로 xfade 적용
         current = ctx.scene_clips[0]
         scenes = ctx.timeline.scenes
+
+        # 첫 번째 클립의 실제 길이 측정
+        current_duration = await self._get_video_duration(current)
 
         for i in range(1, len(ctx.scene_clips)):
             next_clip = ctx.scene_clips[i]
@@ -542,9 +672,17 @@ class VideoBuilderV2:
                     f.write(f"file '{current}'\n")
                     f.write(f"file '{next_clip}'\n")
                 cmd = f'ffmpeg -y -f concat -safe 0 -i "{concat_file}" -c copy "{output_path}"'
+
+                # concat 후 현재 길이 업데이트
+                next_duration = await self._get_video_duration(next_clip)
+                current_duration = current_duration + next_duration
             else:
-                # xfade 처리
-                offset = prev_scene.end_sec - prev_scene.start_sec - transition.duration_sec
+                # xfade 처리 - offset은 현재 영상의 실제 길이에서 전환 시간을 뺀 값
+                # 전환 효과가 시작되는 지점 = 현재 영상 끝 - 전환 시간
+                offset = max(0, current_duration - transition.duration_sec)
+
+                logger.info(f"[VideoBuilderV2] xfade: clip {i}, current_duration={current_duration:.2f}, offset={offset:.2f}, transition={transition.duration_sec}")
+
                 cmd = (
                     f'ffmpeg -y -i "{current}" -i "{next_clip}" '
                     f'-filter_complex "[0:v][1:v]xfade=transition={xfade_type}:'
@@ -553,10 +691,40 @@ class VideoBuilderV2:
                     f'"{output_path}"'
                 )
 
+                # xfade 후 현재 길이 업데이트
+                # xfade는 두 클립이 겹치므로 총 길이 = current + next - transition
+                next_duration = await self._get_video_duration(next_clip)
+                current_duration = current_duration + next_duration - transition.duration_sec
+
             await self._run_ffmpeg(cmd)
             current = str(output_path)
 
         return current
+
+    async def _get_video_duration(self, video_path: str) -> float:
+        """비디오 파일 길이 측정 (ffprobe)"""
+        cmd = [
+            "ffprobe",
+            "-v", "error",
+            "-show_entries", "format=duration",
+            "-of", "default=noprint_wrappers=1:nokey=1",
+            video_path
+        ]
+
+        try:
+            process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, stderr = await process.communicate()
+
+            if process.returncode == 0 and stdout:
+                return float(stdout.decode().strip())
+        except Exception as e:
+            logger.warning(f"Failed to get video duration: {e}")
+
+        return 4.0  # fallback to default scene duration
 
     async def _apply_text_overlays(self, ctx: RenderContext, video_path: str) -> str:
         """텍스트 오버레이 적용"""
@@ -635,32 +803,35 @@ class VideoBuilderV2:
         return alpha_expr
 
     async def _mix_audio(self, ctx: RenderContext, video_path: str) -> str:
-        """BGM 및 보이스오버 믹싱"""
+        """BGM 및 보이스오버 믹싱 (개선된 볼륨 밸런싱)"""
         audio_config = ctx.timeline.audio
-        
-        # 1. BGM 준비
+
+        # 1. BGM 준비 (mood 기반 선택)
         bgm_path = None
         if audio_config.bgm_mode == BGMMode.AUTO:
-            bgm_path = await self._download_bgm(ctx, "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3")
+            bgm_url = self._get_bgm_url_by_mood(ctx.timeline.global_config.music_mood)
+            bgm_path = await self._download_bgm(ctx, bgm_url)
         elif audio_config.bgm_url:
             bgm_path = await self._download_bgm(ctx, audio_config.bgm_url)
 
         # 2. 보이스오버 준비
-        voiceover_inputs = [] # (path, offset_ms)
+        voiceover_inputs = []  # (path, offset_ms)
         current_offset = 0.0
-        
+
         has_voiceover = hasattr(ctx, 'voiceover_paths') and ctx.voiceover_paths
-        
+
         if has_voiceover:
             for scene in ctx.timeline.scenes:
                 # 씬 길이 계산 (TTS override 반영)
                 duration = getattr(scene, 'duration_override', scene.end_sec - scene.start_sec)
-                
-                # 보이스오버가 있으면 추가
+
+                # 보이스오버가 있으면 추가 (약간의 딜레이로 자연스러운 시작)
                 v_path = ctx.voiceover_paths.get(scene.scene_index)
                 if v_path:
-                    voiceover_inputs.append((v_path, int(current_offset * 1000)))
-                
+                    # 씬 시작 0.3초 후부터 음성 시작 (자연스러운 타이밍)
+                    voice_offset = int((current_offset + 0.3) * 1000)
+                    voiceover_inputs.append((v_path, voice_offset))
+
                 current_offset += duration
 
         if not bgm_path and not voiceover_inputs:
@@ -669,41 +840,60 @@ class VideoBuilderV2:
         logger.info(f"[VideoBuilderV2] Mixing Audio: BGM={bool(bgm_path)}, Voiceovers={len(voiceover_inputs)}")
 
         output_path = ctx.workdir / "with_audio.mp4"
-        
+
         # FFmpeg 명령 구성
         inputs = [f'-i "{video_path}"']
         filter_complex = []
-        
+
+        # 총 길이 계산
+        total_duration = current_offset if current_offset > 0 else ctx.timeline.global_config.total_duration_sec
+
         # BGM 입력 (인덱스 1)
         if bgm_path:
             inputs.append(f'-i "{bgm_path}"')
-            # BGM 루프 및 볼륨 조절
-            # video duration 구하기 (current_offset이 총 길이)
-            total_duration = current_offset if current_offset > 0 else ctx.timeline.global_config.total_duration_sec
-            
+
+            # 보이스오버가 있으면 BGM 볼륨을 더 낮춤 (음성 우선)
+            # 보이스오버 없으면 BGM 볼륨 유지
+            bgm_volume = audio_config.bgm_volume
+            if has_voiceover and voiceover_inputs:
+                bgm_volume = min(bgm_volume, 0.25)  # 음성이 있으면 BGM 최대 25%
+
+            # BGM 페이드 인/아웃 + 루프 처리
+            # afade: 처음 1초 페이드 인, 마지막 2초 페이드 아웃
             filter_complex.append(
-                f"[1:a]atrim=0:{total_duration},asetpts=PTS-STARTPTS,"
-                f"volume={audio_config.bgm_volume},loudnorm=I=-16:TP=-1.5:LRA=11[bgm]"
+                f"[1:a]aloop=loop=-1:size=2e+09,atrim=0:{total_duration},asetpts=PTS-STARTPTS,"
+                f"volume={bgm_volume},"
+                f"afade=t=in:st=0:d=1,"
+                f"afade=t=out:st={max(0, total_duration - 2)}:d=2,"
+                f"loudnorm=I=-20:TP=-2:LRA=11[bgm]"
             )
-        
+
         # 보이스오버 입력 (인덱스 2부터)
         vo_filter_tags = []
         for i, (path, offset) in enumerate(voiceover_inputs):
             input_idx = len(inputs)
             inputs.append(f'-i "{path}"')
-            # 딜레이 적용 (adelay는 ms 단위)
+            # 딜레이 적용 (adelay는 ms 단위) + 볼륨 정규화
             tag = f"vo{i}"
-            filter_complex.append(f"[{input_idx}:a]adelay={offset}|{offset}[{tag}]")
+            filter_complex.append(
+                f"[{input_idx}:a]adelay={offset}|{offset},"
+                f"volume=1.2,"  # 음성 약간 증폭
+                f"loudnorm=I=-14:TP=-1:LRA=7[{tag}]"
+            )
             vo_filter_tags.append(f"[{tag}]")
-            
-        # 믹싱
+
+        # 믹싱 (음성 우선, BGM 배경)
         mix_inputs = []
         if bgm_path:
             mix_inputs.append("[bgm]")
         mix_inputs.extend(vo_filter_tags)
-        
+
         if len(mix_inputs) > 1:
-            filter_complex.append(f"{''.join(mix_inputs)}amix=inputs={len(mix_inputs)}:duration=first:dropout_transition=2[a]")
+            # normalize=0: 볼륨 자동 정규화 비활성화 (수동 제어)
+            filter_complex.append(
+                f"{''.join(mix_inputs)}amix=inputs={len(mix_inputs)}:"
+                f"duration=first:dropout_transition=2:normalize=0[a]"
+            )
         elif len(mix_inputs) == 1:
             filter_complex.append(f"{mix_inputs[0]}anull[a]")
         else:
@@ -721,19 +911,79 @@ class VideoBuilderV2:
         success = await self._run_ffmpeg(cmd)
         return str(output_path) if success else video_path
 
+    def _get_bgm_url_by_mood(self, mood: Optional[str]) -> str:
+        """
+        mood 기반 BGM URL 반환
+
+        지원 mood:
+        - warm_lofi: 따뜻한 로파이 (기본값)
+        - upbeat: 밝고 에너지 넘치는
+        - corporate: 비즈니스/기업용
+        - emotional: 감성적인
+        - chill: 차분한
+        - epic: 웅장한
+        """
+        # 무료 BGM 라이브러리 URL (저작권 무료)
+        # 출처: Pixabay, SoundHelix, FreeMusic Archive
+        BGM_LIBRARY = {
+            "warm_lofi": "https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3",  # Lofi Study
+            "upbeat": "https://cdn.pixabay.com/download/audio/2022/10/25/audio_946eb5731f.mp3",  # Happy Day
+            "corporate": "https://cdn.pixabay.com/download/audio/2022/02/22/audio_d1718ab41b.mp3",  # Corporate
+            "emotional": "https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0c6ff1bbd.mp3",  # Emotional
+            "chill": "https://cdn.pixabay.com/download/audio/2021/11/25/audio_91b32e02f9.mp3",  # Chill Abstract
+            "epic": "https://cdn.pixabay.com/download/audio/2022/03/15/audio_8cb749d484.mp3",  # Epic Cinematic
+        }
+
+        # Fallback URL (SoundHelix - 항상 사용 가능)
+        FALLBACK_URL = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
+
+        if not mood:
+            mood = "warm_lofi"
+
+        mood_lower = mood.lower().replace(" ", "_").replace("-", "_")
+        url = BGM_LIBRARY.get(mood_lower, FALLBACK_URL)
+
+        logger.info(f"[VideoBuilderV2] Selected BGM for mood '{mood}': {url[:50]}...")
+        return url
+
     async def _download_bgm(self, ctx: RenderContext, url: str) -> Optional[str]:
-        """BGM 다운로드"""
+        """BGM 다운로드 (재시도 및 fallback 포함)"""
+        local_path = ctx.workdir / "bgm.mp3"
+
+        # 1차 시도
         try:
-            local_path = ctx.workdir / "bgm.mp3"
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(timeout=60.0, follow_redirects=True) as client:
                 response = await client.get(url)
                 response.raise_for_status()
+
+                # 파일 크기 검증 (최소 10KB)
+                if len(response.content) < 10240:
+                    raise ValueError("BGM file too small")
+
                 with open(local_path, "wb") as f:
                     f.write(response.content)
-            return str(local_path)
+
+                logger.info(f"[VideoBuilderV2] BGM downloaded: {len(response.content) / 1024:.1f}KB")
+                return str(local_path)
+
         except Exception as e:
-            logger.warning(f"[VideoBuilderV2] Failed to download BGM: {e}")
-            return None
+            logger.warning(f"[VideoBuilderV2] Primary BGM download failed: {e}")
+
+        # 2차 시도 - Fallback URL
+        fallback_url = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
+        if url != fallback_url:
+            try:
+                logger.info("[VideoBuilderV2] Trying fallback BGM...")
+                async with httpx.AsyncClient(timeout=60.0, follow_redirects=True) as client:
+                    response = await client.get(fallback_url)
+                    response.raise_for_status()
+                    with open(local_path, "wb") as f:
+                        f.write(response.content)
+                    return str(local_path)
+            except Exception as e:
+                logger.error(f"[VideoBuilderV2] Fallback BGM download also failed: {e}")
+
+        return None
 
     async def _generate_thumbnail(self, ctx: RenderContext, video_path: str) -> str:
         """썸네일 생성"""

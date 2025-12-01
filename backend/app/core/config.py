@@ -118,6 +118,10 @@ class Settings(BaseSettings):
     # Video Pipeline
     video_mock_images: bool = Field(False, env="VIDEO_MOCK_IMAGES")
 
+    # AI Video Generation (Image-to-Video)
+    luma_api_key: str = Field("", env="LUMA_API_KEY")
+    runway_api_key: str = Field("", env="RUNWAY_API_KEY")
+
     # Whisper STT (Meeting AI)
     whisper_mode: str = Field("hybrid_cost", env="WHISPER_MODE")  # openai | local | hybrid_cost | hybrid_quality
     whisper_local_backend: str = Field("faster_whisper", env="WHISPER_LOCAL_BACKEND")  # whisper_cpp | faster_whisper | none
@@ -213,6 +217,15 @@ class Settings(BaseSettings):
     @property
     def UNSPLASH_ACCESS_KEY(self) -> str:
         return self.unsplash_access_key
+
+    # AI Video 대문자 속성
+    @property
+    def LUMA_API_KEY(self) -> str:
+        return self.luma_api_key
+
+    @property
+    def RUNWAY_API_KEY(self) -> str:
+        return self.runway_api_key
 
 
 

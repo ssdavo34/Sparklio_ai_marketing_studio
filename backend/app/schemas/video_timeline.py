@@ -20,7 +20,8 @@ from uuid import UUID
 
 class SceneType(str, Enum):
     """씬 타입"""
-    IMAGE = "image"
+    IMAGE = "image"           # 정적 이미지 (Ken Burns 효과)
+    AI_VIDEO = "ai_video"     # AI 생성 영상 (Luma/Runway)
     TITLE_CARD = "title_card"
     BLANK = "blank"
 
@@ -29,6 +30,7 @@ class MotionType(str, Enum):
     """모션 타입"""
     NONE = "none"
     KENBURNS = "kenburns"
+    AI_MOTION = "ai_motion"   # AI 기반 모션 (Luma/Runway)
 
 
 class TransitionType(str, Enum):
