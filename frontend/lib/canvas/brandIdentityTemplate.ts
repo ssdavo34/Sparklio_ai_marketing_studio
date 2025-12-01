@@ -5,10 +5,11 @@
  * - Brand DNA V1/V2 지원
  * - 다중 페이지 자동 생성 (Brand Core, Messages, Audience, Guidelines 등)
  * - 브랜드 색상, 폰트, 톤앤매너 자동 적용
+ * - 세로 형식(1080x1920) 기본 지원
  *
  * @author C팀 (Frontend Team)
- * @version 2.0
- * @date 2025-11-30
+ * @version 2.1
+ * @date 2025-12-01
  */
 
 import type { BrandDNA as BrandDNAFromAPI } from '@/lib/api/brand-api';
@@ -19,7 +20,7 @@ import type { BrandDNAV2, BrandDNAUnion, isBrandDNAV2 } from '@/types/brand';
 // ============================================================================
 
 interface CanvasElement {
-  type: 'text' | 'rect' | 'svg';
+  type: 'text' | 'svg';
   x: number;
   y: number;
   width?: number;
@@ -30,7 +31,58 @@ interface CanvasElement {
   fill?: string;
   text?: string;
   align?: 'left' | 'center' | 'right';
+  src?: string; // SVG data URL
   [key: string]: any;
+}
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+/**
+ * 색상 박스 SVG 생성
+ */
+function createColorBoxSvg(width: number, height: number, color: string, cornerRadius: number = 8): string {
+  const svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+    <rect width="100%" height="100%" rx="${cornerRadius}" ry="${cornerRadius}" fill="${color}" />
+  </svg>`;
+  return `data:image/svg+xml;base64,${btoa(svg)}`;
+}
+
+/**
+ * 배경 그라디언트 SVG 생성
+ */
+function createGradientBackgroundSvg(width: number, height: number, color1: string, color2: string): string {
+  const svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:${color1};stop-opacity:0.1" />
+        <stop offset="100%" style="stop-color:${color2};stop-opacity:0.1" />
+      </linearGradient>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#grad)" />
+  </svg>`;
+  return `data:image/svg+xml;base64,${btoa(svg)}`;
+}
+
+/**
+ * 단색 배경 SVG 생성
+ */
+function createSolidBackgroundSvg(width: number, height: number, color: string, opacity: number = 1): string {
+  const svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+    <rect width="100%" height="100%" fill="${color}" fill-opacity="${opacity}" />
+  </svg>`;
+  return `data:image/svg+xml;base64,${btoa(svg)}`;
+}
+
+/**
+ * 둥근 모서리 박스 SVG 생성
+ */
+function createRoundedBoxSvg(width: number, height: number, color: string, cornerRadius: number = 16, opacity: number = 1): string {
+  const svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+    <rect width="100%" height="100%" rx="${cornerRadius}" ry="${cornerRadius}" fill="${color}" fill-opacity="${opacity}" />
+  </svg>`;
+  return `data:image/svg+xml;base64,${btoa(svg)}`;
 }
 
 // ============================================================================
@@ -39,8 +91,9 @@ interface CanvasElement {
 
 /**
  * Brand DNA를 Canvas 페이지로 변환 (V1 - BrandDNAOutputV1 스키마 기준)
+ * 세로 형식(1080x1920) 기본 지원 - 단일 열 레이아웃
  */
-export function createBrandIdentityCanvas(dna: BrandDNAFromAPI, pageWidth: number = 1920, pageHeight: number = 1080): CanvasElement[] {
+export function createBrandIdentityCanvas(dna: BrandDNAFromAPI, pageWidth: number = 1080, pageHeight: number = 1920): CanvasElement[] {
   const elements: CanvasElement[] = [];
 
   const margin = 60;
@@ -51,14 +104,14 @@ export function createBrandIdentityCanvas(dna: BrandDNAFromAPI, pageWidth: numbe
   const primaryColor = dna.suggested_brand_kit.primary_colors[0] || '#6366F1';
   const secondaryColor = dna.suggested_brand_kit.secondary_colors[0] || '#8B5CF6';
 
-  // 배경 그라디언트
+  // 배경 그라디언트 (SVG 사용)
   elements.push({
-    type: 'rect',
+    type: 'svg',
     x: 0,
     y: 0,
     width: pageWidth,
     height: pageHeight,
-    fill: `linear-gradient(135deg, ${primaryColor}15, ${secondaryColor}15)`,
+    src: createGradientBackgroundSvg(pageWidth, pageHeight, primaryColor, secondaryColor),
   });
 
   // 제목
@@ -67,158 +120,186 @@ export function createBrandIdentityCanvas(dna: BrandDNAFromAPI, pageWidth: numbe
     x: margin,
     y: currentY,
     width: contentWidth,
-    fontSize: 72,
+    fontSize: 48,
     fontWeight: 'bold',
     fill: primaryColor,
     text: 'Brand Identity Canvas',
     fontFamily: 'Pretendard',
+    align: 'center',
   });
-  currentY += 100;
+  currentY += 80;
 
+  // ========================================
   // Tone & Manner 섹션
+  // ========================================
   elements.push({
     type: 'text',
     x: margin,
     y: currentY,
     width: contentWidth,
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: 'bold',
     fill: '#1F2937',
     text: '🎨 Tone & Manner',
   });
-  currentY += 50;
+  currentY += 45;
 
   // tone은 string 타입 (BrandDNAOutputV1 기준)
   elements.push({
     type: 'text',
-    x: margin + 20,
+    x: margin + 16,
     y: currentY,
-    width: contentWidth - 40,
-    fontSize: 20,
+    width: contentWidth - 32,
+    fontSize: 18,
     fill: '#4B5563',
     text: dna.tone,
+    lineHeight: 1.5,
   });
-  currentY += 80;
+  currentY += 100;
 
-  // Key Messages 섹션 (2열 레이아웃)
-  const columnWidth = (contentWidth - 40) / 2;
-  const leftX = margin;
-  const rightX = margin + columnWidth + 40;
-
-  // 왼쪽: Key Messages
-  let leftY = currentY;
+  // ========================================
+  // Key Messages 섹션
+  // ========================================
   elements.push({
     type: 'text',
-    x: leftX,
-    y: leftY,
-    width: columnWidth,
+    x: margin,
+    y: currentY,
+    width: contentWidth,
     fontSize: 28,
     fontWeight: 'bold',
     fill: '#1F2937',
     text: '💬 Key Messages',
   });
-  leftY += 45;
+  currentY += 45;
 
-  dna.key_messages.slice(0, 3).forEach((msg, idx) => {
+  dna.key_messages.slice(0, 4).forEach((msg, idx) => {
     elements.push({
       type: 'text',
-      x: leftX + 20,
-      y: leftY,
-      width: columnWidth - 40,
+      x: margin + 16,
+      y: currentY,
+      width: contentWidth - 32,
       fontSize: 16,
       fill: '#374151',
       text: `${idx + 1}. ${msg}`,
+      lineHeight: 1.4,
     });
-    leftY += 35;
+    currentY += 40;
   });
+  currentY += 30;
 
-  // 오른쪽: Target Audience
-  let rightY = currentY;
+  // ========================================
+  // Target Audience 섹션
+  // ========================================
   elements.push({
     type: 'text',
-    x: rightX,
-    y: rightY,
-    width: columnWidth,
+    x: margin,
+    y: currentY,
+    width: contentWidth,
     fontSize: 28,
     fontWeight: 'bold',
     fill: '#1F2937',
     text: '👥 Target Audience',
   });
-  rightY += 45;
+  currentY += 45;
 
   // target_audience는 string 타입 (BrandDNAOutputV1 기준)
   elements.push({
     type: 'text',
-    x: rightX + 20,
-    y: rightY,
-    width: columnWidth - 40,
-    fontSize: 16,
+    x: margin + 16,
+    y: currentY,
+    width: contentWidth - 32,
+    fontSize: 18,
     fill: '#374151',
     text: dna.target_audience,
+    lineHeight: 1.5,
   });
-  rightY += 80;
+  currentY += 100;
 
-  currentY = Math.max(leftY, rightY) + 40;
+  // ========================================
+  // Do's 섹션
+  // ========================================
+  // Do's 배경 박스
+  const dosBoxHeight = Math.max(180, dna.dos.length * 36 + 60);
+  elements.push({
+    type: 'svg',
+    x: margin,
+    y: currentY,
+    width: contentWidth,
+    height: dosBoxHeight,
+    src: createRoundedBoxSvg(contentWidth, dosBoxHeight, '#ECFDF5', 12, 1),
+  });
 
-  // Do's & Don'ts 섹션
-  leftY = currentY;
-  rightY = currentY;
-
-  // 왼쪽: Do's
   elements.push({
     type: 'text',
-    x: leftX,
-    y: leftY,
-    width: columnWidth,
-    fontSize: 28,
+    x: margin + 20,
+    y: currentY + 20,
+    width: contentWidth - 40,
+    fontSize: 24,
     fontWeight: 'bold',
     fill: '#059669',
     text: '✅ Do\'s',
   });
-  leftY += 45;
 
-  dna.dos.slice(0, 4).forEach((item) => {
+  let doY = currentY + 55;
+  dna.dos.slice(0, 5).forEach((item) => {
     elements.push({
       type: 'text',
-      x: leftX + 20,
-      y: leftY,
-      width: columnWidth - 40,
-      fontSize: 16,
+      x: margin + 24,
+      y: doY,
+      width: contentWidth - 48,
+      fontSize: 15,
       fill: '#047857',
       text: `• ${item}`,
+      lineHeight: 1.3,
     });
-    leftY += 32;
+    doY += 34;
+  });
+  currentY += dosBoxHeight + 20;
+
+  // ========================================
+  // Don'ts 섹션
+  // ========================================
+  // Don'ts 배경 박스
+  const dontsBoxHeight = Math.max(180, dna.donts.length * 36 + 60);
+  elements.push({
+    type: 'svg',
+    x: margin,
+    y: currentY,
+    width: contentWidth,
+    height: dontsBoxHeight,
+    src: createRoundedBoxSvg(contentWidth, dontsBoxHeight, '#FEF2F2', 12, 1),
   });
 
-  // 오른쪽: Don'ts
   elements.push({
     type: 'text',
-    x: rightX,
-    y: rightY,
-    width: columnWidth,
-    fontSize: 28,
+    x: margin + 20,
+    y: currentY + 20,
+    width: contentWidth - 40,
+    fontSize: 24,
     fontWeight: 'bold',
     fill: '#DC2626',
     text: '❌ Don\'ts',
   });
-  rightY += 45;
 
-  dna.donts.slice(0, 4).forEach((item) => {
+  let dontY = currentY + 55;
+  dna.donts.slice(0, 5).forEach((item) => {
     elements.push({
       type: 'text',
-      x: rightX + 20,
-      y: rightY,
-      width: columnWidth - 40,
-      fontSize: 16,
+      x: margin + 24,
+      y: dontY,
+      width: contentWidth - 48,
+      fontSize: 15,
       fill: '#B91C1C',
       text: `• ${item}`,
+      lineHeight: 1.3,
     });
-    rightY += 32;
+    dontY += 34;
   });
+  currentY += dontsBoxHeight + 40;
 
-  currentY = Math.max(leftY, rightY) + 40;
-
+  // ========================================
   // Brand Colors 섹션
+  // ========================================
   elements.push({
     type: 'text',
     x: margin,
@@ -231,61 +312,104 @@ export function createBrandIdentityCanvas(dna: BrandDNAFromAPI, pageWidth: numbe
   });
   currentY += 50;
 
-  const colorBoxSize = 80;
-  const colorGap = 20;
-  let colorX = margin + 20;
+  // 색상 박스 크기 계산 (세로 형식에 맞게 조정)
+  const allColors = [
+    ...dna.suggested_brand_kit.primary_colors,
+    ...dna.suggested_brand_kit.secondary_colors,
+  ];
+  const colorCount = allColors.length;
+  const colorGap = 16;
+  const maxColorBoxSize = 100;
+  const availableWidth = contentWidth - 32;
+  const colorBoxSize = Math.min(maxColorBoxSize, (availableWidth - (colorCount - 1) * colorGap) / colorCount);
+
+  // 색상 박스들을 가운데 정렬
+  const totalColorWidth = colorCount * colorBoxSize + (colorCount - 1) * colorGap;
+  let colorX = margin + (contentWidth - totalColorWidth) / 2;
+
+  // Primary Colors 라벨
+  elements.push({
+    type: 'text',
+    x: margin + 16,
+    y: currentY,
+    width: contentWidth - 32,
+    fontSize: 14,
+    fontWeight: 'bold',
+    fill: '#6B7280',
+    text: 'PRIMARY',
+  });
+  currentY += 25;
 
   // Primary Colors
+  let primaryColorX = colorX;
   dna.suggested_brand_kit.primary_colors.forEach((color) => {
+    // 색상 박스 (SVG 사용)
     elements.push({
-      type: 'rect',
-      x: colorX,
+      type: 'svg',
+      x: primaryColorX,
       y: currentY,
       width: colorBoxSize,
       height: colorBoxSize,
-      fill: color,
-      cornerRadius: 8,
+      src: createColorBoxSvg(colorBoxSize, colorBoxSize, color, 10),
     });
+    // 색상 코드
     elements.push({
       type: 'text',
-      x: colorX,
-      y: currentY + colorBoxSize + 10,
+      x: primaryColorX,
+      y: currentY + colorBoxSize + 8,
       width: colorBoxSize,
-      fontSize: 12,
+      fontSize: 11,
       fill: '#6B7280',
       text: color,
       align: 'center',
     });
-    colorX += colorBoxSize + colorGap;
+    primaryColorX += colorBoxSize + colorGap;
   });
 
-  // Secondary Colors
-  dna.suggested_brand_kit.secondary_colors.forEach((color) => {
-    elements.push({
-      type: 'rect',
-      x: colorX,
-      y: currentY,
-      width: colorBoxSize,
-      height: colorBoxSize,
-      fill: color,
-      cornerRadius: 8,
-    });
+  // Secondary Colors 라벨 및 박스 (Primary 옆에)
+  if (dna.suggested_brand_kit.secondary_colors.length > 0) {
+    // Secondary 라벨
     elements.push({
       type: 'text',
-      x: colorX,
-      y: currentY + colorBoxSize + 10,
-      width: colorBoxSize,
-      fontSize: 12,
+      x: primaryColorX + 10,
+      y: currentY - 25,
+      width: 100,
+      fontSize: 14,
+      fontWeight: 'bold',
       fill: '#6B7280',
-      text: color,
-      align: 'center',
+      text: 'SECONDARY',
     });
-    colorX += colorBoxSize + colorGap;
-  });
 
-  currentY += colorBoxSize + 50;
+    dna.suggested_brand_kit.secondary_colors.forEach((color) => {
+      // 색상 박스 (SVG 사용)
+      elements.push({
+        type: 'svg',
+        x: primaryColorX,
+        y: currentY,
+        width: colorBoxSize,
+        height: colorBoxSize,
+        src: createColorBoxSvg(colorBoxSize, colorBoxSize, color, 10),
+      });
+      // 색상 코드
+      elements.push({
+        type: 'text',
+        x: primaryColorX,
+        y: currentY + colorBoxSize + 8,
+        width: colorBoxSize,
+        fontSize: 11,
+        fill: '#6B7280',
+        text: color,
+        align: 'center',
+      });
+      primaryColorX += colorBoxSize + colorGap;
+    });
+  }
 
-  // Footer - Confidence Score (0-10 범위, 100%로 표시 시 *10)
+  currentY += colorBoxSize + 60;
+
+  // ========================================
+  // Footer - Confidence Score
+  // ========================================
   elements.push({
     type: 'text',
     x: margin,
@@ -294,6 +418,7 @@ export function createBrandIdentityCanvas(dna: BrandDNAFromAPI, pageWidth: numbe
     fontSize: 14,
     fill: '#9CA3AF',
     text: `Analysis Confidence: ${(dna.confidence_score * 10).toFixed(0)}%${dna.analysis_notes ? ` | ${dna.analysis_notes}` : ''}`,
+    align: 'center',
   });
 
   return elements;
@@ -301,12 +426,13 @@ export function createBrandIdentityCanvas(dna: BrandDNAFromAPI, pageWidth: numbe
 
 /**
  * Brand DNA를 Polotno Store에 추가 (V1 - 단일 페이지)
+ * 기본값: 세로 형식(1080x1920)
  */
 export function addBrandIdentityToCanvas(
   polotnoStore: any,
   dna: BrandDNAFromAPI,
-  pageWidth: number = 1920,
-  pageHeight: number = 1080
+  pageWidth: number = 1080,
+  pageHeight: number = 1920
 ): void {
   if (!polotnoStore) {
     throw new Error('Polotno store is not initialized');
@@ -374,14 +500,14 @@ export function createBrandIdentityCanvasV2(
   const coverElements: CanvasElement[] = [];
   let y = margin;
 
-  // 배경
+  // 배경 (SVG 사용)
   coverElements.push({
-    type: 'rect',
+    type: 'svg',
     x: 0,
     y: 0,
     width: pageWidth,
     height: pageHeight,
-    fill: `linear-gradient(135deg, ${primaryColor}20, ${secondaryColor}20)`,
+    src: createGradientBackgroundSvg(pageWidth, pageHeight, primaryColor, secondaryColor),
   });
 
   // Brand Identity Canvas 타이틀
@@ -433,13 +559,12 @@ export function createBrandIdentityCanvasV2(
   dna.brand_core.personality.forEach((keyword, idx) => {
     const chipWidth = keyword.length * 20 + 40;
     coverElements.push({
-      type: 'rect',
+      type: 'svg',
       x: chipX,
       y: chipY,
       width: chipWidth,
       height: 44,
-      fill: `${primaryColor}15`,
-      cornerRadius: 22,
+      src: createRoundedBoxSvg(chipWidth, 44, primaryColor, 22, 0.15),
     });
     coverElements.push({
       type: 'text',
@@ -473,14 +598,14 @@ export function createBrandIdentityCanvasV2(
   const coreElements: CanvasElement[] = [];
   y = margin;
 
-  // 배경
+  // 배경 (SVG 사용)
   coreElements.push({
-    type: 'rect',
+    type: 'svg',
     x: 0,
     y: 0,
     width: pageWidth,
     height: pageHeight,
-    fill: '#FAFAFA',
+    src: createSolidBackgroundSvg(pageWidth, pageHeight, '#FAFAFA'),
   });
 
   // 섹션 타이틀
@@ -550,12 +675,12 @@ export function createBrandIdentityCanvasV2(
   y = margin;
 
   toneElements.push({
-    type: 'rect',
+    type: 'svg',
     x: 0,
     y: 0,
     width: pageWidth,
     height: pageHeight,
-    fill: `linear-gradient(180deg, ${primaryColor}08, ${secondaryColor}08)`,
+    src: createGradientBackgroundSvg(pageWidth, pageHeight, primaryColor, secondaryColor),
   });
 
   toneElements.push({
@@ -621,13 +746,12 @@ export function createBrandIdentityCanvasV2(
   dna.tone_and_manner.keywords.forEach((keyword) => {
     const chipWidth = keyword.length * 18 + 36;
     toneElements.push({
-      type: 'rect',
+      type: 'svg',
       x: chipX,
       y: y,
       width: chipWidth,
       height: 40,
-      fill: primaryColor,
-      cornerRadius: 20,
+      src: createRoundedBoxSvg(chipWidth, 40, primaryColor, 20, 1),
     });
     toneElements.push({
       type: 'text',
@@ -650,12 +774,12 @@ export function createBrandIdentityCanvasV2(
   y = margin;
 
   audienceElements.push({
-    type: 'rect',
+    type: 'svg',
     x: 0,
     y: 0,
     width: pageWidth,
     height: pageHeight,
-    fill: '#FFFFFF',
+    src: createSolidBackgroundSvg(pageWidth, pageHeight, '#FFFFFF'),
   });
 
   audienceElements.push({
@@ -671,13 +795,12 @@ export function createBrandIdentityCanvasV2(
 
   // Primary Segment
   audienceElements.push({
-    type: 'rect',
+    type: 'svg',
     x: margin,
     y: y,
     width: contentWidth / 2 - 20,
     height: 400,
-    fill: `${primaryColor}10`,
-    cornerRadius: 16,
+    src: createRoundedBoxSvg(contentWidth / 2 - 20, 400, primaryColor, 16, 0.1),
   });
 
   audienceElements.push({
@@ -741,13 +864,12 @@ export function createBrandIdentityCanvasV2(
     const secondaryX = margin + contentWidth / 2 + 20;
 
     audienceElements.push({
-      type: 'rect',
+      type: 'svg',
       x: secondaryX,
       y: y,
       width: contentWidth / 2 - 20,
       height: 400,
-      fill: `${secondaryColor}10`,
-      cornerRadius: 16,
+      src: createRoundedBoxSvg(contentWidth / 2 - 20, 400, secondaryColor, 16, 0.1),
     });
 
     audienceElements.push({
@@ -816,12 +938,12 @@ export function createBrandIdentityCanvasV2(
   y = margin;
 
   pillarsElements.push({
-    type: 'rect',
+    type: 'svg',
     x: 0,
     y: 0,
     width: pageWidth,
     height: pageHeight,
-    fill: '#FAFAFA',
+    src: createSolidBackgroundSvg(pageWidth, pageHeight, '#FAFAFA'),
   });
 
   pillarsElements.push({
@@ -854,24 +976,22 @@ export function createBrandIdentityCanvasV2(
     const pillarX = margin + idx * (pillarWidth + 20);
 
     pillarsElements.push({
-      type: 'rect',
+      type: 'svg',
       x: pillarX,
       y: y,
       width: pillarWidth,
       height: 300,
-      fill: '#FFFFFF',
-      cornerRadius: 16,
+      src: createRoundedBoxSvg(pillarWidth, 300, '#FFFFFF', 16, 1),
     });
 
     // Pillar number
     pillarsElements.push({
-      type: 'rect',
+      type: 'svg',
       x: pillarX + 20,
       y: y + 20,
       width: 40,
       height: 40,
-      fill: primaryColor,
-      cornerRadius: 20,
+      src: createRoundedBoxSvg(40, 40, primaryColor, 20, 1),
     });
     pillarsElements.push({
       type: 'text',
@@ -914,12 +1034,12 @@ export function createBrandIdentityCanvasV2(
   y = margin;
 
   guidelinesElements.push({
-    type: 'rect',
+    type: 'svg',
     x: 0,
     y: 0,
     width: pageWidth,
     height: pageHeight,
-    fill: '#FFFFFF',
+    src: createSolidBackgroundSvg(pageWidth, pageHeight, '#FFFFFF'),
   });
 
   guidelinesElements.push({
@@ -937,13 +1057,12 @@ export function createBrandIdentityCanvasV2(
 
   // Do's
   guidelinesElements.push({
-    type: 'rect',
+    type: 'svg',
     x: margin,
     y: y,
     width: halfWidth,
     height: 500,
-    fill: '#ECFDF5',
-    cornerRadius: 16,
+    src: createRoundedBoxSvg(halfWidth, 500, '#ECFDF5', 16, 1),
   });
 
   guidelinesElements.push({
@@ -972,13 +1091,12 @@ export function createBrandIdentityCanvasV2(
 
   // Don'ts
   guidelinesElements.push({
-    type: 'rect',
+    type: 'svg',
     x: margin + halfWidth + 40,
     y: y,
     width: halfWidth,
     height: 500,
-    fill: '#FEF2F2',
-    cornerRadius: 16,
+    src: createRoundedBoxSvg(halfWidth, 500, '#FEF2F2', 16, 1),
   });
 
   guidelinesElements.push({
@@ -1014,12 +1132,12 @@ export function createBrandIdentityCanvasV2(
   y = margin;
 
   visualElements.push({
-    type: 'rect',
+    type: 'svg',
     x: 0,
     y: 0,
     width: pageWidth,
     height: pageHeight,
-    fill: `linear-gradient(135deg, ${primaryColor}10, ${secondaryColor}10)`,
+    src: createGradientBackgroundSvg(pageWidth, pageHeight, primaryColor, secondaryColor),
   });
 
   visualElements.push({
@@ -1072,13 +1190,12 @@ export function createBrandIdentityCanvasV2(
   dna.visual_direction.style_keywords.forEach((keyword) => {
     const chipWidth = keyword.length * 16 + 32;
     visualElements.push({
-      type: 'rect',
+      type: 'svg',
       x: chipX,
       y: y,
       width: chipWidth,
       height: 36,
-      fill: '#1F2937',
-      cornerRadius: 18,
+      src: createRoundedBoxSvg(chipWidth, 36, '#1F2937', 18, 1),
     });
     visualElements.push({
       type: 'text',
@@ -1110,13 +1227,12 @@ export function createBrandIdentityCanvasV2(
   // Primary Colors
   dna.suggested_brand_kit.primary_colors.forEach((color) => {
     visualElements.push({
-      type: 'rect',
+      type: 'svg',
       x: colorX,
       y: y,
       width: colorSize,
       height: colorSize,
-      fill: color,
-      cornerRadius: 12,
+      src: createColorBoxSvg(colorSize, colorSize, color, 12),
     });
     visualElements.push({
       type: 'text',
@@ -1134,13 +1250,12 @@ export function createBrandIdentityCanvasV2(
   // Secondary Colors
   dna.suggested_brand_kit.secondary_colors.forEach((color) => {
     visualElements.push({
-      type: 'rect',
+      type: 'svg',
       x: colorX,
       y: y,
       width: colorSize,
       height: colorSize,
-      fill: color,
-      cornerRadius: 12,
+      src: createColorBoxSvg(colorSize, colorSize, color, 12),
     });
     visualElements.push({
       type: 'text',
