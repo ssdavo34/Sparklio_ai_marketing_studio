@@ -46,7 +46,7 @@ interface ShortsViewData {
 export function ShortsPreviewView() {
   const { selectedConcept, backToConceptBoard, backToCanvas, setView } = useCenterViewStore();
   const generatedShortsData = useGeneratedAssetsStore((state) => state.shortsData);
-  const polotnoStore = useCanvasStore((state) => state.polotnoStore);
+  const polotnoStore = useCanvasStore((state) => state.canvases.get(state.activeCanvasType) || null);
   const [mockData, setMockData] = useState<ShortsScriptData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeScene, setActiveScene] = useState(0);

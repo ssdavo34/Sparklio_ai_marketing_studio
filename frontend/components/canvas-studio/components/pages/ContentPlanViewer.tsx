@@ -85,7 +85,7 @@ export function ContentPlanViewer({
   const [isApplying, setIsApplying] = useState(false);
   const [showFeedbackForm, setShowFeedbackForm] = useState(false);
 
-  const polotnoStore = useCanvasStore((state) => state.polotnoStore);
+  const polotnoStore = useCanvasStore((state) => state.canvases.get(state.activeCanvasType) || null);
 
   const currentPage = editedContentPlan.pages[currentPageIndex];
   const totalPages = editedContentPlan.pages.length;

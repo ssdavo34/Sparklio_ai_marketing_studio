@@ -49,7 +49,7 @@ export interface ShortcutAction {
 
 export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
   const { enabled = true, onShortcut } = options;
-  const polotnoStore = useCanvasStore((state) => state.polotnoStore);
+  const polotnoStore = useCanvasStore((state) => state.canvases.get(state.activeCanvasType) || null);
 
   /**
    * Undo 실행

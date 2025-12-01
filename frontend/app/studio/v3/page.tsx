@@ -53,8 +53,8 @@ export default function CanvasStudioV3Page() {
   const { setBrandKit } = useBrandStore();
   const { setRouteInfo } = useEditorStore();
 
-  // Polotno Store 가져오기
-  const polotnoStore = useCanvasStore((state) => state.polotnoStore);
+  // Polotno Store 가져오기 (멀티캔버스: 활성 캔버스 반환)
+  const polotnoStore = useCanvasStore((state) => state.canvases.get(state.activeCanvasType) || null);
 
   // Auto-save 설정 (documentId가 있을 때만 활성화)
   const { saveState } = usePolotnoAutoSave({

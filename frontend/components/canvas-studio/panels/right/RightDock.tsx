@@ -42,7 +42,7 @@ type UploadedFile = {
 export function RightDock() {
   const activeTab = useTabsStore((state) => state.activeRightDockTab);
   const setActiveTab = useTabsStore((state) => state.setActiveRightDockTab);
-  const polotnoStore = useCanvasStore((state) => state.polotnoStore);
+  const polotnoStore = useCanvasStore((state) => state.canvases.get(state.activeCanvasType) || null);
 
   // Sync Chat Role with Left Panel Context
   const leftPanelTab = useLeftPanelStore((state) => state.activeTab);
@@ -993,7 +993,7 @@ function InspectorTab({ element }: { element: any }) {
 
 // Layers Tab Component
 function LayersTab() {
-  const polotnoStore = useCanvasStore((state) => state.polotnoStore);
+  const polotnoStore = useCanvasStore((state) => state.canvases.get(state.activeCanvasType) || null);
   const [, forceUpdate] = useState({});
 
   // Force re-render when layers change

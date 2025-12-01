@@ -23,7 +23,7 @@ import type { TextPreset, EditorActions } from './types';
 // ============================================================================
 
 export function useEditorActions(): EditorActions {
-  const zustandPolotnoStore = useCanvasStore((state) => state.polotnoStore);
+  const zustandPolotnoStore = useCanvasStore((state) => state.canvases.get(state.activeCanvasType) || null);
   const polotnoStore = getPolotnoStore() || zustandPolotnoStore;
 
   const [canUndo, setCanUndo] = useState(false);

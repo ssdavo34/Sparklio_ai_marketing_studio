@@ -18,7 +18,7 @@ import { useCanvasStore } from '../stores/useCanvasStore';
 import { Plus, Copy, Trash2, File } from 'lucide-react';
 
 export function PageManager() {
-  const polotnoStore = useCanvasStore((state) => state.polotnoStore);
+  const polotnoStore = useCanvasStore((state) => state.canvases.get(state.activeCanvasType) || null);
   const currentTemplate = useCanvasStore((state) => state.currentTemplate);
   const currentTheme = useCanvasStore((state) => state.currentTheme);
   const applyThemeToCanvas = useCanvasStore((state) => state.applyThemeToCanvas);

@@ -32,7 +32,7 @@ interface PageItem {
 }
 
 export function CollapsiblePagesPanel({ isCollapsed = false, onToggleCollapse }: CollapsiblePagesPanelProps) {
-  const zustandPolotnoStore = useCanvasStore((state) => state.polotnoStore);
+  const zustandPolotnoStore = useCanvasStore((state) => state.canvases.get(state.activeCanvasType) || null);
   const currentTemplate = useCanvasStore((state) => state.currentTemplate);
   const currentTheme = useCanvasStore((state) => state.currentTheme);
   const applyThemeToCanvas = useCanvasStore((state) => state.applyThemeToCanvas);

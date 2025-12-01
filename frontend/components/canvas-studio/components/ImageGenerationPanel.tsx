@@ -24,7 +24,7 @@ import { getImageMetadata, isPlaceholder } from '@/lib/canvas/image-metadata';
 import { IMAGE_LLM_INFO } from '../stores/types/llm';
 
 export function ImageGenerationPanel() {
-  const polotnoStore = useCanvasStore((state) => state.polotnoStore);
+  const polotnoStore = useCanvasStore((state) => state.canvases.get(state.activeCanvasType) || null);
   const chatConfig = useChatStore((state) => state.chatConfig);
   const { isGenerating, progress, results, error, currentProvider, generateImages, reset } = useImageGeneration();
   const [placeholderCount, setPlaceholderCount] = useState(0);

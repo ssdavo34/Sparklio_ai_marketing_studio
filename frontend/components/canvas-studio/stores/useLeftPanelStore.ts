@@ -5,13 +5,16 @@
  * - ActivityBar 메뉴 선택 (activeTab)
  * - 패널 내부 탭 (panelTab: pages/editor)
  * - 패널 접기/펼치기 (isCollapsed)
+ * - 캔버스 타입 자동 전환 (v4.0)
  *
  * @author C Team (Frontend Team)
- * @version 4.0
+ * @version 4.0 (2025-12-01 멀티캔버스)
  */
 
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
+import type { CanvasType } from './types';
+import { useCanvasStore } from './useCanvasStore';
 
 // ============================================================================
 // Types
@@ -62,14 +65,56 @@ export interface LeftPanelState {
 }
 
 // ============================================================================
+// Tab → Canvas Type 매핑
+// ============================================================================
+
+/**
+ * LeftPanelTab → CanvasType 매핑
+ * 캔버스를 사용하는 탭만 매핑됨
+ */
+const TAB_TO_CANVAS_MAP: Partial<Record<LeftPanelTab, CanvasType>> = {
+  'brandkit': 'brand-dna',
+  'meeting': 'meeting',
+  'conceptboard': 'concept',
+  'presentation': 'presentation',
+  'detail': 'detail',
+  'sns': 'sns',
+  'video': 'video',
+  'image': 'image',
+};
+
+/**
+ * 탭에 해당하는 캔버스 타입 반환 (캔버스가 없는 탭은 null)
+ */
+export function getCanvasTypeForTab(tab: LeftPanelTab): CanvasType | null {
+  return TAB_TO_CANVAS_MAP[tab] || null;
+}
+
+/**
+ * 탭이 캔버스를 사용하는지 확인
+ */
+export function tabUsesCanvas(tab: LeftPanelTab): boolean {
+  return tab in TAB_TO_CANVAS_MAP;
+}
+
+// ============================================================================
 // Store
 // ============================================================================
 
 export const useLeftPanelStore = create<LeftPanelState>()(
   devtools(
-    (set) => ({
+    (set, get) => ({
       activeTab: 'brandkit',
-      setActiveTab: (tab) => set({ activeTab: tab }),
+      setActiveTab: (tab) => {
+        set({ activeTab: tab });
+
+        // 캔버스 타입 자동 전환 (v4.0)
+        const canvasType = getCanvasTypeForTab(tab);
+        if (canvasType) {
+          console.log(`[LeftPanelStore] Tab changed to ${tab}, switching canvas to ${canvasType}`);
+          useCanvasStore.getState().setActiveCanvas(canvasType);
+        }
+      },
 
       panelTab: 'pages',
       setPanelTab: (tab) => set({ panelTab: tab }),

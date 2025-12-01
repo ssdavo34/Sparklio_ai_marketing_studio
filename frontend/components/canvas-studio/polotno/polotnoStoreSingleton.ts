@@ -1,175 +1,267 @@
 /**
- * Polotno Store Singleton
+ * Polotno Store Multi-Canvas Manager
  *
- * Polotno Store를 싱글톤으로 관리하여 뷰 전환 시에도 상태가 유지되도록 함
+ * 캔버스 타입별 Polotno Store를 관리
+ * - 8개의 독립 캔버스 지원
+ * - 각 탭이 자신의 캔버스만 사용
+ * - 하위 호환성: 기존 싱글톤 API 유지
  *
  * @author C팀 (Frontend Team)
- * @version 1.1
- * @date 2025-11-28
+ * @version 4.0 (2025-12-01 멀티캔버스)
  */
 
 import { createStore } from 'polotno/model/store';
 import type { StoreType } from 'polotno/model/store';
+import { type CanvasType, CANVAS_CONFIGS } from '../stores/types';
 
-// 모듈 레벨 싱글톤 인스턴스
-let polotnoStoreInstance: StoreType | null = null;
-let isInitialized = false;
+// ============================================================================
+// 멀티 캔버스 저장소
+// ============================================================================
+
+/** 캔버스 타입별 Store 인스턴스 */
+const canvasStores = new Map<CanvasType, StoreType>();
+
+/** API Key 저장 (재초기화 시 사용) */
+let savedApiKey: string | null = null;
+
+// ============================================================================
+// 멀티 캔버스 API (v4.0)
+// ============================================================================
 
 /**
- * Polotno Store 싱글톤 가져오기 또는 생성
+ * 특정 타입의 캔버스 Store 가져오기 또는 생성
+ * @param type 캔버스 타입
+ * @param apiKey Polotno API Key
  */
-export function getOrCreatePolotnoStore(apiKey: string): StoreType {
-  // 이미 초기화된 경우 재사용
-  if (polotnoStoreInstance && isInitialized) {
-    console.log('[PolotnoStoreSingleton] Reusing existing store');
-    return polotnoStoreInstance;
+export function getOrCreateCanvasStore(type: CanvasType, apiKey: string): StoreType {
+  // API Key 저장
+  if (apiKey && !savedApiKey) {
+    savedApiKey = apiKey;
   }
 
-  // 안전성 검증: apiKey 필수
-  if (!apiKey || typeof apiKey !== 'string') {
-    console.error('[PolotnoStoreSingleton] Invalid API key provided');
-    throw new Error('Polotno API key is required');
+  // 이미 존재하면 재사용
+  const existingStore = canvasStores.get(type);
+  if (existingStore) {
+    console.log(`[PolotnoMultiCanvas] Reusing existing store for: ${type}`);
+    return existingStore;
+  }
+
+  // 새로 생성
+  const config = CANVAS_CONFIGS[type];
+  if (!config) {
+    console.error(`[PolotnoMultiCanvas] Unknown canvas type: ${type}`);
+    throw new Error(`Unknown canvas type: ${type}`);
   }
 
   try {
-    console.log('[PolotnoStoreSingleton] Creating new store');
-    polotnoStoreInstance = createStore({
+    console.log(`[PolotnoMultiCanvas] Creating new store for: ${type} (${config.width}x${config.height})`);
+
+    const store = createStore({
       key: apiKey,
       showCredit: true, // Free version requirement
     });
 
-    // Store 생성 검증
-    if (!polotnoStoreInstance) {
-      throw new Error('Failed to create Polotno store');
+    if (!store) {
+      throw new Error(`Failed to create Polotno store for: ${type}`);
     }
 
-    // Register custom fonts (Pretendard)
-    if (typeof window !== 'undefined' && (window as any).FontFace) {
-      // Ensure Pretendard font is available for Polotno
-      document.fonts.ready
-        .then(() => {
-          console.log('[PolotnoStoreSingleton] Fonts loaded and ready');
-        })
-        .catch((err) => {
-          console.warn('[PolotnoStoreSingleton] Font loading warning:', err);
-        });
-    }
+    // 초기 페이지 추가 (해당 캔버스 크기로)
+    store.addPage({
+      width: config.width,
+      height: config.height,
+    });
 
-    isInitialized = true;
-    console.log('[PolotnoStoreSingleton] Store created successfully');
-    return polotnoStoreInstance;
+    // 저장
+    canvasStores.set(type, store);
+    console.log(`[PolotnoMultiCanvas] Store created for: ${type}`);
+
+    return store;
   } catch (error) {
-    console.error('[PolotnoStoreSingleton] Failed to create store:', error);
-    // 실패 시 상태 리셋
-    polotnoStoreInstance = null;
-    isInitialized = false;
+    console.error(`[PolotnoMultiCanvas] Failed to create store for ${type}:`, error);
     throw error;
   }
 }
 
 /**
- * 현재 Polotno Store 인스턴스 가져오기 (안전성 검증 포함)
+ * 특정 타입의 캔버스 Store 가져오기 (존재하는 경우만)
  */
-export function getPolotnoStore(): StoreType | null {
-  if (!isInitialized || !polotnoStoreInstance) {
-    console.warn('[PolotnoStoreSingleton] Store not initialized. Call getOrCreatePolotnoStore() first.');
-    return null;
+export function getCanvasStore(type: CanvasType): StoreType | null {
+  return canvasStores.get(type) || null;
+}
+
+/**
+ * 특정 타입의 캔버스가 초기화되었는지 확인
+ */
+export function isCanvasInitialized(type: CanvasType): boolean {
+  return canvasStores.has(type);
+}
+
+/**
+ * 특정 타입의 캔버스 리셋
+ */
+export function resetCanvasStore(type: CanvasType): boolean {
+  const store = canvasStores.get(type);
+  if (!store) {
+    console.warn(`[PolotnoMultiCanvas] Cannot reset: store ${type} not initialized`);
+    return false;
   }
-  return polotnoStoreInstance;
+
+  const config = CANVAS_CONFIGS[type];
+
+  try {
+    // 모든 페이지 삭제
+    const pageIds = store.pages.map((page) => page.id);
+    if (pageIds.length > 0) {
+      store.deletePages(pageIds);
+    }
+
+    // 새 페이지 추가
+    store.addPage({
+      width: config.width,
+      height: config.height,
+    });
+
+    console.log(`[PolotnoMultiCanvas] Store ${type} reset`);
+    return true;
+  } catch (error) {
+    console.error(`[PolotnoMultiCanvas] Failed to reset store ${type}:`, error);
+    return false;
+  }
 }
 
 /**
- * Polotno Store가 초기화되었는지 확인
+ * 특정 타입의 캔버스 상태를 JSON으로 내보내기
  */
-export function isPolotnoStoreInitialized(): boolean {
-  return isInitialized && polotnoStoreInstance !== null;
-}
-
-/**
- * Polotno Store 상태를 JSON으로 내보내기 (디버깅/저장용)
- */
-export function exportStoreState(): any | null {
-  if (!polotnoStoreInstance) {
-    console.warn('[PolotnoStoreSingleton] Cannot export: store not initialized');
+export function exportCanvasState(type: CanvasType): any | null {
+  const store = canvasStores.get(type);
+  if (!store) {
+    console.warn(`[PolotnoMultiCanvas] Cannot export: store ${type} not initialized`);
     return null;
   }
 
   try {
-    const state = polotnoStoreInstance.toJSON();
-    console.log('[PolotnoStoreSingleton] State exported successfully');
-    return state;
+    return store.toJSON();
   } catch (error) {
-    console.error('[PolotnoStoreSingleton] Failed to export state:', error);
+    console.error(`[PolotnoMultiCanvas] Failed to export store ${type}:`, error);
     return null;
   }
 }
 
 /**
- * JSON에서 Polotno Store 상태 복원
+ * 특정 타입의 캔버스 상태 복원
  */
-export function restoreStoreState(json: any): boolean {
-  if (!polotnoStoreInstance) {
-    console.error('[PolotnoStoreSingleton] Cannot restore: store not initialized');
+export function restoreCanvasState(type: CanvasType, json: any): boolean {
+  const store = canvasStores.get(type);
+  if (!store) {
+    console.error(`[PolotnoMultiCanvas] Cannot restore: store ${type} not initialized`);
     return false;
   }
 
   if (!json) {
-    console.warn('[PolotnoStoreSingleton] Cannot restore: no data provided');
+    console.warn(`[PolotnoMultiCanvas] Cannot restore: no data provided`);
     return false;
   }
 
   try {
-    polotnoStoreInstance.loadJSON(json);
-    console.log('[PolotnoStoreSingleton] State restored successfully');
+    store.loadJSON(json);
+    console.log(`[PolotnoMultiCanvas] Store ${type} restored`);
     return true;
   } catch (error) {
-    console.error('[PolotnoStoreSingleton] Failed to restore state:', error);
+    console.error(`[PolotnoMultiCanvas] Failed to restore store ${type}:`, error);
     return false;
   }
 }
 
 /**
- * Polotno Store 리셋 (새 프로젝트 시작 시)
+ * 모든 캔버스 Store 목록 가져오기
+ */
+export function getAllCanvasStores(): Map<CanvasType, StoreType> {
+  return new Map(canvasStores);
+}
+
+/**
+ * 초기화된 캔버스 타입 목록
+ */
+export function getInitializedCanvasTypes(): CanvasType[] {
+  return Array.from(canvasStores.keys());
+}
+
+// ============================================================================
+// 하위 호환성 API (deprecated)
+// ============================================================================
+
+/** 기본 캔버스 타입 (하위 호환용) */
+const DEFAULT_CANVAS_TYPE: CanvasType = 'brand-dna';
+
+/**
+ * @deprecated getOrCreateCanvasStore(type, apiKey) 사용 권장
+ * 하위 호환: 싱글톤처럼 동작 (기본 캔버스 반환)
+ */
+export function getOrCreatePolotnoStore(apiKey: string): StoreType {
+  console.warn('[PolotnoMultiCanvas] getOrCreatePolotnoStore is deprecated. Use getOrCreateCanvasStore(type, apiKey)');
+  return getOrCreateCanvasStore(DEFAULT_CANVAS_TYPE, apiKey);
+}
+
+/**
+ * @deprecated getCanvasStore(type) 사용 권장
+ * 하위 호환: 기본 캔버스 반환
+ */
+export function getPolotnoStore(): StoreType | null {
+  console.warn('[PolotnoMultiCanvas] getPolotnoStore is deprecated. Use getCanvasStore(type)');
+  return canvasStores.get(DEFAULT_CANVAS_TYPE) || null;
+}
+
+/**
+ * @deprecated isCanvasInitialized(type) 사용 권장
+ */
+export function isPolotnoStoreInitialized(): boolean {
+  return canvasStores.has(DEFAULT_CANVAS_TYPE);
+}
+
+/**
+ * @deprecated exportCanvasState(type) 사용 권장
+ */
+export function exportStoreState(): any | null {
+  return exportCanvasState(DEFAULT_CANVAS_TYPE);
+}
+
+/**
+ * @deprecated restoreCanvasState(type, json) 사용 권장
+ */
+export function restoreStoreState(json: any): boolean {
+  return restoreCanvasState(DEFAULT_CANVAS_TYPE, json);
+}
+
+/**
+ * @deprecated resetCanvasStore(type) 사용 권장
  */
 export function resetPolotnoStore(width: number = 1080, height: number = 1920): boolean {
-  if (!polotnoStoreInstance) {
-    console.error('[PolotnoStoreSingleton] Cannot reset: store not initialized');
+  const store = canvasStores.get(DEFAULT_CANVAS_TYPE);
+  if (!store) {
+    console.error('[PolotnoMultiCanvas] Cannot reset: default store not initialized');
     return false;
   }
 
   try {
-    // 모든 페이지 ID 수집
-    const pageIds = polotnoStoreInstance.pages.map((page) => page.id);
-
-    // 페이지 삭제 (Polotno는 deletePages 메서드 사용)
+    const pageIds = store.pages.map((page) => page.id);
     if (pageIds.length > 0) {
-      polotnoStoreInstance.deletePages(pageIds);
+      store.deletePages(pageIds);
     }
 
-    // 새 빈 페이지 추가
-    polotnoStoreInstance.addPage({
-      width,
-      height,
-    });
-
-    console.log('[PolotnoStoreSingleton] Store reset with new page');
+    store.addPage({ width, height });
+    console.log('[PolotnoMultiCanvas] Default store reset');
     return true;
   } catch (error) {
-    console.error('[PolotnoStoreSingleton] Failed to reset store:', error);
+    console.error('[PolotnoMultiCanvas] Failed to reset default store:', error);
     return false;
   }
 }
 
 /**
- * Polotno Store 강제 재초기화 (에러 복구용)
+ * @deprecated 사용 금지
  */
 export function forceReinitializeStore(apiKey: string): StoreType {
-  console.warn('[PolotnoStoreSingleton] Force reinitializing store...');
-
-  // 기존 인스턴스 정리
-  polotnoStoreInstance = null;
-  isInitialized = false;
-
-  // 새로 생성
-  return getOrCreatePolotnoStore(apiKey);
+  console.warn('[PolotnoMultiCanvas] forceReinitializeStore is deprecated');
+  canvasStores.delete(DEFAULT_CANVAS_TYPE);
+  return getOrCreateCanvasStore(DEFAULT_CANVAS_TYPE, apiKey);
 }

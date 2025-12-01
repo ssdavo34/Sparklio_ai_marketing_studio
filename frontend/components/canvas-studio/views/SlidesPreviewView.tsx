@@ -12,7 +12,7 @@ import type { PresentationData, SlideData, SlideLayout } from '@/types/demo';
 export function SlidesPreviewView() {
   const { selectedConcept, backToConceptBoard, backToCanvas, setView } = useCenterViewStore();
   const { slidesData: generatedSlidesData, setSlidesData } = useGeneratedAssetsStore();
-  const polotnoStore = useCanvasStore((state) => state.polotnoStore);
+  const polotnoStore = useCanvasStore((state) => state.canvases.get(state.activeCanvasType) || null);
 
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
   const [isSaving, setIsSaving] = useState(false);

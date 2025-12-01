@@ -37,7 +37,7 @@ interface InstagramData {
 export function InstagramPreviewView() {
   const { selectedConcept, backToConceptBoard, backToCanvas, setView } = useCenterViewStore();
   const generatedInstagramData = useGeneratedAssetsStore((state) => state.instagramData);
-  const polotnoStore = useCanvasStore((state) => state.polotnoStore);
+  const polotnoStore = useCanvasStore((state) => state.canvases.get(state.activeCanvasType) || null);
   const [mockData, setMockData] = useState<InstagramData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [dataSource, setDataSource] = useState<'generated' | 'mock'>('generated');

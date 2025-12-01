@@ -42,7 +42,7 @@ export function TopToolbar() {
 
   const isViewMode = useLayoutStore((state) => state.isViewMode);
   const toggleViewMode = useLayoutStore((state) => state.toggleViewMode);
-  const polotnoStore = useCanvasStore((state) => state.polotnoStore);
+  const polotnoStore = useCanvasStore((state) => state.canvases.get(state.activeCanvasType) || null);
   const { currentWorkspace } = useWorkspaceStore();
   const { currentProject } = useProjectStore();
   const [isExporting, setIsExporting] = useState(false);
