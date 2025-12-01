@@ -562,6 +562,7 @@ export function BrandKitTab() {
   };
 
   // 문서 선택/해제 토글
+  // 문서 선택이 변경되면 Brand DNA 결과를 숨김 (새 분석 필요 표시)
   const toggleDocSelection = (docId: string) => {
     setSelectedDocIds((prev) => {
       const next = new Set(prev);
@@ -572,6 +573,9 @@ export function BrandKitTab() {
       }
       return next;
     });
+    // 문서 선택이 변경되면 Brand DNA 결과 숨김
+    // (새 문서 조합으로 새 분석이 필요함을 표시)
+    setShowDNAResult(false);
   };
 
   // 전체 선택/해제
@@ -581,6 +585,8 @@ export function BrandKitTab() {
     } else {
       setSelectedDocIds(new Set(documents.map((d) => d.id)));
     }
+    // 문서 선택이 변경되면 Brand DNA 결과 숨김
+    setShowDNAResult(false);
   };
 
   // 선택된 문서 일괄 삭제
