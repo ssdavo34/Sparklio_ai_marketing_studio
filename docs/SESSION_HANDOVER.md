@@ -1,4 +1,4 @@
-# 세션 인수인계 (2025-12-01 21:00 기준)
+# 세션 인수인계 (2025-12-01 23:30 기준)
 
 > **다음 Claude는 이 파일과 CLAUDE.md를 먼저 읽으세요**
 
@@ -7,7 +7,7 @@
 ## 현재 상태
 
 - **브랜치**: `feature/editor-migration-polotno`
-- **최신 커밋**: `08a8561` - Polotno element compatibility - rect to svg conversion
+- **최신 커밋**: `2ef188a` - dispatch is not defined 에러 수정 및 자막 표시 개선
 - **Mac Mini 배포**: ⏳ 동기화 필요
 - **서버 상태**: ✅ healthy
 
@@ -15,85 +15,108 @@
 
 ## 오늘 완료한 작업 (2025-12-01)
 
-### B팀 - Presentation Agent V2 고도화
+### C팀 - Video6 Pipeline V2 완성 ✅
 
-1. **LLM 프롬프트 개선** (`backend/app/services/agents/presentation.py`)
-   - 제목 10자 이내, 불릿 15자 이내 규칙 추가
-   - 5종 레이아웃 템플릿 정의 (title_center, two_column, three_bullets, full_image, stats)
-   - 슬라이드별 레이아웃 매핑 가이드 추가
+1. **영상 생성 성공** (38초 ~ 50초 영상)
+   - TTS 나레이션 정상 작동 (Backend EdgeTTS)
+   - BGM 믹싱 정상 작동 (Pixabay 무료 BGM)
+   - 자막과 나레이션 동기화 완료
+   - Ken Burns 효과 (zoom_in/out, pan) 적용
 
-2. **API 응답 개선** (`backend/app/api/v1/endpoints/presentations.py`)
-   - `visual_hint` 필드 추가 (Unsplash 이미지 검색용)
-   - `design_guidelines` 필드 추가 (primary_color, secondary_color, font_style)
-   - 레이아웃 정규화 로직 (기존 레이아웃 → 5종 템플릿 매핑)
+2. **dispatch 에러 수정** (`frontend/components/video6/Video6PanelV2.tsx`)
+   - **문제**: `dispatch is not defined` - useReducer가 아닌 useState 사용 중
+   - **해결**: `localStatus` 상태 추가, `setLocalStatus()`로 대체
+   - StepProgressIndicator 업데이트 정상화
 
-### C팀 - Presentation Canvas 통합
+3. **자막 표시 개선** (3개 파일)
+   - `Video6PanelV2.tsx`: `scene.script || scene.caption` 으로 변경
+   - `ImageReviewStep.tsx`: 동일하게 수정
+   - `MotionReviewStep.tsx`: 동일하게 수정
+   - **결과**: TTS 나레이션과 동일한 긴 자막 표시
 
-1. **Polotno 요소 호환성 수정** (`frontend/lib/canvas/slidesTemplate.ts`)
-   - **문제**: Polotno는 `type: 'rect'`를 직접 지원하지 않음
-   - **해결**: `createRectSvg()` 헬퍼 함수로 모든 rect → svg 변환
-   - 배경, 구분선, 카드박스, 원형 아이콘 등 모두 SVG로 변환
+4. **이미지 저장/다운로드 기능** (`ImageReviewStep.tsx`)
+   - "저장" 버튼 → MinIO에 업로드
+   - "다운로드" 버튼 → 로컬 PC에 저장
 
-2. **상세 에러 로깅 추가** (`frontend/lib/canvas/slidesTemplate.ts:603-666`)
-   - 각 슬라이드/요소 추가 시 콘솔 로그
-   - 에러 발생 시 어느 요소에서 실패했는지 추적 가능
+### 이전 세션 완료 작업 (같은 날)
 
-3. **PresentationTab 개선** (`frontend/components/canvas-studio/panels/left/tabs/PresentationTab.tsx`)
-   - 페이지 삭제 로직 개선 (remove/delete 호환)
-   - 단계별 콘솔 로깅 추가
-   - 에러 시 토스트 메시지 표시
+- Presentation Agent V2 고도화 (B팀)
+- Polotno 요소 호환성 수정 (rect → svg 변환)
+- PresentationTab 개선
 
 ---
 
-## 🔴 현재 알려진 문제 (BLOCKING)
+## 🟢 완료된 기능 (Video6)
 
-### Presentation 12장 생성 ✅, 그러나 Canvas 연동 ❌
+| 기능 | 상태 | 비고 |
+|------|------|------|
+| 스크립트 생성 (GPT-4o) | ✅ | StoryboardBuilder로 긴 나레이션 생성 |
+| 이미지 생성 (ComfyUI) | ✅ | Flux.1 모델 사용 |
+| 이미지 생성 (NanoBanana) | ⚠️ | 호출은 되지만 결과 확인 필요 |
+| TTS 생성 (EdgeTTS) | ✅ | Backend API 사용 |
+| BGM 믹싱 | ✅ | Pixabay 무료 BGM |
+| 자막 표시 | ✅ | script 필드 우선 사용 |
+| 영상 렌더링 (MediaRecorder) | ✅ | 38초~50초 영상 생성 |
+| 영상 저장 (MinIO) | ✅ | Mac mini MinIO에 업로드 |
+| Step 진행 표시 | ✅ | localStatus로 수정 |
 
-**현상:**
-- 프레젠테이션 생성 API 호출 성공 (12장 슬라이드 반환)
-- Pages 패널에 12개 페이지 썸네일 안 보임 (1개만 표시)
-- 슬라이드 내 스크롤 발생 (페이지에 맞지 않음)
-- Canvas에서 요소 편집 불가 (Polotno 연동 안됨)
+---
+
+## 🔴 현재 알려진 문제
+
+### 1. Presentation Canvas 연동 ❌
+- 프레젠테이션 생성 API 성공, 그러나 Canvas에 표시 안됨
+- Pages 패널에 썸네일 안 보임
 - Chat ↔ Canvas 연결 안됨
 
-**추정 원인:**
-1. `getPolotnoStore()` deprecated 경고 → `getCanvasStore(type)` 사용 필요
-2. Polotno Workspace size 0 경고 → 레이아웃/렌더링 문제
-3. `addSlidesToCanvas` 호출 후 `[SlidesTemplate] ✅ Successfully added` 로그 안 나옴
-
-**디버깅 로그 위치:**
-- 콘솔에서 `[PresentationTab]`, `[SlidesTemplate]` 로그 확인
-- 어느 단계에서 실패하는지 추적 가능
+### 2. NanoBanana 이미지 확인 필요
+- 콘솔 로그에 `[generateImage] Using NanoBanana` 출력됨
+- 실제 생성된 이미지가 ComfyUI와 동일해 보임 → 확인 필요
 
 ---
 
-## 다음 작업 우선순위
+## 내일 작업 우선순위 (2025-12-02)
 
-### P0 (Critical) - Presentation Canvas 연동 수정
-1. `getPolotnoStore()` → `getCanvasStore('presentation')` 마이그레이션
-2. Polotno Workspace 크기 문제 해결
-3. Pages 패널에 12개 썸네일 표시
-4. 슬라이드 요소 편집 가능하게
+### P0 (Critical) - 에디터 & 채팅창 메인메뉴/캔버스 연결
+1. **에디터 메인메뉴 연결** - 각 에디터(Presentation, Video 등)를 메인 메뉴에서 접근 가능하게
+2. **Pages 채팅창 연결** - Chat ↔ Canvas 양방향 연결
+3. **VEO3 테스트** - 이미지 → 동영상 변환 테스트
 
 ### P1 (High)
-5. Chat ↔ Canvas 연결
-6. 슬라이드 내 스크롤 제거 (페이지에 맞게)
+4. Presentation Canvas 연동 수정
+   - `getPolotnoStore()` → `getCanvasStore('presentation')` 마이그레이션
+   - Pages 패널에 썸네일 표시
 
 ### P2 (Medium)
-7. Unsplash 이미지 자동 삽입 (visual_hint 활용)
-8. 디자인 가이드라인 적용 (design_guidelines 활용)
+5. NanoBanana 실제 이미지 생성 확인
+6. 프로젝트 DB와 Asset 연결
 
 ---
 
 ## 주요 파일 위치
 
+### Video6 Pipeline
+| 파일 | 용도 |
+|------|------|
+| `frontend/components/video6/Video6PanelV2.tsx` | 메인 컴포넌트 (1800+ lines) |
+| `frontend/components/video6/steps/ImageReviewStep.tsx` | 이미지 확인 Step |
+| `frontend/components/video6/steps/MotionReviewStep.tsx` | 모션 확인 Step |
+| `frontend/lib/api/comfyui-api.ts` | ComfyUI/NanoBanana API |
+| `backend/app/services/agents/storyboard_builder.py` | 스토리보드 생성 |
+
+### Presentation
 | 파일 | 용도 |
 |------|------|
 | `frontend/lib/canvas/slidesTemplate.ts` | 슬라이드 → Polotno 변환 |
 | `frontend/components/canvas-studio/panels/left/tabs/PresentationTab.tsx` | 프레젠테이션 생성 UI |
-| `frontend/components/canvas-studio/polotno/polotnoStoreSingleton.ts` | Polotno Store 관리 |
-| `backend/app/services/agents/presentation.py` | PresentationAgent (LLM) |
-| `backend/app/api/v1/endpoints/presentations.py` | /generate API |
+
+---
+
+## 저장 위치 안내
+
+- **이미지 저장**: Mac mini MinIO (`http://100.123.51.5:9000`, 버킷: `sparklio-assets`)
+- **영상 저장**: Mac mini MinIO 동일
+- **MinIO 콘솔**: `http://100.123.51.5:9001`
 
 ---
 
@@ -103,10 +126,13 @@
 # Mac Mini 배포
 ssh woosun@100.123.51.5 "cd ~/sparklio_ai_marketing_studio && git pull origin feature/editor-migration-polotno"
 
+# Backend 재시작
+ssh woosun@100.123.51.5 "/usr/local/bin/docker compose -f ~/sparklio_ai_marketing_studio/docker/mac-mini/docker-compose.yml restart backend"
+
 # 헬스체크
 curl http://100.123.51.5:8000/health
 ```
 
 ---
 
-**마지막 업데이트**: 2025-12-01 21:00 by C팀/B팀
+**마지막 업데이트**: 2025-12-01 23:30 by C팀
