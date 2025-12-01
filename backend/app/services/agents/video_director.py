@@ -799,7 +799,11 @@ class VideoDirectorAgent(AgentBase):
         for i, scene in enumerate(scenes[:6]):  # V2 제한: 최대 6개
             scene_index = i + 1
             duration = scene.get("duration", 3.0)
-            caption = scene.get("text_overlay") or scene.get("voiceover") or ""
+
+            # caption: 화면에 표시되는 짧은 자막 (text_overlay)
+            # script: TTS용 나레이션 (voiceover - 길고 자연스러운 한국어)
+            caption = scene.get("text_overlay") or ""
+            script = scene.get("voiceover") or ""  # TTS용 나레이션은 별도로 저장
 
             # 이미지 소스 결정
             image_id = None
@@ -849,6 +853,7 @@ class VideoDirectorAgent(AgentBase):
                 image_id=image_id,
                 image_url=image_url,
                 caption=caption,
+                script=script,  # TTS용 나레이션 (voiceover)
                 duration_sec=min(max(duration, 2.0), 5.0),  # 2~5초 제한
                 generate_new_image=generate_new,
                 image_prompt=image_prompt

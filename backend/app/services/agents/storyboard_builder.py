@@ -234,12 +234,25 @@ class StoryboardBuilderAgent(AgentBase):
 Create a compelling storyboard that captures attention in the first 3 seconds and delivers the message effectively.
 
 IMPORTANT:
-- The 'voiceover' must be natural, spoken KOREAN. Use emotional hooks and storytelling. Avoid robotic lists.
-- 'text_overlay' must be SHORT and PUNCHY (max 20 characters). This is for subtitles/captions.
+- **'voiceover' (TTS narration)** - THIS IS CRITICAL:
+  - MUST be natural, conversational KOREAN for text-to-speech synthesis.
+  - Each voiceover MUST be 2-4 complete sentences (40-100 Korean characters per scene).
+  - Use emotional hooks, storytelling, and persuasive marketing language.
+  - Build a narrative arc: hook → benefits → features → call to action.
+  - DO NOT use single words or short phrases like "새로운 경험!" - these are for text_overlay only.
+  - GOOD voiceover example: "지금까지 경험해보지 못한 완벽한 품질을 만나보세요. 프리미엄 소재와 혁신적인 디자인이 당신의 일상을 특별하게 만들어 드립니다."
+  - BAD voiceover example: "새로운 경험!" (too short, no substance - use this for text_overlay instead)
+  - Each scene's voiceover should be complete and meaningful when read aloud.
+
+- **'text_overlay' (on-screen caption)** - Different from voiceover:
+  - SHORT and PUNCHY (max 15-20 Korean characters).
+  - This appears as subtitle/caption on screen while voiceover plays.
+  - Example: "새로운 경험!", "지금 시작하세요", "한정 특가", "놓치지 마세요!"
+
 - 'visual_description' and 'image_prompt_hint' must be HIGHLY DETAILED. Include lighting (e.g., cinematic lighting, golden hour), composition (e.g., wide angle, close up), style (e.g., photorealistic, 8k, unreal engine 5), and mood.
-- **CRITICAL**: The generated images must NOT contain any text. Do not include signboards, logos with text, or letters in the visual description. The text will be added via overlay later.
+- **CRITICAL**: The generated images must NOT contain any text. Do not include signboards, logos with text, or letters in the visual description.
 - Ensure the flow between scenes is logical and builds up to the call to action.
-- **OUTPUT LANGUAGE**: Voiceover and Text Overlay MUST be in **KOREAN (한국어)**. Visual descriptions and prompts can be in English or Korean (English preferred for image gen).
+- **OUTPUT LANGUAGE**: Voiceover and Text Overlay MUST be in **KOREAN (한국어)**. Visual descriptions and prompts should be in English for image generation.
 """
         return prompt
 

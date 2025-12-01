@@ -26,8 +26,35 @@ def _build_asset_response(asset: GeneratedAsset) -> AssetResponse:
     - preview_url: 캔버스, 상세뷰 (1080px)
     - thumb_url: 목록, 썸네일 (200px)
     - presigned_url: [legacy] 직접 접근 URL
+
+    2025-12-01 수정:
+    - metadata 필드 명시적 매핑 (asset_metadata → metadata)
+    - SQLAlchemy MetaData 객체 충돌 방지
     """
-    response = AssetResponse.model_validate(asset)
+    # 명시적 딕셔너리 구성 (metadata 필드 충돌 방지)
+    asset_dict = {
+        'id': asset.id,
+        'brand_id': asset.brand_id,
+        'project_id': asset.project_id,
+        'user_id': asset.user_id,
+        'type': asset.type,
+        'minio_path': asset.minio_path,
+        'original_name': asset.original_name,
+        'file_size': asset.file_size,
+        'mime_type': asset.mime_type,
+        'checksum': asset.checksum,
+        'source': asset.source,
+        'source_metadata': asset.source_metadata,
+        'metadata': asset.asset_metadata,  # asset_metadata → metadata 매핑
+        'tags': asset.tags,
+        'status': asset.status,
+        'created_at': asset.created_at,
+        'updated_at': asset.updated_at,
+        'original_url': asset.original_url,
+        'preview_url': asset.preview_url,
+        'thumb_url': asset.thumb_url,
+    }
+    response = AssetResponse.model_validate(asset_dict)
 
     # 3종 URL 설정 (DB에 저장된 값 사용)
     # - DB에 없으면 minio_path 기반 presigned URL 생성

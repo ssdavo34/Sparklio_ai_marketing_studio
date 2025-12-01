@@ -22,7 +22,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, Video, Sparkles, AlertCircle, Loader2, Eye, Image, Cpu, Zap } from 'lucide-react';
+import { ArrowLeft, Video, Sparkles, AlertCircle, Loader2, Eye, Image, Cpu, Zap, Music, Volume2, Save, Download, Check } from 'lucide-react';
 import { useVideo6V2 } from '@/hooks/useVideo6V2';
 import { ModeSelector } from './ModeSelector';
 import { AssetPoolGrid } from './AssetPoolGrid';
@@ -123,6 +123,24 @@ export function Video6PanelV2({ onClose, className = '', projectId: initialProje
   const [localVideoUrl, setLocalVideoUrl] = useState<string | null>(null);
   const [renderProgress, setRenderProgress] = useState(0);
 
+  // BGM 설정
+  const [selectedBgm, setSelectedBgm] = useState<string>('upbeat_corporate');
+  const [bgmVolume, setBgmVolume] = useState<number>(0.3); // 0 ~ 1
+  const [enableBgm, setEnableBgm] = useState<boolean>(true);
+
+  // BGM 목록 (무료 BGM URL 사용)
+  const bgmOptions = [
+    { id: 'upbeat_corporate', name: '업비트 기업', url: 'https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0a13f69d2.mp3' },
+    { id: 'inspiring', name: '영감을 주는', url: 'https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3' },
+    { id: 'electronic', name: '일렉트로닉', url: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_8cb749d484.mp3' },
+    { id: 'acoustic', name: '어쿠스틱', url: 'https://cdn.pixabay.com/download/audio/2021/11/25/audio_a48f178b49.mp3' },
+    { id: 'none', name: 'BGM 없음', url: '' },
+  ];
+
+  // 영상 저장 상태
+  const [isSavingVideo, setIsSavingVideo] = useState(false);
+  const [savedVideoUrl, setSavedVideoUrl] = useState<string | null>(null);
+
   // V2 상태 직접 사용 (localPlanDraft fallback 포함)
   const projectStatus = state.status;
   const planDraft = state.planDraft || localPlanDraft;
@@ -189,6 +207,34 @@ export function Video6PanelV2({ onClose, className = '', projectId: initialProje
     if (selectedAssets.length === 0 && selectedMode === 'reuse') {
       return;
     }
+
+    // reuse 모드 && 이미지가 선택된 경우: 바로 IMAGE_REVIEW로 이동
+    if (selectedMode === 'reuse' && selectedAssets.length > 0) {
+      console.log('[Video6PanelV2] Reuse mode - creating plan from selected assets');
+
+      // 선택된 이미지들로 planDraft 생성
+      const reuseScenes: SceneDraftV2[] = selectedAssets.map((assetUrl, idx) => ({
+        scene_index: idx + 1,
+        caption: `씬 ${idx + 1}`,
+        script: '',
+        image_prompt: '',
+        duration_sec: 2.5,
+        image_url: assetUrl,
+        image_approval_status: 'approved' as const,
+        motion_prompt: '',
+        motion_prompt_ko: '',
+        use_ai_video: true,
+      }));
+
+      const reusePlan: VideoPlanDraftV2 = {
+        scenes: reuseScenes,
+      };
+
+      setLocalPlanDraft(reusePlan);
+      setStep('IMAGE_REVIEW');
+      return;
+    }
+
     setStep('TOPIC_INPUT');
   };
 
@@ -524,35 +570,82 @@ export function Video6PanelV2({ onClose, className = '', projectId: initialProje
     });
   };
 
-  // TTS 음성 생성 (Web Speech API 사용)
-  const generateTTSAudio = async (text: string): Promise<AudioBuffer | null> => {
-    if (!text || !('speechSynthesis' in window)) {
+  // TTS 음성 생성 (Backend EdgeTTS 사용)
+  const generateTTSAudioFromBackend = async (text: string, voice: string = 'ko-KR-SunHiNeural'): Promise<ArrayBuffer | null> => {
+    if (!text || text.trim().length === 0) {
+      console.log('[Video6PanelV2] Skipping TTS - empty text');
       return null;
     }
 
-    return new Promise((resolve) => {
-      // Web Speech API는 AudioBuffer를 직접 반환하지 않으므로
-      // 대신 SpeechSynthesisUtterance를 사용하여 동기적으로 처리
-      resolve(null);
-    });
-  };
+    try {
+      console.log('[Video6PanelV2] Generating TTS for:', text.substring(0, 50));
+      const response = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, voice, rate: '+0%' }),
+      });
 
-  // TTS로 텍스트 읽기 (SpeechSynthesis)
-  const speakText = (text: string, rate: number = 1.0): Promise<void> => {
-    return new Promise((resolve) => {
-      if (!text || !('speechSynthesis' in window)) {
-        resolve();
-        return;
+      if (!response.ok) {
+        console.error('[Video6PanelV2] TTS API error:', response.status);
+        return null;
       }
 
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'ko-KR';
-      utterance.rate = rate;
-      utterance.onend = () => resolve();
-      utterance.onerror = () => resolve();
+      const data = await response.json();
+      if (data.audio_base64) {
+        // Base64 → ArrayBuffer
+        const binaryString = atob(data.audio_base64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        console.log('[Video6PanelV2] TTS generated, size:', bytes.length);
+        return bytes.buffer;
+      }
 
-      window.speechSynthesis.speak(utterance);
-    });
+      return null;
+    } catch (error) {
+      console.error('[Video6PanelV2] TTS generation error:', error);
+      return null;
+    }
+  };
+
+  // TTS AudioBuffer 배열을 하나의 오디오로 합치기
+  const concatenateAudioBuffers = async (
+    audioContext: AudioContext,
+    buffers: (AudioBuffer | null)[],
+    durations: number[]
+  ): Promise<AudioBuffer | null> => {
+    // 유효한 버퍼만 필터링
+    const validBuffers = buffers.filter(b => b !== null) as AudioBuffer[];
+    if (validBuffers.length === 0) return null;
+
+    // 총 길이 계산 (씬 길이 기반)
+    const totalDuration = durations.reduce((sum, d) => sum + d, 0);
+    const sampleRate = audioContext.sampleRate;
+    const totalLength = Math.ceil(totalDuration * sampleRate);
+
+    // 결과 버퍼 생성 (모노)
+    const result = audioContext.createBuffer(1, totalLength, sampleRate);
+    const channel = result.getChannelData(0);
+
+    let offset = 0;
+    for (let i = 0; i < buffers.length; i++) {
+      const buffer = buffers[i];
+      const sceneDuration = durations[i];
+
+      if (buffer) {
+        // 오디오 버퍼의 데이터를 복사
+        const sourceChannel = buffer.getChannelData(0);
+        const copyLength = Math.min(sourceChannel.length, Math.ceil(sceneDuration * sampleRate));
+        for (let j = 0; j < copyLength && offset + j < totalLength; j++) {
+          channel[offset + j] = sourceChannel[j];
+        }
+      }
+      // 다음 씬 시작 위치로 이동
+      offset += Math.ceil(sceneDuration * sampleRate);
+    }
+
+    return result;
   };
 
   // FFMPEG.wasm으로 비디오 렌더링 (브라우저에서 실행)
@@ -563,7 +656,37 @@ export function Video6PanelV2({ onClose, className = '', projectId: initialProje
       hasImage: !!s.image_url,
       imageUrl: s.image_url?.substring(0, 80),
       caption: s.caption?.substring(0, 30),
+      script: s.script?.substring(0, 30),
     })));
+
+    setRenderProgress(2);
+
+    // 0. TTS 음성 생성 (각 씬별로 병렬 생성)
+    console.log('[Video6PanelV2] Generating TTS audio for all scenes...');
+    const ttsPromises = scenes.map(async (scene) => {
+      const narration = scene.script || scene.caption || '';
+      if (!narration) return null;
+      return generateTTSAudioFromBackend(narration);
+    });
+
+    const ttsArrayBuffers = await Promise.all(ttsPromises);
+    console.log('[Video6PanelV2] TTS generation complete:', ttsArrayBuffers.filter(b => b).length, 'audio files');
+
+    // 0.5. BGM 로드
+    let bgmArrayBuffer: ArrayBuffer | null = null;
+    const selectedBgmOption = bgmOptions.find(b => b.id === selectedBgm);
+    if (enableBgm && selectedBgmOption?.url) {
+      try {
+        console.log('[Video6PanelV2] Loading BGM:', selectedBgmOption.name);
+        const bgmResponse = await fetch(selectedBgmOption.url);
+        if (bgmResponse.ok) {
+          bgmArrayBuffer = await bgmResponse.arrayBuffer();
+          console.log('[Video6PanelV2] BGM loaded, size:', bgmArrayBuffer.byteLength);
+        }
+      } catch (bgmError) {
+        console.error('[Video6PanelV2] Failed to load BGM:', bgmError);
+      }
+    }
 
     setRenderProgress(5);
 
@@ -600,11 +723,92 @@ export function Video6PanelV2({ onClose, className = '', projectId: initialProje
     canvas.height = 1080;
     const ctx = canvas.getContext('2d')!;
 
-    // 3. MediaRecorder로 비디오 녹화 (비디오만, 오디오는 추후 추가)
+    // 3. AudioContext 및 TTS AudioBuffer 준비
+    let audioContext: AudioContext | null = null;
+    const ttsAudioBuffers: (AudioBuffer | null)[] = [];
+    let bgmAudioBuffer: AudioBuffer | null = null;
+
+    // TTS 또는 BGM이 있으면 AudioContext 생성
+    const hasAudio = ttsArrayBuffers.some(b => b !== null) || bgmArrayBuffer;
+    if (hasAudio) {
+      try {
+        audioContext = new AudioContext();
+        console.log('[Video6PanelV2] AudioContext created, sample rate:', audioContext.sampleRate);
+
+        // TTS ArrayBuffer를 AudioBuffer로 변환
+        for (let i = 0; i < ttsArrayBuffers.length; i++) {
+          const arrayBuffer = ttsArrayBuffers[i];
+          if (arrayBuffer) {
+            try {
+              // MP3 ArrayBuffer를 AudioBuffer로 디코딩
+              const audioBuffer = await audioContext.decodeAudioData(arrayBuffer.slice(0));
+              ttsAudioBuffers.push(audioBuffer);
+              console.log(`[Video6PanelV2] TTS AudioBuffer decoded for scene ${i}, duration: ${audioBuffer.duration}s`);
+            } catch (decodeError) {
+              console.error(`[Video6PanelV2] Failed to decode audio for scene ${i}:`, decodeError);
+              ttsAudioBuffers.push(null);
+            }
+          } else {
+            ttsAudioBuffers.push(null);
+          }
+        }
+
+        // BGM ArrayBuffer를 AudioBuffer로 변환
+        if (bgmArrayBuffer) {
+          try {
+            bgmAudioBuffer = await audioContext.decodeAudioData(bgmArrayBuffer.slice(0));
+            console.log(`[Video6PanelV2] BGM AudioBuffer decoded, duration: ${bgmAudioBuffer.duration}s`);
+          } catch (bgmDecodeError) {
+            console.error('[Video6PanelV2] Failed to decode BGM:', bgmDecodeError);
+          }
+        }
+      } catch (audioError) {
+        console.error('[Video6PanelV2] AudioContext creation failed:', audioError);
+      }
+    }
+
+    // 4. MediaRecorder 설정 (비디오 + 오디오)
     const videoStream = canvas.captureStream(30);
 
-    // 지원되는 mimeType 찾기
+    // 오디오 스트림 추가 (AudioContext가 있을 경우)
+    let audioDestination: MediaStreamAudioDestinationNode | null = null;
+    let bgmGainNode: GainNode | null = null;
+    let ttsGainNode: GainNode | null = null;
+    let bgmSource: AudioBufferSourceNode | null = null;
+
+    if (audioContext) {
+      audioDestination = audioContext.createMediaStreamDestination();
+
+      // Gain nodes for volume control
+      bgmGainNode = audioContext.createGain();
+      bgmGainNode.gain.value = bgmVolume; // BGM 볼륨 (0.3 기본값)
+      bgmGainNode.connect(audioDestination);
+
+      ttsGainNode = audioContext.createGain();
+      ttsGainNode.gain.value = 1.0; // TTS 볼륨 (풀 볼륨)
+      ttsGainNode.connect(audioDestination);
+
+      // BGM 재생 시작 (전체 영상에 걸쳐 루프)
+      if (bgmAudioBuffer) {
+        bgmSource = audioContext.createBufferSource();
+        bgmSource.buffer = bgmAudioBuffer;
+        bgmSource.loop = true; // BGM 반복
+        bgmSource.connect(bgmGainNode);
+        bgmSource.start();
+        console.log('[Video6PanelV2] BGM playback started with volume:', bgmVolume);
+      }
+
+      // 오디오 트랙을 비디오 스트림에 추가
+      audioDestination.stream.getAudioTracks().forEach(track => {
+        videoStream.addTrack(track);
+      });
+      console.log('[Video6PanelV2] Audio track added to video stream');
+    }
+
+    // 지원되는 mimeType 찾기 (오디오 포함)
     const mimeTypes = [
+      'video/webm;codecs=vp9,opus',
+      'video/webm;codecs=vp8,opus',
       'video/webm;codecs=vp9',
       'video/webm;codecs=vp8',
       'video/webm',
@@ -624,6 +828,7 @@ export function Video6PanelV2({ onClose, className = '', projectId: initialProje
       mediaRecorder = new MediaRecorder(videoStream, {
         mimeType: selectedMimeType,
         videoBitsPerSecond: 5000000,
+        audioBitsPerSecond: 128000,
       });
     } catch (e) {
       console.warn('[Video6PanelV2] MediaRecorder with options failed, using default');
@@ -758,10 +963,22 @@ export function Video6PanelV2({ onClose, className = '', projectId: initialProje
 
       // 각 씬을 순차적으로 렌더링
       let currentSceneIdx = 0;
+      let currentAudioSource: AudioBufferSourceNode | null = null;
 
       const renderScene = async () => {
         if (currentSceneIdx >= scenes.length) {
-          // 렌더링 완료
+          // 렌더링 완료 - 오디오 정리
+          if (currentAudioSource) {
+            try { currentAudioSource.stop(); } catch { /* ignore */ }
+          }
+          if (bgmSource) {
+            try { bgmSource.stop(); } catch { /* ignore */ }
+          }
+          if (audioContext) {
+            setTimeout(() => {
+              audioContext?.close();
+            }, 1000);
+          }
           setRenderProgress(95);
           setTimeout(() => {
             mediaRecorder.stop();
@@ -784,10 +1001,25 @@ export function Video6PanelV2({ onClose, className = '', projectId: initialProje
         // 자막 텍스트 (script가 더 상세하므로 우선 사용)
         const caption = scene.script || scene.caption || scene.image_prompt || '';
 
-        // TTS는 음질 문제로 비활성화 (추후 Backend EdgeTTS로 대체)
-        // if (caption && 'speechSynthesis' in window) {
-        //   speakText(caption, 0.9);
-        // }
+        // TTS 오디오 재생 (Backend EdgeTTS) - ttsGainNode를 통해 연결
+        const ttsBuffer = ttsAudioBuffers[currentSceneIdx];
+        if (ttsBuffer && audioContext && ttsGainNode) {
+          try {
+            // 이전 오디오 소스 정리
+            if (currentAudioSource) {
+              try { currentAudioSource.stop(); } catch { /* ignore */ }
+            }
+
+            // 새 오디오 소스 생성 및 ttsGainNode를 통해 재생
+            currentAudioSource = audioContext.createBufferSource();
+            currentAudioSource.buffer = ttsBuffer;
+            currentAudioSource.connect(ttsGainNode); // ttsGainNode를 통해 연결 (BGM과 별도 볼륨 제어)
+            currentAudioSource.start();
+            console.log(`[Video6PanelV2] Playing TTS audio for scene ${currentSceneIdx}, duration: ${ttsBuffer.duration}s`);
+          } catch (playError) {
+            console.error(`[Video6PanelV2] Failed to play TTS audio for scene ${currentSceneIdx}:`, playError);
+          }
+        }
 
         // 프레임 렌더링 (Ken Burns 효과)
         let frame = 0;
@@ -875,6 +1107,76 @@ export function Video6PanelV2({ onClose, className = '', projectId: initialProje
     [localPlanDraft]
   );
 
+  // 영상 저장 (MinIO 업로드)
+  const handleSaveVideo = useCallback(async () => {
+    const videoUrl = localVideoUrl || state.videoUrl;
+    if (!videoUrl) return;
+
+    setIsSavingVideo(true);
+    setRenderError(null);
+
+    try {
+      console.log('[Video6PanelV2] Saving video to MinIO...');
+
+      // Blob URL에서 Blob 가져오기
+      const response = await fetch(videoUrl);
+      const blob = await response.blob();
+
+      // FormData 생성
+      const formData = new FormData();
+      const fileName = `video_${Date.now()}.webm`;
+      const file = new File([blob], fileName, { type: blob.type });
+
+      formData.append('file', file);
+      // 기본 값 사용 (실제로는 workspace/brand 정보가 필요)
+      formData.append('brand_id', '550e8400-e29b-41d4-a716-446655440000'); // 기본 brand_id
+      formData.append('user_id', '550e8400-e29b-41d4-a716-446655440001'); // 기본 user_id
+      formData.append('asset_type', 'video');
+      formData.append('source', 'video6_generator');
+      formData.append('tags', topicInput || 'generated_video');
+
+      const BACKEND_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://100.123.51.5:8000';
+
+      const uploadResponse = await fetch(`${BACKEND_URL}/api/v1/assets/`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text();
+        throw new Error(`Upload failed: ${uploadResponse.status} - ${errorText}`);
+      }
+
+      const uploadResult = await uploadResponse.json();
+      console.log('[Video6PanelV2] Video saved:', uploadResult);
+
+      // 저장된 URL 업데이트
+      const savedUrl = uploadResult.presigned_url || uploadResult.original_url;
+      setSavedVideoUrl(savedUrl);
+
+      // 성공 메시지
+      alert('영상이 프로젝트에 저장되었습니다!');
+    } catch (error) {
+      console.error('[Video6PanelV2] Failed to save video:', error);
+      setRenderError(error instanceof Error ? error.message : '영상 저장에 실패했습니다.');
+    } finally {
+      setIsSavingVideo(false);
+    }
+  }, [localVideoUrl, state.videoUrl, topicInput]);
+
+  // 영상 다운로드
+  const handleDownloadVideo = useCallback(() => {
+    const videoUrl = localVideoUrl || state.videoUrl;
+    if (!videoUrl) return;
+
+    const link = document.createElement('a');
+    link.href = videoUrl;
+    link.download = `video_${Date.now()}.webm`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }, [localVideoUrl, state.videoUrl]);
+
   const handleBack = () => {
     switch (step) {
       case 'ASSET_SELECT':
@@ -902,6 +1204,9 @@ export function Video6PanelV2({ onClose, className = '', projectId: initialProje
       case 'RENDER_COST':
         setStep('MOTION_REVIEW');
         break;
+      case 'COMPLETE':
+        setStep('MOTION_REVIEW');
+        break;
       default:
         break;
     }
@@ -917,6 +1222,8 @@ export function Video6PanelV2({ onClose, className = '', projectId: initialProje
     setLocalPlanDraft(null);
     setLocalVideoUrl(null);
     setRenderProgress(0);
+    setSavedVideoUrl(null);
+    setIsSavingVideo(false);
     setStep('MODE_SELECT');
   };
 
@@ -1345,13 +1652,77 @@ export function Video6PanelV2({ onClose, className = '', projectId: initialProje
 
         {/* Step 3: Motion Review */}
         {step === 'MOTION_REVIEW' && planDraft && (
-          <MotionReviewStep
-            plan={planDraft}
-            onUpdateScene={handleUpdateScene}
-            onApprove={handleMotionApprove}
-            isLoading={state.isLoading}
-            disabled={state.isLoading}
-          />
+          <div className="space-y-6">
+            {/* BGM 선택 UI */}
+            <div className="p-4 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg">
+              <h4 className="font-medium text-orange-900 mb-3 flex items-center gap-2">
+                <Music className="w-4 h-4" />
+                배경음악 (BGM) 설정
+              </h4>
+
+              {/* BGM 활성화 토글 */}
+              <div className="flex items-center gap-3 mb-4">
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={enableBgm}
+                    onChange={(e) => setEnableBgm(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
+                  <span className="ms-3 text-sm font-medium text-gray-700">
+                    {enableBgm ? 'BGM 사용' : 'BGM 미사용'}
+                  </span>
+                </label>
+              </div>
+
+              {enableBgm && (
+                <>
+                  {/* BGM 선택 */}
+                  <div className="grid grid-cols-2 gap-2 mb-4">
+                    {bgmOptions.filter(b => b.id !== 'none').map((bgm) => (
+                      <button
+                        key={bgm.id}
+                        onClick={() => setSelectedBgm(bgm.id)}
+                        className={`p-3 rounded-lg border-2 transition-all text-left ${
+                          selectedBgm === bgm.id
+                            ? 'border-orange-500 bg-orange-100 shadow-sm'
+                            : 'border-gray-200 bg-white hover:border-orange-300'
+                        }`}
+                      >
+                        <span className={`text-sm font-medium ${selectedBgm === bgm.id ? 'text-orange-900' : 'text-gray-700'}`}>
+                          {bgm.name}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* 볼륨 슬라이더 */}
+                  <div className="flex items-center gap-3">
+                    <Volume2 className="w-4 h-4 text-orange-600" />
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={bgmVolume * 100}
+                      onChange={(e) => setBgmVolume(parseInt(e.target.value) / 100)}
+                      className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-orange-500"
+                    />
+                    <span className="text-sm text-gray-600 w-12">{Math.round(bgmVolume * 100)}%</span>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* MotionReviewStep 컴포넌트 */}
+            <MotionReviewStep
+              plan={planDraft}
+              onUpdateScene={handleUpdateScene}
+              onApprove={handleMotionApprove}
+              isLoading={state.isLoading}
+              disabled={state.isLoading}
+            />
+          </div>
         )}
 
         {/* Step 4: Render Cost */}
@@ -1380,6 +1751,13 @@ export function Video6PanelV2({ onClose, className = '', projectId: initialProje
         {/* Complete */}
         {step === 'COMPLETE' && (localVideoUrl || state.videoUrl) && (
           <div className="space-y-4">
+            {/* 성공 메시지 */}
+            <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+              <Check className="w-5 h-5 text-green-600" />
+              <span className="text-green-700 font-medium">영상이 성공적으로 생성되었습니다!</span>
+            </div>
+
+            {/* 비디오 플레이어 */}
             <div className="aspect-video bg-black rounded-lg overflow-hidden">
               <video
                 src={convertMinioUrl(localVideoUrl || state.videoUrl) || ''}
@@ -1388,17 +1766,68 @@ export function Video6PanelV2({ onClose, className = '', projectId: initialProje
               />
             </div>
 
-            <div className="flex gap-3">
+            {/* 저장 상태 표시 */}
+            {savedVideoUrl && (
+              <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <Check className="w-5 h-5 text-blue-600" />
+                <span className="text-blue-700 text-sm">프로젝트에 저장됨</span>
+              </div>
+            )}
+
+            {/* 액션 버튼들 */}
+            <div className="grid grid-cols-2 gap-3">
+              {/* 프로젝트에 저장 */}
               <button
-                onClick={() => window.open(convertMinioUrl(localVideoUrl || state.videoUrl)!, '_blank')}
-                className="flex-1 py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors"
+                onClick={handleSaveVideo}
+                disabled={isSavingVideo || !!savedVideoUrl}
+                className={`py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors ${
+                  savedVideoUrl
+                    ? 'bg-green-100 text-green-700 cursor-default'
+                    : 'bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50'
+                }`}
               >
+                {isSavingVideo ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    저장 중...
+                  </>
+                ) : savedVideoUrl ? (
+                  <>
+                    <Check className="w-4 h-4" />
+                    저장 완료
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    프로젝트에 저장
+                  </>
+                )}
+              </button>
+
+              {/* 다운로드 */}
+              <button
+                onClick={handleDownloadVideo}
+                className="py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors flex items-center justify-center gap-2"
+              >
+                <Download className="w-4 h-4" />
                 다운로드
+              </button>
+            </div>
+
+            {/* 하단 버튼들 */}
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={handleBack}
+                className="flex-1 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                편집하기
               </button>
               <button
                 onClick={handleReset}
-                className="flex-1 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+                className="flex-1 py-3 bg-gray-800 text-white rounded-lg font-medium hover:bg-gray-900 transition-colors flex items-center justify-center gap-2"
               >
+                <Video className="w-4 h-4" />
                 새 영상 만들기
               </button>
             </div>

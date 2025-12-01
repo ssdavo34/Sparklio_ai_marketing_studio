@@ -515,43 +515,42 @@ export async function enhanceScriptsWithClaude(
   console.log('[Claude] Enhancing scripts with image prompts for topic:', topic);
   console.log('[Claude] Total scenes to process:', scenes.length);
 
-  const systemPrompt = `You are an expert visual director for marketing videos. Your task is to convert abstract Korean marketing slogans into detailed, concrete image prompts for Stable Diffusion XL.
+  const systemPrompt = `You are an expert visual director and scriptwriter for marketing videos. Your task is to:
+1. Convert abstract Korean marketing slogans into detailed image prompts for Stable Diffusion XL
+2. Write compelling Korean narration scripts for each scene (2-3 sentences each)
 
-CRITICAL RULES:
-1. NEVER include ANY text, words, letters, numbers, logos, watermarks, or typography in your prompts
+CRITICAL RULES FOR IMAGE PROMPTS:
+1. NEVER include ANY text, words, letters, numbers, logos, watermarks, or typography
 2. Always add "no text, no words, no letters, no watermark" at the end of EVERY prompt
 3. Be extremely specific and visual - describe exact poses, lighting, camera angles, colors
 4. Include the actual product in every scene
-5. Use professional photography terminology
-6. YOU MUST CREATE EXACTLY ${scenes.length} PROMPTS - one for each scene
+
+RULES FOR NARRATION (script_ko):
+1. Write in natural, conversational Korean
+2. Each narration should be 2-3 sentences (15-30 Korean characters per sentence)
+3. Create a compelling story arc across all scenes
+4. Include product benefits and emotional appeal
+5. Make it suitable for voice-over (TTS)
 
 Korean Product Types:
-- 립스틱 = lipstick, lip color
-- 화장품 = cosmetics, makeup
-- 색조 화장품 = color cosmetics, makeup palette
-- 토너 = toner, skincare
-- 크림 = cream, moisturizer
-- 신발 = shoes, sneakers
+- 립스틱 = lipstick, 화장품 = cosmetics, 스마트폰 = smartphone, 카메라 = camera, 신발 = shoes
 
-Output Format: Return ONLY a valid JSON array with EXACTLY ${scenes.length} items:
-[{"scene_index": 0, "image_prompt": "..."}, {"scene_index": 1, "image_prompt": "..."}, ...]`;
+Output Format: Return ONLY a valid JSON array:
+[{"scene_index": 0, "image_prompt": "...", "script_ko": "한국어 나레이션..."}, ...]`;
 
   const userPrompt = `Topic: "${topic}"
 
-Convert these ${scenes.length} marketing slogans into vivid, detailed image prompts:
+Convert these ${scenes.length} marketing slogans into image prompts AND Korean narration scripts:
 ${scenes.map((s, i) => `Scene ${i}: "${s.caption || s.script || 'marketing scene'}"`).join('\n')}
 
-YOU MUST CREATE EXACTLY ${scenes.length} PROMPTS (scene_index 0 through ${scenes.length - 1}).
+YOU MUST CREATE EXACTLY ${scenes.length} ITEMS (scene_index 0 through ${scenes.length - 1}).
 
-Each prompt should be 40-60 words describing:
-- Subject (person, product arrangement)
-- Setting/Background
-- Lighting (studio, natural, dramatic)
-- Camera angle (close-up, wide, overhead)
-- Style (luxury, minimal, vibrant)
-- Mood/Atmosphere
+For each scene provide:
+1. image_prompt (40-60 English words): detailed visual description ending with "no text, no words, no letters, no watermark"
+2. script_ko (2-3 Korean sentences): compelling narration for voice-over that tells a story
 
-End each prompt with "no text, no words, no letters, no watermark"
+Example format:
+{"scene_index": 0, "image_prompt": "Professional product shot..., no text, no words, no letters, no watermark", "script_ko": "완벽한 디자인이 일상을 특별하게 만듭니다. 손끝에서 느껴지는 프리미엄의 가치를 경험해보세요."}
 
 Output a JSON array with exactly ${scenes.length} objects:`;
 
@@ -583,7 +582,11 @@ Output a JSON array with exactly ${scenes.length} objects:`;
     // JSON 파싱
     const jsonMatch = responseText.match(/\[[\s\S]*\]/);
     if (jsonMatch) {
-      const parsedPrompts = JSON.parse(jsonMatch[0]) as Array<{ scene_index: number; image_prompt: string }>;
+      const parsedPrompts = JSON.parse(jsonMatch[0]) as Array<{
+        scene_index: number;
+        image_prompt: string;
+        script_ko?: string;
+      }>;
       console.log('[Claude] Parsed', parsedPrompts.length, 'prompts out of', scenes.length, 'scenes');
 
       // 디버깅: 각 파싱된 scene_index 출력
@@ -606,9 +609,11 @@ Output a JSON array with exactly ${scenes.length} objects:`;
 
         if (enhanced?.image_prompt) {
           console.log(`[Claude] Scene ${index}: Got prompt (${enhanced.image_prompt.substring(0, 50)}...)`);
+          console.log(`[Claude] Scene ${index}: Got script_ko: ${enhanced.script_ko?.substring(0, 30) || 'none'}`);
           return {
             ...scene,
             image_prompt: enhanced.image_prompt,
+            script: enhanced.script_ko || scene.script || scene.caption, // 나레이션 스크립트 저장
           };
         } else {
           console.warn(`[Claude] Scene ${index}: No prompt found, using fallback`);
@@ -648,23 +653,32 @@ export interface NanoBananaResponse {
 }
 
 /**
- * NanoBanana를 사용한 이미지 생성 (백엔드 API 경유)
+ * NanoBanana를 사용한 이미지 생성 (Media Gateway 경유)
+ *
+ * 2025-12-01 변경: /api/v1/nano-banana → /api/v1/media/generate
+ * Media Gateway에서 provider: 'nano-banana' 지정
  */
 export async function generateImageWithNanoBanana(
   request: NanoBananaRequest
 ): Promise<NanoBananaResponse> {
-  console.log('[NanoBanana] Generating image:', request.prompt.substring(0, 50) + '...');
+  console.log('[NanoBanana] Generating image via Media Gateway:', request.prompt.substring(0, 50) + '...');
 
-  const response = await fetch(`${BACKEND_API_URL}/api/v1/nano-banana/generate`, {
+  // Media Gateway를 통해 NanoBanana 호출
+  const response = await fetch(`${BACKEND_API_URL}/api/v1/media/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       prompt: request.prompt,
-      negative_prompt: request.negative_prompt || 'blurry, low quality, distorted, ugly, text, watermark, words, letters',
-      width: request.width || 1024,
-      height: request.height || 576,
-      num_inference_steps: request.num_inference_steps || 20,
-      guidance_scale: request.guidance_scale || 7.5,
+      task: 'product_image',
+      media_type: 'image',
+      options: {
+        provider: 'nano-banana',
+        negative_prompt: request.negative_prompt || 'blurry, low quality, distorted, ugly, text, watermark, words, letters',
+        width: request.width || 1024,
+        height: request.height || 576,
+        steps: request.num_inference_steps || 20,
+        guidance_scale: request.guidance_scale || 7.5,
+      },
     }),
   });
 
@@ -675,29 +689,51 @@ export async function generateImageWithNanoBanana(
 
   const data = await response.json();
 
+  // Media Gateway 응답에서 이미지 URL 추출
+  let imageUrl = '';
+  if (data.outputs && data.outputs.length > 0) {
+    const output = data.outputs[0];
+    // URL이 있으면 사용, 없으면 base64 data URL 생성
+    if (output.url) {
+      imageUrl = output.url;
+    } else if (output.data) {
+      imageUrl = `data:image/${output.format || 'png'};base64,${output.data}`;
+    }
+  }
+
   // MinIO URL 변환
-  let imageUrl = data.image_url || data.url;
   if (imageUrl && imageUrl.includes('minio:9000')) {
     imageUrl = imageUrl.replace('minio:9000', '100.123.51.5:9000');
   }
 
-  console.log('[NanoBanana] Image ready:', imageUrl);
+  console.log('[NanoBanana] Image ready:', imageUrl.substring(0, 80));
 
   return {
     image_url: imageUrl,
-    seed: data.seed,
+    seed: data.meta?.seed,
   };
 }
 
 /**
- * NanoBanana 서버 상태 확인
+ * NanoBanana 서버 상태 확인 (Media Gateway health 경유)
+ *
+ * 2025-12-01 변경: /api/v1/nano-banana/health → /api/v1/media/health
  */
 export async function checkNanoBananaStatus(): Promise<boolean> {
   try {
-    const response = await fetch(`${BACKEND_API_URL}/api/v1/nano-banana/health`, {
+    const response = await fetch(`${BACKEND_API_URL}/api/v1/media/health`, {
       method: 'GET',
     });
-    return response.ok;
+    if (!response.ok) return false;
+
+    // Media Gateway 응답에서 nano-banana provider 상태 확인
+    const data = await response.json();
+    // providers 객체에서 nano-banana 키가 있으면 상태 확인
+    if (data.providers && data.providers['nano-banana']) {
+      return data.providers['nano-banana'].healthy === true;
+    }
+    // providers가 없으면 전체 healthy 체크
+    return data.healthy === true;
   } catch {
     return false;
   }
