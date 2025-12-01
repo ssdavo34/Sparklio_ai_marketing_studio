@@ -43,7 +43,10 @@ from app.schemas.video_timeline import (
     VideoStatusResponse,
     VideoProjectCreateRequest,
     VideoProjectCreateResponse,
+    RenderMode,
+    VideoRenderError,
 )
+from app.services.video.cost_guard import get_cost_guard
 from app.services.agents.video_director import (
     get_video_director_agent,
     VideoDirectorInputV3,
@@ -368,15 +371,22 @@ async def execute_render_mode(
     RENDER 모드 실행
 
     GPU/API를 사용하여 실제 영상을 생성합니다.
-    비용이 발생합니다.
 
     Parameters:
     - plan_draft: 유저가 수정한 플랜 (선택, 없으면 저장된 플랜 사용)
+    - render_mode: 렌더 모드 (mock/real) - 기본값: mock
+    - dry_run: True면 비용만 계산하고 실제 렌더하지 않음
 
     Returns:
     - job_id: 렌더링 작업 ID
     - status: 현재 상태 (rendering)
+    - render_mode: 실제 사용된 렌더 모드
+    - estimated_cost: 예상 비용 ($)
     - estimated_time_sec: 예상 소요 시간
+
+    Cost Guard:
+    - render_mode="real" 요청 시 VIDEO_ALLOW_REAL 환경변수 확인
+    - 일일 비용 한도 (RENDER_DAILY_COST_LIMIT) 체크
     """
     project = _get_project_from_db(db, video_project_id)
     project_data = _get_project_data(project)
@@ -397,6 +407,54 @@ async def execute_render_mode(
             detail="No plan draft available. Run PLAN mode first."
         )
 
+    # 렌더 모드 결정 (요청 값 또는 기본값)
+    render_mode = request.render_mode if request else RenderMode.MOCK
+    dry_run = request.dry_run if request else False
+
+    # VideoPlanDraftV1 객체로 변환
+    plan_draft = VideoPlanDraftV1(**plan_draft_data)
+
+    # ========== Cost Guard 체크 ==========
+    cost_guard = get_cost_guard()
+
+    # 비용 한도 체크
+    check_result = await cost_guard.check_cost_limit(
+        plan_draft=plan_draft,
+        render_mode=render_mode,
+        provider="veo",  # 기본 Provider
+        brand_id=str(project.brand_id) if project.brand_id else None,
+    )
+
+    if not check_result.allowed:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error_code": check_result.error_code.value if check_result.error_code else "unknown",
+                "message": check_result.error_message,
+                "daily_cost_used": check_result.daily_cost_used,
+                "daily_cost_limit": check_result.daily_cost_limit,
+            }
+        )
+
+    # 비용 추정
+    cost_estimate = cost_guard.estimate_cost(plan_draft, render_mode, "veo")
+
+    # dry_run 모드: 비용만 계산하고 반환
+    if dry_run:
+        logger.info(f"[VideoPipeline] dry_run mode: {video_project_id}")
+        return VideoRenderResponse(
+            job_id="dry_run",
+            status=VideoProjectStatus.RENDER_QUEUED,
+            render_mode=render_mode,
+            estimated_time_sec=cost_estimate.estimated_time_sec,
+            estimated_cost=cost_estimate.total_cost,
+            dry_run=True,
+            cost_breakdown=cost_estimate.breakdown,
+            daily_cost_used=check_result.daily_cost_used,
+            daily_cost_limit=check_result.daily_cost_limit,
+        )
+    # ========== Cost Guard 체크 끝 ==========
+
     # 플랜 상태를 approved로 변경
     plan_draft_data["script_status"] = ScriptStatus.APPROVED.value
 
@@ -405,10 +463,11 @@ async def execute_render_mode(
 
     # 상태 업데이트
     _update_project_in_db(db, project, {
-        "status": VideoProjectStatus.RENDERING.value,
+        "status": VideoProjectStatus.RENDER_QUEUED.value,
         "plan_draft": plan_draft_data,
         "script_status": ScriptStatus.APPROVED.value,
-        "render_job_id": job_id
+        "render_job_id": job_id,
+        "render_mode": render_mode.value,
     })
 
     # 백그라운드에서 렌더링 실행 (DB ID 전달)
@@ -417,20 +476,21 @@ async def execute_render_mode(
         str(project.id),
         video_project_id,
         plan_draft_data,
-        project_data.get("name", "Marketing Video")
+        project_data.get("name", "Marketing Video"),
+        render_mode.value,
     )
 
-    logger.info(f"[VideoPipeline] RENDER started: {video_project_id}, job_id={job_id}")
-
-    # 예상 시간 계산
-    scene_count = len(plan_draft_data.get("scenes", []))
-    new_image_count = sum(1 for s in plan_draft_data.get("scenes", []) if s.get("generate_new_image"))
-    estimated_time = 30 + (new_image_count * 10) + (scene_count * 5) + 60
+    logger.info(f"[VideoPipeline] RENDER started: {video_project_id}, job_id={job_id}, mode={render_mode.value}")
 
     return VideoRenderResponse(
         job_id=job_id,
-        status=VideoProjectStatus.RENDERING,
-        estimated_time_sec=estimated_time
+        status=VideoProjectStatus.RENDER_QUEUED,
+        render_mode=render_mode,
+        estimated_time_sec=cost_estimate.estimated_time_sec,
+        estimated_cost=cost_estimate.total_cost,
+        dry_run=False,
+        daily_cost_used=check_result.daily_cost_used,
+        daily_cost_limit=check_result.daily_cost_limit,
     )
 
 
@@ -438,7 +498,8 @@ async def _execute_render_background(
     db_id: str,
     video_project_id: str,
     plan_draft_data: dict,
-    project_name: str
+    project_name: str,
+    render_mode: str = "mock"
 ):
     """백그라운드 렌더링 실행"""
     from app.core.database import SessionLocal

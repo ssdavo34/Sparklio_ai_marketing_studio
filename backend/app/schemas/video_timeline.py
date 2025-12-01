@@ -9,7 +9,7 @@ VideoBuilder의 입력 타입과 PLAN/RENDER 2단계 플로우를 위한 스키�
 """
 
 from pydantic import BaseModel, Field, field_validator, model_validator
-from typing import List, Optional, Literal
+from typing import List, Optional, Literal, Dict
 from enum import Enum
 from uuid import UUID
 
@@ -126,9 +126,46 @@ class VideoProjectStatus(str, Enum):
     MOTION_READY = "motion_ready"          # 모션 프롬프트 생성 완료, 유저 확인 대기
     MOTION_APPROVED = "motion_approved"    # 모션 프롬프트 유저 승인 완료
     # Step 4: 동영상 렌더
+    RENDER_QUEUED = "render_queued"        # 렌더 대기열에 추가됨
     RENDERING = "rendering"
     COMPLETED = "completed"
     FAILED = "failed"
+
+
+class RenderMode(str, Enum):
+    """렌더 모드 (Mock vs Real)"""
+    MOCK = "mock"      # 테스트 모드 - Mock Provider 사용
+    REAL = "real"      # 실제 모드 - 실제 AI 영상 생성 (비용 발생)
+
+
+class VideoRenderError(str, Enum):
+    """영상 렌더링 에러 코드"""
+    # 이미지 관련
+    IMAGE_SAFETY_BLOCKED = "image_safety_blocked"        # 이미지 안전성 필터 차단
+    IMAGE_GENERATION_FAILED = "image_generation_failed"  # 이미지 생성 실패
+
+    # 영상 생성 관련
+    VIDEO_PROVIDER_TIMEOUT = "video_provider_timeout"    # Provider 타임아웃
+    VIDEO_GENERATION_FAILED = "video_generation_failed"  # 영상 생성 실패
+    INVALID_MOTION_PROMPT = "invalid_motion_prompt"      # 모션 프롬프트 무효
+
+    # 비용/제한 관련
+    COST_LIMIT_EXCEEDED = "cost_limit_exceeded"          # 일일 비용 한도 초과
+    CREDIT_INSUFFICIENT = "credit_insufficient"          # 크레딧 부족
+
+    # Provider 관련
+    PROVIDER_RATE_LIMITED = "provider_rate_limited"      # Provider Rate Limit
+    PROVIDER_UNAVAILABLE = "provider_unavailable"        # Provider 서비스 불가
+    PROVIDER_AUTH_FAILED = "provider_auth_failed"        # Provider 인증 실패
+
+    # 입력 관련
+    INVALID_INPUT = "invalid_input"                      # 잘못된 입력
+    MISSING_IMAGES = "missing_images"                    # 이미지 누락
+    MISSING_MOTION_PROMPT = "missing_motion_prompt"      # 모션 프롬프트 누락
+
+    # 시스템 관련
+    INTERNAL_ERROR = "internal_error"                    # 내부 시스템 에러
+    STORAGE_ERROR = "storage_error"                      # 스토리지 에러
 
 
 class ScriptStatus(str, Enum):
@@ -497,20 +534,36 @@ class MotionRegenerateResponse(BaseModel):
 
 
 # =============================================================================
-# Step 4: 동영상 렌더 API (기존 호환)
+# Step 4: 동영상 렌더 API
 # =============================================================================
 
 class VideoRenderRequest(BaseModel):
-    """POST /api/v1/video6/{project_id}/render 요청"""
+    """POST /api/v1/video6/{project_id}/render 요청
+
+    render_mode와 dry_run으로 비용 제어:
+    - render_mode="mock": Mock Provider 사용 (비용 무료)
+    - render_mode="real": 실제 AI 영상 생성 (비용 발생)
+    - dry_run=True: 실제 렌더 없이 비용만 계산
+
+    환경변수 VIDEO_ALLOW_REAL=false 시 render_mode="real" 요청은 거부됨
+    """
     plan_draft: VideoPlanDraftV1
+    render_mode: RenderMode = RenderMode.MOCK  # 기본값: mock (안전)
+    dry_run: bool = False  # True면 비용만 계산하고 실제 렌더하지 않음
 
 
 class VideoRenderResponse(BaseModel):
     """POST /api/v1/video6/{project_id}/render 응답"""
     job_id: str
     status: VideoProjectStatus
+    render_mode: RenderMode
     estimated_time_sec: Optional[int] = None
-    estimated_cost: Optional[float] = None  # AI 영상 생성 비용
+    estimated_cost: Optional[float] = None  # AI 영상 생성 비용 ($)
+    dry_run: bool = False
+    # dry_run=True 시 추가 정보
+    cost_breakdown: Optional[Dict[str, float]] = None  # {"veo": 0.5, "luma": 0.3}
+    daily_cost_used: Optional[float] = None  # 오늘 사용한 비용
+    daily_cost_limit: Optional[float] = None  # 일일 한도
 
 
 class VideoStatusResponse(BaseModel):
@@ -522,12 +575,16 @@ class VideoStatusResponse(BaseModel):
     video_url: Optional[str] = None
     thumbnail_url: Optional[str] = None
     duration_sec: Optional[float] = None
+    error_code: Optional[VideoRenderError] = None  # 에러 코드
     error_message: Optional[str] = None
     # 4단계 플로우 상태
     current_step: int = 1  # 1: 스크립트, 2: 이미지, 3: 모션, 4: 렌더
     step_description: str = ""
     images_pending_approval: int = 0  # 승인 대기 중인 이미지 수
     motions_pending_approval: int = 0  # 승인 대기 중인 모션 프롬프트 수
+    # 렌더 정보
+    render_mode: Optional[RenderMode] = None
+    job_id: Optional[str] = None
 
 
 # ============================================================================

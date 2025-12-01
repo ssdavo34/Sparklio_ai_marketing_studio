@@ -118,6 +118,11 @@ class Settings(BaseSettings):
     # Video Pipeline
     video_mock_images: bool = Field(False, env="VIDEO_MOCK_IMAGES")
 
+    # Video Render Mode Control (4단계 확인 플로우 지원)
+    video_allow_real: bool = Field(False, env="VIDEO_ALLOW_REAL")  # 실제 AI 영상 생성 허용
+    video_default_mode: str = Field("mock", env="VIDEO_DEFAULT_MODE")  # 기본 렌더 모드 (mock|real)
+    render_daily_cost_limit: float = Field(100.0, env="RENDER_DAILY_COST_LIMIT")  # 일일 비용 한도 ($)
+
     # AI Video Generation (Image-to-Video)
     luma_api_key: str = Field("", env="LUMA_API_KEY")
     runway_api_key: str = Field("", env="RUNWAY_API_KEY")
@@ -227,7 +232,18 @@ class Settings(BaseSettings):
     def RUNWAY_API_KEY(self) -> str:
         return self.runway_api_key
 
+    # Video Render 대문자 속성
+    @property
+    def VIDEO_ALLOW_REAL(self) -> bool:
+        return self.video_allow_real
 
+    @property
+    def VIDEO_DEFAULT_MODE(self) -> str:
+        return self.video_default_mode
+
+    @property
+    def RENDER_DAILY_COST_LIMIT(self) -> float:
+        return self.render_daily_cost_limit
 
     @property
     def COMFYUI_BASE_URL(self) -> str:

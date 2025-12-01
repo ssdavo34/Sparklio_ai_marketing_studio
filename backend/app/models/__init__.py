@@ -9,6 +9,7 @@ from app.models.document import Document, Template, GenerationJob
 from app.models.meeting import Meeting, MeetingTranscript, MeetingStatus
 from app.models.campaign import Campaign, Concept, ConceptAsset, CampaignStatus, AssetType, AssetStatus
 from app.models.embedding import BrandEmbedding, ConceptEmbedding, DocumentChunk
+from app.models.video_job import VideoJob, VideoDailyCost
 
 __all__ = [
     "GeneratedAsset",
@@ -38,4 +39,7 @@ __all__ = [
     "BrandEmbedding",
     "ConceptEmbedding",
     "DocumentChunk",
+    # Video Pipeline
+    "VideoJob",
+    "VideoDailyCost",
 ]
