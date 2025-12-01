@@ -146,18 +146,27 @@ export function PresentationTab() {
 
         // V2: Polotno Store에 슬라이드 바로 추가 (Canvas 뷰로 전환)
         try {
+          console.log('[PresentationTab] Getting Polotno store...');
           const polotnoStore = getPolotnoStore();
+          console.log('[PresentationTab] Polotno store:', polotnoStore ? 'found' : 'null');
+
           if (polotnoStore) {
             // 캔버스 타입을 presentation으로 변경
+            console.log('[PresentationTab] Setting canvas type to presentation');
             setActiveCanvasType('presentation');
 
-            // 기존 페이지 모두 제거 (첫 페이지 제외)
-            while (polotnoStore.pages.length > 1) {
-              polotnoStore.pages[polotnoStore.pages.length - 1].remove();
-            }
-            // 첫 페이지도 제거
-            if (polotnoStore.pages.length === 1) {
-              polotnoStore.pages[0].remove();
+            // 기존 페이지 모두 제거
+            console.log('[PresentationTab] Clearing existing pages, count:', polotnoStore.pages?.length || 0);
+            while (polotnoStore.pages && polotnoStore.pages.length > 0) {
+              const lastPage = polotnoStore.pages[polotnoStore.pages.length - 1];
+              if (lastPage && typeof lastPage.remove === 'function') {
+                lastPage.remove();
+              } else if (lastPage && typeof lastPage.delete === 'function') {
+                lastPage.delete();
+              } else {
+                console.warn('[PresentationTab] Cannot remove page, breaking loop');
+                break;
+              }
             }
 
             // 슬라이드 데이터를 Polotno 형식으로 변환하여 추가
@@ -167,6 +176,7 @@ export function PresentationTab() {
               fontFamily: data.design_guidelines?.font_style || 'Pretendard',
             };
 
+            console.log('[PresentationTab] Calling addSlidesToCanvas with theme:', theme);
             addSlidesToCanvas(polotnoStore, data.slides, theme);
 
             // Canvas 뷰로 전환
@@ -175,10 +185,13 @@ export function PresentationTab() {
             toast.success(`${data.slides.length}장 슬라이드가 Canvas에 추가되었습니다. 자유롭게 편집하세요!`);
           } else {
             // Polotno 없으면 기존 방식 (Preview)
+            console.warn('[PresentationTab] No Polotno store, falling back to preview');
             openSlidesPreview('generated', data.id || `pres-${Date.now()}`);
           }
-        } catch (canvasError) {
-          console.error('[PresentationTab] Canvas 추가 실패:', canvasError);
+        } catch (canvasError: any) {
+          console.error('[PresentationTab] Canvas 추가 실패:', canvasError?.message || canvasError);
+          console.error('[PresentationTab] Stack:', canvasError?.stack);
+          toast.error('Canvas 변환 실패: ' + (canvasError?.message || '알 수 없는 오류'));
           // 실패 시 Preview로 fallback
           openSlidesPreview('generated', data.id || `pres-${Date.now()}`);
         }

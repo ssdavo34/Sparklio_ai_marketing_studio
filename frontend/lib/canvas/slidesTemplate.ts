@@ -28,7 +28,7 @@ export interface BrandTheme {
 }
 
 interface CanvasElement {
-  type: 'text' | 'rect' | 'svg' | 'image';
+  type: 'text' | 'svg' | 'image';  // Polotno only supports: text, svg, image
   x: number;
   y: number;
   width?: number;
@@ -41,6 +41,22 @@ interface CanvasElement {
   align?: 'left' | 'center' | 'right';
   src?: string;
   [key: string]: any;
+}
+
+/**
+ * Helper: 사각형을 SVG로 변환 (Polotno는 rect 타입을 직접 지원하지 않음)
+ */
+function createRectSvg(
+  width: number,
+  height: number,
+  fill: string,
+  cornerRadius: number = 0
+): string {
+  const rx = cornerRadius > 0 ? `rx="${cornerRadius}" ry="${cornerRadius}"` : '';
+  const svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+    <rect width="${width}" height="${height}" fill="${fill}" ${rx}/>
+  </svg>`;
+  return `data:image/svg+xml;base64,${btoa(svg)}`;
 }
 
 // ============================================================================
@@ -94,22 +110,34 @@ export function createSlideElements(
 
   // 1. 배경
   elements.push({
-    type: 'rect',
+    type: 'svg',
     x: 0,
     y: 0,
     width: pageWidth,
     height: pageHeight,
-    fill: colors.background,
+    src: createRectSvg(pageWidth, pageHeight, colors.background),
+    selectable: false,
+    locked: true,
   });
 
-  // 2. 상단 액센트 바
+  // 2. 상단 액센트 바 (그라데이션)
+  const gradientBarSvg = `<svg width="${pageWidth}" height="12" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" style="stop-color:${colors.primary};stop-opacity:1" />
+        <stop offset="100%" style="stop-color:${colors.secondary};stop-opacity:1" />
+      </linearGradient>
+    </defs>
+    <rect width="${pageWidth}" height="12" fill="url(#grad)"/>
+  </svg>`;
   elements.push({
-    type: 'rect',
+    type: 'svg',
     x: 0,
     y: 0,
     width: pageWidth,
     height: 12,
-    fill: `linear-gradient(90deg, ${colors.primary}, ${colors.secondary})`,
+    src: `data:image/svg+xml;base64,${btoa(gradientBarSvg)}`,
+    selectable: false,
   });
 
   // 3. 슬라이드 번호
@@ -173,13 +201,12 @@ export function createSlideElements(
 
   // 구분선 (공통)
   elements.push({
-    type: 'rect',
+    type: 'svg',
     x: margin,
     y: currentY,
     width: 120,
     height: 6,
-    fill: colors.secondary,
-    cornerRadius: 3,
+    src: createRectSvg(120, 6, colors.secondary, 3),
   });
   currentY += 60;
 
@@ -255,26 +282,24 @@ function renderThreeBulletsLayout(elements: CanvasElement[], slide: SlideData, s
     slide.bullets.slice(0, 3).forEach((bullet, idx) => {
       const x = margin + (colWidth + 30) * idx;
 
-      // Card Box
+      // Card Box (SVG)
       elements.push({
-        type: 'rect',
+        type: 'svg',
         x: x,
         y: startY,
         width: colWidth,
         height: 400,
-        fill: colors.accent,
-        cornerRadius: 16,
+        src: createRectSvg(colWidth, 400, colors.accent, 16),
       });
 
-      // 아이콘 영역 (숫자로 대체)
+      // 아이콘 영역 - 원형 (SVG)
       elements.push({
-        type: 'rect',
+        type: 'svg',
         x: x + colWidth / 2 - 40,
         y: startY + 40,
         width: 80,
         height: 80,
-        fill: colors.primary,
-        cornerRadius: 40,
+        src: createRectSvg(80, 80, colors.primary, 40),
       });
 
       elements.push({
@@ -361,15 +386,14 @@ function renderStandardLayout(elements: CanvasElement[], slide: SlideData, start
         custom: createPlaceholderMetadata(slide.title),
       });
     } else {
-      // Placeholder
+      // Placeholder (SVG)
       elements.push({
-        type: 'rect',
+        type: 'svg',
         x: margin + contentWidth * 0.6,
         y: startY,
         width: contentWidth * 0.4,
         height: 500,
-        fill: colors.accent,
-        cornerRadius: 12,
+        src: createRectSvg(contentWidth * 0.4, 500, colors.accent, 12),
       });
       elements.push({
         type: 'text',
@@ -432,15 +456,14 @@ function renderTwoColumnLayout(elements: CanvasElement[], slide: SlideData, star
       custom: createPlaceholderMetadata(slide.title),
     });
   } else {
-    // Placeholder Box
+    // Placeholder Box (SVG)
     elements.push({
-      type: 'rect',
+      type: 'svg',
       x: margin + colWidth + 80,
       y: startY,
       width: colWidth,
       height: 600,
-      fill: colors.accent,
-      cornerRadius: 8,
+      src: createRectSvg(colWidth, 600, colors.accent, 8),
     });
     elements.push({
       type: 'text',
@@ -492,15 +515,14 @@ function renderStatsLayout(elements: CanvasElement[], slide: SlideData, startY: 
     slide.bullets.slice(0, 3).forEach((bullet, idx) => {
       const x = margin + (cardWidth + 30) * idx;
 
-      // Card Box
+      // Card Box (SVG)
       elements.push({
-        type: 'rect',
+        type: 'svg',
         x: x,
         y: startY,
         width: cardWidth,
         height: 300,
-        fill: colors.accent,
-        cornerRadius: 16,
+        src: createRectSvg(cardWidth, 300, colors.accent, 16),
       });
 
       // Content
@@ -526,15 +548,14 @@ function renderProcessLayout(elements: CanvasElement[], slide: SlideData, startY
 
   if (slide.bullets) {
     slide.bullets.slice(0, 4).forEach((step, idx) => {
-      // Step Circle
+      // Step Box (SVG)
       elements.push({
-        type: 'rect', // Polotno basic shapes limitation, using rect as box
+        type: 'svg',
         x: currentX,
         y: startY + 100,
         width: stepWidth,
         height: 120,
-        fill: colors.primary,
-        cornerRadius: 10,
+        src: createRectSvg(stepWidth, 120, colors.primary, 10),
       });
 
       // Step Text
@@ -605,30 +626,62 @@ export function addSlidesToCanvas(
   slides: SlideData[],
   theme?: BrandTheme
 ): void {
+  console.log('[SlidesTemplate] Starting addSlidesToCanvas with', slides.length, 'slides');
+
   if (!polotnoStore) {
+    console.error('[SlidesTemplate] Polotno store is null/undefined');
     throw new Error('Polotno store is not initialized');
   }
 
-  const { width, height } = PAGE_CONFIG;
-  const slideElementsList = createSlidesCanvas(slides, theme);
+  if (!slides || slides.length === 0) {
+    console.error('[SlidesTemplate] No slides provided');
+    throw new Error('No slides to add');
+  }
 
-  slideElementsList.forEach((elements, index) => {
-    // 새 페이지 추가
-    polotnoStore.addPage({
-      width,
-      height,
+  const { width, height } = PAGE_CONFIG;
+  console.log('[SlidesTemplate] Page config:', { width, height });
+
+  try {
+    const slideElementsList = createSlidesCanvas(slides, theme);
+    console.log('[SlidesTemplate] Created element lists for', slideElementsList.length, 'slides');
+
+    slideElementsList.forEach((elements, index) => {
+      console.log(`[SlidesTemplate] Adding slide ${index + 1} with ${elements.length} elements`);
+
+      // 새 페이지 추가
+      const newPage = polotnoStore.addPage({
+        width,
+        height,
+      });
+      console.log(`[SlidesTemplate] Created page ${index + 1}:`, newPage?.id || 'unknown');
+
+      const page = polotnoStore.pages[polotnoStore.pages.length - 1];
+      if (!page) {
+        console.error(`[SlidesTemplate] Failed to get page ${index + 1}`);
+        throw new Error(`Failed to create page ${index + 1}`);
+      }
+
+      // 요소 추가
+      let addedCount = 0;
+      elements.forEach((element, elemIdx) => {
+        try {
+          page.addElement(element);
+          addedCount++;
+        } catch (elemError) {
+          console.error(`[SlidesTemplate] Failed to add element ${elemIdx} on slide ${index + 1}:`, elemError, element);
+        }
+      });
+      console.log(`[SlidesTemplate] Added ${addedCount}/${elements.length} elements to slide ${index + 1}`);
     });
 
-    const page = polotnoStore.pages[polotnoStore.pages.length - 1];
-    if (!page) {
-      throw new Error(`Failed to create page ${index + 1}`);
+    // 첫 페이지를 활성화
+    if (polotnoStore.pages.length > 0) {
+      polotnoStore.selectPage(polotnoStore.pages[0].id);
     }
 
-    // 요소 추가
-    elements.forEach((element) => {
-      page.addElement(element);
-    });
-  });
-
-  console.log(`[SlidesTemplate] Added ${slides.length} slides to canvas with theme`, theme);
+    console.log(`[SlidesTemplate] ✅ Successfully added ${slides.length} slides to canvas`);
+  } catch (error) {
+    console.error('[SlidesTemplate] ❌ Error adding slides to canvas:', error);
+    throw error;
+  }
 }
