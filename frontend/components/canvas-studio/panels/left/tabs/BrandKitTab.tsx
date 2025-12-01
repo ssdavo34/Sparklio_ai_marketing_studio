@@ -62,6 +62,7 @@ import {
 import { toast } from '@/components/ui/Toast';
 import { useCanvasStore } from '../../../stores/useCanvasStore';
 import { addBrandIdentityToCanvas } from '@/lib/canvas/brandIdentityTemplate';
+import { CANVAS_CONFIGS } from '../../../stores/types';
 
 /**
  * 값을 안전하게 문자열로 변환
@@ -131,8 +132,8 @@ export function BrandKitTab() {
     return () => window.removeEventListener('storage', checkAuth);
   }, [currentWorkspace]);
 
-  const polotnoStore = useCanvasStore((state) => state.polotnoStore);
-  const currentTemplate = useCanvasStore((state) => state.currentTemplate);
+  const polotnoStore = useCanvasStore((state) => state.canvases.get(state.activeCanvasType) || null);
+  const activeCanvasType = useCanvasStore((state) => state.activeCanvasType);
 
   // Store에서 Brand DNA 가져오기 (탭 전환 시 유지)
   const sharedBrandDNA = useCenterViewStore((state) => state.sharedBrandDNA);
@@ -489,11 +490,23 @@ export function BrandKitTab() {
       setAnalyzeProgress(100);
       setAnalyzeStatus('completed');
 
-      setBrandDNA(dna);
+      // 분석에 사용된 문서 정보 추가 (Frontend 로컬)
+      const analyzedDocIds = documentIdsToAnalyze || documents.map(d => d.id);
+      const analyzedDocNames = documents
+        .filter(d => analyzedDocIds.includes(d.id))
+        .map(d => d.title);
+
+      const dnaWithDocs = {
+        ...dna,
+        document_ids: analyzedDocIds,
+        document_names: analyzedDocNames,
+      };
+
+      setBrandDNA(dnaWithDocs);
       setShowDNAResult(true);
 
-      // 이력에 새 분석 결과 추가
-      setDnaHistory(prev => [...prev, dna]);
+      // 이력에 새 분석 결과 추가 (문서 정보 포함)
+      setDnaHistory(prev => [...prev, dnaWithDocs]);
 
       // LLM 정보 표시
       const llmInfo = dna.llm_provider
@@ -683,19 +696,18 @@ export function BrandKitTab() {
       return;
     }
 
-    if (!currentTemplate) {
-      toast.error('템플릿 정보가 없습니다.');
-      return;
-    }
+    // 활성 캔버스 타입의 설정 사용 (brand-dna: 1080x1920)
+    const canvasConfig = CANVAS_CONFIGS[activeCanvasType];
+    const { width, height } = canvasConfig;
 
     try {
       addBrandIdentityToCanvas(
         polotnoStore,
         brandDNA,
-        currentTemplate.width,
-        currentTemplate.height
+        width,
+        height
       );
-      toast.success('Brand Identity Canvas가 생성되었습니다!');
+      toast.success(`Brand Identity Canvas가 생성되었습니다! (${width}x${height})`);
     } catch (error) {
       console.error('Failed to create canvas:', error);
       toast.error(`Canvas 생성 실패: ${error instanceof Error ? error.message : String(error)}`);
@@ -1096,51 +1108,89 @@ export function BrandKitTab() {
             </div>
 
             {/* 분석 이력 드롭다운 */}
-            {dnaHistory.length > 1 && (
+            {dnaHistory.length > 0 && (
               <div className="relative">
-                <button
-                  onClick={() => setShowHistoryDropdown(!showHistoryDropdown)}
-                  className="w-full flex items-center justify-between px-2 py-1.5 text-xs bg-white border border-purple-200 rounded-lg hover:bg-purple-50 transition-colors"
-                >
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-3.5 h-3.5 text-purple-600" />
-                    <span>분석 이력 ({dnaHistory.length}개)</span>
-                  </div>
-                  <ChevronDown className={`w-3.5 h-3.5 text-purple-600 transition-transform ${showHistoryDropdown ? 'rotate-180' : ''}`} />
-                </button>
+                {/* 선택된 문서가 있으면 해당 문서가 포함된 이력만 필터링 */}
+                {(() => {
+                  const selectedDocArray = Array.from(selectedDocIds);
+                  const filteredHistory = selectedDocIds.size > 0
+                    ? dnaHistory.filter(dna => {
+                        if (!dna.document_ids) return false;
+                        // 선택된 문서 중 하나라도 포함되어 있으면 표시
+                        return selectedDocArray.some(docId => dna.document_ids?.includes(docId));
+                      })
+                    : dnaHistory;
+
+                  if (filteredHistory.length === 0 && selectedDocIds.size > 0) {
+                    return (
+                      <div className="px-2 py-1.5 text-xs text-gray-500 bg-gray-50 rounded-lg">
+                        선택된 문서로 분석된 이력이 없습니다
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <>
+                      <button
+                        onClick={() => setShowHistoryDropdown(!showHistoryDropdown)}
+                        className="w-full flex items-center justify-between px-2 py-1.5 text-xs bg-white border border-purple-200 rounded-lg hover:bg-purple-50 transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-3.5 h-3.5 text-purple-600" />
+                          <span>
+                            분석 이력 ({filteredHistory.length}개)
+                            {selectedDocIds.size > 0 && filteredHistory.length !== dnaHistory.length && (
+                              <span className="text-gray-400 ml-1">/ 전체 {dnaHistory.length}개</span>
+                            )}
+                          </span>
+                        </div>
+                        <ChevronDown className={`w-3.5 h-3.5 text-purple-600 transition-transform ${showHistoryDropdown ? 'rotate-180' : ''}`} />
+                      </button>
 
                 {showHistoryDropdown && (
-                  <div className="absolute z-10 mt-1 w-full bg-white border border-purple-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
-                    {dnaHistory.map((dna, index) => {
-                      const llmName = dna.llm_provider
-                        ? LLM_PROVIDERS.find(p => p.id === dna.llm_provider)?.name || dna.llm_provider
-                        : '자동';
-                      const isSelected = dna.analysis_id === brandDNA.analysis_id;
-                      const analyzedDate = dna.analyzed_at
-                        ? new Date(dna.analyzed_at).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-                        : '';
+                        <div className="absolute z-10 mt-1 w-full bg-white border border-purple-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                          {filteredHistory.map((dna, index) => {
+                            const llmName = dna.llm_provider
+                              ? LLM_PROVIDERS.find(p => p.id === dna.llm_provider)?.name || dna.llm_provider
+                              : '자동';
+                            const isSelected = dna.analysis_id === brandDNA.analysis_id;
+                            const analyzedDate = dna.analyzed_at
+                              ? new Date(dna.analyzed_at).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                              : '';
+                            // 분석에 사용된 문서 표시
+                            const docCount = dna.document_ids?.length || 0;
+                            const docNames = dna.document_names?.slice(0, 2).join(', ') || '';
+                            const hasMoreDocs = (dna.document_names?.length || 0) > 2;
 
-                      return (
-                        <button
-                          key={dna.analysis_id || index}
-                          onClick={() => {
-                            setBrandDNA(dna);
-                            setShowHistoryDropdown(false);
-                          }}
-                          className={`w-full px-3 py-2 text-left text-xs hover:bg-purple-50 transition-colors ${isSelected ? 'bg-purple-100' : ''}`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="font-medium">분석 {index + 1}: {llmName}</span>
-                            {isSelected && <Check className="w-3.5 h-3.5 text-purple-600" />}
-                          </div>
-                          {analyzedDate && (
-                            <span className="text-[10px] text-gray-500">{analyzedDate}</span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
+                            return (
+                              <button
+                                key={dna.analysis_id || index}
+                                onClick={() => {
+                                  setBrandDNA(dna);
+                                  setShowHistoryDropdown(false);
+                                }}
+                                className={`w-full px-3 py-2 text-left text-xs hover:bg-purple-50 transition-colors border-b border-gray-100 last:border-b-0 ${isSelected ? 'bg-purple-100' : ''}`}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="font-medium">분석 {index + 1}: {llmName}</span>
+                                  {isSelected && <Check className="w-3.5 h-3.5 text-purple-600" />}
+                                </div>
+                                {analyzedDate && (
+                                  <span className="text-[10px] text-gray-500 block">{analyzedDate}</span>
+                                )}
+                                {docCount > 0 && (
+                                  <span className="text-[10px] text-blue-600 block mt-0.5 truncate" title={dna.document_names?.join(', ')}>
+                                    📄 {docNames}{hasMoreDocs ? ` 외 ${docCount - 2}개` : ''}
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             )}
 
@@ -1227,23 +1277,97 @@ export function BrandKitTab() {
           </div>
         )}
 
-        {/* 기존 Brand Kit (색상) */}
+        {/* Brand Colors - DNA 분석 결과 또는 기본 색상 */}
         <div>
           <div className="flex items-center gap-2 mb-3">
             <Palette className="w-4 h-4 text-purple-600" />
             <h3 className="text-sm font-semibold text-gray-700">Brand Colors</h3>
           </div>
-          <div className="grid grid-cols-4 gap-2">
-            {['#4F46E5', '#10B981', '#EAB308', '#EC4899'].map((color) => (
-              <div
-                key={color}
-                className="aspect-square rounded-lg border border-gray-200 cursor-pointer hover:scale-105 transition-transform"
-                style={{ backgroundColor: color }}
-                title={color}
-              />
-            ))}
-          </div>
-          <p className="text-xs text-gray-400 mt-2">Click to add to canvas</p>
+
+          {/* Brand DNA에서 추출된 색상 */}
+          {brandDNA?.suggested_brand_kit && (
+            <div className="space-y-3 mb-4">
+              {/* Primary Colors */}
+              {brandDNA.suggested_brand_kit.primary_colors && brandDNA.suggested_brand_kit.primary_colors.length > 0 && (
+                <div>
+                  <p className="text-xs text-gray-500 mb-2">Primary Colors</p>
+                  <div className="flex flex-wrap gap-2">
+                    {brandDNA.suggested_brand_kit.primary_colors.map((color, i) => (
+                      <div key={`primary-${i}`} className="flex flex-col items-center gap-1">
+                        <div
+                          className="w-12 h-12 rounded-lg border-2 border-white shadow-md cursor-pointer hover:scale-110 transition-transform"
+                          style={{ backgroundColor: color }}
+                          title={`Primary: ${color}`}
+                          onClick={() => navigator.clipboard.writeText(color).then(() => toast.success(`${color} 복사됨!`))}
+                        />
+                        <span className="text-[10px] text-gray-500 font-mono">{color}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Secondary Colors */}
+              {brandDNA.suggested_brand_kit.secondary_colors && brandDNA.suggested_brand_kit.secondary_colors.length > 0 && (
+                <div>
+                  <p className="text-xs text-gray-500 mb-2">Secondary Colors</p>
+                  <div className="flex flex-wrap gap-2">
+                    {brandDNA.suggested_brand_kit.secondary_colors.map((color, i) => (
+                      <div key={`secondary-${i}`} className="flex flex-col items-center gap-1">
+                        <div
+                          className="w-10 h-10 rounded-lg border border-gray-200 cursor-pointer hover:scale-110 transition-transform"
+                          style={{ backgroundColor: color }}
+                          title={`Secondary: ${color}`}
+                          onClick={() => navigator.clipboard.writeText(color).then(() => toast.success(`${color} 복사됨!`))}
+                        />
+                        <span className="text-[10px] text-gray-400 font-mono">{color}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Accent Colors (if available) */}
+              {brandDNA.suggested_brand_kit.accent_colors && brandDNA.suggested_brand_kit.accent_colors.length > 0 && (
+                <div>
+                  <p className="text-xs text-gray-500 mb-2">Accent Colors</p>
+                  <div className="flex flex-wrap gap-2">
+                    {brandDNA.suggested_brand_kit.accent_colors.map((color, i) => (
+                      <div key={`accent-${i}`} className="flex flex-col items-center gap-1">
+                        <div
+                          className="w-8 h-8 rounded-md border border-gray-200 cursor-pointer hover:scale-110 transition-transform"
+                          style={{ backgroundColor: color }}
+                          title={`Accent: ${color}`}
+                          onClick={() => navigator.clipboard.writeText(color).then(() => toast.success(`${color} 복사됨!`))}
+                        />
+                        <span className="text-[9px] text-gray-400 font-mono">{color}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 기본 색상 (Brand DNA가 없을 때) */}
+          {!brandDNA?.suggested_brand_kit && (
+            <>
+              <div className="grid grid-cols-4 gap-2">
+                {['#4F46E5', '#10B981', '#EAB308', '#EC4899'].map((color) => (
+                  <div key={color} className="flex flex-col items-center gap-1">
+                    <div
+                      className="w-12 h-12 rounded-lg border border-gray-200 cursor-pointer hover:scale-105 transition-transform"
+                      style={{ backgroundColor: color }}
+                      title={color}
+                      onClick={() => navigator.clipboard.writeText(color).then(() => toast.success(`${color} 복사됨!`))}
+                    />
+                    <span className="text-[10px] text-gray-400 font-mono">{color}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-gray-400 mt-2">Brand DNA 분석 후 추천 색상이 표시됩니다</p>
+            </>
+          )}
         </div>
       </div>
 

@@ -336,6 +336,7 @@ export interface BrandDNA {
   suggested_brand_kit: {
     primary_colors: string[];
     secondary_colors: string[];
+    accent_colors?: string[];
     fonts: {
       primary: string;
       secondary: string;
@@ -355,6 +356,10 @@ export interface BrandDNA {
   analysis_id?: string;
   /** 분석 일시 (ISO 8601) */
   analyzed_at?: string;
+  /** 분석에 사용된 문서 IDs (Frontend 로컬 저장, Backend Phase 2에서 지원 예정) */
+  document_ids?: string[];
+  /** 분석에 사용된 문서 이름 (Frontend 로컬 저장) */
+  document_names?: string[];
 }
 
 /**
