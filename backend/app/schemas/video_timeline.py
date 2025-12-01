@@ -111,10 +111,17 @@ class VideoDirectorMode(str, Enum):
 
 
 class VideoProjectStatus(str, Enum):
-    """비디오 프로젝트 상태"""
+    """비디오 프로젝트 상태 (3단계 확인 플로우)"""
     NOT_STARTED = "not_started"
+    # Step 1: 스크립트 플래닝
     PLANNING = "planning"
-    PLAN_READY = "plan_ready"
+    SCRIPT_READY = "script_ready"          # 스크립트 생성 완료, 유저 확인 대기
+    SCRIPT_APPROVED = "script_approved"    # 스크립트 유저 승인 완료
+    # Step 2: 이미지 생성
+    GENERATING_IMAGES = "generating_images"
+    IMAGES_READY = "images_ready"          # 이미지 생성 완료, 유저 확인 대기
+    IMAGES_APPROVED = "images_approved"    # 이미지 유저 승인 완료
+    # Step 3: 동영상 렌더
     RENDERING = "rendering"
     COMPLETED = "completed"
     FAILED = "failed"
@@ -125,6 +132,15 @@ class ScriptStatus(str, Enum):
     DRAFT = "draft"
     USER_EDITED = "user_edited"
     APPROVED = "approved"
+
+
+class ImageApprovalStatus(str, Enum):
+    """이미지 승인 상태"""
+    PENDING = "pending"           # 아직 생성 안됨
+    GENERATED = "generated"       # 생성됨, 확인 대기
+    APPROVED = "approved"         # 승인됨
+    REJECTED = "rejected"         # 거부됨, 재생성 필요
+    REGENERATING = "regenerating" # 재생성 중
 
 
 # ============================================================================
@@ -249,21 +265,48 @@ class SceneDraft(BaseModel):
     유저가 수정하기 쉬운 단순화된 씬 구조
 
     PLAN 단계에서 생성되며, 유저가 수정 후 RENDER 단계로 진행
+
+    3단계 플로우:
+    1. 스크립트 확인/수정 (script, caption)
+    2. 이미지 생성 후 확인/수정/재생성 (image_url, image_approval_status)
+    3. 동영상 렌더 (최종)
     """
     scene_index: int = Field(ge=1)
+
+    # 이미지 관련
     image_id: Optional[str] = None  # Asset Pool의 이미지 ID
-    image_url: Optional[str] = None
-    caption: str = ""
-    script: Optional[str] = None  # TTS용 스크립트
-    duration_sec: float = Field(default=3.0, ge=2.0, le=5.0)
+    image_url: Optional[str] = None  # 생성된/기존 이미지 URL
+    image_approval_status: ImageApprovalStatus = ImageApprovalStatus.PENDING
+
+    # 스크립트 관련
+    caption: str = ""  # 화면에 표시될 자막
+    script: Optional[str] = None  # TTS용 스크립트 (음성 내용)
+
+    # 타이밍
+    duration_sec: float = Field(default=3.0, ge=2.0, le=8.0)
+
+    # 이미지 생성 설정
     generate_new_image: bool = False  # True면 새로 생성
     image_prompt: Optional[str] = None  # 새 이미지 프롬프트
 
+    # AI 영상 모션 설정 (Luma/Runway/Veo용)
+    motion_prompt: Optional[str] = None  # AI 영상 생성용 모션 프롬프트
+    motion_prompt_ko: Optional[str] = None  # 한국어 설명 (유저 확인용)
+    use_ai_video: bool = False  # True면 Ken Burns 대신 AI 영상 사용
+
+    # 재생성 관련
+    regenerate_reason: Optional[str] = None  # 재생성 사유 (rejected 시)
+    generation_attempts: int = 0  # 생성 시도 횟수
+
     @model_validator(mode="after")
     def validate_image_source(self):
-        """image_id 또는 image_url 중 하나는 필수 (generate_new_image=False인 경우)"""
+        """image_id 또는 image_url 중 하나는 필수 (generate_new_image=False이고 승인된 경우)"""
         # 새로 생성할 이미지면 기존 이미지 정보 불필요
         if self.generate_new_image:
+            return self
+
+        # 아직 생성 전이면 검증 스킵
+        if self.image_approval_status == ImageApprovalStatus.PENDING:
             return self
 
         # 기존 이미지 재사용인데 이미지 정보가 없으면 에러
@@ -327,6 +370,79 @@ class VideoPlanResponse(BaseModel):
     estimated_render_time_sec: Optional[int] = None
 
 
+# =============================================================================
+# Step 1: 스크립트 승인 API
+# =============================================================================
+
+class ScriptApproveRequest(BaseModel):
+    """POST /api/v1/video6/{project_id}/script/approve 요청"""
+    plan_draft: VideoPlanDraftV1  # 수정된 스크립트 포함
+
+
+class ScriptApproveResponse(BaseModel):
+    """POST /api/v1/video6/{project_id}/script/approve 응답"""
+    project_id: str
+    status: VideoProjectStatus  # → SCRIPT_APPROVED
+    message: str = "스크립트가 승인되었습니다. 이미지 생성을 시작합니다."
+
+
+# =============================================================================
+# Step 2: 이미지 생성 & 승인 API
+# =============================================================================
+
+class ImageGenerateRequest(BaseModel):
+    """POST /api/v1/video6/{project_id}/images/generate 요청"""
+    plan_draft: VideoPlanDraftV1
+
+
+class ImageGenerateResponse(BaseModel):
+    """POST /api/v1/video6/{project_id}/images/generate 응답"""
+    project_id: str
+    status: VideoProjectStatus  # → GENERATING_IMAGES or IMAGES_READY
+    plan_draft: VideoPlanDraftV1  # 이미지 URL이 채워진 상태
+    message: str
+
+
+class SceneImageApproval(BaseModel):
+    """개별 씬 이미지 승인/거부"""
+    scene_index: int
+    approved: bool  # True: 승인, False: 재생성 요청
+    regenerate_reason: Optional[str] = None  # 재생성 사유
+
+
+class ImageApproveRequest(BaseModel):
+    """POST /api/v1/video6/{project_id}/images/approve 요청"""
+    scene_approvals: List[SceneImageApproval]
+
+
+class ImageApproveResponse(BaseModel):
+    """POST /api/v1/video6/{project_id}/images/approve 응답"""
+    project_id: str
+    status: VideoProjectStatus
+    plan_draft: VideoPlanDraftV1
+    needs_regeneration: bool = False  # True면 재생성 필요한 씬 있음
+    regenerating_scenes: List[int] = []  # 재생성 중인 씬 인덱스
+
+
+class ImageRegenerateRequest(BaseModel):
+    """POST /api/v1/video6/{project_id}/images/regenerate 요청"""
+    scene_index: int
+    new_prompt: Optional[str] = None  # 새 프롬프트 (없으면 기존 사용)
+
+
+class ImageRegenerateResponse(BaseModel):
+    """POST /api/v1/video6/{project_id}/images/regenerate 응답"""
+    project_id: str
+    scene_index: int
+    new_image_url: str
+    generation_attempts: int
+    message: str
+
+
+# =============================================================================
+# Step 3: 동영상 렌더 API (기존 호환)
+# =============================================================================
+
 class VideoRenderRequest(BaseModel):
     """POST /api/v1/video6/{project_id}/render 요청"""
     plan_draft: VideoPlanDraftV1
@@ -337,6 +453,7 @@ class VideoRenderResponse(BaseModel):
     job_id: str
     status: VideoProjectStatus
     estimated_time_sec: Optional[int] = None
+    estimated_cost: Optional[float] = None  # AI 영상 생성 비용
 
 
 class VideoStatusResponse(BaseModel):
@@ -349,6 +466,10 @@ class VideoStatusResponse(BaseModel):
     thumbnail_url: Optional[str] = None
     duration_sec: Optional[float] = None
     error_message: Optional[str] = None
+    # 3단계 플로우 상태
+    current_step: int = 1  # 1: 스크립트, 2: 이미지, 3: 렌더
+    step_description: str = ""
+    images_pending_approval: int = 0  # 승인 대기 중인 이미지 수
 
 
 # ============================================================================

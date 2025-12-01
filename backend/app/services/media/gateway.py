@@ -119,6 +119,19 @@ class MediaGateway:
             except Exception as e:
                 logger.warning(f"Runway Gen-3 Provider skipped: {e}")
 
+            # Google Veo 3 Provider (Image-to-Video / Text-to-Video)
+            try:
+                google_api_key = getattr(settings, 'GOOGLE_API_KEY', None)
+                if google_api_key:
+                    from .providers.veo_provider import VeoProvider
+                    logger.info("Initializing Google Veo 3 Provider...")
+                    self.providers["veo"] = VeoProvider(api_key=google_api_key)
+                    logger.info("Google Veo 3 Provider initialized successfully")
+                else:
+                    logger.info("Google Veo 3 Provider skipped (GOOGLE_API_KEY not set)")
+            except Exception as e:
+                logger.warning(f"Google Veo 3 Provider skipped: {e}")
+
             logger.info(f"All Media Providers initialized: {list(self.providers.keys())}")
 
         except Exception as e:
@@ -230,8 +243,10 @@ class MediaGateway:
             else:
                 provider_name = "comfyui"
         elif media_type == "video":
-            # AI 영상 생성 Provider 선택 (Luma 우선, Runway 대안)
-            if "luma" in self.providers:
+            # AI 영상 생성 Provider 선택 (Veo 우선 → Luma → Runway)
+            if "veo" in self.providers:
+                provider_name = "veo"
+            elif "luma" in self.providers:
                 provider_name = "luma"
             elif "runway" in self.providers:
                 provider_name = "runway"

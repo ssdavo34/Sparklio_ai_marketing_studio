@@ -636,7 +636,7 @@ class VideoDirectorAgent(AgentBase):
         """
         PLAN 모드 실행
 
-        LLM만 사용하여 스토리보드/스크립트 초안 생성
+        LLM만 사용하여 스토리보드/스크립트/모션프롬프트 초안 생성
         """
         logger.info(f"[VideoDirectorAgent] PLAN mode: generating draft")
 
@@ -651,17 +651,25 @@ class VideoDirectorAgent(AgentBase):
                 production_id=production_id
             )
 
-            # 3. 비용/시간 추정
-            new_image_count = sum(1 for s in plan_draft.scenes if s.generate_new_image)
-            estimated_cost = new_image_count * 0.05  # 이미지당 $0.05 가정
-            estimated_time = 30 + (new_image_count * 10) + 60  # 기본 30초 + 이미지 생성 + 렌더링
+            # 3. AI 영상 사용 시 모션 프롬프트 생성
+            if any(s.use_ai_video for s in plan_draft.scenes):
+                plan_draft = await self._generate_motion_prompts(plan_draft, input_data)
 
-            logger.info(f"[VideoDirectorAgent] PLAN complete: {len(plan_draft.scenes)} scenes")
+            # 4. 비용/시간 추정
+            new_image_count = sum(1 for s in plan_draft.scenes if s.generate_new_image)
+            ai_video_count = sum(1 for s in plan_draft.scenes if s.use_ai_video)
+
+            # 비용 계산: 이미지 $0.05, AI 영상 $0.50 (Veo 기준)
+            estimated_cost = (new_image_count * 0.05) + (ai_video_count * 0.50)
+            # 시간: 기본 30초 + 이미지 10초씩 + AI영상 60초씩 + 렌더링 60초
+            estimated_time = 30 + (new_image_count * 10) + (ai_video_count * 60) + 60
+
+            logger.info(f"[VideoDirectorAgent] PLAN complete: {len(plan_draft.scenes)} scenes, {ai_video_count} AI videos")
 
             return VideoDirectorOutputV3(
                 production_id=production_id,
                 mode=VideoDirectorMode.PLAN,
-                status=VideoProjectStatus.PLAN_READY,
+                status=VideoProjectStatus.SCRIPT_READY,  # 3단계 플로우: SCRIPT_READY
                 plan_draft=plan_draft,
                 estimated_render_cost=estimated_cost,
                 estimated_render_time_sec=estimated_time
@@ -1164,6 +1172,93 @@ class VideoDirectorAgent(AgentBase):
                 "thumbnail_url": "https://picsum.photos/1080/1920",
                 "duration_sec": timeline.global_config.total_duration_sec
             }
+
+    async def _generate_motion_prompts(
+        self,
+        plan_draft: VideoPlanDraftV1,
+        input_data: VideoDirectorInputV3
+    ) -> VideoPlanDraftV1:
+        """
+        AI 영상용 모션 프롬프트 생성
+
+        use_ai_video=True인 씬들에 대해 MotionPromptAgent를 호출하여
+        모션 프롬프트를 생성합니다.
+        """
+        from app.services.agents.motion_prompt import get_motion_prompt_agent
+
+        logger.info("[VideoDirectorAgent] Generating motion prompts for AI video scenes")
+
+        try:
+            agent = get_motion_prompt_agent(llm_gateway=self.llm_gateway)
+
+            # AI 영상 씬들의 모션 프롬프트 생성
+            scenes_needing_prompts = [
+                s for s in plan_draft.scenes
+                if s.use_ai_video and not s.motion_prompt
+            ]
+
+            if not scenes_needing_prompts:
+                return plan_draft
+
+            # 배치 생성
+            batch_input = {
+                "scenes": [
+                    {
+                        "image_url": s.image_url or "",
+                        "scene_index": s.scene_index,
+                        "total_scenes": len(plan_draft.scenes),
+                        "scene_role": self._get_scene_role(s.scene_index, len(plan_draft.scenes)),
+                        "script": s.script,
+                        "caption": s.caption,
+                        "duration_sec": s.duration_sec,
+                        "brand_tone": input_data.concept.get("tone", "professional"),
+                        "product_category": input_data.concept.get("product_category", "general"),
+                    }
+                    for s in scenes_needing_prompts
+                ],
+                "motion_style": "cinematic",  # 기본 시네마틱
+                "brand_tone": input_data.concept.get("tone", "professional"),
+            }
+
+            response = await agent.execute(AgentRequest(
+                task="generate_batch_prompts",
+                payload=batch_input
+            ))
+
+            result = response.outputs[0].value
+            prompts = result.get("prompts", [])
+
+            # 결과를 plan_draft에 반영
+            prompt_index = 0
+            updated_scenes = []
+
+            for scene in plan_draft.scenes:
+                if scene.use_ai_video and not scene.motion_prompt:
+                    if prompt_index < len(prompts):
+                        prompt_data = prompts[prompt_index]
+                        scene.motion_prompt = prompt_data.get("motion_prompt")
+                        scene.motion_prompt_ko = prompt_data.get("motion_prompt_ko")
+                        prompt_index += 1
+                updated_scenes.append(scene)
+
+            plan_draft.scenes = updated_scenes
+
+            logger.info(f"[VideoDirectorAgent] Generated {prompt_index} motion prompts")
+
+        except Exception as e:
+            logger.warning(f"[VideoDirectorAgent] Motion prompt generation failed: {e}")
+            # 실패해도 계속 진행 (모션 프롬프트 없이도 Ken Burns 사용 가능)
+
+        return plan_draft
+
+    def _get_scene_role(self, scene_index: int, total_scenes: int) -> str:
+        """씬 역할 결정"""
+        if scene_index == 1:
+            return "intro"
+        elif scene_index == total_scenes:
+            return "outro"
+        else:
+            return "main"
 
 
 # =============================================================================
