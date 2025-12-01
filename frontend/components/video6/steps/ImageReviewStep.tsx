@@ -24,8 +24,13 @@ import {
   ThumbsDown,
   AlertCircle,
   Loader2,
+  Save,
+  Download,
 } from 'lucide-react';
 import type { SceneDraftV2, VideoPlanDraftV2, ImageApprovalStatus } from '@/types/video-pipeline-v2';
+
+// Backend API URL
+const BACKEND_API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://100.123.51.5:8000';
 
 interface ImageReviewStepProps {
   plan: VideoPlanDraftV2;
@@ -43,15 +48,46 @@ function ImageCard({
   scene,
   onApprove,
   onReject,
+  onSave,
   disabled,
 }: {
   scene: SceneDraftV2;
   onApprove: () => void;
   onReject: (reason: string) => void;
+  onSave: () => Promise<void>;
   disabled?: boolean;
 }) {
   const [showRejectInput, setShowRejectInput] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [savedUrl, setSavedUrl] = useState<string | null>(null);
+
+  // 이미지 저장 핸들러
+  const handleSave = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
+    try {
+      await onSave();
+      setSavedUrl(scene.image_url || '');
+    } catch (error) {
+      console.error('[ImageCard] Save failed:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // 이미지 다운로드 핸들러
+  const handleDownload = () => {
+    const imageUrl = scene.preview_url || scene.thumb_url || scene.image_url;
+    if (!imageUrl) return;
+
+    const link = document.createElement('a');
+    link.href = imageUrl;
+    link.download = `scene_${scene.scene_index}_${Date.now()}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const isApproved = scene.image_approval_status === 'approved';
   const isRejected = scene.image_approval_status === 'rejected';
@@ -203,6 +239,45 @@ function ImageCard({
             </button>
           </div>
         )}
+
+        {/* 저장/다운로드 버튼 (이미지가 있을 때만 표시) */}
+        {(scene.preview_url || scene.thumb_url || scene.image_url) && !isRegenerating && (
+          <div className="flex gap-2 mt-2 pt-2 border-t border-gray-100">
+            <button
+              onClick={handleSave}
+              disabled={isSaving || !!savedUrl}
+              className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-xs rounded transition-colors ${
+                savedUrl
+                  ? 'bg-blue-100 text-blue-700 cursor-default'
+                  : 'bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50'
+              }`}
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  저장 중...
+                </>
+              ) : savedUrl ? (
+                <>
+                  <Check className="w-3 h-3" />
+                  저장됨
+                </>
+              ) : (
+                <>
+                  <Save className="w-3 h-3" />
+                  저장
+                </>
+              )}
+            </button>
+            <button
+              onClick={handleDownload}
+              className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-xs border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors"
+            >
+              <Download className="w-3 h-3" />
+              다운로드
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -261,6 +336,56 @@ export function ImageReviewStep({
     );
   };
 
+  // 이미지 저장 핸들러 (MinIO에 업로드)
+  const handleSaveImage = useCallback(async (scene: SceneDraftV2) => {
+    const imageUrl = scene.preview_url || scene.thumb_url || scene.image_url;
+    if (!imageUrl) {
+      throw new Error('No image URL to save');
+    }
+
+    console.log('[ImageReviewStep] Saving image to MinIO:', imageUrl.substring(0, 80));
+
+    try {
+      // 이미지 fetch
+      const imageResponse = await fetch(imageUrl);
+      if (!imageResponse.ok) {
+        throw new Error(`Failed to fetch image: ${imageResponse.status}`);
+      }
+
+      const blob = await imageResponse.blob();
+
+      // FormData 생성
+      const formData = new FormData();
+      const fileName = `scene_${scene.scene_index}_${Date.now()}.png`;
+      const file = new File([blob], fileName, { type: blob.type || 'image/png' });
+
+      formData.append('file', file);
+      formData.append('brand_id', '550e8400-e29b-41d4-a716-446655440000'); // 기본 brand_id
+      formData.append('user_id', '550e8400-e29b-41d4-a716-446655440001'); // 기본 user_id
+      formData.append('asset_type', 'image');
+      formData.append('source', 'video6_scene_image');
+      formData.append('tags', `scene_${scene.scene_index},video6,generated`);
+
+      const uploadResponse = await fetch(`${BACKEND_API_URL}/api/v1/assets/`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text();
+        throw new Error(`Upload failed: ${uploadResponse.status} - ${errorText}`);
+      }
+
+      const uploadResult = await uploadResponse.json();
+      console.log('[ImageReviewStep] Image saved:', uploadResult);
+
+      return uploadResult;
+    } catch (error) {
+      console.error('[ImageReviewStep] Save failed:', error);
+      throw error;
+    }
+  }, []);
+
   return (
     <div className="space-y-6">
       {/* 안내 메시지 */}
@@ -301,6 +426,7 @@ export function ImageReviewStep({
             scene={scene}
             onApprove={() => handleApproveScene(scene.scene_index)}
             onReject={(reason) => handleRejectScene(scene.scene_index, reason)}
+            onSave={() => handleSaveImage(scene)}
             disabled={disabled || isLoading}
           />
         ))}

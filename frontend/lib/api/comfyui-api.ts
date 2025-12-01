@@ -656,7 +656,7 @@ export interface NanoBananaResponse {
  * NanoBanana를 사용한 이미지 생성 (Media Gateway 경유)
  *
  * 2025-12-01 변경: /api/v1/nano-banana → /api/v1/media/generate
- * Media Gateway에서 provider: 'nano-banana' 지정
+ * 2025-12-01 수정: provider 이름 'nanobanana' (하이픈 없음, backend gateway.py 참조)
  */
 export async function generateImageWithNanoBanana(
   request: NanoBananaRequest
@@ -664,6 +664,7 @@ export async function generateImageWithNanoBanana(
   console.log('[NanoBanana] Generating image via Media Gateway:', request.prompt.substring(0, 50) + '...');
 
   // Media Gateway를 통해 NanoBanana 호출
+  // Note: provider는 'nanobanana' (하이픈 없음) - backend/app/services/media/gateway.py 참조
   const response = await fetch(`${BACKEND_API_URL}/api/v1/media/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -672,7 +673,7 @@ export async function generateImageWithNanoBanana(
       task: 'product_image',
       media_type: 'image',
       options: {
-        provider: 'nano-banana',
+        provider: 'nanobanana', // 하이픈 없음!
         negative_prompt: request.negative_prompt || 'blurry, low quality, distorted, ugly, text, watermark, words, letters',
         width: request.width || 1024,
         height: request.height || 576,
@@ -718,23 +719,37 @@ export async function generateImageWithNanoBanana(
  * NanoBanana 서버 상태 확인 (Media Gateway health 경유)
  *
  * 2025-12-01 변경: /api/v1/nano-banana/health → /api/v1/media/health
+ * Provider 이름: 'nanobanana' (하이픈 없음, backend gateway.py 참조)
  */
 export async function checkNanoBananaStatus(): Promise<boolean> {
   try {
     const response = await fetch(`${BACKEND_API_URL}/api/v1/media/health`, {
       method: 'GET',
     });
-    if (!response.ok) return false;
-
-    // Media Gateway 응답에서 nano-banana provider 상태 확인
-    const data = await response.json();
-    // providers 객체에서 nano-banana 키가 있으면 상태 확인
-    if (data.providers && data.providers['nano-banana']) {
-      return data.providers['nano-banana'].healthy === true;
+    if (!response.ok) {
+      console.log('[NanoBanana] Health check failed:', response.status);
+      return false;
     }
-    // providers가 없으면 전체 healthy 체크
-    return data.healthy === true;
-  } catch {
+
+    // Media Gateway 응답에서 nanobanana provider 상태 확인
+    // 응답 형식: { "gateway": "healthy", "providers": { "nanobanana": { "status": "healthy", "vendor": "..." } } }
+    const data = await response.json();
+    console.log('[NanoBanana] Health check response:', JSON.stringify(data));
+
+    // providers 객체에서 nanobanana 키 확인 (하이픈 없음!)
+    if (data.providers && data.providers['nanobanana']) {
+      const providerStatus = data.providers['nanobanana'];
+      // status가 "healthy"인지 확인
+      const isHealthy = providerStatus.status === 'healthy';
+      console.log('[NanoBanana] Provider status:', providerStatus.status, '→ isHealthy:', isHealthy);
+      return isHealthy;
+    }
+
+    // nanobanana provider가 없으면 false
+    console.log('[NanoBanana] Provider not found in gateway');
+    return false;
+  } catch (error) {
+    console.error('[NanoBanana] Health check error:', error);
     return false;
   }
 }

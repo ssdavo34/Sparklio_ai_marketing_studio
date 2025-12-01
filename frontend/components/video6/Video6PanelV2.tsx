@@ -446,27 +446,49 @@ export function Video6PanelV2({ onClose, className = '', projectId: initialProje
   const handleScriptApprove = handleGeneratePrompts;
 
   // Step 2: 이미지 재생성 (ComfyUI 사용)
+  // sceneIndices는 scene_index 값 (1부터 시작할 수 있음) - 배열 인덱스가 아님!
   const handleImageRegenerate = useCallback(
     async (sceneIndices: number[], reasons: Record<number, string>) => {
       if (!localPlanDraft?.scenes) return;
 
-      console.log('[Video6PanelV2] Regenerating images for scenes:', sceneIndices);
+      console.log('[Video6PanelV2] Regenerating images for scene_indices:', sceneIndices);
       setIsGeneratingImages(true);
+      setImageGenStatus('이미지 재생성 시작...');
 
       try {
         const comfyUIAvailable = await checkComfyUIStatus();
+        console.log('[Video6PanelV2] ComfyUI available:', comfyUIAvailable);
+
         const updatedScenes = [...localPlanDraft.scenes];
 
         for (let i = 0; i < sceneIndices.length; i++) {
-          const sceneIdx = sceneIndices[i];
-          const scene = updatedScenes[sceneIdx];
-          const reason = reasons[sceneIdx] || '';
+          const targetSceneIndex = sceneIndices[i]; // scene_index 값 (1-based일 수 있음)
+          // scene_index로 배열 인덱스 찾기
+          const arrayIdx = updatedScenes.findIndex(s => s.scene_index === targetSceneIndex);
+
+          if (arrayIdx === -1) {
+            console.warn(`[Video6PanelV2] Scene with scene_index=${targetSceneIndex} not found, skipping`);
+            continue;
+          }
+
+          const scene = updatedScenes[arrayIdx];
+          const reason = reasons[targetSceneIndex] || '';
+
+          console.log(`[Video6PanelV2] Regenerating scene_index=${targetSceneIndex} (arrayIdx=${arrayIdx}), reason: ${reason}`);
+          setImageGenStatus(`씬 ${targetSceneIndex} 재생성 중... (${i + 1}/${sceneIndices.length})`);
+
+          // 재생성 중 상태로 변경
+          updatedScenes[arrayIdx] = {
+            ...scene,
+            image_approval_status: 'regenerating' as const,
+          };
+          setLocalPlanDraft({ ...localPlanDraft, scenes: [...updatedScenes] });
 
           // 프롬프트에 reason 추가
           const basePrompt = scene.image_prompt ||
             scene.script ||
             scene.caption ||
-            `Scene ${sceneIdx + 1}`;
+            `Scene ${targetSceneIndex}`;
           const enhancedPrompt = reason
             ? `${basePrompt}, ${reason}`
             : basePrompt;
@@ -475,27 +497,31 @@ export function Video6PanelV2({ onClose, className = '', projectId: initialProje
 
           if (comfyUIAvailable) {
             try {
+              console.log(`[Video6PanelV2] Calling ComfyUI for scene ${targetSceneIndex}...`);
               const result = await generateImageWithComfyUI({
                 prompt: `${enhancedPrompt}, high quality, professional marketing photo, cinematic lighting`,
-                negative_prompt: 'blurry, low quality, distorted, ugly, text, watermark',
+                negative_prompt: 'blurry, low quality, distorted, ugly, text, watermark, words, letters, logo',
                 width: 1024,
                 height: 576,
-                // Lightning 모델 - 기본값 사용 (steps: 8, cfg: 2)
-                seed: Math.floor(Math.random() * 1000000000), // 새 시드로 다른 이미지 생성
+                seed: Math.floor(Math.random() * 1000000000),
               });
               imageUrl = result.image_url;
+              console.log(`[Video6PanelV2] ComfyUI success for scene ${targetSceneIndex}:`, imageUrl.substring(0, 50));
             } catch (error) {
-              console.error(`[Video6PanelV2] Regenerate failed for scene ${sceneIdx + 1}:`, error);
-              imageUrl = `https://placehold.co/1024x576/red/white?text=Error+Scene+${sceneIdx + 1}`;
+              console.error(`[Video6PanelV2] Regenerate failed for scene ${targetSceneIndex}:`, error);
+              imageUrl = `https://placehold.co/1024x576/red/white?text=Error+Scene+${targetSceneIndex}`;
             }
           } else {
-            imageUrl = `https://placehold.co/1024x576/orange/white?text=Regen+Scene+${sceneIdx + 1}`;
+            console.warn(`[Video6PanelV2] ComfyUI not available, using placeholder for scene ${targetSceneIndex}`);
+            imageUrl = `https://placehold.co/1024x576/orange/white?text=Regen+Scene+${targetSceneIndex}`;
           }
 
-          updatedScenes[sceneIdx] = {
+          updatedScenes[arrayIdx] = {
             ...scene,
             image_url: imageUrl,
             image_approval_status: 'pending' as const,
+            regenerate_reason: undefined, // 재생성 완료 후 reason 제거
+            generation_attempts: (scene.generation_attempts || 0) + 1,
           };
 
           setImageGenProgress(Math.floor(((i + 1) / sceneIndices.length) * 100));
@@ -505,12 +531,15 @@ export function Video6PanelV2({ onClose, className = '', projectId: initialProje
           ...localPlanDraft,
           scenes: updatedScenes,
         });
+        setImageGenStatus('재생성 완료!');
+        console.log('[Video6PanelV2] Image regeneration complete');
       } catch (error) {
         console.error('[Video6PanelV2] Image regenerate failed:', error);
         setRenderError(error instanceof Error ? error.message : '이미지 재생성에 실패했습니다.');
       } finally {
         setIsGeneratingImages(false);
         setImageGenProgress(0);
+        setTimeout(() => setImageGenStatus(''), 2000);
       }
     },
     [localPlanDraft]
@@ -961,13 +990,14 @@ export function Video6PanelV2({ onClose, className = '', projectId: initialProje
         });
       };
 
-      // 각 씬을 순차적으로 렌더링
+      // 각 씬을 순차적으로 렌더링 (실제 시간 기반)
       let currentSceneIdx = 0;
       let currentAudioSource: AudioBufferSourceNode | null = null;
 
-      const renderScene = async () => {
+      const renderSceneWithTiming = async () => {
         if (currentSceneIdx >= scenes.length) {
           // 렌더링 완료 - 오디오 정리
+          console.log('[Video6PanelV2] All scenes rendered, stopping MediaRecorder...');
           if (currentAudioSource) {
             try { currentAudioSource.stop(); } catch { /* ignore */ }
           }
@@ -987,33 +1017,39 @@ export function Video6PanelV2({ onClose, className = '', projectId: initialProje
         }
 
         const scene = scenes[currentSceneIdx];
-        const duration = (scene.duration_sec || 2.5) * 1000; // ms
-        const frameCount = Math.ceil((duration / 1000) * 30); // 30fps
-        const img = imageMap.get(currentSceneIdx); // 배열 인덱스로 가져옴
+        // TTS 오디오 길이가 있으면 그것을 기준으로, 없으면 duration_sec 사용
+        const ttsBuffer = ttsAudioBuffers[currentSceneIdx];
+        const ttsDuration = ttsBuffer ? ttsBuffer.duration : 0;
+        const sceneDuration = Math.max(ttsDuration, scene.duration_sec || 2.5); // TTS가 더 길면 TTS 기준
+        const durationMs = sceneDuration * 1000;
+        const fps = 30;
+        const frameIntervalMs = 1000 / fps; // 약 33.33ms
+        const totalFrames = Math.ceil(sceneDuration * fps);
+
+        const img = imageMap.get(currentSceneIdx);
         const kenBurnsEffects: Array<'zoom_in' | 'zoom_out' | 'pan_left' | 'pan_right'> =
           ['zoom_in', 'zoom_out', 'pan_left', 'pan_right'];
         const effect = kenBurnsEffects[currentSceneIdx % kenBurnsEffects.length];
 
-        console.log(`[Video6PanelV2] Rendering scene ${currentSceneIdx}, duration: ${duration}ms, hasImage: ${!!img}, imageUrl: ${scene.image_url?.substring(0, 50)}`);
+        console.log(`[Video6PanelV2] Rendering scene ${currentSceneIdx}/${scenes.length - 1}:`);
+        console.log(`  - Duration: ${sceneDuration.toFixed(2)}s (TTS: ${ttsDuration.toFixed(2)}s, Scene: ${scene.duration_sec || 2.5}s)`);
+        console.log(`  - Total frames: ${totalFrames}`);
+        console.log(`  - Has image: ${!!img}`);
 
         setRenderProgress(20 + Math.floor(((currentSceneIdx + 1) / scenes.length) * 70));
 
-        // 자막 텍스트 (script가 더 상세하므로 우선 사용)
-        const caption = scene.script || scene.caption || scene.image_prompt || '';
+        // 자막 텍스트 (caption은 짧은 자막, script는 TTS용 나레이션)
+        const caption = scene.caption || ''; // 화면에 표시되는 짧은 자막
 
-        // TTS 오디오 재생 (Backend EdgeTTS) - ttsGainNode를 통해 연결
-        const ttsBuffer = ttsAudioBuffers[currentSceneIdx];
+        // TTS 오디오 재생 (Backend EdgeTTS)
         if (ttsBuffer && audioContext && ttsGainNode) {
           try {
-            // 이전 오디오 소스 정리
             if (currentAudioSource) {
               try { currentAudioSource.stop(); } catch { /* ignore */ }
             }
-
-            // 새 오디오 소스 생성 및 ttsGainNode를 통해 재생
             currentAudioSource = audioContext.createBufferSource();
             currentAudioSource.buffer = ttsBuffer;
-            currentAudioSource.connect(ttsGainNode); // ttsGainNode를 통해 연결 (BGM과 별도 볼륨 제어)
+            currentAudioSource.connect(ttsGainNode);
             currentAudioSource.start();
             console.log(`[Video6PanelV2] Playing TTS audio for scene ${currentSceneIdx}, duration: ${ttsBuffer.duration}s`);
           } catch (playError) {
@@ -1021,26 +1057,40 @@ export function Video6PanelV2({ onClose, className = '', projectId: initialProje
           }
         }
 
-        // 프레임 렌더링 (Ken Burns 효과)
-        let frame = 0;
-        const renderFrame = () => {
-          if (frame >= frameCount) {
+        // 실제 시간 기반 프레임 렌더링
+        const sceneStartTime = performance.now();
+        let lastFrameTime = sceneStartTime;
+        let frameCount = 0;
+
+        const renderFrameWithTiming = () => {
+          const now = performance.now();
+          const elapsedSinceStart = now - sceneStartTime;
+          const elapsedSinceLastFrame = now - lastFrameTime;
+
+          // 씬 종료 체크
+          if (elapsedSinceStart >= durationMs) {
+            console.log(`[Video6PanelV2] Scene ${currentSceneIdx} complete: ${frameCount} frames in ${elapsedSinceStart.toFixed(0)}ms`);
             currentSceneIdx++;
-            renderScene();
+            renderSceneWithTiming();
             return;
           }
 
-          const progress = frame / frameCount;
+          // 프레임 간격 체크 (30fps = 약 33.33ms 간격)
+          if (elapsedSinceLastFrame < frameIntervalMs) {
+            requestAnimationFrame(renderFrameWithTiming);
+            return;
+          }
+
+          lastFrameTime = now;
+          const progress = elapsedSinceStart / durationMs; // 0 ~ 1
 
           // 배경 클리어
           ctx.fillStyle = '#1a1a2e';
           ctx.fillRect(0, 0, canvas.width, canvas.height);
 
           if (img) {
-            // 이미지가 있으면 Ken Burns 효과로 그리기
             drawImageWithKenBurns(ctx, img, progress, effect);
           } else {
-            // 이미지가 없으면 그라데이션 배경
             const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
             gradient.addColorStop(0, `hsl(${(currentSceneIdx * 45) % 360}, 60%, 30%)`);
             gradient.addColorStop(1, `hsl(${(currentSceneIdx * 45 + 60) % 360}, 60%, 20%)`);
@@ -1048,17 +1098,19 @@ export function Video6PanelV2({ onClose, className = '', projectId: initialProje
             ctx.fillRect(0, 0, canvas.width, canvas.height);
           }
 
-          // 자막 표시
-          drawCaption(ctx, caption);
+          // 자막 표시 (짧은 caption만)
+          if (caption) {
+            drawCaption(ctx, caption);
+          }
 
-          frame++;
-          requestAnimationFrame(renderFrame);
+          frameCount++;
+          requestAnimationFrame(renderFrameWithTiming);
         };
 
-        renderFrame();
+        renderFrameWithTiming();
       };
 
-      renderScene();
+      renderSceneWithTiming();
     });
   };
 
