@@ -134,10 +134,13 @@ export function ConceptBoardTab() {
         // 따라서 약간의 지연 후 Store에 컨셉을 렌더링
         const renderConceptsToCanvas = () => {
           const canvasStore = getCanvasStore('concept');
+          console.log('[ConceptBoardTab] Store 확인:', canvasStore ? 'found' : 'not found');
+
           if (canvasStore) {
+            console.log('[ConceptBoardTab] 렌더링 전 페이지 수:', canvasStore.pages?.length);
             addConceptsToCanvas(canvasStore, response.concepts, true);
-            console.log('[ConceptBoardTab] 컨셉 Canvas에 렌더링 완료:', response.concepts.length, '페이지');
-            console.log('[ConceptBoardTab] 현재 페이지 수:', canvasStore.pages?.length);
+            console.log('[ConceptBoardTab] 렌더링 후 페이지 수:', canvasStore.pages?.length);
+            console.log('[ConceptBoardTab] 페이지 목록:', canvasStore.pages?.map((p: any) => ({ id: p.id, children: p.children?.length })));
             return true;
           }
           return false;
@@ -148,11 +151,13 @@ export function ConceptBoardTab() {
         const maxAttempts = 20;
         const pollInterval = setInterval(() => {
           attempts++;
+          console.log(`[ConceptBoardTab] 폴링 시도 ${attempts}/${maxAttempts}`);
           if (renderConceptsToCanvas()) {
             clearInterval(pollInterval);
+            console.log('[ConceptBoardTab] ✅ Canvas 렌더링 완료');
           } else if (attempts >= maxAttempts) {
             clearInterval(pollInterval);
-            console.error('[ConceptBoardTab] Canvas Store 준비 시간 초과');
+            console.error('[ConceptBoardTab] ❌ Canvas Store 준비 시간 초과');
           }
         }, 100);
       }

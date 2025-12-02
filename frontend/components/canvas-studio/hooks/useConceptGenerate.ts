@@ -35,7 +35,7 @@ import type {
   ConceptV1Response,
   ConceptGenerateOptions,
 } from '@/types/concept';
-import { mockConceptV1Response } from '@/lib/mocks/conceptV1Mock';
+import { generateDynamicMockConcepts } from '@/lib/mocks/conceptV1Mock';
 
 // =============================================================================
 // Hook Result Interface
@@ -138,14 +138,10 @@ export function useConceptGenerate(
         // 1초 대기 (로딩 시뮬레이션)
         await new Promise((resolve) => setTimeout(resolve, 1000));
 
-        // Mock 응답 반환
-        const response: ConceptV1Response = {
-          ...mockConceptV1Response,
-          // conceptCount에 맞게 컨셉 수 조정
-          concepts: mockConceptV1Response.concepts.slice(0, conceptCount),
-        };
+        // 동적 Mock 응답 생성 (프롬프트 기반)
+        const response = generateDynamicMockConcepts(prompt, conceptCount);
 
-        console.log('[useConceptGenerate] ✅ Mock 응답 생성 완료');
+        console.log('[useConceptGenerate] ✅ 동적 Mock 응답 생성 완료');
         console.log(
           '[useConceptGenerate] 컨셉 수:',
           response.concepts.length

@@ -192,9 +192,17 @@ export function CollapsiblePagesPanel({ isCollapsed = false, onToggleCollapse }:
 
   // 페이지 선택 - 컨셉 캔버스일 때 컨셉 ID도 동기화
   const handleSelectPage = (pageId: string) => {
+    console.log('[CollapsiblePagesPanel] Selecting page:', pageId);
     setSelectedPageId(pageId);
-    if (polotnoStore) {
-      polotnoStore.selectPage(pageId);
+
+    // Store에서 직접 페이지 선택
+    const store = getCanvasStore(activeCanvasType);
+    if (store) {
+      console.log('[CollapsiblePagesPanel] Store found, pages:', store.pages?.length);
+      store.selectPage(pageId);
+      console.log('[CollapsiblePagesPanel] Page selected, activePage:', store.activePage?.id);
+    } else {
+      console.warn('[CollapsiblePagesPanel] Store not found for:', activeCanvasType);
     }
 
     // concept 캔버스일 때 해당 페이지의 컨셉 ID 설정

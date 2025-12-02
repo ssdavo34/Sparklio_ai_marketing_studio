@@ -228,11 +228,126 @@ export const mockConceptV1_3: ConceptV1 = {
 };
 
 // =============================================================================
-// Combined Response
+// 동적 Mock 생성 함수
 // =============================================================================
 
 /**
- * Mock ConceptV1 Response (3개 컨셉)
+ * 캠페인 프롬프트 기반 동적 Mock 컨셉 생성
+ *
+ * @param prompt - 사용자 캠페인 입력
+ * @param conceptCount - 생성할 컨셉 수
+ * @returns ConceptV1Response
+ */
+export function generateDynamicMockConcepts(
+  prompt: string,
+  conceptCount: number = 3
+): ConceptV1Response {
+  // 프롬프트에서 키워드 추출
+  const keywords = prompt.split(/[\s,]+/).filter(w => w.length > 1);
+  const mainKeyword = keywords[0] || '캠페인';
+
+  // 컨셉 템플릿 배열
+  const conceptTemplates = [
+    {
+      suffix: '감성 스토리',
+      approach: '감성적 접근',
+      insight: `${mainKeyword} 관련 고민이 있는 고객에게 공감과 해결책을 제시`,
+      promise: `${mainKeyword}로 일상의 작은 변화를 경험하세요`,
+      tone: '따뜻하고 공감하는',
+      colors: ['#6366F1', '#8B5CF6', '#EC4899', '#F59E0B'],
+    },
+    {
+      suffix: '실용 가이드',
+      approach: '이성적 접근',
+      insight: `${mainKeyword}의 실질적 효과를 원하는 고객에게 데이터 기반 솔루션 제공`,
+      promise: `검증된 ${mainKeyword} 솔루션으로 확실한 결과를`,
+      tone: '신뢰감 있고 전문적인',
+      colors: ['#10B981', '#3B82F6', '#1F2937', '#FBBF24'],
+    },
+    {
+      suffix: '트렌드 리더',
+      approach: '혁신적 접근',
+      insight: `새로운 ${mainKeyword} 트렌드를 선도하고 싶은 고객에게 차별화된 경험 제공`,
+      promise: `${mainKeyword}의 새로운 기준을 만나보세요`,
+      tone: '역동적이고 혁신적인',
+      colors: ['#DC2626', '#F59E0B', '#10B981', '#6366F1'],
+    },
+  ];
+
+  const concepts: ConceptV1[] = [];
+
+  for (let i = 0; i < Math.min(conceptCount, 3); i++) {
+    const template = conceptTemplates[i];
+    const id = `CONCEPT_${Date.now()}_${i + 1}`;
+
+    concepts.push({
+      id,
+      version: 1,
+      name: `${mainKeyword} ${template.suffix}`,
+      topic: prompt,
+      mode: 'launch_campaign',
+
+      audience_insight: template.insight,
+      core_promise: template.promise,
+      brand_role: `${mainKeyword} 분야의 신뢰할 수 있는 파트너`,
+
+      reason_to_believe: [
+        `${mainKeyword} 관련 전문 노하우 보유`,
+        '실제 고객 성공 사례 다수',
+        '지속적인 품질 관리와 개선',
+        '업계 최고 수준의 서비스',
+      ],
+
+      creative_device: `${mainKeyword}를 새롭게 경험하는 방법`,
+      hook_patterns: [
+        `${mainKeyword}, 이렇게 달라질 수 있습니다`,
+        `지금 바로 ${mainKeyword} 시작하세요`,
+        `${mainKeyword}의 새로운 기준`,
+      ],
+
+      visual_world: {
+        color_palette: `${template.approach} 스타일`,
+        photo_style: '밝고 현대적인 이미지',
+        layout_motifs: ['아이콘', '그래프', '타임라인'],
+        hex_colors: template.colors,
+      },
+
+      channel_strategy: {
+        shorts: `${mainKeyword} 관련 15초 숏폼 콘텐츠`,
+        instagram_news: `${mainKeyword} 인사이트 뉴스 피드`,
+        product_detail: `${mainKeyword} 상세 페이지`,
+        presentation: `${mainKeyword} 프레젠테이션`,
+      },
+
+      guardrails: {
+        avoid_claims: ['과장된 표현', '검증되지 않은 주장'],
+        must_include: [mainKeyword, '고객 가치', '신뢰'],
+      },
+
+      target_audience: `${mainKeyword}에 관심 있는 20-40대`,
+      tone_and_manner: template.tone,
+      keywords: [...keywords, template.approach.replace(' 접근', '')],
+
+      meta: {
+        created_by: 'dynamic_mock_generator',
+        created_at: new Date().toISOString(),
+        status: 'active',
+      },
+    });
+  }
+
+  return {
+    concepts,
+    reasoning: `"${prompt}" 캠페인을 위해 ${concepts.length}가지 서로 다른 접근 방식의 컨셉을 생성했습니다:\n\n${concepts.map((c, i) => `${i + 1}. **${c.name}**: ${conceptTemplates[i].approach} - ${c.core_promise}`).join('\n\n')}`,
+  };
+}
+
+// =============================================================================
+// Combined Response (하위 호환용 - 기존 코드가 사용)
+// =============================================================================
+
+/**
+ * Mock ConceptV1 Response (3개 컨셉) - 기본 Mock
  *
  * POST /api/v1/concepts/from-prompt 응답 Mock
  */
