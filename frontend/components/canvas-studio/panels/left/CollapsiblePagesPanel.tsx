@@ -39,7 +39,8 @@ interface PageItem {
 export function CollapsiblePagesPanel({ isCollapsed = false, onToggleCollapse }: CollapsiblePagesPanelProps) {
   // 멀티 캔버스 지원: activeCanvasType에 따라 해당 캔버스 사용
   const activeCanvasType = useCanvasStore((state) => state.activeCanvasType);
-  const zustandPolotnoStore = useCanvasStore((state) => state.canvases.get(state.activeCanvasType) || null);
+  const canvases = useCanvasStore((state) => state.canvases);
+  const zustandPolotnoStore = canvases.get(activeCanvasType) || null;
   const currentTemplate = useCanvasStore((state) => state.currentTemplate);
   const currentTheme = useCanvasStore((state) => state.currentTheme);
   const applyThemeToCanvas = useCanvasStore((state) => state.applyThemeToCanvas);
@@ -187,7 +188,7 @@ export function CollapsiblePagesPanel({ isCollapsed = false, onToggleCollapse }:
       }
       if (unsubscribe) unsubscribe();
     };
-  }, [activeCanvasType, zustandPolotnoStore, generateAllThumbnails, conceptsV1]);
+  }, [activeCanvasType, zustandPolotnoStore, generateAllThumbnails, conceptsV1, canvases]);
 
   // 페이지 선택 - 컨셉 캔버스일 때 컨셉 ID도 동기화
   const handleSelectPage = (pageId: string) => {

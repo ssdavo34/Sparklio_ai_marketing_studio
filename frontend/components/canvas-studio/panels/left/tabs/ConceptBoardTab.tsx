@@ -54,8 +54,9 @@ export function ConceptBoardTab() {
   // useConceptGenerate 훅 (Mock 모드 - 실제 API로 전환 시 false로 변경)
   const { generateConcepts, isLoading: isGenerating, error: generateError, clearError } = useConceptGenerate({ useMock: true });
 
-  // Canvas Store - 캔버스 타입 변경
+  // Canvas Store - 캔버스 타입 변경 및 캔버스 등록
   const setActiveCanvasType = useCanvasStore((state) => state.setActiveCanvasType);
+  const setCanvas = useCanvasStore((state) => state.setCanvas);
 
   // Chat Store - 채팅 연동
   const addMessage = useChatStore((state) => state.addMessage);
@@ -131,35 +132,43 @@ export function ConceptBoardTab() {
           sourceMessage: campaignInput,
         });
 
+        // API Key 확인
+        const apiKey = process.env.NEXT_PUBLIC_POLOTNO_API_KEY || '';
+        if (!apiKey) {
+          console.error('[ConceptBoardTab] Polotno API Key가 없습니다.');
+          return;
+        }
+
+        // Canvas Store 먼저 생성/가져오기
+        let canvasStore = getCanvasStore('concept');
+        if (!canvasStore) {
+          canvasStore = getOrCreateCanvasStore('concept', apiKey);
+          console.log('[ConceptBoardTab] Canvas Store 새로 생성됨');
+        }
+
+        // Zustand Store에 Canvas 등록 (중요! CollapsiblePagesPanel이 접근하기 위함)
+        if (canvasStore) {
+          setCanvas('concept', canvasStore);
+        }
+
         // Canvas 타입을 concept로 변경
         setActiveCanvasType('concept');
 
-        // Canvas Store 초기화 및 렌더링 (약간의 지연 후)
+        // Canvas에 컨셉 렌더링 (약간의 지연 후 - DOM 업데이트 대기)
         setTimeout(() => {
-          const apiKey = process.env.NEXT_PUBLIC_POLOTNO_API_KEY || '';
-          if (!apiKey) {
-            console.error('[ConceptBoardTab] Polotno API Key가 없습니다.');
-            return;
-          }
-
-          // Store가 없으면 생성
-          let canvasStore = getCanvasStore('concept');
-          if (!canvasStore) {
-            canvasStore = getOrCreateCanvasStore('concept', apiKey);
-          }
-
           if (canvasStore) {
             addConceptsToCanvas(canvasStore, response.concepts, true);
-            console.log('[ConceptBoardTab] 컨셉 Canvas에 렌더링 완료:', response.concepts.length);
+            console.log('[ConceptBoardTab] 컨셉 Canvas에 렌더링 완료:', response.concepts.length, '페이지');
+            console.log('[ConceptBoardTab] 현재 페이지 수:', canvasStore.pages?.length);
           } else {
             console.error('[ConceptBoardTab] Canvas Store 생성 실패');
           }
-        }, 100);
+        }, 200);
       }
     } catch (e) {
       console.error('[ConceptBoardTab] 컨셉 생성 실패:', e);
     }
-  }, [campaignInput, sharedBrandDNA, generateConcepts, clearError, setConceptBoardData, setConceptsV1, setSelectedConceptId, setActiveCanvasType]);
+  }, [campaignInput, sharedBrandDNA, generateConcepts, clearError, setConceptBoardData, setConceptsV1, setSelectedConceptId, setActiveCanvasType, setCanvas]);
 
   // 풀셋 생성 핸들러 (영상 제외)
   const handleGenerateFullSet = useCallback(async () => {

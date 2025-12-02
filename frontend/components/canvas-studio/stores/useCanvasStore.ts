@@ -79,6 +79,9 @@ export interface CanvasState {
   /** 활성 캔버스 타입 변경 */
   setActiveCanvas: (type: CanvasType) => void;
 
+  /** 활성 캔버스 타입 변경 (alias) */
+  setActiveCanvasType: (type: CanvasType) => void;
+
   /** 현재 활성 캔버스 가져오기 */
   getActiveCanvas: () => StoreType | null;
 
@@ -186,6 +189,14 @@ export const useCanvasStore = create<CanvasState>()(
        */
       setActiveCanvas: (type: CanvasType) => {
         console.log(`[CanvasStore] Active canvas changed: ${type}`);
+        set({ activeCanvasType: type });
+      },
+
+      /**
+       * 활성 캔버스 타입 변경 (alias for setActiveCanvas)
+       */
+      setActiveCanvasType: (type: CanvasType) => {
+        console.log(`[CanvasStore] Active canvas type changed: ${type}`);
         set({ activeCanvasType: type });
       },
 
