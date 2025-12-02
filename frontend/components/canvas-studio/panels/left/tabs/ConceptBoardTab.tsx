@@ -14,11 +14,15 @@
 
 'use client';
 
-import { useState, useCallback } from 'react';
-import { Sparkles, Plus, Send, Presentation, FileText, Instagram, ChevronDown, ChevronUp, Eye, X, Target, MessageSquare, CheckCircle, XCircle, Loader2, Wand2, Check, RefreshCw } from 'lucide-react';
+import { useState, useCallback, useEffect } from 'react';
+import { Sparkles, Plus, Send, Presentation, FileText, Instagram, ChevronDown, ChevronUp, Eye, X, Target, MessageSquare, CheckCircle, XCircle, Loader2, Wand2, Check, RefreshCw, Palette } from 'lucide-react';
 import { useCenterViewStore } from '../../../stores/useCenterViewStore';
 import { useGeneratedAssetsStore, type GeneratedConcept } from '../../../stores/useGeneratedAssetsStore';
+import { useCanvasStore } from '../../../stores/useCanvasStore';
+import { useChatStore } from '../../../stores/useChatStore';
 import { useConceptGenerate } from '../../../hooks/useConceptGenerate';
+import { getCanvasStore } from '../../../polotno/polotnoStoreSingleton';
+import { addConceptsToCanvas } from '@/lib/canvas/conceptTemplate';
 import { LLM_PROVIDERS } from '@/lib/api/brand-api';
 import type { ConceptV1 } from '@/types/concept';
 
@@ -45,14 +49,16 @@ export function ConceptBoardTab() {
   // 캠페인 입력 상태
   const [campaignInput, setCampaignInput] = useState('');
   const [showBrandDNA, setShowBrandDNA] = useState(true);
-
-  // 생성된 컨셉 목록 (ConceptV1[])
-  const [generatedConcepts, setGeneratedConcepts] = useState<ConceptV1[]>([]);
-  const [selectedConceptId, setSelectedConceptId] = useState<string | null>(null);
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
 
-  // useConceptGenerate 훅 (Mock 모드 사용)
+  // useConceptGenerate 훅 (Mock 모드 - 실제 API로 전환 시 false로 변경)
   const { generateConcepts, isLoading: isGenerating, error: generateError, clearError } = useConceptGenerate({ useMock: true });
+
+  // Canvas Store - 캔버스 타입 변경
+  const setActiveCanvasType = useCanvasStore((state) => state.setActiveCanvasType);
+
+  // Chat Store - 채팅 연동
+  const addMessage = useChatStore((state) => state.addMessage);
 
   // CenterView Store - Brand DNA
   const {
@@ -61,12 +67,17 @@ export function ConceptBoardTab() {
     openInstagramPreview,
     sharedBrandDNA,
     setSharedBrandDNA,
+    setView,
   } = useCenterViewStore();
 
-  // Generated Assets Store - 풀셋 생성 함수들
+  // Generated Assets Store - 컨셉 데이터 영속화 + 풀셋 생성 함수들
   const {
     conceptBoardData,
     setConceptBoardData,
+    conceptsV1,              // ConceptV1[] - 영속 저장
+    setConceptsV1,           // ConceptV1[] 저장 함수
+    selectedConceptId,       // 선택된 컨셉 ID
+    setSelectedConceptId,    // 선택된 컨셉 ID 설정
     generateSlidesFromConcept,
     generateDetailFromConcept,
     generateInstagramFromConcept,
@@ -75,8 +86,18 @@ export function ConceptBoardTab() {
     isGeneratingInstagram,
   } = useGeneratedAssetsStore();
 
+  // 생성된 컨셉 목록 (Store에서 가져옴 - 영속화)
+  const generatedConcepts = conceptsV1 || [];
+
   // 선택된 컨셉
   const selectedConcept = generatedConcepts.find(c => c.id === selectedConceptId) || null;
+
+  // 확장된 카드 초기화 (첫 번째 컨셉으로)
+  useEffect(() => {
+    if (generatedConcepts.length > 0 && !expandedCard) {
+      setExpandedCard(generatedConcepts[0].id);
+    }
+  }, [generatedConcepts, expandedCard]);
 
   // 컨셉 생성 핸들러
   const handleGenerateConcepts = useCallback(async () => {
@@ -96,7 +117,8 @@ export function ConceptBoardTab() {
       const response = await generateConcepts(campaignInput, 3, brandContext);
 
       if (response.concepts && response.concepts.length > 0) {
-        setGeneratedConcepts(response.concepts);
+        // Store에 컨셉 저장 (영속화)
+        setConceptsV1(response.concepts);
         setSelectedConceptId(response.concepts[0].id);
         setExpandedCard(response.concepts[0].id);
 
@@ -108,11 +130,21 @@ export function ConceptBoardTab() {
           createdAt: new Date(),
           sourceMessage: campaignInput,
         });
+
+        // Canvas 타입을 concept로 변경하고 Canvas에 렌더링
+        setActiveCanvasType('concept');
+
+        // Canvas Store 가져와서 컨셉 렌더링
+        const canvasStore = getCanvasStore('concept');
+        if (canvasStore) {
+          addConceptsToCanvas(canvasStore, response.concepts, true);
+          console.log('[ConceptBoardTab] 컨셉 Canvas에 렌더링 완료:', response.concepts.length);
+        }
       }
     } catch (e) {
       console.error('[ConceptBoardTab] 컨셉 생성 실패:', e);
     }
-  }, [campaignInput, sharedBrandDNA, generateConcepts, clearError, setConceptBoardData]);
+  }, [campaignInput, sharedBrandDNA, generateConcepts, clearError, setConceptBoardData, setConceptsV1, setSelectedConceptId, setActiveCanvasType]);
 
   // 풀셋 생성 핸들러 (영상 제외)
   const handleGenerateFullSet = useCallback(async () => {
@@ -262,8 +294,13 @@ export function ConceptBoardTab() {
               </h3>
               <button
                 onClick={() => {
-                  setGeneratedConcepts([]);
+                  setConceptsV1(null);
                   setSelectedConceptId(null);
+                  // Canvas도 초기화
+                  const canvasStore = getCanvasStore('concept');
+                  if (canvasStore) {
+                    canvasStore.clear();
+                  }
                 }}
                 className="text-[10px] text-neutral-400 hover:text-neutral-600 flex items-center gap-1"
               >

@@ -16,6 +16,7 @@
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import { sendChatMessage } from '@/lib/llm-gateway-client';
+import type { ConceptV1 } from '@/types/concept';
 
 // ============================================================================
 // Types
@@ -147,6 +148,10 @@ export interface GeneratedAssetsState {
   shortsData: GeneratedShortsData | null;
   conceptBoardData: GeneratedConceptBoardData | null;
 
+  // ConceptV1 영속 저장 (Canvas 렌더링용)
+  conceptsV1: ConceptV1[] | null;
+  selectedConceptId: string | null;
+
   // 마지막 업데이트 시간
   lastUpdated: Date | null;
 
@@ -156,6 +161,7 @@ export interface GeneratedAssetsState {
   hasDetail: boolean;
   hasShorts: boolean;
   hasConceptBoard: boolean;
+  hasConceptsV1: boolean;
 
   // Actions
   setSlidesData: (data: GeneratedSlidesData | null) => void;
@@ -163,6 +169,8 @@ export interface GeneratedAssetsState {
   setDetailData: (data: GeneratedDetailData | null) => void;
   setShortsData: (data: GeneratedShortsData | null) => void;
   setConceptBoardData: (data: GeneratedConceptBoardData | null) => void;
+  setConceptsV1: (concepts: ConceptV1[] | null) => void;
+  setSelectedConceptId: (id: string | null) => void;
 
   // AI 응답에서 에셋 파싱 및 저장
   parseAndStoreFromAIResponse: (response: string, userMessage: string) => void;
@@ -543,6 +551,8 @@ export const useGeneratedAssetsStore = create<GeneratedAssetsState>()(
         detailData: null,
         shortsData: null,
         conceptBoardData: null,
+        conceptsV1: null,
+        selectedConceptId: null,
         lastUpdated: null,
 
         // 생성 로딩 상태
@@ -567,6 +577,9 @@ export const useGeneratedAssetsStore = create<GeneratedAssetsState>()(
         get hasConceptBoard() {
           return get().conceptBoardData !== null;
         },
+        get hasConceptsV1() {
+          return get().conceptsV1 !== null && get().conceptsV1!.length > 0;
+        },
 
         // Actions
         setSlidesData: (data) => set({ slidesData: data, lastUpdated: new Date() }),
@@ -574,6 +587,8 @@ export const useGeneratedAssetsStore = create<GeneratedAssetsState>()(
         setDetailData: (data) => set({ detailData: data, lastUpdated: new Date() }),
         setShortsData: (data) => set({ shortsData: data, lastUpdated: new Date() }),
         setConceptBoardData: (data) => set({ conceptBoardData: data, lastUpdated: new Date() }),
+        setConceptsV1: (concepts) => set({ conceptsV1: concepts, lastUpdated: new Date() }),
+        setSelectedConceptId: (id) => set({ selectedConceptId: id }),
 
         /**
          * AI 응답에서 모든 에셋 타입 파싱 및 저장
@@ -913,6 +928,8 @@ export const useGeneratedAssetsStore = create<GeneratedAssetsState>()(
           detailData: null,
           shortsData: null,
           conceptBoardData: null,
+          conceptsV1: null,
+          selectedConceptId: null,
           lastUpdated: null,
           isGeneratingSlides: false,
           isGeneratingDetail: false,
@@ -928,6 +945,8 @@ export const useGeneratedAssetsStore = create<GeneratedAssetsState>()(
           detailData: state.detailData,
           shortsData: state.shortsData,
           conceptBoardData: state.conceptBoardData,
+          conceptsV1: state.conceptsV1,
+          selectedConceptId: state.selectedConceptId,
           lastUpdated: state.lastUpdated,
         }),
       }

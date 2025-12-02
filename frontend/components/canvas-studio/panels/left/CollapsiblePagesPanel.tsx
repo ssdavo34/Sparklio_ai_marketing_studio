@@ -14,8 +14,9 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { ChevronDown, ChevronUp, Plus, Copy, Trash2, RefreshCw, Loader2, FileText, Layers } from 'lucide-react';
+import { Plus, Copy, Trash2, RefreshCw, Loader2, FileText } from 'lucide-react';
 import { useCanvasStore } from '../../stores/useCanvasStore';
+import { useGeneratedAssetsStore } from '../../stores/useGeneratedAssetsStore';
 import { getCanvasStore } from '../../polotno/polotnoStoreSingleton';
 import { CANVAS_CONFIGS } from '../../stores/types';
 
@@ -31,6 +32,8 @@ interface PageItem {
   width?: number;
   height?: number;
   thumbnailUrl?: string;
+  conceptId?: string;  // 컨셉 연결용
+  conceptName?: string; // 컨셉 이름
 }
 
 export function CollapsiblePagesPanel({ isCollapsed = false, onToggleCollapse }: CollapsiblePagesPanelProps) {
@@ -41,9 +44,16 @@ export function CollapsiblePagesPanel({ isCollapsed = false, onToggleCollapse }:
   const currentTheme = useCanvasStore((state) => state.currentTheme);
   const applyThemeToCanvas = useCanvasStore((state) => state.applyThemeToCanvas);
 
+  // 컨셉 데이터 가져오기 (concept 캔버스 타입일 때)
+  const conceptsV1 = useGeneratedAssetsStore((state) => state.conceptsV1);
+  const setSelectedConceptId = useGeneratedAssetsStore((state) => state.setSelectedConceptId);
+
   // 현재 활성 캔버스 타입의 Store 가져오기
   const polotnoStore = getCanvasStore(activeCanvasType) || zustandPolotnoStore;
   const canvasConfig = CANVAS_CONFIGS[activeCanvasType];
+
+  // concept 캔버스인지 확인
+  const isConceptCanvas = activeCanvasType === 'concept';
 
   const [pages, setPages] = useState<PageItem[]>([]);
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
@@ -108,14 +118,30 @@ export function CollapsiblePagesPanel({ isCollapsed = false, onToggleCollapse }:
 
     const updatePages = () => {
       const newPages: PageItem[] =
-        store.pages?.map((page: any, idx: number) => ({
-          id: page.id,
-          title: `페이지 ${idx + 1}`,
-          subtitle: `${page.width} × ${page.height}`,
-          width: page.width,
-          height: page.height,
-          thumbnailUrl: page.custom?.thumbnailDataUrl,
-        })) || [];
+        store.pages?.map((page: any, idx: number) => {
+          // concept 캔버스일 때 컨셉 정보 연결
+          let conceptId: string | undefined;
+          let conceptName: string | undefined;
+          let title = `페이지 ${idx + 1}`;
+
+          if (activeCanvasType === 'concept' && conceptsV1 && conceptsV1[idx]) {
+            const concept = conceptsV1[idx];
+            conceptId = concept.id;
+            conceptName = concept.name;
+            title = `컨셉 ${idx + 1}`;
+          }
+
+          return {
+            id: page.id,
+            title,
+            subtitle: conceptName || `${page.width} × ${page.height}`,
+            width: page.width,
+            height: page.height,
+            thumbnailUrl: page.custom?.thumbnailDataUrl,
+            conceptId,
+            conceptName,
+          };
+        }) || [];
 
       setPages(newPages);
       setSelectedPageId(store.activePage?.id || newPages[0]?.id || null);
@@ -149,13 +175,21 @@ export function CollapsiblePagesPanel({ isCollapsed = false, onToggleCollapse }:
       }
       if (unsubscribe) unsubscribe();
     };
-  }, [activeCanvasType, zustandPolotnoStore, generateAllThumbnails]);
+  }, [activeCanvasType, zustandPolotnoStore, generateAllThumbnails, conceptsV1]);
 
-  // 페이지 선택
+  // 페이지 선택 - 컨셉 캔버스일 때 컨셉 ID도 동기화
   const handleSelectPage = (pageId: string) => {
     setSelectedPageId(pageId);
     if (polotnoStore) {
       polotnoStore.selectPage(pageId);
+    }
+
+    // concept 캔버스일 때 해당 페이지의 컨셉 ID 설정
+    if (isConceptCanvas) {
+      const pageIndex = pages.findIndex(p => p.id === pageId);
+      if (pageIndex >= 0 && conceptsV1 && conceptsV1[pageIndex]) {
+        setSelectedConceptId(conceptsV1[pageIndex].id);
+      }
     }
   };
 
@@ -242,7 +276,7 @@ export function CollapsiblePagesPanel({ isCollapsed = false, onToggleCollapse }:
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold text-gray-700">{pages.length}개 페이지</span>
           <span className="text-[10px] px-1.5 py-0.5 bg-indigo-100 text-indigo-600 rounded">
-            {canvasConfig?.name || activeCanvasType}
+            {activeCanvasType}
           </span>
         </div>
         <div className="flex items-center gap-1">
@@ -318,11 +352,18 @@ export function CollapsiblePagesPanel({ isCollapsed = false, onToggleCollapse }:
 
                   {/* Page Info */}
                   <div className="flex-1 min-w-0">
-                    <div className="text-xs font-medium text-gray-800 truncate">
-                      페이지 {index + 1}
+                    <div className="flex items-center gap-1">
+                      {page.conceptId && (
+                        <span className="text-[9px] px-1 py-0.5 bg-purple-100 text-purple-600 rounded font-medium">
+                          컨셉{index + 1}
+                        </span>
+                      )}
+                      <span className="text-xs font-medium text-gray-800 truncate">
+                        {page.conceptName || page.title}
+                      </span>
                     </div>
-                    <div className="text-[10px] text-gray-500">
-                      {page.width} × {page.height}
+                    <div className="text-[10px] text-gray-500 truncate">
+                      {page.conceptId ? page.subtitle : `${page.width} × ${page.height}`}
                     </div>
                   </div>
 
