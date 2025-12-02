@@ -107,9 +107,21 @@ export function CollapsiblePagesPanel({ isCollapsed = false, onToggleCollapse }:
   // 페이지 목록 업데이트 - activeCanvasType 변경 시 새로운 캔버스의 페이지로 갱신
   useEffect(() => {
     const store = getCanvasStore(activeCanvasType) || zustandPolotnoStore;
-    if (!store) return;
 
-    console.log(`[CollapsiblePagesPanel] Canvas type changed to: ${activeCanvasType}`);
+    // Store가 없으면 잠시 후 다시 확인 (Store가 생성될 때까지 대기)
+    if (!store) {
+      const retryTimeout = setTimeout(() => {
+        const retryStore = getCanvasStore(activeCanvasType);
+        if (retryStore) {
+          console.log(`[CollapsiblePagesPanel] Store found after retry for: ${activeCanvasType}`);
+          // 페이지 업데이트를 트리거하기 위해 강제 리렌더링, 빈 배열로 초기화 후 다시 설정
+          setPages([]);
+        }
+      }, 200);
+      return () => clearTimeout(retryTimeout);
+    }
+
+    console.log(`[CollapsiblePagesPanel] Canvas type: ${activeCanvasType}, Pages: ${store.pages?.length || 0}`);
 
     // 캔버스 타입 변경 시 썸네일 초기화
     setThumbnails({});
