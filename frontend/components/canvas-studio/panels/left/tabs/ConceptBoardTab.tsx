@@ -15,15 +15,13 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { Sparkles, Plus, Send, Presentation, FileText, Instagram, ChevronDown, ChevronUp, Eye, X, Target, MessageSquare, CheckCircle, XCircle, Loader2, Wand2, Check, RefreshCw, Palette } from 'lucide-react';
+import { Sparkles, Send, Presentation, FileText, Instagram, ChevronDown, ChevronUp, X, Target, MessageSquare, Loader2, Wand2, Check, RefreshCw } from 'lucide-react';
 import { useCenterViewStore } from '../../../stores/useCenterViewStore';
 import { useGeneratedAssetsStore, type GeneratedConcept } from '../../../stores/useGeneratedAssetsStore';
 import { useCanvasStore } from '../../../stores/useCanvasStore';
-import { useChatStore } from '../../../stores/useChatStore';
 import { useConceptGenerate } from '../../../hooks/useConceptGenerate';
-import { getCanvasStore, getOrCreateCanvasStore } from '../../../polotno/polotnoStoreSingleton';
+import { getCanvasStore } from '../../../polotno/polotnoStoreSingleton';
 import { addConceptsToCanvas } from '@/lib/canvas/conceptTemplate';
-import { LLM_PROVIDERS } from '@/lib/api/brand-api';
 import type { ConceptV1 } from '@/types/concept';
 
 // ConceptV1 → GeneratedConcept 변환 헬퍼
@@ -54,12 +52,8 @@ export function ConceptBoardTab() {
   // useConceptGenerate 훅 (Mock 모드 - 실제 API로 전환 시 false로 변경)
   const { generateConcepts, isLoading: isGenerating, error: generateError, clearError } = useConceptGenerate({ useMock: true });
 
-  // Canvas Store - 캔버스 타입 변경 및 캔버스 등록
+  // Canvas Store - 캔버스 타입 변경
   const setActiveCanvasType = useCanvasStore((state) => state.setActiveCanvasType);
-  const setCanvas = useCanvasStore((state) => state.setCanvas);
-
-  // Chat Store - 채팅 연동
-  const addMessage = useChatStore((state) => state.addMessage);
 
   // CenterView Store - Brand DNA
   const {
@@ -132,43 +126,40 @@ export function ConceptBoardTab() {
           sourceMessage: campaignInput,
         });
 
-        // API Key 확인
-        const apiKey = process.env.NEXT_PUBLIC_POLOTNO_API_KEY || '';
-        if (!apiKey) {
-          console.error('[ConceptBoardTab] Polotno API Key가 없습니다.');
-          return;
-        }
-
-        // Canvas Store 먼저 생성/가져오기
-        let canvasStore = getCanvasStore('concept');
-        if (!canvasStore) {
-          canvasStore = getOrCreateCanvasStore('concept', apiKey);
-          console.log('[ConceptBoardTab] Canvas Store 새로 생성됨');
-        }
-
-        // Zustand Store에 Canvas 등록 (중요! CollapsiblePagesPanel이 접근하기 위함)
-        if (canvasStore) {
-          setCanvas('concept', canvasStore);
-        }
-
-        // Canvas 타입을 concept로 변경
+        // Canvas 타입을 concept로 변경 (PolotnoWorkspace가 Store를 생성/관리함)
         setActiveCanvasType('concept');
 
-        // Canvas에 컨셉 렌더링 (약간의 지연 후 - DOM 업데이트 대기)
-        setTimeout(() => {
+        // PolotnoWorkspace가 Store를 생성한 후 컨셉을 렌더링
+        // PolotnoWorkspace는 activeCanvasType 변경 시 자동으로 Store를 생성하고 Zustand에 등록
+        // 따라서 약간의 지연 후 Store에 컨셉을 렌더링
+        const renderConceptsToCanvas = () => {
+          const canvasStore = getCanvasStore('concept');
           if (canvasStore) {
             addConceptsToCanvas(canvasStore, response.concepts, true);
             console.log('[ConceptBoardTab] 컨셉 Canvas에 렌더링 완료:', response.concepts.length, '페이지');
             console.log('[ConceptBoardTab] 현재 페이지 수:', canvasStore.pages?.length);
-          } else {
-            console.error('[ConceptBoardTab] Canvas Store 생성 실패');
+            return true;
           }
-        }, 200);
+          return false;
+        };
+
+        // Store가 준비될 때까지 폴링 (최대 2초)
+        let attempts = 0;
+        const maxAttempts = 20;
+        const pollInterval = setInterval(() => {
+          attempts++;
+          if (renderConceptsToCanvas()) {
+            clearInterval(pollInterval);
+          } else if (attempts >= maxAttempts) {
+            clearInterval(pollInterval);
+            console.error('[ConceptBoardTab] Canvas Store 준비 시간 초과');
+          }
+        }, 100);
       }
     } catch (e) {
       console.error('[ConceptBoardTab] 컨셉 생성 실패:', e);
     }
-  }, [campaignInput, sharedBrandDNA, generateConcepts, clearError, setConceptBoardData, setConceptsV1, setSelectedConceptId, setActiveCanvasType, setCanvas]);
+  }, [campaignInput, sharedBrandDNA, generateConcepts, clearError, setConceptBoardData, setConceptsV1, setSelectedConceptId, setActiveCanvasType]);
 
   // 풀셋 생성 핸들러 (영상 제외)
   const handleGenerateFullSet = useCallback(async () => {
