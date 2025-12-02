@@ -5,9 +5,10 @@
  * - 다중 페이지 썸네일 프리뷰
  * - 페이지 선택/추가/삭제/복제
  * - 드래그앤드롭으로 순서 변경
+ * - 멀티 캔버스 지원 (v4.1): activeCanvasType에 따라 해당 캔버스 페이지 표시
  *
  * @author C Team (Frontend Team)
- * @version 1.0
+ * @version 4.1 (2025-12-02 멀티캔버스 연동)
  */
 
 'use client';
@@ -15,7 +16,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { ChevronDown, ChevronUp, Plus, Copy, Trash2, RefreshCw, Loader2, FileText, Layers } from 'lucide-react';
 import { useCanvasStore } from '../../stores/useCanvasStore';
-import { getPolotnoStore } from '../../polotno/polotnoStoreSingleton';
+import { getCanvasStore } from '../../polotno/polotnoStoreSingleton';
+import { CANVAS_CONFIGS } from '../../stores/types';
 
 interface CollapsiblePagesPanelProps {
   isCollapsed?: boolean;
@@ -32,12 +34,16 @@ interface PageItem {
 }
 
 export function CollapsiblePagesPanel({ isCollapsed = false, onToggleCollapse }: CollapsiblePagesPanelProps) {
+  // 멀티 캔버스 지원: activeCanvasType에 따라 해당 캔버스 사용
+  const activeCanvasType = useCanvasStore((state) => state.activeCanvasType);
   const zustandPolotnoStore = useCanvasStore((state) => state.canvases.get(state.activeCanvasType) || null);
   const currentTemplate = useCanvasStore((state) => state.currentTemplate);
   const currentTheme = useCanvasStore((state) => state.currentTheme);
   const applyThemeToCanvas = useCanvasStore((state) => state.applyThemeToCanvas);
 
-  const polotnoStore = getPolotnoStore() || zustandPolotnoStore;
+  // 현재 활성 캔버스 타입의 Store 가져오기
+  const polotnoStore = getCanvasStore(activeCanvasType) || zustandPolotnoStore;
+  const canvasConfig = CANVAS_CONFIGS[activeCanvasType];
 
   const [pages, setPages] = useState<PageItem[]>([]);
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
@@ -67,7 +73,7 @@ export function CollapsiblePagesPanel({ isCollapsed = false, onToggleCollapse }:
   const generateAllThumbnails = useCallback(async () => {
     if (thumbnailGenerationRef.current) return;
 
-    const store = getPolotnoStore() || zustandPolotnoStore;
+    const store = getCanvasStore(activeCanvasType) || zustandPolotnoStore;
     if (!store?.pages?.length) return;
 
     thumbnailGenerationRef.current = true;
@@ -86,12 +92,19 @@ export function CollapsiblePagesPanel({ isCollapsed = false, onToggleCollapse }:
     setThumbnails((prev) => ({ ...prev, ...newThumbnails }));
     setLoadingThumbnails(new Set());
     thumbnailGenerationRef.current = false;
-  }, [zustandPolotnoStore, generateThumbnail]);
+  }, [activeCanvasType, zustandPolotnoStore, generateThumbnail]);
 
-  // 페이지 목록 업데이트
+  // 페이지 목록 업데이트 - activeCanvasType 변경 시 새로운 캔버스의 페이지로 갱신
   useEffect(() => {
-    const store = getPolotnoStore() || zustandPolotnoStore;
+    const store = getCanvasStore(activeCanvasType) || zustandPolotnoStore;
     if (!store) return;
+
+    console.log(`[CollapsiblePagesPanel] Canvas type changed to: ${activeCanvasType}`);
+
+    // 캔버스 타입 변경 시 썸네일 초기화
+    setThumbnails({});
+    setLoadingThumbnails(new Set());
+    thumbnailGenerationRef.current = false;
 
     const updatePages = () => {
       const newPages: PageItem[] =
@@ -136,7 +149,7 @@ export function CollapsiblePagesPanel({ isCollapsed = false, onToggleCollapse }:
       }
       if (unsubscribe) unsubscribe();
     };
-  }, [zustandPolotnoStore, generateAllThumbnails]);
+  }, [activeCanvasType, zustandPolotnoStore, generateAllThumbnails]);
 
   // 페이지 선택
   const handleSelectPage = (pageId: string) => {
@@ -146,13 +159,14 @@ export function CollapsiblePagesPanel({ isCollapsed = false, onToggleCollapse }:
     }
   };
 
-  // 페이지 추가
+  // 페이지 추가 - 현재 캔버스 타입의 크기로 추가
   const handleAddPage = () => {
     if (!polotnoStore) return;
 
+    // 현재 캔버스 타입의 기본 크기 사용
     polotnoStore.addPage({
-      width: currentTemplate.width,
-      height: currentTemplate.height,
+      width: canvasConfig?.width || currentTemplate.width,
+      height: canvasConfig?.height || currentTemplate.height,
     });
 
     setTimeout(() => {
@@ -223,10 +237,13 @@ export function CollapsiblePagesPanel({ isCollapsed = false, onToggleCollapse }:
   // isCollapsed는 이제 사용하지 않음 (탭으로 전환)
   return (
     <div className="flex flex-col h-full bg-white">
-      {/* Header */}
+      {/* Header - 현재 캔버스 타입 표시 */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100 bg-gradient-to-r from-indigo-50 to-purple-50">
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold text-gray-700">{pages.length}개 페이지</span>
+          <span className="text-[10px] px-1.5 py-0.5 bg-indigo-100 text-indigo-600 rounded">
+            {canvasConfig?.name || activeCanvasType}
+          </span>
         </div>
         <div className="flex items-center gap-1">
           <button

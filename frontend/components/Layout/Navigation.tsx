@@ -26,7 +26,7 @@ const navItems = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Spark Chat', href: '/spark', icon: Sparkles },
   { name: 'Meeting AI', href: '/meeting', icon: Users },
-  { name: 'Studio', href: '/studio', icon: Palette },
+  { name: 'Studio', href: '/studio/v3', icon: Palette },
   { name: 'Admin', href: '/admin', icon: Settings },
 ];
 
