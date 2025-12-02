@@ -19,9 +19,14 @@ import { Sparkles, Send, Presentation, FileText, Instagram, ChevronDown, Chevron
 import { useCenterViewStore } from '../../../stores/useCenterViewStore';
 import { useGeneratedAssetsStore, type GeneratedConcept } from '../../../stores/useGeneratedAssetsStore';
 import { useCanvasStore } from '../../../stores/useCanvasStore';
+import { useLeftPanelStore } from '../../../stores/useLeftPanelStore';
 import { useConceptGenerate } from '../../../hooks/useConceptGenerate';
-import { getCanvasStore } from '../../../polotno/polotnoStoreSingleton';
+import { getCanvasStore, getOrCreateCanvasStore } from '../../../polotno/polotnoStoreSingleton';
 import { addConceptsToCanvas } from '@/lib/canvas/conceptTemplate';
+import { addSlidesToCanvas, type BrandTheme } from '@/lib/canvas/slidesTemplate';
+import { addInstagramAdsToCanvas } from '@/lib/canvas/instagramTemplate';
+import { addProductDetailToCanvas } from '@/lib/canvas/productDetailTemplate';
+import { toast } from '@/components/ui/Toast';
 import type { ConceptV1 } from '@/types/concept';
 
 // ConceptV1 → GeneratedConcept 변환 헬퍼
@@ -56,14 +61,10 @@ export function ConceptBoardTab() {
   const setActiveCanvasType = useCanvasStore((state) => state.setActiveCanvasType);
 
   // CenterView Store - Brand DNA
-  const {
-    openSlidesPreview,
-    openDetailPreview,
-    openInstagramPreview,
-    sharedBrandDNA,
-    setSharedBrandDNA,
-    setView,
-  } = useCenterViewStore();
+  const { sharedBrandDNA } = useCenterViewStore();
+
+  // LeftPanel Store - 탭 전환
+  const setActiveTab = useLeftPanelStore((state) => state.setActiveTab);
 
   // Generated Assets Store - 컨셉 데이터 영속화 + 풀셋 생성 함수들
   const {
@@ -166,41 +167,200 @@ export function ConceptBoardTab() {
     }
   }, [campaignInput, sharedBrandDNA, generateConcepts, clearError, setConceptBoardData, setConceptsV1, setSelectedConceptId, setActiveCanvasType]);
 
-  // 풀셋 생성 핸들러 (영상 제외)
+  // 풀셋 생성 핸들러 (영상 제외) - 생성 후 프레젠테이션 캔버스로 이동
   const handleGenerateFullSet = useCallback(async () => {
     if (!selectedConcept) return;
 
     const generatedConcept = convertConceptV1ToGenerated(selectedConcept, 0);
 
-    // 병렬로 Presentation, Detail, SNS 생성 (영상 제외)
-    await Promise.all([
-      generateSlidesFromConcept(generatedConcept),
-      generateDetailFromConcept(generatedConcept),
-      generateInstagramFromConcept(generatedConcept),
-    ]);
-  }, [selectedConcept, generateSlidesFromConcept, generateDetailFromConcept, generateInstagramFromConcept]);
+    try {
+      toast.info('풀셋 생성을 시작합니다... (슬라이드, 상세페이지, SNS)');
 
-  // 개별 채널 생성 핸들러
+      // 병렬로 Presentation, Detail, SNS 생성 (영상 제외)
+      await Promise.all([
+        generateSlidesFromConcept(generatedConcept),
+        generateDetailFromConcept(generatedConcept),
+        generateInstagramFromConcept(generatedConcept),
+      ]);
+
+      // 생성 완료 후 Store에서 데이터 가져오기
+      const state = useGeneratedAssetsStore.getState();
+      const slidesData = state.slidesData;
+      const detailData = state.detailData;
+      const instagramData = state.instagramData;
+
+      // 각 캔버스에 렌더링
+      const POLOTNO_KEY = 'ng2ylHnHO2NscxqyUEWy';
+
+      // 1. 프레젠테이션 캔버스 렌더링
+      if (slidesData?.slides) {
+        const presStore = getOrCreateCanvasStore('presentation', POLOTNO_KEY);
+        if (presStore) {
+          const pageIds = presStore.pages?.map((p: any) => p.id) || [];
+          if (pageIds.length > 0) presStore.deletePages(pageIds);
+          const theme: BrandTheme = {
+            primaryColor: generatedConcept.color_scheme?.primary || '#6366F1',
+            secondaryColor: generatedConcept.color_scheme?.secondary || '#8B5CF6',
+          };
+          addSlidesToCanvas(presStore, slidesData.slides as any, theme);
+        }
+      }
+
+      // 2. 상세페이지 캔버스 렌더링
+      if (detailData?.sections) {
+        const detailStore = getOrCreateCanvasStore('detail', POLOTNO_KEY);
+        if (detailStore) {
+          const pageIds = detailStore.pages?.map((p: any) => p.id) || [];
+          if (pageIds.length > 0) detailStore.deletePages(pageIds);
+          addProductDetailToCanvas(detailStore, {
+            id: detailData.id,
+            title: detailData.title,
+            sections: detailData.sections as any,
+          });
+        }
+      }
+
+      // 3. SNS 캔버스 렌더링
+      if (instagramData?.ads) {
+        const snsStore = getOrCreateCanvasStore('sns', POLOTNO_KEY);
+        if (snsStore) {
+          const pageIds = snsStore.pages?.map((p: any) => p.id) || [];
+          if (pageIds.length > 0) snsStore.deletePages(pageIds);
+          addInstagramAdsToCanvas(snsStore, instagramData.ads as any);
+        }
+      }
+
+      // 프레젠테이션 탭으로 이동 (첫 번째 산출물)
+      setActiveTab('presentation');
+      toast.success('풀셋 생성 완료! 프레젠테이션 → 상세페이지 → SNS 탭에서 확인하세요.');
+
+    } catch (err) {
+      console.error('[ConceptBoardTab] 풀셋 생성 실패:', err);
+      toast.error('풀셋 생성에 실패했습니다.');
+    }
+  }, [selectedConcept, generateSlidesFromConcept, generateDetailFromConcept, generateInstagramFromConcept, setActiveTab]);
+
+  // Polotno API Key (환경변수 또는 하드코딩)
+  const POLOTNO_API_KEY = 'ng2ylHnHO2NscxqyUEWy';
+
+  // 개별 채널 생성 핸들러 - 캔버스 렌더링까지 수행
   const handleOpenSlides = useCallback(async () => {
     if (!selectedConcept) return;
     const generatedConcept = convertConceptV1ToGenerated(selectedConcept, 0);
-    await generateSlidesFromConcept(generatedConcept);
-    openSlidesPreview(selectedConcept.id, `pres-${selectedConcept.id}`);
-  }, [selectedConcept, generateSlidesFromConcept, openSlidesPreview]);
+
+    try {
+      // 1. 슬라이드 데이터 생성
+      await generateSlidesFromConcept(generatedConcept);
+
+      // 2. Store에서 생성된 데이터 가져오기
+      const slidesData = useGeneratedAssetsStore.getState().slidesData;
+      if (!slidesData || !slidesData.slides) {
+        toast.error('슬라이드 데이터 생성에 실패했습니다.');
+        return;
+      }
+
+      // 3. presentation 캔버스 타입으로 전환 + 렌더링
+      setActiveTab('presentation');
+
+      // 4. 캔버스에 렌더링 (폴링으로 Store 준비 대기)
+      setTimeout(() => {
+        const store = getOrCreateCanvasStore('presentation', POLOTNO_API_KEY);
+        if (store) {
+          // 기존 페이지 정리
+          const pageIds = store.pages?.map((p: any) => p.id) || [];
+          if (pageIds.length > 0) {
+            store.deletePages(pageIds);
+          }
+          // 테마 설정
+          const theme: BrandTheme = {
+            primaryColor: generatedConcept.color_scheme?.primary || '#6366F1',
+            secondaryColor: generatedConcept.color_scheme?.secondary || '#8B5CF6',
+          };
+          addSlidesToCanvas(store, slidesData.slides as any, theme);
+          toast.success(`${slidesData.slides.length}장 슬라이드가 생성되었습니다.`);
+        }
+      }, 300);
+    } catch (err) {
+      console.error('[ConceptBoardTab] 슬라이드 생성 실패:', err);
+      toast.error('슬라이드 생성에 실패했습니다.');
+    }
+  }, [selectedConcept, generateSlidesFromConcept, setActiveTab]);
 
   const handleOpenDetail = useCallback(async () => {
     if (!selectedConcept) return;
     const generatedConcept = convertConceptV1ToGenerated(selectedConcept, 0);
-    await generateDetailFromConcept(generatedConcept);
-    openDetailPreview(selectedConcept.id, `detail-${selectedConcept.id}`);
-  }, [selectedConcept, generateDetailFromConcept, openDetailPreview]);
+
+    try {
+      // 1. 상세페이지 데이터 생성
+      await generateDetailFromConcept(generatedConcept);
+
+      // 2. Store에서 생성된 데이터 가져오기
+      const detailData = useGeneratedAssetsStore.getState().detailData;
+      if (!detailData || !detailData.sections) {
+        toast.error('상세페이지 데이터 생성에 실패했습니다.');
+        return;
+      }
+
+      // 3. detail 캔버스 타입으로 전환 + 렌더링
+      setActiveTab('detail');
+
+      // 4. 캔버스에 렌더링
+      setTimeout(() => {
+        const store = getOrCreateCanvasStore('detail', POLOTNO_API_KEY);
+        if (store) {
+          const pageIds = store.pages?.map((p: any) => p.id) || [];
+          if (pageIds.length > 0) {
+            store.deletePages(pageIds);
+          }
+          addProductDetailToCanvas(store, {
+            id: detailData.id,
+            title: detailData.title,
+            sections: detailData.sections as any,
+          });
+          toast.success(`${detailData.sections.length}개 섹션이 생성되었습니다.`);
+        }
+      }, 300);
+    } catch (err) {
+      console.error('[ConceptBoardTab] 상세페이지 생성 실패:', err);
+      toast.error('상세페이지 생성에 실패했습니다.');
+    }
+  }, [selectedConcept, generateDetailFromConcept, setActiveTab]);
 
   const handleOpenInstagram = useCallback(async () => {
     if (!selectedConcept) return;
     const generatedConcept = convertConceptV1ToGenerated(selectedConcept, 0);
-    await generateInstagramFromConcept(generatedConcept);
-    openInstagramPreview(selectedConcept.id, `insta-${selectedConcept.id}`);
-  }, [selectedConcept, generateInstagramFromConcept, openInstagramPreview]);
+
+    try {
+      // 1. 인스타그램 데이터 생성
+      await generateInstagramFromConcept(generatedConcept);
+
+      // 2. Store에서 생성된 데이터 가져오기
+      const instagramData = useGeneratedAssetsStore.getState().instagramData;
+      if (!instagramData || !instagramData.ads) {
+        toast.error('인스타그램 데이터 생성에 실패했습니다.');
+        return;
+      }
+
+      // 3. sns 캔버스 타입으로 전환 + 렌더링
+      setActiveTab('sns');
+
+      // 4. 캔버스에 렌더링
+      setTimeout(() => {
+        const store = getOrCreateCanvasStore('sns', POLOTNO_API_KEY);
+        if (store) {
+          const pageIds = store.pages?.map((p: any) => p.id) || [];
+          if (pageIds.length > 0) {
+            store.deletePages(pageIds);
+          }
+          addInstagramAdsToCanvas(store, instagramData.ads as any);
+          toast.success(`${instagramData.ads.length}개 광고가 생성되었습니다.`);
+        }
+      }, 300);
+    } catch (err) {
+      console.error('[ConceptBoardTab] 인스타그램 생성 실패:', err);
+      toast.error('인스타그램 생성에 실패했습니다.');
+    }
+  }, [selectedConcept, generateInstagramFromConcept, setActiveTab]);
 
   const isGeneratingFullSet = isGeneratingSlides || isGeneratingDetail || isGeneratingInstagram;
 
@@ -355,6 +515,16 @@ export function ConceptBoardTab() {
                     onClick={() => {
                       setSelectedConceptId(concept.id);
                       setExpandedCard(isExpanded ? null : concept.id);
+
+                      // ⭐ 캔버스 페이지도 해당 컨셉으로 전환
+                      const canvasStore = getCanvasStore('concept');
+                      if (canvasStore && canvasStore.pages) {
+                        const targetPage = canvasStore.pages[index];
+                        if (targetPage) {
+                          canvasStore.selectPage(targetPage.id);
+                          console.log(`[ConceptBoardTab] 컨셉 ${index + 1} 선택 → 페이지 ${targetPage.id} 전환`);
+                        }
+                      }
                     }}
                   >
                     <div className="flex items-start justify-between mb-1.5">

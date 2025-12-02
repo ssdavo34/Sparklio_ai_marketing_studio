@@ -14,7 +14,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { Presentation, Sparkles, Loader2, FileText, ChevronRight, Plus, LayoutGrid, Monitor, Smartphone, Square } from 'lucide-react';
+import { Presentation, Sparkles, Loader2, FileText, ChevronRight, Plus, LayoutGrid, Monitor, Smartphone, Square, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 import { useCenterViewStore } from '../../../stores/useCenterViewStore';
 import { useGeneratedAssetsStore } from '../../../stores/useGeneratedAssetsStore';
 import { useCanvasStore } from '../../../stores/useCanvasStore';
@@ -52,9 +52,22 @@ export function PresentationTab() {
   const [selectedAspectRatio, setSelectedAspectRatio] = useState('16:9');
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [expandedSlides, setExpandedSlides] = useState<Set<number>>(new Set([0]));
 
   const { openSlidesPreview, setView } = useCenterViewStore();
   const conceptBoardData = useGeneratedAssetsStore((state) => state.conceptBoardData);
+  const slidesData = useGeneratedAssetsStore((state) => state.slidesData);
+
+  // 슬라이드 토글
+  const toggleSlide = (index: number) => {
+    const newExpanded = new Set(expandedSlides);
+    if (newExpanded.has(index)) {
+      newExpanded.delete(index);
+    } else {
+      newExpanded.add(index);
+    }
+    setExpandedSlides(newExpanded);
+  };
 
   // Canvas Store
   const resizeCanvas = useCanvasStore((state) => state.resizeCanvas);
@@ -239,6 +252,74 @@ export function PresentationTab() {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4">
+        {/* 생성된 슬라이드가 있으면 먼저 표시 */}
+        {slidesData && slidesData.slides && slidesData.slides.length > 0 && (
+          <div className="p-3 bg-gradient-to-br from-purple-50 to-indigo-50 rounded-lg border border-purple-200 mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold text-purple-800">
+                {slidesData.title || '생성된 프레젠테이션'}
+              </h3>
+              <span className="text-[10px] text-purple-600">
+                {slidesData.slides.length}장
+              </span>
+            </div>
+
+            {/* 슬라이드 목록 */}
+            <div className="space-y-2 max-h-[200px] overflow-y-auto">
+              {slidesData.slides.map((slide, index) => {
+                const isExpanded = expandedSlides.has(index);
+
+                return (
+                  <div key={slide.id} className="bg-white rounded-lg border border-purple-100 overflow-hidden">
+                    <button
+                      onClick={() => toggleSlide(index)}
+                      className="w-full flex items-center justify-between p-2 hover:bg-purple-50 transition-colors"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-100 text-purple-700">
+                          {slide.slide_number}
+                        </span>
+                        <span className="text-xs text-neutral-700 truncate max-w-[150px]">
+                          {slide.title}
+                        </span>
+                      </div>
+                      {isExpanded ? (
+                        <ChevronUp className="w-3.5 h-3.5 text-neutral-400" />
+                      ) : (
+                        <ChevronDown className="w-3.5 h-3.5 text-neutral-400" />
+                      )}
+                    </button>
+
+                    {isExpanded && (
+                      <div className="px-2 pb-2 text-xs text-neutral-600 space-y-1">
+                        {slide.content && (
+                          <p>{slide.content.slice(0, 100)}...</p>
+                        )}
+                        {slide.bullets && slide.bullets.length > 0 && (
+                          <ul className="list-disc list-inside">
+                            {slide.bullets.slice(0, 3).map((bullet, i) => (
+                              <li key={i} className="truncate">{bullet}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Canvas에서 편집 버튼 */}
+            <button
+              onClick={() => toast.info('프레젠테이션 캔버스가 이미 표시되어 있습니다.')}
+              className="w-full mt-3 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium rounded-lg flex items-center justify-center gap-2 transition-colors"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              Canvas에서 편집
+            </button>
+          </div>
+        )}
+
         {/* 새 프리젠테이션 생성 */}
         <div className="space-y-4">
           {/* 주제 입력 */}

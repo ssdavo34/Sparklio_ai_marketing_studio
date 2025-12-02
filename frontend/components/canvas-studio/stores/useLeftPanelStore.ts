@@ -15,6 +15,7 @@ import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import type { CanvasType } from './types';
 import { useCanvasStore } from './useCanvasStore';
+import { useCenterViewStore } from './useCenterViewStore';
 
 // ============================================================================
 // Types
@@ -103,16 +104,35 @@ export function tabUsesCanvas(tab: LeftPanelTab): boolean {
 
 export const useLeftPanelStore = create<LeftPanelState>()(
   devtools(
-    (set, get) => ({
+    (set) => ({
       activeTab: 'brandkit',
       setActiveTab: (tab) => {
+        console.log(`[LeftPanelStore] ⭐ setActiveTab called: ${tab}`);
         set({ activeTab: tab });
 
         // 캔버스 타입 자동 전환 (v4.0)
         const canvasType = getCanvasTypeForTab(tab);
+        console.log(`[LeftPanelStore] 매핑된 canvasType: ${canvasType || 'none'}`);
+
         if (canvasType) {
-          console.log(`[LeftPanelStore] Tab changed to ${tab}, switching canvas to ${canvasType}`);
+          console.log(`[LeftPanelStore] ✅ Switching canvas: ${tab} → ${canvasType}`);
           useCanvasStore.getState().setActiveCanvas(canvasType);
+
+          // ⭐ CenterView도 canvas로 전환 (캔버스가 표시되도록)
+          const centerViewStore = useCenterViewStore.getState();
+          if (centerViewStore.currentView !== 'canvas') {
+            console.log(`[LeftPanelStore] 🔄 CenterView를 canvas로 전환`);
+            centerViewStore.setView('canvas');
+          }
+
+          // 디버깅: 실제로 변경되었는지 확인
+          setTimeout(() => {
+            const currentType = useCanvasStore.getState().activeCanvasType;
+            const currentView = useCenterViewStore.getState().currentView;
+            console.log(`[LeftPanelStore] 🔍 Verification: activeCanvasType=${currentType}, currentView=${currentView}`);
+          }, 100);
+        } else {
+          console.log(`[LeftPanelStore] ⚠️ No canvas mapping for tab: ${tab}`);
         }
       },
 

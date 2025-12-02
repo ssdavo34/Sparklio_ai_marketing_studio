@@ -13,9 +13,10 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { Share2, Plus, Instagram, Facebook, Twitter, Linkedin, Youtube, Settings2, Check, RefreshCw } from 'lucide-react';
+import { useState, useCallback } from 'react';
+import { Share2, Plus, Instagram, Facebook, Twitter, Linkedin, Youtube, Settings2, Check, RefreshCw, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react';
 import { useCanvasStore } from '../../../stores/useCanvasStore';
+import { useGeneratedAssetsStore } from '../../../stores/useGeneratedAssetsStore';
 import { toast } from '@/components/ui/Toast';
 
 // 플랫폼별 사이즈 템플릿 정의
@@ -115,10 +116,25 @@ export function SNSTab() {
   const [customHeight, setCustomHeight] = useState<number>(1080);
   const [showCustomSize, setShowCustomSize] = useState<boolean>(false);
   const [isApplying, setIsApplying] = useState<boolean>(false);
+  const [expandedAds, setExpandedAds] = useState<Set<number>>(new Set([0]));
 
   // Canvas Store
   const resizeCanvas = useCanvasStore((state) => state.resizeCanvas);
   const getActiveCanvas = useCanvasStore((state) => state.getActiveCanvas);
+
+  // Generated Assets Store - Instagram 데이터
+  const { instagramData } = useGeneratedAssetsStore();
+
+  // 광고 토글
+  const toggleAd = (index: number) => {
+    const newExpanded = new Set(expandedAds);
+    if (newExpanded.has(index)) {
+      newExpanded.delete(index);
+    } else {
+      newExpanded.add(index);
+    }
+    setExpandedAds(newExpanded);
+  };
 
   const currentPlatform = PLATFORMS.find(p => p.id === selectedPlatform);
   const currentTemplate = currentPlatform?.templates.find(t => t.id === selectedTemplate);
@@ -352,10 +368,96 @@ export function SNSTab() {
       {/* 생성된 SNS 콘텐츠 목록 */}
       <div className="flex-1 min-h-0">
         <h3 className="text-sm font-medium text-neutral-700 mb-2">생성된 콘텐츠</h3>
-        <div className="p-4 border border-dashed border-neutral-300 rounded-lg bg-neutral-50 text-center">
-          <Plus className="w-6 h-6 mx-auto mb-2 text-neutral-400" />
-          <p className="text-xs text-neutral-500">아직 생성된 SNS 콘텐츠가 없습니다</p>
-        </div>
+
+        {/* Instagram 데이터가 있으면 표시 */}
+        {instagramData && instagramData.ads && instagramData.ads.length > 0 ? (
+          <div className="p-3 bg-gradient-to-br from-pink-50 to-purple-50 rounded-lg border border-pink-200 mb-3">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Instagram className="w-4 h-4 text-pink-500" />
+                <span className="text-sm font-semibold text-pink-800">
+                  {instagramData.title || 'Instagram 광고'}
+                </span>
+              </div>
+              <span className="text-[10px] text-pink-600">
+                {instagramData.ads.length}개 광고
+              </span>
+            </div>
+
+            {/* 해시태그 */}
+            {instagramData.hashtags && instagramData.hashtags.length > 0 && (
+              <div className="flex flex-wrap gap-1 mb-2">
+                {instagramData.hashtags.slice(0, 5).map((tag, i) => (
+                  <span key={i} className="text-[10px] px-1.5 py-0.5 bg-pink-100 text-pink-700 rounded">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* 광고 목록 */}
+            <div className="space-y-2">
+              {instagramData.ads.map((ad, index) => {
+                const isExpanded = expandedAds.has(index);
+
+                return (
+                  <div key={ad.ad_id} className="bg-white rounded-lg border border-pink-100 overflow-hidden">
+                    <button
+                      onClick={() => toggleAd(index)}
+                      className="w-full flex items-center justify-between p-2 hover:bg-pink-50 transition-colors"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-pink-100 text-pink-700">
+                          {ad.ad_type === 'carousel' ? '캐러셀' : '싱글'}
+                        </span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-100 text-purple-700">
+                          {ad.format}
+                        </span>
+                        <span className="text-xs text-neutral-600 truncate max-w-[120px]">
+                          {ad.creative.headline || `광고 ${index + 1}`}
+                        </span>
+                      </div>
+                      {isExpanded ? (
+                        <ChevronUp className="w-3.5 h-3.5 text-neutral-400" />
+                      ) : (
+                        <ChevronDown className="w-3.5 h-3.5 text-neutral-400" />
+                      )}
+                    </button>
+
+                    {isExpanded && (
+                      <div className="px-2 pb-2 text-xs text-neutral-600 space-y-1">
+                        {ad.creative.headline && (
+                          <p><span className="font-medium">헤드라인:</span> {ad.creative.headline}</p>
+                        )}
+                        {ad.creative.primary_text && (
+                          <p><span className="font-medium">본문:</span> {ad.creative.primary_text.slice(0, 80)}...</p>
+                        )}
+                        {ad.creative.cta_text && (
+                          <p><span className="font-medium">CTA:</span> {ad.creative.cta_text}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Canvas에서 편집 버튼 */}
+            <button
+              onClick={() => toast.info('SNS 캔버스가 이미 표시되어 있습니다.')}
+              className="w-full mt-3 py-2 bg-pink-600 hover:bg-pink-700 text-white text-xs font-medium rounded-lg flex items-center justify-center gap-2 transition-colors"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              Canvas에서 편집
+            </button>
+          </div>
+        ) : (
+          <div className="p-4 border border-dashed border-neutral-300 rounded-lg bg-neutral-50 text-center">
+            <Plus className="w-6 h-6 mx-auto mb-2 text-neutral-400" />
+            <p className="text-xs text-neutral-500">아직 생성된 SNS 콘텐츠가 없습니다</p>
+            <p className="text-[10px] text-neutral-400 mt-1">ConceptBoard에서 &quot;풀셋 생성&quot; 또는 &quot;SNS&quot; 버튼을 눌러주세요</p>
+          </div>
+        )}
       </div>
 
       {/* 하단 안내 */}

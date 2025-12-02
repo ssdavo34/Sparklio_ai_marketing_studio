@@ -17,6 +17,8 @@ import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import { sendChatMessage } from '@/lib/llm-gateway-client';
 import type { ConceptV1 } from '@/types/concept';
+import { useBrandStore } from './useBrandStore';
+import { useBriefStore } from './useBriefStore';
 
 // ============================================================================
 // Types
@@ -197,6 +199,55 @@ export interface GeneratedAssetsState {
 
 function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
+/**
+ * 공유 컨텍스트 생성 - Brand DNA + Brief 통합
+ * 모든 생성 함수에서 일관된 컨텍스트 사용
+ */
+function buildSharedContext(concept: GeneratedConcept): string {
+  const brandDNA = useBrandStore.getState().brandDNA;
+  const brief = useBriefStore.getState().brief;
+
+  let context = '';
+
+  // Brand DNA 컨텍스트
+  if (brandDNA) {
+    context += `
+[브랜드 가이드라인]
+- 브랜드 톤앤매너: ${brandDNA.tone}
+- 핵심 메시지: ${brandDNA.key_messages?.join(', ') || ''}
+- 타겟 고객: ${brandDNA.target_audience || ''}
+- 해야 할 것 (Do's): ${brandDNA.dos?.join(', ') || ''}
+- 하지 말아야 할 것 (Don'ts): ${brandDNA.donts?.join(', ') || ''}
+`;
+  }
+
+  // Brief 컨텍스트
+  if (brief) {
+    context += `
+[캠페인 브리프]
+- 캠페인 목표: ${brief.goal || ''}
+- 타겟 오디언스: ${brief.target || ''}
+- 핵심 인사이트: ${brief.insight || ''}
+- 핵심 메시지: ${brief.keyMessages?.join(', ') || ''}
+- 선호 채널: ${brief.channels?.join(', ') || ''}
+- KPI: ${brief.kpis?.join(', ') || ''}
+`;
+  }
+
+  // 컨셉 컨텍스트 (일관성 유지용)
+  context += `
+[선택된 컨셉]
+- 컨셉명: ${concept.concept_name}
+- 설명: ${concept.description}
+- 헤드라인: ${concept.headline}
+- 서브헤드라인: ${concept.subheadline || ''}
+- 타겟 고객: ${concept.target_audience || '전체 고객'}
+- 톤앤매너: ${concept.tone || '전문적'}
+`;
+
+  return context;
 }
 
 /**
@@ -652,23 +703,26 @@ export const useGeneratedAssetsStore = create<GeneratedAssetsState>()(
         },
 
         /**
-         * 컨셉 기반 슬라이드 생성
+         * 컨셉 기반 슬라이드 생성 (Brand DNA + Brief 통합)
          */
         generateSlidesFromConcept: async (concept: GeneratedConcept) => {
           set({ isGeneratingSlides: true });
           console.log('[useGeneratedAssetsStore] Generating slides for concept:', concept.concept_name);
 
           try {
-            const prompt = `다음 마케팅 컨셉을 기반으로 프레젠테이션 슬라이드를 생성해주세요:
+            // 공유 컨텍스트 구축 (Brand DNA + Brief + Concept)
+            const sharedContext = buildSharedContext(concept);
 
-컨셉명: ${concept.concept_name}
-설명: ${concept.description}
-헤드라인: ${concept.headline}
-서브헤드라인: ${concept.subheadline || ''}
-타겟 고객: ${concept.target_audience || '전체 고객'}
-톤앤매너: ${concept.tone || '전문적'}
+            const prompt = `다음 브랜드 가이드라인과 캠페인 브리프를 기반으로 프레젠테이션 슬라이드를 생성해주세요.
+모든 슬라이드는 브랜드 톤앤매너를 일관되게 유지해야 합니다.
+${sharedContext}
 
-총 5개의 슬라이드를 JSON 형식으로 생성해주세요:
+[요청사항]
+- 총 5개의 슬라이드를 생성해주세요
+- 브랜드 가이드라인의 톤앤매너를 반드시 반영해주세요
+- Do's/Don'ts를 준수해주세요
+
+JSON 형식으로 출력해주세요:
 {
   "slides": [
     { "title": "제목", "content": "내용", "bullets": ["포인트1", "포인트2"], "speaker_notes": "발표자 노트" }
@@ -713,21 +767,26 @@ export const useGeneratedAssetsStore = create<GeneratedAssetsState>()(
         },
 
         /**
-         * 컨셉 기반 상세페이지 생성
+         * 컨셉 기반 상세페이지 생성 (Brand DNA + Brief 통합)
          */
         generateDetailFromConcept: async (concept: GeneratedConcept) => {
           set({ isGeneratingDetail: true });
           console.log('[useGeneratedAssetsStore] Generating detail page for concept:', concept.concept_name);
 
           try {
-            const prompt = `다음 마케팅 컨셉을 기반으로 제품 상세페이지 섹션을 생성해주세요:
+            // 공유 컨텍스트 구축 (Brand DNA + Brief + Concept)
+            const sharedContext = buildSharedContext(concept);
 
-컨셉명: ${concept.concept_name}
-설명: ${concept.description}
-헤드라인: ${concept.headline}
-타겟 고객: ${concept.target_audience || '전체 고객'}
+            const prompt = `다음 브랜드 가이드라인과 캠페인 브리프를 기반으로 제품 상세페이지 섹션을 생성해주세요.
+모든 섹션은 브랜드 톤앤매너를 일관되게 유지해야 합니다.
+${sharedContext}
 
-다음 JSON 형식으로 생성해주세요:
+[요청사항]
+- 브랜드 가이드라인의 톤앤매너를 반드시 반영해주세요
+- Do's/Don'ts를 준수해주세요
+- 캠페인 목표와 타겟 오디언스에 맞는 카피를 작성해주세요
+
+JSON 형식으로 출력해주세요:
 {
   "sections": [
     { "section_type": "hero", "order": 1, "content": { "headline": "", "subheadline": "", "cta": "" } },
@@ -773,22 +832,27 @@ export const useGeneratedAssetsStore = create<GeneratedAssetsState>()(
         },
 
         /**
-         * 컨셉 기반 인스타그램 광고 생성
+         * 컨셉 기반 인스타그램 광고 생성 (Brand DNA + Brief 통합)
          */
         generateInstagramFromConcept: async (concept: GeneratedConcept) => {
           set({ isGeneratingInstagram: true });
           console.log('[useGeneratedAssetsStore] Generating Instagram ads for concept:', concept.concept_name);
 
           try {
-            const prompt = `다음 마케팅 컨셉을 기반으로 인스타그램 광고를 생성해주세요:
+            // 공유 컨텍스트 구축 (Brand DNA + Brief + Concept)
+            const sharedContext = buildSharedContext(concept);
 
-컨셉명: ${concept.concept_name}
-설명: ${concept.description}
-헤드라인: ${concept.headline}
-타겟 고객: ${concept.target_audience || '전체 고객'}
-톤앤매너: ${concept.tone || '친근한'}
+            const prompt = `다음 브랜드 가이드라인과 캠페인 브리프를 기반으로 인스타그램 광고를 생성해주세요.
+모든 광고는 브랜드 톤앤매너를 일관되게 유지해야 합니다.
+${sharedContext}
 
-다음 JSON 형식으로 3개의 광고와 해시태그를 생성해주세요:
+[요청사항]
+- 3개의 광고와 해시태그를 생성해주세요
+- 브랜드 가이드라인의 톤앤매너를 반드시 반영해주세요
+- Do's/Don'ts를 준수해주세요
+- 인스타그램 플랫폼에 최적화된 카피를 작성해주세요
+
+JSON 형식으로 출력해주세요:
 {
   "ads": [
     {
@@ -849,22 +913,26 @@ export const useGeneratedAssetsStore = create<GeneratedAssetsState>()(
         },
 
         /**
-         * 컨셉 기반 쇼츠 스크립트 생성
+         * 컨셉 기반 쇼츠 스크립트 생성 (Brand DNA + Brief 통합)
          */
         generateShortsFromConcept: async (concept: GeneratedConcept) => {
           set({ isGeneratingShorts: true });
           console.log('[useGeneratedAssetsStore] Generating Shorts script for concept:', concept.concept_name);
 
           try {
-            const prompt = `다음 마케팅 컨셉을 기반으로 30초 쇼츠 영상 스크립트를 생성해주세요:
+            // 공유 컨텍스트 구축 (Brand DNA + Brief + Concept)
+            const sharedContext = buildSharedContext(concept);
 
-컨셉명: ${concept.concept_name}
-설명: ${concept.description}
-헤드라인: ${concept.headline}
-타겟 고객: ${concept.target_audience || '전체 고객'}
-톤앤매너: ${concept.tone || '역동적'}
+            const prompt = `다음 브랜드 가이드라인과 캠페인 브리프를 기반으로 30초 쇼츠 영상 스크립트를 생성해주세요.
+모든 씬은 브랜드 톤앤매너를 일관되게 유지해야 합니다.
+${sharedContext}
 
-다음 JSON 형식으로 생성해주세요:
+[요청사항]
+- 브랜드 가이드라인의 톤앤매너를 반드시 반영해주세요
+- Do's/Don'ts를 준수해주세요
+- 숏폼 영상에 최적화된 후킹과 전환을 사용해주세요
+
+JSON 형식으로 출력해주세요:
 {
   "hook": "시작 후킹 멘트",
   "scenes": [

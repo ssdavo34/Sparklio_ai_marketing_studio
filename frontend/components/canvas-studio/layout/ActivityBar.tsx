@@ -72,13 +72,13 @@ function ToolButton({ tool, isActive, onClick }: { tool: Tool; isActive: boolean
 }
 
 export function ActivityBar() {
-  const activeTab = useLeftPanelStore((state) => state.activeTab);
   const panelTab = useLeftPanelStore((state) => state.panelTab);
   const setActiveTab = useLeftPanelStore((state) => state.setActiveTab);
   const setPanelTab = useLeftPanelStore((state) => state.setPanelTab);
 
   // 메뉴 클릭 핸들러: activeTab + panelTab 둘 다 변경
   const handleMenuClick = (tab: LeftPanelTab) => {
+    console.log(`[ActivityBar] ⭐ Menu clicked: ${tab}`);
     setActiveTab(tab);
     setPanelTab(tab); // 패널 컨텐츠도 해당 메뉴로 전환
   };
