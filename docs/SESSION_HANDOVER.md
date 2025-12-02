@@ -1,4 +1,4 @@
-# 세션 인수인계 (2025-12-02 12:10 기준)
+# 세션 인수인계 (2025-12-02 12:40 기준)
 
 > **다음 Claude는 이 파일과 CLAUDE.md를 먼저 읽으세요**
 
@@ -7,7 +7,7 @@
 ## 현재 상태
 
 - **브랜치**: `feature/editor-migration-polotno`
-- **최신 커밋**: `22b2801` - feat: ConceptBoard 컨셉 생성 UI 및 채널 연동 개선
+- **최신 커밋**: `01d3140` - feat: 컨셉 Canvas 렌더링 및 Pages 패널 연동 구현
 - **Mac Mini 배포**: ⏳ 동기화 필요
 - **서버 상태**: ✅ healthy (Frontend 3001, Backend 8000)
 
@@ -15,37 +15,29 @@
 
 ## 오늘 완료한 작업 (2025-12-02)
 
-### C팀 - 채팅-메뉴 연동 시스템 구현 ✅
+### C팀 - 컨셉 Canvas 렌더링 및 영속화 구현 ✅
 
-#### Phase 1: Pages ↔ Canvas 연동
-1. **CollapsiblePagesPanel 멀티캔버스 지원**
-   - `getPolotnoStore()` → `getCanvasStore(activeCanvasType)` 변경
-   - 캔버스 타입 변경 시 썸네일 자동 리셋
-   - 캔버스 타입 배지 표시 (헤더에 표시)
+#### Phase 4: 컨셉 Canvas 렌더링 (NEW)
+1. **useGeneratedAssetsStore 확장**
+   - `conceptsV1: ConceptV1[] | null` 추가 (영속 저장)
+   - `selectedConceptId: string | null` 추가
+   - `setConceptsV1()`, `setSelectedConceptId()` 액션 추가
+   - persist partialize에 추가하여 페이지 이동 시에도 유지
 
-2. **Navigation 개선**
-   - Studio 메뉴 → `/studio/v3` 직접 연결
-   - Admin 페이지에 INTERNAL_MODE 에디터 선택 섹션 추가
+2. **conceptTemplate.ts 신규 생성**
+   - ConceptV1 → Polotno Canvas 변환 템플릿
+   - 각 컨셉이 별도 페이지로 생성
+   - 컨셉 카드 레이아웃 (이름, 핵심 약속, 인사이트, 타겟, 톤, 컬러 팔레트)
 
-#### Phase 2: ConceptBoard 컨셉 생성 UI
-1. **ConceptBoardTab 전면 개편** (v2.0)
-   - 캠페인 목표 입력 → AI가 3개 컨셉 생성
-   - `useConceptGenerate` 훅 활용 (Mock 모드)
-   - Brand DNA 자동 연동 (BrandKitTab에서 전송된 데이터)
-   - 생성된 컨셉 카드 UI (선택/확장 가능)
-   - 컬러 팔레트 미리보기
+3. **ConceptBoardTab 개선**
+   - 컨셉 생성 시 Store에 영속 저장
+   - Canvas 타입을 'concept'로 전환
+   - `addConceptsToCanvas()` 호출하여 Canvas에 렌더링
 
-2. **풀셋 생성 기능** (영상 제외)
-   - 슬라이드, 상세페이지, SNS 동시 생성
-   - 개별 채널 버튼 (로딩 상태 표시)
-   - Video6는 별도 관리 (터치하지 않음)
-
-#### Phase 3: 채널 페이지 연동
-1. **DetailTab 전면 개편** (v2.0)
-   - 생성된 상세페이지 섹션별 표시
-   - 섹션 타입별 컬러 라벨 (hero, solution, benefits 등)
-   - 컨셉 기반 생성 및 직접 생성 지원
-   - Canvas에서 편집 버튼
+4. **CollapsiblePagesPanel 개선**
+   - 컨셉 페이지일 때 컨셉 이름 및 뱃지 표시
+   - 페이지 선택 시 `setSelectedConceptId()` 동기화
+   - 컨셉 데이터(`conceptsV1`)와 연동
 
 ---
 
@@ -57,6 +49,9 @@
 | 메뉴 선택 → Canvas 타입 자동 전환 | ✅ | useLeftPanelStore |
 | Pages 패널 멀티캔버스 지원 | ✅ | getCanvasStore(activeCanvasType) |
 | ConceptBoard 컨셉 생성 | ✅ | 3개 컨셉 AI 생성 |
+| **컨셉 → Canvas 렌더링** | ✅ | conceptTemplate.ts |
+| **컨셉 영속화 (페이지 이동 시 유지)** | ✅ | useGeneratedAssetsStore |
+| **Pages 패널 컨셉 선택/전환** | ✅ | selectedConceptId 동기화 |
 | 풀셋 생성 (영상 제외) | ✅ | 슬라이드+상세페이지+SNS |
 | DetailTab 개편 | ✅ | 생성된 데이터 표시 |
 
@@ -68,6 +63,17 @@
 | TTS 생성 (EdgeTTS) | ✅ |
 | BGM 믹싱 | ✅ |
 | 영상 렌더링 | ✅ |
+
+---
+
+## 🟡 진행 중인 작업
+
+### P0 (Critical)
+1. **Brand DNA + 캠페인 목표 실제 연동** - 현재 Mock 데이터 사용 중
+   - `useConceptGenerate` 훅의 `useMock: true` → `false`로 전환 필요
+   - API 연동 시 Brand DNA 컨텍스트 실제 전달
+
+2. **Chat에서 컨셉 생성 기능 추가** - 채팅창에서 직접 컨셉 생성
 
 ---
 
@@ -85,16 +91,17 @@
 ## 다음 작업 우선순위
 
 ### P0 (Critical)
-1. **VEO3 테스트** - 이미지 → 동영상 변환 테스트
-2. **PresentationTab getPolotnoStore 마이그레이션**
+1. **Brand DNA + 캠페인 목표 실제 연동** (Mock → Real API)
+2. **Chat에서 컨셉 생성 기능 추가**
 
 ### P1 (High)
-3. SNSTab 생성된 데이터 표시 (DetailTab과 유사하게)
-4. 각 채널별 Canvas에 생성된 콘텐츠 렌더링
+3. VEO3 테스트 - 이미지 → 동영상 변환 테스트
+4. PresentationTab getPolotnoStore 마이그레이션
+5. SNSTab 생성된 데이터 표시 (DetailTab과 유사하게)
 
 ### P2 (Medium)
-5. NanoBanana 이미지 생성 확인
-6. 프로젝트 DB와 Asset 연결
+6. 각 채널별 Canvas에 생성된 콘텐츠 렌더링
+7. NanoBanana 이미지 생성 확인
 
 ---
 
@@ -103,19 +110,18 @@
 ### 오늘 수정된 파일
 | 파일 | 변경 내용 |
 |------|----------|
-| `frontend/components/Layout/Navigation.tsx` | Studio → /studio/v3 |
-| `frontend/app/admin/page.tsx` | INTERNAL_MODE 에디터 선택 |
-| `frontend/components/canvas-studio/panels/left/CollapsiblePagesPanel.tsx` | 멀티캔버스 지원 |
-| `frontend/components/canvas-studio/panels/left/tabs/ConceptBoardTab.tsx` | 컨셉 생성 UI v2.0 |
-| `frontend/components/canvas-studio/panels/left/tabs/DetailTab.tsx` | 상세페이지 UI v2.0 |
+| `frontend/lib/canvas/conceptTemplate.ts` | **NEW** - ConceptV1 → Polotno 변환 |
+| `frontend/components/canvas-studio/stores/useGeneratedAssetsStore.ts` | conceptsV1, selectedConceptId 추가 |
+| `frontend/components/canvas-studio/panels/left/tabs/ConceptBoardTab.tsx` | Canvas 렌더링, Store 연동 |
+| `frontend/components/canvas-studio/panels/left/CollapsiblePagesPanel.tsx` | 컨셉 페이지 표시, 선택 동기화 |
 
 ### 관련 Store/Hook
 | 파일 | 용도 |
 |------|------|
 | `stores/useCanvasStore.ts` | 캔버스 상태 관리 |
 | `stores/useLeftPanelStore.ts` | 탭 → 캔버스 매핑 |
-| `stores/useGeneratedAssetsStore.ts` | 생성된 에셋 관리 |
-| `hooks/useConceptGenerate.ts` | 컨셉 생성 훅 |
+| `stores/useGeneratedAssetsStore.ts` | 생성된 에셋 관리 (conceptsV1 포함) |
+| `hooks/useConceptGenerate.ts` | 컨셉 생성 훅 (Mock 모드) |
 | `polotno/polotnoStoreSingleton.ts` | 멀티캔버스 매니저 |
 
 ---
@@ -143,4 +149,4 @@ curl http://100.123.51.5:8000/health
 
 ---
 
-**마지막 업데이트**: 2025-12-02 12:10 by C팀
+**마지막 업데이트**: 2025-12-02 12:40 by C팀
