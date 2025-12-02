@@ -13,7 +13,7 @@
 'use client';
 
 import { useLeftPanelStore, type LeftPanelTab } from '../stores';
-import { FileText, Upload, Image as ImageIcon, Palette, Settings, FolderOpen, Mic, Sparkles, Video, Presentation, Share2 } from 'lucide-react';
+import { FileText, Upload, Image as ImageIcon, Palette, Settings, FolderOpen, Mic, Sparkles, Video, Presentation, Share2, ClipboardList } from 'lucide-react';
 
 interface Tool {
   id: LeftPanelTab;
@@ -30,6 +30,7 @@ const PROJECT_TOOLS: Tool[] = [
 // 2. 브랜드 & 전략 허브
 const STRATEGY_TOOLS: Tool[] = [
   { id: 'brandkit', label: 'Brand Kit', Icon: Palette },
+  { id: 'brief', label: 'Brief', Icon: ClipboardList },
   { id: 'meeting', label: 'Meeting AI', Icon: Mic },
   { id: 'conceptboard', label: 'ConceptBoard', Icon: Sparkles },
 ];

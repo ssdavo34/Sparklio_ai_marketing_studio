@@ -129,7 +129,7 @@ export function PolotnoWorkspace({ apiKey }: PolotnoWorkspaceProps) {
   }
 
   return (
-    <div className="h-full w-full relative flex flex-col" style={{ minHeight: '500px' }}>
+    <div className="h-full w-full relative" style={{ minHeight: '400px' }}>
       {/* 캔버스 타입 인디케이터 (개발용) */}
       {process.env.NODE_ENV === 'development' && (
         <div className="absolute top-2 left-2 z-50 bg-black/70 text-white text-xs px-2 py-1 rounded">
@@ -137,19 +137,17 @@ export function PolotnoWorkspace({ apiKey }: PolotnoWorkspaceProps) {
         </div>
       )}
 
-      <div style={{ position: 'absolute', inset: 0 }}>
-        <PolotnoContainer style={{ width: '100%', height: '100%' }}>
-          <WorkspaceWrap>
-            <Workspace
-              store={currentStore}
-              components={{
-                ContextMenu: () => null,
-              }}
-            />
-            <ZoomButtons store={currentStore} />
-          </WorkspaceWrap>
-        </PolotnoContainer>
-      </div>
+      <PolotnoContainer style={{ width: '100%', height: '100%' }}>
+        <WorkspaceWrap>
+          <Workspace
+            store={currentStore}
+            components={{
+              ContextMenu: () => null,
+            }}
+          />
+          <ZoomButtons store={currentStore} />
+        </WorkspaceWrap>
+      </PolotnoContainer>
     </div>
   );
 }

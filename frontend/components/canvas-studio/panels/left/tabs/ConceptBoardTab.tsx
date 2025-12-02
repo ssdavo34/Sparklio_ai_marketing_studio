@@ -54,8 +54,8 @@ export function ConceptBoardTab() {
   const [showBrandDNA, setShowBrandDNA] = useState(true);
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
 
-  // useConceptGenerate 훅 (Mock 모드 - 실제 API로 전환 시 false로 변경)
-  const { generateConcepts, isLoading: isGenerating, error: generateError, clearError } = useConceptGenerate({ useMock: true });
+  // useConceptGenerate 훅 (실제 API 연동)
+  const { generateConcepts, isLoading: isGenerating, error: generateError, clearError } = useConceptGenerate({ useMock: false });
 
   // Canvas Store - 캔버스 타입 변경
   const setActiveCanvasType = useCanvasStore((state) => state.setActiveCanvasType);

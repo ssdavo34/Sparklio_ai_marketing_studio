@@ -22,7 +22,7 @@ import { useChatStore } from '../../../stores/useChatStore';
 import { CANVAS_CONFIGS, type CanvasPreset } from '../../../stores/types';
 import { toast } from '@/components/ui/Toast';
 import { addSlidesToCanvas } from '@/lib/canvas/slidesTemplate';
-import { getPolotnoStore } from '../../../polotno/polotnoStoreSingleton';
+import { getOrCreateCanvasStore } from '../../../polotno/polotnoStoreSingleton';
 
 // 프리젠테이션 타입
 type PresentationType = 'pitch' | 'sales' | 'internal' | 'investor' | 'vision';
@@ -159,14 +159,16 @@ export function PresentationTab() {
 
         // V2: Polotno Store에 슬라이드 바로 추가 (Canvas 뷰로 전환)
         try {
-          console.log('[PresentationTab] Getting Polotno store...');
-          const polotnoStore = getPolotnoStore();
+          // 캔버스 타입을 presentation으로 변경
+          console.log('[PresentationTab] Setting canvas type to presentation');
+          setActiveCanvasType('presentation');
+
+          // presentation 캔버스 Store 가져오기
+          const POLOTNO_API_KEY = 'ng2ylHnHO2NscxqyUEWy';
+          const polotnoStore = getOrCreateCanvasStore('presentation', POLOTNO_API_KEY);
           console.log('[PresentationTab] Polotno store:', polotnoStore ? 'found' : 'null');
 
           if (polotnoStore) {
-            // 캔버스 타입을 presentation으로 변경
-            console.log('[PresentationTab] Setting canvas type to presentation');
-            setActiveCanvasType('presentation');
 
             // 기존 페이지 모두 제거
             console.log('[PresentationTab] Clearing existing pages, count:', polotnoStore.pages?.length || 0);

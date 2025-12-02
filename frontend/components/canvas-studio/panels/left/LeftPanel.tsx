@@ -31,6 +31,7 @@ import { EditorPanel } from './editor';
 import { ProjectTab } from './tabs/ProjectTab';
 import { UploadTab } from './tabs/UploadTab';
 import { BrandKitTab } from './tabs/BrandKitTab';
+import { BriefTab } from './tabs/BriefTab';
 import { MeetingTab } from './tabs/MeetingTab';
 import { ConceptBoardTab } from './tabs/ConceptBoardTab';
 import { PresentationTab } from './tabs/PresentationTab';
@@ -46,6 +47,7 @@ const MENU_LABELS: Record<LeftPanelTab, string> = {
   project: 'Project',
   upload: 'Upload',
   brandkit: 'Brand Kit',
+  brief: 'Brief',
   meeting: 'Meeting AI',
   conceptboard: 'ConceptBoard',
   presentation: 'Presentation',
@@ -109,6 +111,8 @@ export function LeftPanel() {
         return <UploadTab />;
       case 'brandkit':
         return <BrandKitTab />;
+      case 'brief':
+        return <BriefTab />;
       case 'meeting':
         return <MeetingTab />;
       case 'conceptboard':

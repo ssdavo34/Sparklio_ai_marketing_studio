@@ -28,6 +28,7 @@ export type LeftPanelTab =
   | 'upload'
   // 2. 브랜드 & 전략 허브
   | 'brandkit'
+  | 'brief'  // 캠페인 브리프 입력
   | 'meeting'
   | 'conceptboard'
   // 3. 채널별 산출물
