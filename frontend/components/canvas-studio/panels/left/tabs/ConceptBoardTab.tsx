@@ -21,7 +21,7 @@ import { useGeneratedAssetsStore, type GeneratedConcept } from '../../../stores/
 import { useCanvasStore } from '../../../stores/useCanvasStore';
 import { useChatStore } from '../../../stores/useChatStore';
 import { useConceptGenerate } from '../../../hooks/useConceptGenerate';
-import { getCanvasStore } from '../../../polotno/polotnoStoreSingleton';
+import { getCanvasStore, getOrCreateCanvasStore } from '../../../polotno/polotnoStoreSingleton';
 import { addConceptsToCanvas } from '@/lib/canvas/conceptTemplate';
 import { LLM_PROVIDERS } from '@/lib/api/brand-api';
 import type { ConceptV1 } from '@/types/concept';
@@ -131,15 +131,30 @@ export function ConceptBoardTab() {
           sourceMessage: campaignInput,
         });
 
-        // Canvas 타입을 concept로 변경하고 Canvas에 렌더링
+        // Canvas 타입을 concept로 변경
         setActiveCanvasType('concept');
 
-        // Canvas Store 가져와서 컨셉 렌더링
-        const canvasStore = getCanvasStore('concept');
-        if (canvasStore) {
-          addConceptsToCanvas(canvasStore, response.concepts, true);
-          console.log('[ConceptBoardTab] 컨셉 Canvas에 렌더링 완료:', response.concepts.length);
-        }
+        // Canvas Store 초기화 및 렌더링 (약간의 지연 후)
+        setTimeout(() => {
+          const apiKey = process.env.NEXT_PUBLIC_POLOTNO_API_KEY || '';
+          if (!apiKey) {
+            console.error('[ConceptBoardTab] Polotno API Key가 없습니다.');
+            return;
+          }
+
+          // Store가 없으면 생성
+          let canvasStore = getCanvasStore('concept');
+          if (!canvasStore) {
+            canvasStore = getOrCreateCanvasStore('concept', apiKey);
+          }
+
+          if (canvasStore) {
+            addConceptsToCanvas(canvasStore, response.concepts, true);
+            console.log('[ConceptBoardTab] 컨셉 Canvas에 렌더링 완료:', response.concepts.length);
+          } else {
+            console.error('[ConceptBoardTab] Canvas Store 생성 실패');
+          }
+        }, 100);
       }
     } catch (e) {
       console.error('[ConceptBoardTab] 컨셉 생성 실패:', e);
@@ -299,7 +314,12 @@ export function ConceptBoardTab() {
                   // Canvas도 초기화
                   const canvasStore = getCanvasStore('concept');
                   if (canvasStore) {
-                    canvasStore.clear();
+                    // 모든 페이지 삭제 후 빈 페이지 추가
+                    const pageIds = canvasStore.pages?.map((p: any) => p.id) || [];
+                    if (pageIds.length > 0) {
+                      canvasStore.deletePages(pageIds);
+                    }
+                    canvasStore.addPage({ width: 1080, height: 1080 });
                   }
                 }}
                 className="text-[10px] text-neutral-400 hover:text-neutral-600 flex items-center gap-1"

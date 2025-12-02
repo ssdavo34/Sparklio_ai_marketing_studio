@@ -31,6 +31,17 @@ interface ConceptTheme {
 // ============================================================================
 
 /**
+ * SVG를 안전하게 data URL로 변환 (브라우저 호환)
+ */
+function svgToDataUrl(svg: string): string {
+  // URL 인코딩 방식 사용 (btoa보다 더 안전)
+  const encoded = encodeURIComponent(svg)
+    .replace(/'/g, '%27')
+    .replace(/"/g, '%22');
+  return `data:image/svg+xml,${encoded}`;
+}
+
+/**
  * 사각형 SVG 생성
  */
 function createRectSvg(
@@ -40,10 +51,8 @@ function createRectSvg(
   cornerRadius: number = 0
 ): string {
   const rx = cornerRadius > 0 ? `rx="${cornerRadius}" ry="${cornerRadius}"` : '';
-  const svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-    <rect width="${width}" height="${height}" fill="${fill}" ${rx}/>
-  </svg>`;
-  return `data:image/svg+xml;base64,${btoa(svg)}`;
+  const svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg"><rect width="${width}" height="${height}" fill="${fill}" ${rx}/></svg>`;
+  return svgToDataUrl(svg);
 }
 
 /**
@@ -54,11 +63,8 @@ function createColorSwatchSvg(colors: string[], width: number, height: number): 
   const rects = colors.map((color, i) =>
     `<rect x="${i * swatchWidth}" y="0" width="${swatchWidth}" height="${height}" fill="${color}"/>`
   ).join('');
-
-  const svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-    ${rects}
-  </svg>`;
-  return `data:image/svg+xml;base64,${btoa(svg)}`;
+  const svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">${rects}</svg>`;
+  return svgToDataUrl(svg);
 }
 
 // ============================================================================
