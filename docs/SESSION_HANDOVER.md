@@ -1,4 +1,4 @@
-# 세션 인수인계 (2025-12-02 18:10 기준)
+# 세션 인수인계 (2025-12-02 21:50 기준)
 
 > **다음 Claude는 이 파일과 CLAUDE.md를 먼저 읽으세요**
 
@@ -7,46 +7,45 @@
 ## 현재 상태
 
 - **브랜치**: `feature/editor-migration-polotno`
-- **최신 커밋**: (이 세션에서 커밋 예정)
-- **Mac Mini 배포**: ⏳ 동기화 필요
+- **최신 커밋**: `722ee99` - Brief 입력 UI 추가 및 API 실제 연동
+- **Mac Mini 배포**: ✅ 동기화 완료
 - **서버 상태**: ✅ healthy (Frontend 3001, Backend 8000)
 
 ---
 
 ## 오늘 완료한 작업 (2025-12-02)
 
-### C팀 - 풀셋 생성 및 Brand DNA 통합 ✅
+### 오전/오후 세션 (C팀)
+- 풀셋 생성 기능 완전 구현
+- Brand DNA + Brief 생성 흐름 통합 (`buildSharedContext()`)
+- PresentationTab, SNSTab에 생성 데이터 표시 UI 추가
 
-#### 1. 풀셋 생성 기능 완전 구현
-- **ConceptBoardTab.tsx** 대규모 개선
-  - `handleGenerateFullSet()` - 슬라이드/상세페이지/SNS 병렬 생성
-  - `handleOpenSlides()` - 개별 슬라이드 생성 + Canvas 렌더링
-  - `handleOpenDetail()` - 개별 상세페이지 생성 + Canvas 렌더링
-  - `handleOpenInstagram()` - 개별 SNS 생성 + Canvas 렌더링
-  - 각 함수가 데이터 생성 후 **실제 Canvas에 렌더링**까지 수행
-  - 탭 자동 전환 (`setActiveTab`)
+### 저녁 세션 (전체 팀) ✅
 
-#### 2. 각 채널 탭에 생성된 데이터 표시
-- **PresentationTab.tsx** - slidesData 표시 UI 추가
-  - 슬라이드 목록 펼침/접기
-  - 슬라이드 번호, 제목, 내용 미리보기
-- **SNSTab.tsx** - instagramData 표시 UI 추가
-  - 광고 목록 펼침/접기
-  - 해시태그, 광고타입, 헤드라인, CTA 표시
-- **DetailTab.tsx** - 이미 구현되어 있었음 (변경 없음)
+#### 1. P0: 실제 API 연동 완료
+- **ConceptBoardTab.tsx**: `useMock: true` → `useMock: false` 전환
+- Mac Mini Backend ConceptAgent API 정상 작동 확인
+- 실제 API 응답으로 3개 컨셉 생성 테스트 완료
 
-#### 3. Brand DNA + Brief 생성 흐름 통합 ✅ (핵심!)
-- **useGeneratedAssetsStore.ts** 수정
-  - `useBrandStore`, `useBriefStore` import 추가
-  - `buildSharedContext()` 헬퍼 함수 신규 추가
-    - Brand DNA에서 톤, 핵심 메시지, Do's/Don'ts 추출
-    - Brief에서 목표, 타겟, 인사이트, KPI 추출
-    - 모든 생성 함수에서 동일한 컨텍스트 공유
-  - 4개 생성 함수 모두 수정:
-    - `generateSlidesFromConcept()` - Brand DNA + Brief 반영
-    - `generateDetailFromConcept()` - Brand DNA + Brief 반영
-    - `generateInstagramFromConcept()` - Brand DNA + Brief 반영
-    - `generateShortsFromConcept()` - Brand DNA + Brief 반영
+#### 2. P0: 캔버스 스크롤 문제 수정
+- **PolotnoWorkspace.tsx** 레이아웃 개선
+  - 불필요한 nested `flex flex-col` 제거
+  - `absolute inset-0` 중첩 레이어 단순화
+  - `minHeight: 500px` → `400px` 조정
+
+#### 3. P1: Brief 입력 UI 추가
+- **BriefTab.tsx** 신규 생성 (355 lines)
+  - 캠페인 목표, 타겟 오디언스, 핵심 인사이트 입력
+  - 핵심 메시지, 채널 선택, KPI 관리
+  - useBriefStore 연동
+  - 유효성 검사 UI (완성도 표시)
+- **ActivityBar.tsx**: Brief 아이콘(ClipboardList) 추가
+- **LeftPanel.tsx**: BriefTab import 및 라우팅 추가
+- **useLeftPanelStore.ts**: 'brief' 탭 타입 추가
+
+#### 4. P1: getPolotnoStore 마이그레이션 (부분)
+- **PresentationTab.tsx**: `getPolotnoStore()` → `getOrCreateCanvasStore('presentation', apiKey)` 변경
+- 나머지 파일들은 deprecated 경고 상태로 유지 (기능 정상 작동)
 
 ---
 
@@ -57,16 +56,15 @@
 |------|------|------|
 | 메뉴 선택 → Canvas 타입 자동 전환 | ✅ | useLeftPanelStore |
 | Pages 패널 멀티캔버스 지원 | ✅ | getCanvasStore(activeCanvasType) |
-| ConceptBoard 컨셉 생성 | ✅ | 3개 컨셉 AI 생성 |
+| ConceptBoard 컨셉 생성 | ✅ | **실제 API 연동 완료** |
 | 컨셉 → Canvas 렌더링 | ✅ | conceptTemplate.ts |
 | 컨셉 영속화 (페이지 이동 시 유지) | ✅ | useGeneratedAssetsStore |
 | Pages 패널 컨셉 선택/전환 | ✅ | selectedConceptId 동기화 |
-| **풀셋 생성 (영상 제외)** | ✅ | 슬라이드+상세페이지+SNS |
-| **개별 채널 생성 + Canvas 렌더링** | ✅ | 각 버튼이 생성+렌더링 수행 |
-| **PresentationTab 생성 데이터 표시** | ✅ | slidesData UI |
-| **SNSTab 생성 데이터 표시** | ✅ | instagramData UI |
-| **Brand DNA → 생성 흐름 통합** | ✅ | buildSharedContext() |
-| **Brief → 생성 흐름 통합** | ✅ | 목표, 타겟, KPI 반영 |
+| 풀셋 생성 (영상 제외) | ✅ | 슬라이드+상세페이지+SNS |
+| 개별 채널 생성 + Canvas 렌더링 | ✅ | 각 버튼이 생성+렌더링 수행 |
+| Brand DNA → 생성 흐름 통합 | ✅ | buildSharedContext() |
+| Brief → 생성 흐름 통합 | ✅ | 목표, 타겟, KPI 반영 |
+| **Brief 입력 UI** | ✅ | BriefTab 신규 추가 |
 
 ### Video6 Pipeline (이전 세션)
 | 기능 | 상태 |
@@ -79,69 +77,48 @@
 
 ---
 
-## 🟡 해결됨 (이번 세션)
-
-### Brand DNA 생성 흐름 미연결 → 해결됨 ✅
-- 이전: Brand DNA가 Store에만 저장되고 생성 시 사용되지 않음
-- 이후: `buildSharedContext()`가 모든 생성 함수에서 Brand DNA 주입
-
-### Brief → Agent 미연결 → 해결됨 ✅
-- 이전: Brief 데이터가 생성 호출에 전달되지 않음
-- 이후: Brief의 goal, target, insight, keyMessages, kpis가 프롬프트에 포함
-
-### 산출물 일관성 문제 → 기초 해결됨 ✅
-- 이전: 각 채널별로 독립적으로 생성되어 톤/메시지 불일치 가능
-- 이후: 동일한 `sharedContext`를 모든 생성 함수가 공유
-
----
-
 ## 🔴 남은 작업 (다음 세션)
 
-### P0 (Critical)
-1. **실제 API 연동 테스트**
-   - `useConceptGenerate` 훅의 `useMock: true` → `false`로 전환
-   - Backend API 연동 시 실제 Brand DNA/Brief 전달 확인
-
-2. **캔버스 스크롤 문제 확인**
-   - 컨셉 캔버스 하단이 안보이는 문제 보고됨
-   - PolotnoWorkspace 또는 Layout 확인 필요
-
 ### P1 (High)
-3. **Planner/Strategist 레이어 추가** (Optional)
-   - Brief → Strategist → ConceptAgent 흐름 구축
-   - 현재는 직접 생성으로 우회
+1. **getPolotnoStore 마이그레이션 완료**
+   - 아직 deprecated API 사용 중인 파일들:
+     - `useBrandToCanvas.ts`
+     - `ChatPanel.tsx`
+     - `canvasOperations.ts`
+     - `useEditorActions.ts`
+     - `useChatStore.ts`
+     - `PagesTab.tsx`
 
-4. **Brief 입력 UI 추가**
-   - 현재 Brief Store는 있지만 입력 UI 없음
-   - BriefPanel 또는 BriefTab 필요
-
-5. **getPolotnoStore 마이그레이션**
-   - Deprecated warning 해결
-   - PresentationTab 등에서 `getCanvasStore(type)` 사용으로 변경
+2. **Brief 입력 → ConceptBoard 연동 강화**
+   - BriefTab에서 입력 → ConceptBoard 생성 시 Brief 데이터 자동 반영
+   - 현재: Store에 저장됨, 생성 시 buildSharedContext()에서 사용
 
 ### P2 (Medium)
-6. VEO3 테스트 - 이미지 → 동영상 변환
-7. NanoBanana 이미지 생성 확인
-8. Reviewer 일관성 검사 (추후)
-9. TrendPipeline 연결 (추후)
+3. VEO3 테스트 - 이미지 → 동영상 변환
+4. NanoBanana 이미지 생성 확인
+5. Reviewer 일관성 검사 (추후)
+6. TrendPipeline 연결 (추후)
 
 ---
 
 ## 주요 파일 위치
 
-### 이번 세션 수정 파일
+### 이번 세션 수정/생성 파일
 | 파일 | 변경 내용 |
 |------|----------|
-| `stores/useGeneratedAssetsStore.ts` | Brand DNA + Brief 통합, buildSharedContext() 추가 |
-| `panels/left/tabs/ConceptBoardTab.tsx` | 풀셋 생성, 개별 채널 생성+렌더링 |
-| `panels/left/tabs/PresentationTab.tsx` | slidesData 표시 UI |
-| `panels/left/tabs/SNSTab.tsx` | instagramData 표시 UI |
+| `panels/left/tabs/BriefTab.tsx` | **신규 생성** - Brief 입력 UI |
+| `panels/left/tabs/ConceptBoardTab.tsx` | useMock: false 전환 |
+| `polotno/PolotnoWorkspace.tsx` | 레이아웃 개선 |
+| `panels/left/tabs/PresentationTab.tsx` | getOrCreateCanvasStore 마이그레이션 |
+| `layout/ActivityBar.tsx` | Brief 아이콘 추가 |
+| `panels/left/LeftPanel.tsx` | BriefTab import/라우팅 |
+| `stores/useLeftPanelStore.ts` | brief 탭 타입 추가 |
 
 ### 관련 Store
 | 파일 | 용도 |
 |------|------|
-| `stores/useBrandStore.ts` | Brand DNA 저장 |
 | `stores/useBriefStore.ts` | Brief 저장 + 검증 |
+| `stores/useBrandStore.ts` | Brand DNA 저장 |
 | `stores/useGeneratedAssetsStore.ts` | 생성된 에셋 + 생성 함수 |
 | `stores/useLeftPanelStore.ts` | 탭 → 캔버스 매핑 |
 
@@ -152,33 +129,6 @@
 > "아 영상은 건들이지 말고 하자. 또 작업하다가 잘 되던 것도 안되면 안되니까"
 
 Video6 관련 파일들은 이미 잘 작동하고 있으므로 수정하지 않습니다.
-
----
-
-## buildSharedContext() 구조
-
-```typescript
-function buildSharedContext(concept: GeneratedConcept): string {
-  // 1. Brand DNA 컨텍스트
-  [브랜드 가이드라인]
-  - 브랜드 톤앤매너
-  - 핵심 메시지
-  - 타겟 고객
-  - Do's / Don'ts
-
-  // 2. Brief 컨텍스트
-  [캠페인 브리프]
-  - 캠페인 목표 (goal)
-  - 타겟 오디언스 (target)
-  - 핵심 인사이트 (insight)
-  - 핵심 메시지 (keyMessages)
-  - KPI
-
-  // 3. 컨셉 컨텍스트
-  [선택된 컨셉]
-  - 컨셉명, 설명, 헤드라인...
-}
-```
 
 ---
 
@@ -197,4 +147,16 @@ curl http://100.123.51.5:8000/health
 
 ---
 
-**마지막 업데이트**: 2025-12-02 18:10 by C팀
+## Git 커밋 히스토리 (최근)
+
+```
+722ee99 [2025-12-02][C] feat: Brief 입력 UI 추가 및 API 실제 연동
+6fdd9aa [2025-12-02][C] feat: Brand DNA + Brief 생성 흐름 통합 및 풀셋 생성 완성
+91660ad fix: 동적 Mock 컨셉 생성 및 Canvas 디버깅 로그 추가
+8ed6c46 docs: 세션 인수인계 문서 업데이트 (14:40)
+088c3b2 fix: 컨셉 Canvas 렌더링 타이밍 개선
+```
+
+---
+
+**마지막 업데이트**: 2025-12-02 21:50 by 전체 팀 (A/B/C)
