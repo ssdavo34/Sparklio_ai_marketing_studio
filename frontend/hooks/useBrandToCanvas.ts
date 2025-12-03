@@ -11,7 +11,7 @@
 import { useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCanvasStore } from '@/components/canvas-studio/stores/useCanvasStore';
-import { getPolotnoStore } from '@/components/canvas-studio/polotno/polotnoStoreSingleton';
+import { getCanvasStore } from '@/components/canvas-studio/polotno/polotnoStoreSingleton';
 import {
   addBrandIdentityToCanvas,
   addBrandIdentityToCanvasV2,
@@ -69,8 +69,8 @@ export function useBrandToCanvas(): UseBrandToCanvasResult {
       setError(null);
 
       try {
-        // Polotno Store 가져오기 (Zustand 또는 싱글톤)
-        const store = polotnoStore || getPolotnoStore();
+        // Polotno Store 가져오기 (Zustand 또는 brand-dna 캔버스)
+        const store = polotnoStore || getCanvasStore('brand-dna');
 
         if (!store) {
           throw new Error('Canvas가 초기화되지 않았습니다. 먼저 Canvas Studio를 열어주세요.');

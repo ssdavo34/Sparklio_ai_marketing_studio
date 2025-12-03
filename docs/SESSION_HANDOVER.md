@@ -75,6 +75,25 @@
 | BGM 믹싱 | ✅ |
 | 영상 렌더링 | ✅ |
 
+### 로컬 GPU AI 서비스 (2025-12-03 추가)
+
+| 서비스 | 포트 | Provider 파일 | 상태 |
+|--------|------|--------------|------|
+| **Z-Image** (이미지 생성) | 7860 | `zimage_provider.py` | ✅ 구현 완료 |
+| **HunyuanVideo** (동영상 생성) | 8188 (ComfyUI) | `hunyuan_provider.py` | ✅ 구현 완료 |
+
+**Z-Image 특징**:
+
+- SDXL 모델 기반, 8스텝 빠른 생성
+- 비용 없음 (로컬 GPU), 콘텐츠 필터 없음
+- 설치 위치: `D:\ai\zimage\`
+
+**HunyuanVideo 특징**:
+
+- Text-to-Video: 텍스트 → 5초 영상
+- Image-to-Video: 이미지 → 5초 영상
+- ComfyUI 워크플로우 기반
+
 ---
 
 ## 🔴 남은 작업 (다음 세션)

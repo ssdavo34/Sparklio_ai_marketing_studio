@@ -316,6 +316,129 @@ curl http://100.120.180.42:11434/api/tags
 
 # GPU 서버 Whisper
 curl http://100.120.180.42:9000/health
+
+# GPU 서버 Z-Image
+curl http://100.120.180.42:7860/health
+
+# GPU 서버 ComfyUI (HunyuanVideo)
+curl http://100.120.180.42:8188/system_stats
+```
+
+### 6.6 GPU 서버 (Desktop) AI 서비스
+
+| 서비스 | 포트 | 용도 | 실행 방법 |
+|--------|------|------|----------|
+| **Ollama** | 11434 | LLM (llama3.2, qwen 등) | 자동 시작 (서비스) |
+| **ComfyUI** | 8188 | 이미지/영상 워크플로우 | `D:\ai\ComfyUI\run_nvidia_gpu.bat` |
+| **Whisper** | 9000 | 음성 인식 (STT) | `D:\ai\faster-whisper-server\run.bat` |
+| **Z-Image** | 7860 | SDXL 이미지 생성 | `D:\ai\zimage\run.bat` |
+| **HunyuanVideo** | 8188 | Text/Image to Video | ComfyUI 통해 실행 |
+
+### 6.7 Z-Image 서버 실행 (로컬 GPU 이미지 생성)
+
+**설치 위치**: `D:\ai\zimage\`
+**모델**: SDXL (sd_xl_base_1.0.safetensors, 6.9GB)
+**GPU**: RTX 4070 SUPER (12GB VRAM)
+
+```bash
+# 서버 시작 (ComfyUI의 Python 환경 사용)
+cd D:\ai\zimage
+D:\ai\ComfyUI\python_embeded\python.exe server.py
+
+# 또는 run.bat 실행
+D:\ai\zimage\run.bat
+```
+
+**헬스체크**:
+```bash
+curl http://localhost:7860/health
+# 또는 원격에서
+curl http://100.120.180.42:7860/health
+```
+
+**이미지 생성 테스트**:
+```bash
+curl -X POST http://localhost:7860/api/generate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "A cute cat sitting on a desk, professional photo",
+    "width": 1024,
+    "height": 1024,
+    "steps": 8
+  }'
+```
+
+**환경 변수** (`backend/.env`):
+```env
+ZIMAGE_BASE_URL=http://100.120.180.42:7860
+IMAGE_PROVIDER=zimage  # zimage | comfyui | nanobanana | auto
+```
+
+**주의사항**:
+- 원격 작업 시 Desktop PC는 **절전 모드 OFF** 필수 (네트워크 끊김)
+- 모니터만 꺼지게 설정: `설정 > 시스템 > 전원 및 절전 > 절전 모드: 안 함`
+
+### 6.8 Whisper 서버 실행 (음성 인식 STT)
+
+**설치 위치**: `D:\ai\faster-whisper-server\`
+**모델**: faster-whisper (small, medium, large-v3)
+**GPU**: RTX 4070 SUPER (CUDA 가속)
+
+```bash
+# 서버 시작
+D:\ai\faster-whisper-server\run.bat
+
+# 또는 직접 실행
+cd D:\ai\faster-whisper-server
+.\venv-fw\Scripts\python.exe server.py
+```
+
+**헬스체크**:
+```bash
+curl http://localhost:9000/health
+# 또는 원격에서
+curl http://100.120.180.42:9000/health
+```
+
+**환경 변수** (`backend/.env`):
+```env
+WHISPER_FAST_ENDPOINT=http://100.120.180.42:9000/transcribe
+WHISPER_MODE=hybrid_cost  # openai | local | hybrid_cost | hybrid_quality
+```
+
+### 6.9 HunyuanVideo 서버 실행 (동영상 생성)
+
+**의존성**: ComfyUI 서버 필수 (HunyuanVideo 모델 설치됨)
+**모델 파일**:
+
+- `hunyuan_video_t2v_720p_bf16.safetensors` (Text-to-Video)
+- `hunyuan_video_image_to_video_720p_bf16.safetensors` (Image-to-Video)
+
+```bash
+# ComfyUI 서버 시작 (HunyuanVideo 포함)
+D:\ai\ComfyUI\run_nvidia_gpu.bat
+```
+
+**헬스체크**:
+```bash
+curl http://localhost:8188/system_stats
+# 또는 원격에서
+curl http://100.120.180.42:8188/system_stats
+```
+
+**기본 설정**:
+
+- 해상도: 720x480
+- 프레임: 125 (5초 @ 25fps)
+- 스텝: 30
+- 타임아웃: 최대 15분
+
+**Backend Provider 파일**: `backend/app/services/media/providers/hunyuan_provider.py`
+
+**환경 변수** (`backend/.env`):
+```env
+COMFYUI_BASE_URL=http://100.120.180.42:8188
+HUNYUAN_ENABLED=true
 ```
 
 ---

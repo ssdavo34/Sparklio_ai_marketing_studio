@@ -24,9 +24,22 @@ import { getAdLayout, selectBestLayout, type AdLayoutType } from '../utils/ad-la
 import { detectErrorType, createUserFriendlyError, type ErrorType } from '../components/ErrorMessage';
 import { useGeneratedAssetsStore } from './useGeneratedAssetsStore';
 import { useCenterViewStore } from './useCenterViewStore';
-import { getPolotnoStore } from '../polotno/polotnoStoreSingleton';
+import { getCanvasStore } from '../polotno/polotnoStoreSingleton';
 import { createProductionPagesFromConcepts } from '@/lib/utils/conceptToPolotnoPage';
 import { generateThumbnailForPage } from '@/lib/utils/thumbnail';
+
+// ============================================================================
+// Helper Functions - Canvas Store 접근
+// ============================================================================
+
+/**
+ * 현재 활성 캔버스 타입의 Polotno Store를 가져옴
+ * 싱글톤 store를 우선 사용하고, 없으면 Zustand store를 사용
+ */
+function getCurrentPolotnoStore() {
+  const { activeCanvasType, polotnoStore } = useCanvasStore.getState();
+  return getCanvasStore(activeCanvasType) || polotnoStore;
+}
 
 // ============================================================================
 // Helper Functions - Canvas 요소 추가
@@ -39,8 +52,8 @@ import { generateThumbnailForPage } from '@/lib/utils/thumbnail';
 function addTextToCanvas(text: string, yPosition: number = 100) {
   console.log(`[addTextToCanvas] Adding text at y=${yPosition}:`, text);
 
-  // 싱글톤 store 우선, 없으면 Zustand store 사용
-  const polotnoStore = getPolotnoStore() || useCanvasStore.getState().polotnoStore;
+  // 현재 활성 캔버스 타입의 store 사용
+  const polotnoStore = getCurrentPolotnoStore();
   if (!polotnoStore) {
     console.warn('[addTextToCanvas] Polotno store not available');
     return;
@@ -95,8 +108,8 @@ function addBackgroundToCanvas() {
 async function addImageToCanvas(imageUrl: string, productName?: string) {
   console.log('[addImageToCanvas] Adding image to canvas:', imageUrl);
 
-  // 싱글톤 store 우선, 없으면 Zustand store 사용
-  const polotnoStore = getPolotnoStore() || useCanvasStore.getState().polotnoStore;
+  // 현재 활성 캔버스 타입의 store 사용
+  const polotnoStore = getCurrentPolotnoStore();
   if (!polotnoStore) return;
 
   const activePage = polotnoStore.activePage;
@@ -202,10 +215,10 @@ async function parseAndAddToCanvas(responseText: string, userMessage?: string) {
   console.log('[parseAndAddToCanvas] Response length:', responseText?.length);
   console.log('[parseAndAddToCanvas] User message:', userMessage);
 
-  // 싱글톤 store 우선, 없으면 Zustand store 사용
-  const polotnoStore = getPolotnoStore() || useCanvasStore.getState().polotnoStore;
+  // 현재 활성 캔버스 타입의 store 사용
+  const polotnoStore = getCurrentPolotnoStore();
   console.log('[parseAndAddToCanvas] Polotno Store available:', !!polotnoStore);
-  console.log('[parseAndAddToCanvas] Using singleton store:', !!getPolotnoStore());
+  console.log('[parseAndAddToCanvas] Active canvas type:', useCanvasStore.getState().activeCanvasType);
 
   if (!polotnoStore) {
     console.error('[parseAndAddToCanvas] ❌ Polotno store not available!');
@@ -1104,7 +1117,7 @@ export const useChatStore = create<ChatState>()(
               console.log('[sendMessage] ✅ ConceptBoard 데이터 동기화 완료 (CenterView + GeneratedAssets)');
 
               // 🖼️ Polotno 페이지 생성 + 썸네일 자동 생성
-              const polotnoStore = getPolotnoStore() || useCanvasStore.getState().polotnoStore;
+              const polotnoStore = getCurrentPolotnoStore();
               if (polotnoStore) {
                 console.log('[sendMessage] 📄 Polotno 페이지 생성 시작...');
 

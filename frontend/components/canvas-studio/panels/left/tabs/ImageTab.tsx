@@ -1,87 +1,99 @@
 /**
- * Image Tab (이미지)
+ * Image Tab v2 (이미지)
  *
- * AI 이미지 생성 및 관리 탭
- * - 배너 이미지
- * - 제품 이미지
- * - 일러스트레이션
+ * AI 이미지 생성 및 관리 탭 (전면 개편)
+ *
+ * 핵심 설계: 두뇌/손 분리
+ * - 오른쪽 ChatPanel = 두뇌 (프롬프트 대화, 명령 전송)
+ * - 왼쪽 ImageTab = 눈/손 (결과 표시, Mixboard 관리)
+ *
+ * 기능:
+ * - 이미지 그리드 (생성된 이미지 표시)
+ * - Mixboard (레퍼런스 이미지 관리)
+ * - 설정 바 (비율, LLM, Provider)
+ * - 선택 이미지 일괄 작업
+ *
+ * 챗 UI 없음! (ChatPanel에서 처리)
  *
  * @author C팀 (Frontend Team)
- * @version 1.0
- * @date 2025-11-30
+ * @version 2.0
+ * @date 2025-12-03
  */
 
 'use client';
 
-import { Image, Plus, Wand2, Palette } from 'lucide-react';
+import { Image as ImageIcon, Loader2 } from 'lucide-react';
+import { useImageTabStore } from '../../../stores/useImageTabStore';
+import {
+  ImageSettingsBar,
+  ImageGrid,
+  SelectedImagesActionBar,
+  EmptyState,
+  MixboardPanel,
+} from '../../../components/image-tab';
 
 export function ImageTab() {
+  // Store 상태
+  const generatedImages = useImageTabStore((s) => s.generatedImages);
+  const selectedImageIds = useImageTabStore((s) => s.selectedImageIds);
+  const isGenerating = useImageTabStore((s) => s.isGenerating);
+  const isMixboardOpen = useImageTabStore((s) => s.isMixboardOpen);
+
+  // Store 액션
+  const toggleImageSelection = useImageTabStore((s) => s.toggleImageSelection);
+  const addSelectedToCanvas = useImageTabStore((s) => s.addSelectedToCanvas);
+  const saveSelectedAsAssets = useImageTabStore((s) => s.saveSelectedAsAssets);
+  const clearSelection = useImageTabStore((s) => s.clearSelection);
+
   return (
-    <div className="flex flex-col h-full p-4">
+    <div className="flex flex-col h-full">
       {/* 헤더 */}
-      <div className="flex items-center gap-2 mb-4">
-        <Image className="w-5 h-5 text-green-500" />
-        <h2 className="text-lg font-semibold text-neutral-800">이미지</h2>
-      </div>
-
-      {/* 설명 */}
-      <p className="text-sm text-neutral-600 mb-6">
-        AI 기반 이미지를 생성합니다. 브랜드 스타일에 맞춘 다양한 비주얼 에셋을 만들 수 있습니다.
-      </p>
-
-      {/* 이미지 타입 선택 */}
-      <div className="mb-4">
-        <h3 className="text-sm font-medium text-neutral-700 mb-2">이미지 타입</h3>
-        <div className="grid grid-cols-2 gap-2">
-          <button className="p-3 border border-neutral-200 rounded-lg hover:border-green-300 hover:bg-green-50 text-left">
-            <div className="flex items-center gap-2 mb-1">
-              <Wand2 className="w-4 h-4 text-green-500" />
-              <span className="text-xs font-medium">AI 생성</span>
-            </div>
-            <p className="text-xs text-neutral-500">프롬프트 기반 생성</p>
-          </button>
-          <button className="p-3 border border-neutral-200 rounded-lg hover:border-green-300 hover:bg-green-50 text-left">
-            <div className="flex items-center gap-2 mb-1">
-              <Palette className="w-4 h-4 text-green-500" />
-              <span className="text-xs font-medium">스타일 변환</span>
-            </div>
-            <p className="text-xs text-neutral-500">기존 이미지 스타일 적용</p>
-          </button>
+      <div className="flex items-center justify-between p-3 border-b border-neutral-200">
+        <div className="flex items-center gap-2">
+          <ImageIcon className="w-5 h-5 text-green-500" />
+          <h2 className="text-sm font-semibold text-neutral-800">이미지 생성</h2>
         </div>
+        {isGenerating && (
+          <div className="flex items-center gap-1.5 text-xs text-green-600">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span>생성 중...</span>
+          </div>
+        )}
       </div>
 
-      {/* 사이즈 선택 */}
-      <div className="mb-4">
-        <h3 className="text-sm font-medium text-neutral-700 mb-2">사이즈</h3>
-        <div className="flex gap-2">
-          <button className="flex-1 py-2 px-3 text-xs border border-neutral-200 rounded hover:bg-neutral-50">
-            1:1
-          </button>
-          <button className="flex-1 py-2 px-3 text-xs border border-neutral-200 rounded hover:bg-neutral-50">
-            16:9
-          </button>
-          <button className="flex-1 py-2 px-3 text-xs border border-neutral-200 rounded hover:bg-neutral-50">
-            9:16
-          </button>
-          <button className="flex-1 py-2 px-3 text-xs border border-neutral-200 rounded hover:bg-neutral-50">
-            4:3
-          </button>
-        </div>
+      {/* 설정 바 */}
+      <ImageSettingsBar />
+
+      {/* Mixboard 패널 (접기/펼치기) */}
+      {isMixboardOpen && <MixboardPanel />}
+
+      {/* 생성된 이미지 그리드 */}
+      <div className="flex-1 overflow-auto p-2">
+        {generatedImages.length === 0 ? (
+          <EmptyState />
+        ) : (
+          <ImageGrid
+            images={generatedImages}
+            selectedIds={selectedImageIds}
+            onToggleSelect={toggleImageSelection}
+          />
+        )}
       </div>
 
-      {/* 생성된 이미지 목록 */}
-      <div className="flex-1">
-        <h3 className="text-sm font-medium text-neutral-700 mb-2">생성된 이미지</h3>
-        <div className="p-4 border border-dashed border-neutral-300 rounded-lg bg-neutral-50 text-center">
-          <Plus className="w-6 h-6 mx-auto mb-2 text-neutral-400" />
-          <p className="text-xs text-neutral-500">아직 생성된 이미지가 없습니다</p>
-        </div>
-      </div>
+      {/* 선택된 이미지 액션 바 */}
+      {selectedImageIds.length > 0 && (
+        <SelectedImagesActionBar
+          count={selectedImageIds.length}
+          onAddToCanvas={addSelectedToCanvas}
+          onSaveAsAssets={saveSelectedAsAssets}
+          onClearSelection={clearSelection}
+        />
+      )}
 
       {/* 하단 안내 */}
-      <div className="mt-auto pt-4 border-t border-neutral-200">
-        <p className="text-xs text-neutral-500">
-          💡 Brand Kit의 컬러와 스타일이 자동으로 적용됩니다.
+      <div className="p-3 border-t border-neutral-200 bg-neutral-50">
+        <p className="text-[11px] text-neutral-500 text-center">
+          오른쪽 채팅창에서 원하는 이미지를 설명하세요
         </p>
       </div>
     </div>

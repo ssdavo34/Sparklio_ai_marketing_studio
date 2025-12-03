@@ -55,12 +55,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "docs/AGENT_QUALITY_ROLLOUT_PLAN_2025-11.md",
+                "file": "docs/ImageTab_Guide.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "AGENT_QUALITY_ROLLOUT_PLAN_2025-11"
+              "title": "ImageTab_Guide"
             }
           }
         ],
@@ -226,22 +226,25 @@
       "bases:Create new base": false
     }
   },
-  "active": "9e6ff4bb5b89f4b8",
+  "active": "c04df540f65218b2",
   "lastOpenFiles": [
+    "frontend/components/canvas-studio/components/ChatPanel.tsx.tmp.29992.1764744882430",
+    "frontend/components/canvas-studio/components/ChatPanel.tsx.tmp.29992.1764744637893",
+    "frontend/components/canvas-studio/stores/useImageTabStore.ts.tmp.29992.1764743907320",
+    "frontend/components/canvas-studio/stores/useImageTabStore.ts.tmp.29992.1764743820781",
+    "frontend/components/canvas-studio/stores/useImageTabStore.ts.tmp.29992.1764743671193",
+    "frontend/components/canvas-studio/stores/useImageTabStore.ts.tmp.29992.1764743597048",
+    "frontend/components/canvas-studio/stores/useImageTabStore.ts.tmp.29992.1764743576761",
+    "frontend/components/canvas-studio/stores/useImageTabStore.ts.tmp.29992.1764743553014",
+    "frontend/components/canvas-studio/stores/useImageTabStore.ts.tmp.29992.1764743449137",
+    "frontend/components/canvas-studio/components/ChatPanel.tsx.tmp.29992.1764742926327",
+    "frontend/components/canvas-studio/components/ChatPanel.tsx.tmp.29992.1764742896213",
+    "docs/AGENT_QUALITY_ROLLOUT_PLAN_2025-11.md",
+    "docs/ImageTab_Guide.md",
     "frontend/docs/C_TEAM_DAILY_FRONTEND_REPORT_2025-11-28_END.md",
-    "frontend/docs/C_TEAM_DAILY_FRONTEND_REPORT_2025-11-28_END.md.tmp.14284.1764321976138",
     "docs/B_TEAM_DAILY_BACKEND_REPORT_2025-11-28_FINAL.md",
-    "docs/B_TEAM_DAILY_BACKEND_REPORT_2025-11-28_FINAL.md.tmp.72192.1764321797915",
-    "docs/SESSION_HANDOVER.md.tmp.72192.1764321725842",
-    "docs/SESSION_HANDOVER.md.tmp.72192.1764321697918",
-    "docs/SESSION_HANDOVER.md.tmp.72192.1764321680789",
-    "docs/SESSION_HANDOVER.md.tmp.72192.1764321664869",
     "frontend/docs/BACKEND_CORS_ISSUE_2025-11-28.md",
-    "frontend/docs/BACKEND_CORS_ISSUE_2025-11-28.md.tmp.14284.1764321405002",
     "docs/SESSION_HANDOVER.md",
-    "frontend/components/canvas-studio/panels/right/RightDock.tsx.tmp.14284.1764321204907",
-    "CLAUDE.md.tmp.72192.1764320738355",
-    "CLAUDE.md.tmp.72192.1764320538602",
     "frontend/docs/BROWSER_TEST_GUIDE_VISION_AGENT.md",
     "frontend/docs/FRONTEND_UI_INTEGRATION_TEST_RESULTS.md",
     "frontend/docs/BACKEND_BUG_REPORT_2025-11-28.md",
@@ -252,7 +255,6 @@
     "frontend/docs/IMAGE_GENERATION_SETUP.md",
     "docs/B_TEAM_AGENT_UPGRADE_PLAN.md",
     "docs/AGENT_IO_SCHEMA_CATALOG.md",
-    "docs/AGENT_QUALITY_ROLLOUT_PLAN_2025-11.md",
     "docs/FILE_UPLOAD_API_GUIDE.md",
     "docs/B_TEAM_RESPONSE_TO_C_TEAM_2025-11-28_PM.md",
     "docs/DAILY_SUMMARY_2025-11-27.md",
@@ -262,8 +264,6 @@
     "ERROR_FIXES.md",
     "docs/UPGRADE_PRINCIPLES.md",
     "docs/C_TEAM_PHASE1_COMPLETION_REPORT.md",
-    "docs/C_TEAM_PRIORITY_TODOS_WITH_CONFLICT_ANALYSIS.md",
-    "docs/C_TEAM_PARALLEL_WORK_PLAN.md",
     "frontend/node_modules/@icons/material/svg/zip-box.svg",
     "frontend/node_modules/@icons/material/svg/youtube-tv.svg",
     "frontend/node_modules/@icons/material/svg/youtube-play.svg",

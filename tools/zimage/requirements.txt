@@ -1,0 +1,22 @@
+# Z-Image Server Requirements
+# PyTorch는 별도 설치 필요 (CUDA 버전에 맞게)
+
+# Diffusers & Transformers
+diffusers>=0.25.0
+transformers>=4.36.0
+accelerate>=0.25.0
+safetensors>=0.4.0
+
+# API Server
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+python-multipart>=0.0.6
+
+# Image Processing
+pillow>=10.0.0
+
+# Memory Optimization
+xformers>=0.0.23
+
+# Utilities
+pydantic>=2.0.0

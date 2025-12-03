@@ -91,13 +91,13 @@ export interface UseConceptGenerateResult {
  *
  * @param options - Hook 옵션
  * @param options.useMock - Mock 모드 사용 여부 (기본: true)
- * @param options.timeout - API 타임아웃 (ms, 기본: 30000)
+ * @param options.timeout - API 타임아웃 (ms, 기본: 90000)
  * @returns UseConceptGenerateResult
  */
 export function useConceptGenerate(
   options: ConceptGenerateOptions = {}
 ): UseConceptGenerateResult {
-  const { useMock = true, timeout = 30000 } = options;
+  const { useMock = true, timeout = 90000 } = options;
 
   const [isLoading, setIsLoading] = useState(false);
   const [lastResponse, setLastResponse] = useState<ConceptV1Response | null>(

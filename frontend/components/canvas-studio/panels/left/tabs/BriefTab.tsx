@@ -26,10 +26,11 @@ import {
   X,
   Check,
   AlertCircle,
-  Loader2,
   Sparkles,
+  RotateCcw,
 } from 'lucide-react';
 import { useBriefStore } from '../../../stores/useBriefStore';
+import { useLeftPanelStore } from '../../../stores/useLeftPanelStore';
 import type { Brief, ChannelType } from '@/types/brief';
 import { CHANNEL_TYPE_LABELS, CHANNEL_TYPE_ICONS } from '@/types/brief';
 import { toast } from '@/components/ui/Toast';
@@ -49,8 +50,8 @@ export function BriefTab() {
     addKPI,
     removeKPI,
     validation,
-    isEditing,
     setIsEditing,
+    reset,
   } = useBriefStore();
 
   // 새 메시지/KPI 입력 상태
@@ -114,6 +115,18 @@ export function BriefTab() {
             }`}>
               {completeness}% 완성
             </div>
+            <button
+              onClick={() => {
+                if (confirm('브리프를 초기화하시겠습니까? 입력한 내용이 모두 삭제됩니다.')) {
+                  reset();
+                  toast.success('브리프가 초기화되었습니다.');
+                }
+              }}
+              className="p-1.5 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+              title="브리프 초기화"
+            >
+              <RotateCcw className="w-4 h-4" />
+            </button>
           </div>
         )}
       </div>
@@ -143,12 +156,18 @@ export function BriefTab() {
                 <Target className="w-3.5 h-3.5 text-blue-500" />
                 캠페인 목표 <span className="text-red-500">*</span>
               </label>
+              <p className="text-[10px] text-neutral-400 -mt-1">
+                무엇을 달성하고 싶은지 구체적으로 작성해주세요
+              </p>
               <textarea
                 value={brief.goal}
                 onChange={(e) => updateBriefField('goal', e.target.value)}
-                placeholder="예: 신제품 런칭을 통해 브랜드 인지도 30% 상승"
+                placeholder="예시:
+• 프리미엄 단백질 바 신제품 출시로 브랜드 인지도 30% 상승
+• 여름 시즌 한정 음료 프로모션으로 매출 20% 증가
+• 친환경 패키지 리뉴얼 캠페인으로 ESG 브랜드 이미지 강화"
                 className="w-full px-3 py-2 text-sm border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                rows={2}
+                rows={3}
               />
             </div>
 
@@ -158,12 +177,18 @@ export function BriefTab() {
                 <Users className="w-3.5 h-3.5 text-purple-500" />
                 타겟 오디언스 <span className="text-red-500">*</span>
               </label>
+              <p className="text-[10px] text-neutral-400 -mt-1">
+                연령, 성별, 직업, 관심사, 라이프스타일 등을 포함해주세요
+              </p>
               <textarea
                 value={brief.target}
                 onChange={(e) => updateBriefField('target', e.target.value)}
-                placeholder="예: 20-35세 직장인, 건강에 관심이 높은 MZ세대"
+                placeholder="예시:
+• 25-35세 여성, 건강과 다이어트에 관심 높은 직장인
+• 30-45세 남성, 가족과 주말 야외활동을 즐기는 아빠
+• 18-24세 Z세대, SNS 트렌드에 민감하고 가성비를 중시"
                 className="w-full px-3 py-2 text-sm border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                rows={2}
+                rows={3}
               />
             </div>
 
@@ -173,12 +198,18 @@ export function BriefTab() {
                 <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
                 핵심 인사이트
               </label>
+              <p className="text-[10px] text-neutral-400 -mt-1">
+                타겟 고객의 니즈, 페인포인트, 구매 동기 등
+              </p>
               <textarea
                 value={brief.insight || ''}
                 onChange={(e) => updateBriefField('insight', e.target.value)}
-                placeholder="예: 타겟층은 편리함보다 품질을 중시하며, 지속가능성에 높은 관심"
+                placeholder="예시:
+• 바쁜 일상에서 건강한 간식을 찾지만 맛과 영양 둘 다 포기 못함
+• 가격보다 원료 품질과 브랜드 신뢰도를 더 중요하게 생각함
+• 환경 문제에 관심은 있지만 실천이 어려워 브랜드가 대신해주길 원함"
                 className="w-full px-3 py-2 text-sm border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                rows={2}
+                rows={3}
               />
             </div>
 
@@ -188,6 +219,16 @@ export function BriefTab() {
                 <MessageSquare className="w-3.5 h-3.5 text-green-500" />
                 핵심 메시지 <span className="text-red-500">*</span>
               </label>
+              <p className="text-[10px] text-neutral-400 -mt-1">
+                캠페인에서 전달하고 싶은 핵심 메시지를 추가하세요
+              </p>
+
+              {/* 예시 안내 (메시지가 없을 때만) */}
+              {brief.keyMessages.length === 0 && (
+                <div className="text-[10px] text-neutral-400 bg-neutral-50 p-2 rounded-lg">
+                  💡 예시: "진짜 단백질, 진짜 맛있게" / "자연에서 온 에너지" / "오늘도 나를 위한 선택"
+                </div>
+              )}
 
               {/* 기존 메시지 목록 */}
               <div className="space-y-1.5">
@@ -213,7 +254,7 @@ export function BriefTab() {
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleAddMessage()}
-                  placeholder="메시지 추가..."
+                  placeholder="예: 건강한 맛, 건강한 하루"
                   className="flex-1 px-3 py-1.5 text-sm border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                 />
                 <button
@@ -232,6 +273,9 @@ export function BriefTab() {
                 <Hash className="w-3.5 h-3.5 text-indigo-500" />
                 타겟 채널 <span className="text-red-500">*</span>
               </label>
+              <p className="text-[10px] text-neutral-400 -mt-1">
+                생성할 광고 콘텐츠 채널을 선택하세요 (복수 선택 가능)
+              </p>
               <div className="flex flex-wrap gap-2">
                 {AVAILABLE_CHANNELS.map((channel) => {
                   const isSelected = brief.channels.includes(channel);
@@ -260,6 +304,16 @@ export function BriefTab() {
                 <BarChart3 className="w-3.5 h-3.5 text-pink-500" />
                 KPI 목표
               </label>
+              <p className="text-[10px] text-neutral-400 -mt-1">
+                캠페인 성과를 측정할 지표를 설정하세요
+              </p>
+
+              {/* 예시 안내 (KPI가 없을 때만) */}
+              {brief.kpis.length === 0 && (
+                <div className="text-[10px] text-neutral-400 bg-neutral-50 p-2 rounded-lg">
+                  💡 예시: "CTR 3% 이상" / "도달률 100만 뷰" / "전환율 2% 달성" / "SNS 언급 1,000건"
+                </div>
+              )}
 
               {/* 기존 KPI 목록 */}
               <div className="space-y-1.5">
@@ -285,7 +339,7 @@ export function BriefTab() {
                   value={newKPI}
                   onChange={(e) => setNewKPI(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleAddKPI()}
-                  placeholder="예: CTR 5% 이상"
+                  placeholder="예: 인스타그램 팔로워 10% 증가"
                   className="flex-1 px-3 py-1.5 text-sm border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
                 />
                 <button
@@ -315,15 +369,26 @@ export function BriefTab() {
               </div>
             )}
 
-            {/* 완료 상태 */}
+            {/* 완료 상태 + 생성 버튼 */}
             {isValid && (
-              <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+              <div className="p-3 bg-green-50 border border-green-200 rounded-lg space-y-3">
                 <div className="flex items-center gap-2">
                   <Check className="w-4 h-4 text-green-500" />
                   <p className="text-xs text-green-700 font-medium">
-                    브리프가 완성되었습니다! ConceptBoard에서 컨셉을 생성하세요.
+                    브리프가 완성되었습니다!
                   </p>
                 </div>
+                <button
+                  onClick={() => {
+                    useLeftPanelStore.getState().setActiveTab('conceptboard');
+                    useLeftPanelStore.getState().setPanelTab('conceptboard');
+                    toast.success('ConceptBoard로 이동합니다. 컨셉을 생성해주세요!');
+                  }}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-500 to-indigo-500 text-white text-sm font-medium rounded-lg hover:from-purple-600 hover:to-indigo-600 transition-all shadow-sm"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  ConceptBoard에서 컨셉 생성하기
+                </button>
               </div>
             )}
           </>

@@ -23,7 +23,7 @@ import type { GenerateKind } from '@/lib/api/types';
 import { useGenerate } from '../hooks/useGenerate';
 import { useConceptGenerate } from '../../../hooks/useConceptGenerate';
 import { AIResponseRenderer } from './AIResponseRenderer';
-import { getPolotnoStore } from '../polotno/polotnoStoreSingleton';
+import { getCanvasStore } from '../polotno/polotnoStoreSingleton';
 import { useCanvasStore } from '../stores/useCanvasStore';
 import { useGeneratedAssetsStore } from '../stores/useGeneratedAssetsStore';
 import { useCenterViewStore } from '../stores/useCenterViewStore';
@@ -31,6 +31,8 @@ import { useWorkspaceStore } from '../stores';
 import { useStudioContextStore } from '../stores/useStudioContextStore';
 import { searchBrandContext, searchSimilarConcepts, type EmbeddingSearchResult } from '@/lib/api/vector-db-api';
 import { toast } from '@/components/ui/Toast';
+import { useLeftPanelStore } from '../stores/useLeftPanelStore';
+import { useImageTabStore } from '../stores/useImageTabStore';
 
 type UploadedFile = {
   id: string;
@@ -129,14 +131,14 @@ function addConceptToPage(page: any, concept: {
  * - 컨셉이 여러 개면 각 컨셉을 별도 페이지로 생성
  * - 첫 번째 페이지만 활성화
  */
-function addGenerateResponseToPolotno(response: any) {
+function addGenerateResponseToPolotno(response: any, canvasType: string) {
   console.log('[ChatPanel] Adding response to Polotno canvas');
   console.log('[ChatPanel] Response data:', JSON.stringify(response, null, 2));
 
-  // Polotno 싱글톤 store 가져오기
-  const polotnoStore = getPolotnoStore();
+  // Polotno 싱글톤 store 가져오기 (현재 활성 캔버스 타입 사용)
+  const polotnoStore = getCanvasStore(canvasType as any);
   if (!polotnoStore) {
-    console.error('[ChatPanel] Polotno store not available');
+    console.error('[ChatPanel] Polotno store not available for canvas type:', canvasType);
     return false;
   }
 
@@ -313,7 +315,14 @@ export function ChatPanel() {
   const { generate, isLoading: isGenerateLoading, error: generateError, clearError } = useGenerate();
   const { generateConcepts, isLoading: isConceptLoading, error: conceptError } = useConceptGenerate();
 
-  const isLoading = isGenerateLoading || isConceptLoading;
+  // === ImageTab 모드 라우팅 ===
+  // panelTab을 사용해야 함 (LeftPanel 상단 탭 버튼 클릭 시 panelTab만 변경됨)
+  const panelTab = useLeftPanelStore((s) => s.panelTab);
+  const isImageMode = panelTab === 'image';
+  const imageTabStore = useImageTabStore();
+  const isImageGenerating = useImageTabStore((s) => s.isGenerating);
+
+  const isLoading = isGenerateLoading || isConceptLoading || isImageGenerating;
   const error = generateError || conceptError;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -354,9 +363,12 @@ export function ChatPanel() {
   const [brandContextResults, setBrandContextResults] = useState<EmbeddingSearchResult[]>([]);
   const [isSearchingContext, setIsSearchingContext] = useState(false);
 
+  // Canvas Store에서 현재 활성 캔버스 타입 가져오기
+  const activeCanvasType = useCanvasStore((state) => state.activeCanvasType);
+
   // Polotno Store 동기화 (선택 요소, 페이지 정보)
   useEffect(() => {
-    const polotnoStore = getPolotnoStore();
+    const polotnoStore = getCanvasStore(activeCanvasType);
     if (!polotnoStore) return;
 
     const syncContext = () => {
@@ -371,7 +383,7 @@ export function ChatPanel() {
     return () => {
       if (unsubscribe) unsubscribe();
     };
-  }, []);
+  }, [activeCanvasType]);
 
   // File Upload Handlers
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -517,8 +529,18 @@ export function ChatPanel() {
       return;
     }
 
-    // Polotno Store 확인
-    const polotnoStore = getPolotnoStore();
+    // === 이미지 모드 라우팅 ===
+    console.log('[ChatPanel] 🔍 panelTab:', panelTab, 'isImageMode:', isImageMode);
+    if (isImageMode) {
+      console.log('[ChatPanel] 🖼️ Image mode detected, routing to ImageTabStore');
+      await imageTabStore.sendWithImageGeneration(prompt);
+      setPrompt('');
+      setUploadedFiles([]);
+      return;
+    }
+
+    // Polotno Store 확인 (현재 활성 캔버스 타입 사용)
+    const polotnoStore = getCanvasStore(activeCanvasType);
     if (!polotnoStore) {
       alert('Canvas가 초기화되지 않았습니다. Canvas 탭을 먼저 열어주세요.');
       return;
@@ -607,7 +629,7 @@ export function ChatPanel() {
         }
 
         // Polotno Canvas에 결과 반영
-        const success = addGenerateResponseToPolotno(response);
+        const success = addGenerateResponseToPolotno(response, activeCanvasType);
         if (success) {
           console.log('[ChatPanel] ✅ Polotno canvas updated successfully');
         } else {

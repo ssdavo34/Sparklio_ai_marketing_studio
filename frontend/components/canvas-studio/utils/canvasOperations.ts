@@ -11,7 +11,7 @@
  * @version 1.0
  */
 
-import { getPolotnoStore } from '../polotno/polotnoStoreSingleton';
+import { getCanvasStore } from '../polotno/polotnoStoreSingleton';
 import { useStudioContextStore } from '../stores/useStudioContextStore';
 import { useCanvasStore } from '../stores/useCanvasStore';
 
@@ -69,11 +69,13 @@ export interface CanvasOperationResult {
 
 /**
  * Polotno Store 가져오기 (null 체크 포함)
+ * 현재 활성화된 캔버스 타입의 store를 반환
  */
 function getStore() {
-  const store = getPolotnoStore();
+  const { activeCanvasType } = useCanvasStore.getState();
+  const store = getCanvasStore(activeCanvasType);
   if (!store) {
-    console.error('[CanvasOperations] Polotno store not available');
+    console.error('[CanvasOperations] Polotno store not available for canvas type:', activeCanvasType);
     return null;
   }
   return store;

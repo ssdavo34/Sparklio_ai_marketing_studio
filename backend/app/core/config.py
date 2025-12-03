@@ -101,6 +101,18 @@ class Settings(BaseSettings):
     )
     comfyui_timeout: int = Field(300, env="COMFYUI_TIMEOUT")
 
+    # Z-Image (로컬 GPU 이미지 생성)
+    zimage_base_url: str = Field(
+        "http://100.120.180.42:7860",
+        env="ZIMAGE_BASE_URL"
+    )
+    zimage_timeout: int = Field(120, env="ZIMAGE_TIMEOUT")
+    zimage_default_model: str = Field("sdxl", env="ZIMAGE_DEFAULT_MODEL")
+    zimage_default_steps: int = Field(8, env="ZIMAGE_DEFAULT_STEPS")
+
+    # Image Provider 선택 (zimage | comfyui | nanobanana | auto)
+    image_provider: str = Field("auto", env="IMAGE_PROVIDER")
+
     # Legacy endpoints (deprecated, use ollama_base_url instead)
     OLLAMA_ENDPOINT: str = "http://100.120.180.42:11434"
     COMFYUI_ENDPOINT: str = "http://100.120.180.42:8188"
@@ -126,6 +138,16 @@ class Settings(BaseSettings):
     # AI Video Generation (Image-to-Video)
     luma_api_key: str = Field("", env="LUMA_API_KEY")
     runway_api_key: str = Field("", env="RUNWAY_API_KEY")
+
+    # HunyuanVideo (로컬 GPU 동영상 생성)
+    hunyuan_enabled: bool = Field(True, env="HUNYUAN_ENABLED")
+    hunyuan_default_width: int = Field(720, env="HUNYUAN_DEFAULT_WIDTH")
+    hunyuan_default_height: int = Field(480, env="HUNYUAN_DEFAULT_HEIGHT")
+    hunyuan_default_frames: int = Field(125, env="HUNYUAN_DEFAULT_FRAMES")  # 5초 @ 25fps
+    hunyuan_default_steps: int = Field(30, env="HUNYUAN_DEFAULT_STEPS")
+
+    # Video Provider 선택 (hunyuan | luma | runway | auto)
+    video_provider: str = Field("auto", env="VIDEO_PROVIDER")
 
     # Whisper STT (Meeting AI)
     whisper_mode: str = Field("hybrid_cost", env="WHISPER_MODE")  # openai | local | hybrid_cost | hybrid_quality
@@ -254,6 +276,52 @@ class Settings(BaseSettings):
     def COMFYUI_TIMEOUT(self) -> int:
         """Deprecated: Use comfyui_timeout instead"""
         return self.comfyui_timeout
+
+    # Z-Image 대문자 속성
+    @property
+    def ZIMAGE_BASE_URL(self) -> str:
+        return self.zimage_base_url
+
+    @property
+    def ZIMAGE_TIMEOUT(self) -> int:
+        return self.zimage_timeout
+
+    @property
+    def ZIMAGE_DEFAULT_MODEL(self) -> str:
+        return self.zimage_default_model
+
+    @property
+    def ZIMAGE_DEFAULT_STEPS(self) -> int:
+        return self.zimage_default_steps
+
+    @property
+    def IMAGE_PROVIDER(self) -> str:
+        return self.image_provider
+
+    # HunyuanVideo 대문자 속성
+    @property
+    def HUNYUAN_ENABLED(self) -> bool:
+        return self.hunyuan_enabled
+
+    @property
+    def HUNYUAN_DEFAULT_WIDTH(self) -> int:
+        return self.hunyuan_default_width
+
+    @property
+    def HUNYUAN_DEFAULT_HEIGHT(self) -> int:
+        return self.hunyuan_default_height
+
+    @property
+    def HUNYUAN_DEFAULT_FRAMES(self) -> int:
+        return self.hunyuan_default_frames
+
+    @property
+    def HUNYUAN_DEFAULT_STEPS(self) -> int:
+        return self.hunyuan_default_steps
+
+    @property
+    def VIDEO_PROVIDER(self) -> str:
+        return self.video_provider
 
     # Whisper 대문자 속성
     @property

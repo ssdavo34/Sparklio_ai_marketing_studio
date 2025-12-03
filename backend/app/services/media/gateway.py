@@ -27,6 +27,22 @@ except ImportError:
     NANOBANANA_AVAILABLE = False
     logger.warning("NanoBanana Provider not available (missing google-genai package)")
 
+# Z-Image Provider - 로컬 GPU 이미지 생성
+try:
+    from .providers.zimage_provider import ZImageProvider
+    ZIMAGE_AVAILABLE = True
+except ImportError:
+    ZIMAGE_AVAILABLE = False
+    logger.warning("Z-Image Provider not available")
+
+# HunyuanVideo Provider - 로컬 GPU 동영상 생성
+try:
+    from .providers.hunyuan_provider import HunyuanVideoProvider
+    HUNYUAN_AVAILABLE = True
+except ImportError:
+    HUNYUAN_AVAILABLE = False
+    logger.warning("HunyuanVideo Provider not available")
+
 
 class MediaGateway:
     """
@@ -84,6 +100,19 @@ class MediaGateway:
             elif not NANOBANANA_AVAILABLE:
                 logger.info("Nano Banana Provider skipped (google-genai not installed)")
 
+            # Z-Image Provider (로컬 GPU 이미지 생성)
+            if ZIMAGE_AVAILABLE:
+                logger.info(f"Initializing Z-Image Provider with base_url={settings.zimage_base_url}...")
+                self.providers["zimage"] = ZImageProvider(
+                    base_url=settings.zimage_base_url,
+                    timeout=settings.zimage_timeout,
+                    default_model=settings.zimage_default_model,
+                    default_steps=settings.zimage_default_steps
+                )
+                logger.info("Z-Image Provider initialized successfully")
+            else:
+                logger.info("Z-Image Provider skipped (not available)")
+
             # Edge TTS Provider
             try:
                 from .providers.edge_tts_provider import EdgeTTSProvider
@@ -131,6 +160,22 @@ class MediaGateway:
                     logger.info("Google Veo 3 Provider skipped (GOOGLE_API_KEY not set)")
             except Exception as e:
                 logger.warning(f"Google Veo 3 Provider skipped: {e}")
+
+            # HunyuanVideo Provider (로컬 GPU 동영상 생성 via ComfyUI)
+            if HUNYUAN_AVAILABLE:
+                hunyuan_enabled = getattr(settings, 'hunyuan_enabled', True)
+                if hunyuan_enabled:
+                    logger.info(f"Initializing HunyuanVideo Provider with ComfyUI at {settings.comfyui_base_url}...")
+                    self.providers["hunyuan"] = HunyuanVideoProvider(
+                        comfyui_url=settings.comfyui_base_url,
+                        timeout=600,
+                        max_wait_time=900
+                    )
+                    logger.info("HunyuanVideo Provider initialized successfully")
+                else:
+                    logger.info("HunyuanVideo Provider skipped (HUNYUAN_ENABLED=false)")
+            else:
+                logger.info("HunyuanVideo Provider skipped (not available)")
 
             logger.info(f"All Media Providers initialized: {list(self.providers.keys())}")
 
@@ -237,22 +282,69 @@ class MediaGateway:
 
         # Live 모드 - 미디어 타입별 Provider 결정
         if media_type == "image":
-            # 나노바나나 우선, 없으면 ComfyUI
-            if "nanobanana" in self.providers:
-                provider_name = "nanobanana"
-            else:
+            # IMAGE_PROVIDER 설정에 따라 선택
+            preferred_provider = getattr(settings, 'image_provider', 'auto')
+
+            if preferred_provider == "zimage" and "zimage" in self.providers:
+                provider_name = "zimage"
+            elif preferred_provider == "comfyui" and "comfyui" in self.providers:
                 provider_name = "comfyui"
-        elif media_type == "video":
-            # AI 영상 생성 Provider 선택 (Veo 우선 → Luma → Runway)
-            if "veo" in self.providers:
-                provider_name = "veo"
-            elif "luma" in self.providers:
-                provider_name = "luma"
-            elif "runway" in self.providers:
-                provider_name = "runway"
+            elif preferred_provider == "nanobanana" and "nanobanana" in self.providers:
+                provider_name = "nanobanana"
+            elif preferred_provider == "auto":
+                # auto 모드: zimage 우선 → nanobanana → comfyui
+                if "zimage" in self.providers:
+                    provider_name = "zimage"
+                elif "nanobanana" in self.providers:
+                    provider_name = "nanobanana"
+                else:
+                    provider_name = "comfyui"
             else:
-                logger.warning("No video provider available, falling back to mock")
-                return "mock", self.providers["mock"]
+                # 설정된 provider가 없으면 사용 가능한 것 선택
+                if "zimage" in self.providers:
+                    provider_name = "zimage"
+                elif "nanobanana" in self.providers:
+                    provider_name = "nanobanana"
+                else:
+                    provider_name = "comfyui"
+        elif media_type == "video":
+            # VIDEO_PROVIDER 설정에 따라 선택
+            preferred_video = getattr(settings, 'video_provider', 'auto')
+
+            if preferred_video == "hunyuan" and "hunyuan" in self.providers:
+                provider_name = "hunyuan"
+            elif preferred_video == "luma" and "luma" in self.providers:
+                provider_name = "luma"
+            elif preferred_video == "runway" and "runway" in self.providers:
+                provider_name = "runway"
+            elif preferred_video == "veo" and "veo" in self.providers:
+                provider_name = "veo"
+            elif preferred_video == "auto":
+                # auto 모드: hunyuan(로컬) 우선 → veo → luma → runway
+                if "hunyuan" in self.providers:
+                    provider_name = "hunyuan"
+                elif "veo" in self.providers:
+                    provider_name = "veo"
+                elif "luma" in self.providers:
+                    provider_name = "luma"
+                elif "runway" in self.providers:
+                    provider_name = "runway"
+                else:
+                    logger.warning("No video provider available, falling back to mock")
+                    return "mock", self.providers["mock"]
+            else:
+                # 설정된 provider가 없으면 사용 가능한 것 선택
+                if "hunyuan" in self.providers:
+                    provider_name = "hunyuan"
+                elif "veo" in self.providers:
+                    provider_name = "veo"
+                elif "luma" in self.providers:
+                    provider_name = "luma"
+                elif "runway" in self.providers:
+                    provider_name = "runway"
+                else:
+                    logger.warning("No video provider available, falling back to mock")
+                    return "mock", self.providers["mock"]
         elif media_type == "audio":
             if "edge_tts" in self.providers:
                 return "edge_tts", self.providers["edge_tts"]
@@ -338,8 +430,13 @@ class MediaGateway:
 
         # Provider 선택
         if provider == "auto":
-            # nanobanana 우선, 없으면 comfyui, 마지막으로 mock
-            if "nanobanana" in self.providers:
+            # IMAGE_PROVIDER 설정 우선, 없으면 zimage → nanobanana → comfyui → mock
+            preferred = getattr(settings, 'image_provider', 'auto')
+            if preferred != "auto" and preferred in self.providers:
+                selected_provider = preferred
+            elif "zimage" in self.providers:
+                selected_provider = "zimage"
+            elif "nanobanana" in self.providers:
                 selected_provider = "nanobanana"
             elif "comfyui" in self.providers:
                 selected_provider = "comfyui"

@@ -454,7 +454,7 @@ export interface ConceptGenerateOptions {
   /**
    * 타임아웃 (ms)
    *
-   * @default 30000 (30초)
+   * @default 90000 (90초)
    */
   timeout?: number;
 }

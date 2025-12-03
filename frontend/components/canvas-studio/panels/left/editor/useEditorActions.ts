@@ -12,7 +12,7 @@
 
 import { useCallback, useState, useEffect } from 'react';
 import { useCanvasStore } from '../../../stores/useCanvasStore';
-import { getPolotnoStore } from '../../../polotno/polotnoStoreSingleton';
+import { getCanvasStore } from '../../../polotno/polotnoStoreSingleton';
 import { getShapeById, generateShapeSVG, svgToDataUri } from './shapes';
 import { getTextPresetById, getDefaultTextPreset } from './textPresets';
 import { getIconById, iconSvgToDataUri } from './icons';
@@ -23,8 +23,10 @@ import type { TextPreset, EditorActions } from './types';
 // ============================================================================
 
 export function useEditorActions(): EditorActions {
+  const activeCanvasType = useCanvasStore((state) => state.activeCanvasType);
   const zustandPolotnoStore = useCanvasStore((state) => state.canvases.get(state.activeCanvasType) || null);
-  const polotnoStore = getPolotnoStore() || zustandPolotnoStore;
+  // 현재 활성 캔버스 타입의 store를 가져옴 (싱글톤 또는 Zustand 폴백)
+  const polotnoStore = getCanvasStore(activeCanvasType) || zustandPolotnoStore;
 
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);

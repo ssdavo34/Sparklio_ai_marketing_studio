@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useCanvasStore } from '../../../stores/useCanvasStore';
 import { useCenterViewStore } from '../../../stores/useCenterViewStore';
 import { useGeneratedAssetsStore } from '../../../stores/useGeneratedAssetsStore';
-import { getPolotnoStore } from '../../../polotno/polotnoStoreSingleton';
+import { getCanvasStore } from '../../../polotno/polotnoStoreSingleton';
 import { Plus, Copy, Trash2, RefreshCw, Loader2, FileText, Image, Film, Layout } from 'lucide-react';
 
 // 페이지 아이템 타입
@@ -36,6 +36,7 @@ export function PagesTab() {
   const shortsData = useGeneratedAssetsStore((state) => state.shortsData);
 
   // Polotno Store (canvas 뷰용)
+  const activeCanvasType = useCanvasStore((state) => state.activeCanvasType);
   const zustandPolotnoStore = useCanvasStore((state) => state.canvases.get(state.activeCanvasType) || null);
   const currentTemplate = useCanvasStore((state) => state.currentTemplate);
   const currentTheme = useCanvasStore((state) => state.currentTheme);
@@ -50,7 +51,8 @@ export function PagesTab() {
   const thumbnailGenerationRef = useRef<boolean>(false);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const polotnoStore = getPolotnoStore() || zustandPolotnoStore;
+  // 현재 활성 캔버스 타입의 store 가져오기
+  const polotnoStore = getCanvasStore(activeCanvasType) || zustandPolotnoStore;
 
   // Polotno 페이지 썸네일 생성 함수
   const generateThumbnail = useCallback(async (page: any): Promise<string | null> => {
@@ -74,7 +76,7 @@ export function PagesTab() {
     if (currentView !== 'canvas') return;
     if (thumbnailGenerationRef.current) return; // 중복 실행 방지
 
-    const store = getPolotnoStore() || zustandPolotnoStore;
+    const store = getCanvasStore(activeCanvasType) || zustandPolotnoStore;
     if (!store?.pages?.length) return;
 
     thumbnailGenerationRef.current = true;
@@ -96,13 +98,13 @@ export function PagesTab() {
     setLoadingThumbnails(new Set());
     thumbnailGenerationRef.current = false;
     console.log('[PagesTab] Thumbnails generated:', Object.keys(newThumbnails).length);
-  }, [currentView, zustandPolotnoStore, generateThumbnail]);
+  }, [currentView, activeCanvasType, zustandPolotnoStore, generateThumbnail]);
 
   // 캔버스 변경 시 썸네일 재생성 (debounce)
   useEffect(() => {
     if (currentView !== 'canvas') return;
 
-    const store = getPolotnoStore() || zustandPolotnoStore;
+    const store = getCanvasStore(activeCanvasType) || zustandPolotnoStore;
     if (!store) return;
 
     // 초기 썸네일 생성 (지연)
@@ -130,7 +132,7 @@ export function PagesTab() {
       }
       if (unsubscribe) unsubscribe();
     };
-  }, [currentView, zustandPolotnoStore, generateAllThumbnails]);
+  }, [currentView, activeCanvasType, zustandPolotnoStore, generateAllThumbnails]);
 
   // 현재 뷰에 따라 페이지 목록 생성
   useEffect(() => {
@@ -245,7 +247,7 @@ export function PagesTab() {
   useEffect(() => {
     if (currentView !== 'canvas') return;
 
-    const store = getPolotnoStore() || zustandPolotnoStore;
+    const store = getCanvasStore(activeCanvasType) || zustandPolotnoStore;
     if (!store) return;
 
     const updatePolotnoPages = () => {
@@ -275,7 +277,7 @@ export function PagesTab() {
       if (unsubscribe) unsubscribe();
       clearInterval(pollInterval);
     };
-  }, [currentView, zustandPolotnoStore]);
+  }, [currentView, activeCanvasType, zustandPolotnoStore]);
 
   // 페이지 선택 핸들러
   const handleSelectPage = (pageId: string) => {

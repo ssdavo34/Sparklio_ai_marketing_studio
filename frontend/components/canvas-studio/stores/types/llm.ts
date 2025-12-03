@@ -69,6 +69,7 @@ export type TextLLMProvider =
   | 'auto'          // 자동 선택 (기본)
   | 'gpt-4'         // OpenAI GPT-4
   | 'gpt-4o'        // OpenAI GPT-4 Optimized
+  | 'gpt-4o-mini'   // OpenAI GPT-4o Mini (빠르고 저렴)
   | 'gemini'        // Google Gemini
   | 'claude'        // Anthropic Claude
   | 'llama'         // Meta Llama (Ollama)
@@ -80,6 +81,7 @@ export type TextLLMProvider =
  */
 export type ImageLLMProvider =
   | 'auto'          // 자동 선택 (기본)
+  | 'zimage'        // Z-Image (로컬 GPU SDXL)
   | 'comfyui'       // ComfyUI
   | 'nanobanana'    // NanoBanana
   | 'dalle'         // DALL-E
@@ -354,6 +356,11 @@ export const TEXT_LLM_INFO: Record<TextLLMProvider, LLMProviderInfo> = {
     name: 'GPT-4 Optimized',
     description: 'OpenAI GPT-4 최적화 버전',
   },
+  'gpt-4o-mini': {
+    id: 'gpt-4o-mini',
+    name: 'GPT-4o Mini',
+    description: 'OpenAI GPT-4o Mini (빠르고 저렴)',
+  },
   gemini: {
     id: 'gemini',
     name: 'Gemini',
@@ -389,6 +396,11 @@ export const IMAGE_LLM_INFO: Record<ImageLLMProvider, LLMProviderInfo> = {
     id: 'auto',
     name: '자동 선택',
     description: '최적의 이미지 생성 모델 자동 선택',
+  },
+  zimage: {
+    id: 'zimage',
+    name: 'Z-Image',
+    description: '로컬 GPU SDXL 이미지 생성 (빠르고 무료)',
   },
   comfyui: {
     id: 'comfyui',
