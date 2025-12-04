@@ -1,4 +1,4 @@
-# 세션 인수인계 (2025-12-03 18:55 기준)
+# 세션 인수인계 (2025-12-04 21:30 기준)
 
 > **다음 Claude는 이 파일과 CLAUDE.md를 먼저 읽으세요**
 
@@ -7,86 +7,135 @@
 ## 현재 상태
 
 - **브랜치**: `feature/editor-migration-polotno`
-- **최신 커밋**: `60722e9` - 세션 인수인계 문서 업데이트
-- **Mac Mini 배포**: ✅ 동기화 완료
+- **최신 커밋**: `476165e` - MeetingTab에 figure/rect/tag 타입 렌더링 추가
+- **Mac Mini 배포**: ✅ 동기화 완료 (Layout API 포함)
 - **서버 상태**:
-  - Frontend: ✅ localhost:3001 (재시작 필요 - .env 변경됨)
+  - Frontend: ✅ localhost:3000
   - Backend (Mac Mini): ✅ 100.123.51.5:8000
   - Z-Image (Desktop GPU): ✅ 100.120.180.42:7860
   - Ollama (Desktop GPU): ✅ 100.120.180.42:11434
 
 ---
 
-## 오늘 완료한 작업 (2025-12-03)
+## 오늘 완료한 작업 (2025-12-04)
 
-### ImageTab v2 → 실제 API 연동 작업 (C팀)
+### 1. DocumentLayoutAgent 구현 완료 ✅ (B팀)
 
-#### 1. Z-Image 서버 버그 수정 ✅
-- **파일**: `tools/zimage/server.py` (Desktop PC: `D:\ai\zimage\server.py`)
-- **문제**: `torch.Generator(device=DEVICE)` → `enable_model_cpu_offload()` 사용 시 에러
-- **수정**: `torch.Generator(device="cpu")` (line 215)
-- **결과**: Z-Image 직접 호출 시 이미지 생성 성공
+**파일**: `backend/app/services/agents/document_layout.py`
 
-#### 2. Frontend API 엔드포인트 수정 ✅
-- **파일**: `useImageTabStore.ts`
-- **변경**: VisionGeneratorAgent API (`/api/v1/agents/vision-generator/generate`) → MediaGateway API (`/api/v1/media/generate`)
-- **이유**: VisionGeneratorAgent 엔드포인트가 Backend에 없음 (404)
+회의 요약, SNS 광고, 상품 상세페이지 등 다양한 문서 유형에 대한 자동 레이아웃 생성 Agent:
+- **meeting_summary**: 커버 + Executive Summary + 2컬럼(안건/결정사항) + 카드 그리드(액션아이템)
+- **sns_ad**: 플랫폼별 최적화 레이아웃 (Instagram, Facebook, YouTube 등)
+- **product_detail**: 히어로 + 특징 카드 + 상세 설명
+- **brief**: 캠페인 브리프 구조화
 
-#### 3. Base64 이미지 데이터 처리 수정 ✅
-- **파일**: `vision-generator-api.ts`
-- **변경**: `output.data || output.base64` 로 Backend 응답 필드 매핑
-- **결과**: 이미지가 채팅창에 정상 표시
+### 2. Layout API 엔드포인트 추가 ✅ (B팀)
 
-#### 4. LLM 프롬프트 번역 직접 호출 구현 ✅
-- **파일**: `useImageTabStore.ts`
-- **문제**: Backend `/api/v1/llm/chat` 엔드포인트 없음 (404)
-- **해결**: OpenAI, Ollama API 직접 호출 함수 추가
-  - `callOpenAI()`: GPT-4o-mini 선택 시 OpenAI API 직접 호출
-  - `callOllama()`: 오픈소스 선택 시 Ollama API 직접 호출
-- **gatewayClient import 제거** (더 이상 사용 안 함)
+**파일**: `backend/app/api/v1/endpoints/layout.py`
 
-#### 5. Frontend 환경변수 추가 ✅
-- **파일**: `frontend/.env.local`
-- **추가**:
-  ```
-  NEXT_PUBLIC_OPENAI_API_KEY=sk-proj-...
-  NEXT_PUBLIC_OLLAMA_URL=http://100.120.180.42:11434
-  ```
-- **이유**: Next.js 클라이언트에서 사용하려면 `NEXT_PUBLIC_` 접두사 필요
+| 엔드포인트 | 용도 |
+|-----------|------|
+| `POST /api/v1/layout/generate` | 범용 레이아웃 생성 |
+| `POST /api/v1/layout/generate/meeting` | 회의 요약 전용 |
+| `POST /api/v1/layout/generate/sns` | SNS 광고 전용 |
+| `POST /api/v1/layout/generate/product` | 상품 상세페이지 전용 |
+| `GET /api/v1/layout/presets` | 프리셋 조회 |
+
+### 3. Frontend Layout API 클라이언트 추가 ✅ (C팀)
+
+**파일**: `frontend/lib/api/layout-api.ts`
+
+TypeScript 타입 정의 및 API 클라이언트:
+- `LayoutElement`, `PageLayout`, `DocumentLayout` 타입
+- `layoutApi.generateMeetingLayout()`, `generateSNSLayout()` 등
+
+### 4. MeetingTab Layout API 연동 ✅ (C팀)
+
+**파일**: `frontend/components/canvas-studio/panels/left/tabs/MeetingTab.tsx`
+
+- `handleSendToCanvas()`: Layout API 호출 → 캔버스 렌더링
+- `applyLayoutToCanvas()`: DocumentLayout → Polotno 요소 변환
+- `addElementToPage()`: figure, text, tag 등 요소 타입별 처리
+- Fallback 로직: API 실패 시 로컬 렌더링
+
+### 5. BriefTab 캔버스 기능 추가 ✅ (C팀)
+
+**파일**: `frontend/components/canvas-studio/panels/left/tabs/BriefTab.tsx`
+
+"캔버스로 보내기" 버튼 추가, Layout API 연동
 
 ---
 
-## 🟡 진행 중 / 남은 작업
+## Layout API 응답 구조
 
-### P0 (Critical) - 다음 세션 즉시 해야 할 작업
+```json
+{
+  "success": true,
+  "document_type": "meeting_summary",
+  "layout": {
+    "document_type": "meeting_summary",
+    "total_pages": 3,
+    "page_width": 1920,
+    "page_height": 1080,
+    "pages": [
+      {
+        "page_number": 1,
+        "page_type": "cover",
+        "layout_type": "full_header",
+        "elements": [
+          {
+            "type": "figure",
+            "x": 0, "y": 0, "width": 1920, "height": 180,
+            "properties": {"fill": "linear-gradient(...)"}
+          },
+          {
+            "type": "text",
+            "x": 60, "y": 50, "width": 1800,
+            "properties": {"fontSize": 42, "fontWeight": "bold", "fill": "#FFFFFF"},
+            "content": "Meeting Title"
+          }
+        ]
+      }
+    ],
+    "design_tokens": {...}
+  }
+}
+```
 
-1. **Frontend 서버 재시작 후 테스트**
-   - `.env.local` 변경 반영을 위해 서버 재시작 필요
-   - 포트 3001 프로세스 kill 후 `npm run dev`
-   - "20대 여성 스튜디오 촬영" 같은 한글 프롬프트로 테스트
-   - 콘솔에서 `[ImageTabStore] Using OpenAI gpt-4o-mini` 로그 확인
-   - `[ImageTabStore] Translated:` 로그에서 영문 변환 확인
+---
 
-2. **이미지 생성 End-to-End 테스트**
-   - GPT-4o-mini 선택 → 한글 프롬프트 → 영문 번역 → Z-Image 생성 → 이미지 표시
-   - 오픈소스(Llama) 선택 → Ollama 번역 → Z-Image 생성
+## 알려진 이슈
+
+1. **Linear Gradient 렌더링**
+   - Polotno는 CSS linear-gradient를 지원하지 않을 수 있음
+   - 단색 fill로 fallback 필요할 수 있음
+
+2. **Font Family**
+   - "Pretendard" 폰트가 캔버스에 로드되어 있어야 함
+   - 없으면 system font로 fallback
+
+---
+
+## 다음 작업 우선순위
+
+### P0 (Critical)
+
+1. **Meeting Summary 캔버스 테스트**
+   - Meeting AI에서 분석 완료 후 "캔버스로 보내기" 클릭
+   - 3페이지 레이아웃이 정상 생성되는지 확인
+   - 각 요소(배경, 텍스트, 카드)가 제대로 보이는지 확인
 
 ### P1 (High)
 
-3. **getPolotnoStore 마이그레이션 완료**
-   - 아직 deprecated API 사용 중인 파일들:
-     - `useBrandToCanvas.ts`
-     - `ChatPanel.tsx`
-     - `canvasOperations.ts`
-     - `useEditorActions.ts`
-     - `useChatStore.ts`
-     - `PagesTab.tsx`
+2. **Brief 캔버스 테스트**
+3. **SNS 광고 레이아웃 테스트**
+4. **상품 상세페이지 레이아웃 테스트**
 
 ### P2 (Medium)
 
-4. VEO3 테스트 - 이미지 → 동영상 변환
-5. NanoBanana 이미지 생성 확인
-6. Backend `/api/v1/llm/chat` 엔드포인트 추가 (선택사항)
+5. 이미지 요소 지원 (AI 생성 이미지 자동 배치)
+6. 레이아웃 스타일 옵션 (modern, classic, minimal)
+7. 커스텀 색상 팔레트 지원
 
 ---
 
@@ -94,90 +143,49 @@
 
 | 파일 | 변경 내용 |
 |------|----------|
-| `stores/useImageTabStore.ts` | MediaGateway 사용, OpenAI/Ollama 직접 호출 |
-| `lib/api/vision-generator-api.ts` | base64 데이터 필드 매핑 수정 |
-| `frontend/.env.local` | NEXT_PUBLIC_OPENAI_API_KEY, NEXT_PUBLIC_OLLAMA_URL 추가 |
-| `tools/zimage/server.py` | torch.Generator device="cpu" 수정 |
-| `backend/.../zimage_provider.py` | Z-Image Provider 구현 |
-| `backend/.../hunyuan_provider.py` | HunyuanVideo Provider 구현 |
+| `backend/app/api/v1/endpoints/layout.py` | Layout API 엔드포인트 (신규) |
+| `backend/app/services/agents/document_layout.py` | DocumentLayoutAgent (신규) |
+| `backend/app/api/v1/router.py` | Layout 라우터 등록 |
+| `frontend/lib/api/layout-api.ts` | Layout API 클라이언트 (신규) |
+| `frontend/lib/canvas/layoutRenderer.ts` | 레이아웃 렌더러 유틸 (신규) |
+| `frontend/components/.../MeetingTab.tsx` | Layout API 연동 및 렌더링 |
+| `frontend/components/.../BriefTab.tsx` | 캔버스 전송 기능 추가 |
+| `frontend/lib/canvas/instagramTemplate.ts` | Layout API 지원 추가 |
+| `frontend/lib/canvas/productDetailTemplate.ts` | Layout API 지원 추가 |
 
 ---
 
-## 아키텍처 흐름 (ImageTab v2)
+## 커밋 히스토리 (최근 5개)
 
 ```
-[사용자 입력 (한글)]
-       ↓
-[translatePromptToEnglish()]
-  ├─ GPT-4o-mini 선택 → callOpenAI() → OpenAI API 직접
-  └─ 오픈소스 선택 → callOllama() → Ollama API 직접 (GPU 서버)
-       ↓
-[영문 프롬프트]
-       ↓
-[generateViaMediaGateway()]
-       ↓
-[Mac Mini Backend /api/v1/media/generate]
-       ↓
-[zimage_provider.py → Desktop GPU Z-Image 서버]
-       ↓
-[base64 이미지 반환]
-       ↓
-[채팅창에 이미지 표시]
+476165e [2025-12-04][C] fix: MeetingTab에 figure/rect/tag 타입 렌더링 추가
+7b1663d [2025-12-04][B] fix: DocumentLayoutAgent 문서 유형별 전용 레이아웃 적용
+ea06a7d [2025-12-04][B] fix: Layout API 라우트 prefix 중복 수정
+8af2ea8 [2025-12-04][B] feat: DocumentLayoutAgent + Layout API 추가
+e19b6f2 [2025-12-04][C] feat: Meeting 캔버스 렌더링 개선 + Brief 변환 기능
 ```
-
----
-
-## 서버 정보
-
-| 서버 | IP | 포트 | 용도 |
-|------|-----|------|------|
-| Mac Mini | 100.123.51.5 | 8000 | Backend API |
-| Desktop (GPU) | 100.120.180.42 | 7860 | Z-Image (SDXL) |
-| Desktop (GPU) | 100.120.180.42 | 11434 | Ollama (LLM) |
-| Desktop (GPU) | 100.120.180.42 | 8188 | ComfyUI |
-| Laptop | localhost | 3001 | Frontend |
-
----
-
-## 중요: Video6는 건들지 마세요!
-
-> "아 영상은 건들이지 말고 하자. 또 작업하다가 잘 되던 것도 안되면 안되니까"
-
-Video6 관련 파일들은 이미 잘 작동하고 있으므로 수정하지 않습니다.
 
 ---
 
 ## 테스트 명령어
 
 ```bash
-# Frontend 재시작
-cd frontend
-npm run dev
-
-# Z-Image 헬스체크
-curl http://100.120.180.42:7860/health
-
-# Ollama 모델 확인
-curl http://100.120.180.42:11434/api/tags
-
-# Z-Image 직접 테스트
-curl -X POST http://100.120.180.42:7860/api/generate \
+# Layout API 테스트 (Meeting Summary)
+curl -X POST "http://100.123.51.5:8000/api/v1/layout/generate/meeting" \
   -H "Content-Type: application/json" \
-  -d '{"prompt": "A young Korean woman in her 20s, studio photography, professional lighting", "width": 1024, "height": 1024, "steps": 8}'
+  -d '{
+    "title": "주간 마케팅 회의",
+    "summary": "캠페인 성과 분석 및 전략 논의",
+    "agenda": ["성과 분석", "예산 검토"],
+    "decisions": ["예산 30% 증액"],
+    "action_items": [{"task": "보고서 작성", "assignee": "분석팀"}],
+    "keywords": ["마케팅", "캠페인"]
+  }'
+
+# Layout API 프리셋 조회
+curl http://100.123.51.5:8000/api/v1/layout/presets
 ```
 
 ---
 
-## 알려진 이슈
-
-1. **Backend `/api/v1/llm/chat` 없음**
-   - 현재 Frontend에서 직접 OpenAI/Ollama 호출로 우회
-   - 장기적으로는 Backend에 엔드포인트 추가 권장
-
-2. **Claude 프롬프트 번역 미지원**
-   - Anthropic API 직접 호출 미구현 (필요 시 추가)
-   - 현재 Claude 선택 시 fallback 프롬프트 사용
-
----
-
-**마지막 업데이트**: 2025-12-03 18:55 by C팀 (Frontend)
+**마지막 업데이트**: 2025-12-04 21:30 by B팀/C팀 (DocumentLayoutAgent 구현)
