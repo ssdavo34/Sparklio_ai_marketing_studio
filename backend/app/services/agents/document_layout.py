@@ -52,18 +52,18 @@ MARGIN_LARGE = 120    # 페이지 좌우 여백
 MARGIN_MEDIUM = 80    # 섹션 간 여백
 MARGIN_SMALL = 40     # 요소 간 여백
 
-# 폰트 크기 가이드 (Genspark 수준)
+# 폰트 크기 가이드 (v3.0 - 1920x1080에서 가독성 최적화)
 FONT_SIZE = {
-    "hero_title": 72,      # 커버 페이지 메인 제목
-    "page_title": 48,      # 페이지 제목
-    "section_title": 36,   # 섹션 제목
-    "card_title": 28,      # 카드 제목
-    "body_large": 24,      # 본문 (강조)
-    "body": 20,            # 본문
-    "body_small": 18,      # 본문 (작은)
-    "caption": 16,         # 캡션, 메타데이터
-    "footer": 14,          # 푸터
-    "part_number": 32,     # PART 번호
+    "hero_title": 96,      # 커버 페이지 메인 제목 (더 크게)
+    "page_title": 64,      # 페이지 제목 (더 크게)
+    "section_title": 48,   # 섹션 제목
+    "card_title": 36,      # 카드 제목
+    "body_large": 32,      # 본문 (강조)
+    "body": 28,            # 본문 (더 크게)
+    "body_small": 24,      # 본문 (작은)
+    "caption": 20,         # 캡션, 메타데이터
+    "footer": 18,          # 푸터
+    "part_number": 40,     # PART 번호
 }
 
 # 색상 팔레트 (모던 & 프로페셔널)
@@ -2150,14 +2150,13 @@ class DocumentLayoutAgent(AgentBase):
         page_height: int
     ) -> PageLayout:
         """
-        v2.0 커버 페이지 - Genspark 스타일
+        v3.0 커버 페이지 - 전체 공간 활용, 큰 폰트
 
         특징:
-        - 큰 제목 (72px)
-        - OVERVIEW 라벨
-        - 요약 카드 (배경색 포함)
-        - 키워드 태그
-        - 시각적 장식 요소
+        - 96px 대형 제목
+        - 페이지 전체를 채우는 레이아웃
+        - 2열 구성 (좌: 제목+요약, 우: 키워드+날짜)
+        - 요약 카드가 페이지 하단까지 확장
         """
 
         elements: List[LayoutElement] = []
@@ -2173,13 +2172,13 @@ class DocumentLayoutAgent(AgentBase):
             properties={"fill": COLORS["background"]}
         ))
 
-        # === 좌측 장식 바 (파란색 액센트) ===
+        # === 상단 컬러 바 (파란색 액센트) ===
         elements.append(LayoutElement(
             type="figure",
             x=0,
             y=0,
-            width=12,
-            height=page_height,
+            width=page_width,
+            height=16,
             properties={"fill": COLORS["primary"]}
         ))
 
@@ -2187,19 +2186,34 @@ class DocumentLayoutAgent(AgentBase):
         elements.append(LayoutElement(
             type="text",
             x=MARGIN_LARGE,
-            y=80,
-            width=200,
+            y=60,
+            width=300,
             properties={
                 "fontSize": FONT_SIZE["part_number"],
                 "fontWeight": "bold",
                 "fill": COLORS["primary"],
-                "letterSpacing": 4,
+                "letterSpacing": 6,
             },
             content="OVERVIEW"
         ))
 
-        # === 메인 제목 (큰 폰트) ===
-        title_y = 150
+        # === 날짜 (우측 상단) ===
+        date_str = datetime.now().strftime("%Y년 %m월 %d일")
+        elements.append(LayoutElement(
+            type="text",
+            x=page_width - MARGIN_LARGE - 300,
+            y=70,
+            width=300,
+            properties={
+                "fontSize": FONT_SIZE["caption"],
+                "fill": COLORS["text_light"],
+                "align": "right",
+            },
+            content=date_str
+        ))
+
+        # === 메인 제목 (96px 대형 폰트) ===
+        title_y = 130
         elements.append(LayoutElement(
             type="text",
             x=MARGIN_LARGE,
@@ -2209,13 +2223,13 @@ class DocumentLayoutAgent(AgentBase):
                 "fontSize": FONT_SIZE["hero_title"],
                 "fontWeight": "bold",
                 "fill": COLORS["text_primary"],
-                "lineHeight": 1.2,
+                "lineHeight": 1.15,
             },
             content=dynamic_title
         ))
 
         # === 부제목 (있으면) ===
-        current_y = title_y + 100
+        current_y = title_y + 130
         if content.subtitle:
             elements.append(LayoutElement(
                 type="text",
@@ -2223,19 +2237,20 @@ class DocumentLayoutAgent(AgentBase):
                 y=current_y,
                 width=content_width,
                 properties={
-                    "fontSize": FONT_SIZE["body_large"],
+                    "fontSize": FONT_SIZE["section_title"],
                     "fill": COLORS["text_secondary"],
                 },
                 content=content.subtitle
             ))
-            current_y += 50
+            current_y += 70
 
-        # === 요약 카드 ===
+        # === 요약 카드 (페이지 하단까지 확장) ===
         if content.summary:
-            current_y += 30
-            summary_height = min(300, max(150, len(content.summary) // 3))
+            current_y += 40
+            # 요약 카드가 페이지 하단(footer 공간 제외)까지 채움
+            summary_height = page_height - current_y - 100  # 100px footer 공간
 
-            # 카드 배경
+            # 카드 배경 (전체 너비, 큰 높이)
             elements.append(LayoutElement(
                 type="figure",
                 x=MARGIN_LARGE,
@@ -2244,18 +2259,18 @@ class DocumentLayoutAgent(AgentBase):
                 height=summary_height,
                 properties={
                     "fill": COLORS["card_bg"],
-                    "cornerRadius": 16,
+                    "cornerRadius": 24,
                 }
             ))
 
-            # 아이콘
+            # 아이콘 (더 큰 크기)
             elements.append(LayoutElement(
                 type="text",
-                x=MARGIN_LARGE + 30,
-                y=current_y + 25,
-                width=50,
+                x=MARGIN_LARGE + 40,
+                y=current_y + 40,
+                width=60,
                 properties={
-                    "fontSize": 32,
+                    "fontSize": 48,
                 },
                 content=SECTION_ICONS["summary"]
             ))
@@ -2263,107 +2278,76 @@ class DocumentLayoutAgent(AgentBase):
             # "Executive Summary" 라벨
             elements.append(LayoutElement(
                 type="text",
-                x=MARGIN_LARGE + 80,
-                y=current_y + 30,
-                width=300,
+                x=MARGIN_LARGE + 110,
+                y=current_y + 50,
+                width=400,
                 properties={
-                    "fontSize": FONT_SIZE["caption"],
+                    "fontSize": FONT_SIZE["body_large"],
                     "fontWeight": "bold",
                     "fill": COLORS["primary"],
                 },
                 content="Executive Summary"
             ))
 
-            # 요약 텍스트
+            # 요약 텍스트 (더 큰 폰트, 여러 줄)
             summary_text = content.summary
-            if len(summary_text) > 400:
-                summary_text = summary_text[:400] + "..."
+            # 긴 요약도 표시 가능 (카드가 크므로)
+            if len(summary_text) > 800:
+                summary_text = summary_text[:800] + "..."
 
             elements.append(LayoutElement(
                 type="text",
-                x=MARGIN_LARGE + 30,
-                y=current_y + 70,
-                width=content_width - 60,
-                height=summary_height - 90,
+                x=MARGIN_LARGE + 40,
+                y=current_y + 120,
+                width=content_width - 80,
+                height=summary_height - 200,
                 properties={
                     "fontSize": FONT_SIZE["body"],
                     "fill": COLORS["text_secondary"],
-                    "lineHeight": 1.6,
+                    "lineHeight": 1.7,
                 },
                 content=summary_text
             ))
 
-            current_y += summary_height + 30
+            # === 키워드 태그 (요약 카드 하단에 배치) ===
+            if content.keywords and len(content.keywords) > 0:
+                tag_y = current_y + summary_height - 80
+                tag_x = MARGIN_LARGE + 40
 
-        # === 키워드 태그 ===
-        if content.keywords and len(content.keywords) > 0:
-            tag_x = MARGIN_LARGE
-            tag_y = current_y + 20
+                for keyword in content.keywords[:8]:
+                    tag_width = len(keyword) * 16 + 48  # 더 큰 태그
 
-            # "Keywords" 라벨
-            elements.append(LayoutElement(
-                type="text",
-                x=tag_x,
-                y=tag_y,
-                width=100,
-                properties={
-                    "fontSize": FONT_SIZE["caption"],
-                    "fill": COLORS["text_light"],
-                },
-                content="Keywords"
-            ))
-            tag_y += 30
+                    if tag_x + tag_width > page_width - MARGIN_LARGE - 40:
+                        break  # 한 줄만 표시
 
-            for keyword in content.keywords[:6]:
-                tag_width = len(keyword) * 12 + 32
+                    # 태그 배경
+                    elements.append(LayoutElement(
+                        type="figure",
+                        x=tag_x,
+                        y=tag_y,
+                        width=tag_width,
+                        height=48,
+                        properties={
+                            "fill": "#DBEAFE",
+                            "cornerRadius": 24,
+                        }
+                    ))
 
-                if tag_x + tag_width > page_width - MARGIN_LARGE:
-                    tag_x = MARGIN_LARGE
-                    tag_y += 45
+                    # 태그 텍스트
+                    elements.append(LayoutElement(
+                        type="text",
+                        x=tag_x + 24,
+                        y=tag_y + 12,
+                        width=tag_width - 48,
+                        properties={
+                            "fontSize": FONT_SIZE["body_small"],
+                            "fill": COLORS["primary_dark"],
+                            "fontWeight": "600",
+                        },
+                        content=keyword
+                    ))
 
-                # 태그 배경
-                elements.append(LayoutElement(
-                    type="figure",
-                    x=tag_x,
-                    y=tag_y,
-                    width=tag_width,
-                    height=36,
-                    properties={
-                        "fill": "#DBEAFE",
-                        "cornerRadius": 18,
-                    }
-                ))
-
-                # 태그 텍스트
-                elements.append(LayoutElement(
-                    type="text",
-                    x=tag_x + 16,
-                    y=tag_y + 9,
-                    width=tag_width - 32,
-                    properties={
-                        "fontSize": FONT_SIZE["body_small"],
-                        "fill": COLORS["primary_dark"],
-                        "fontWeight": "500",
-                    },
-                    content=keyword
-                ))
-
-                tag_x += tag_width + 12
-
-        # === 날짜 정보 ===
-        date_str = datetime.now().strftime("%Y년 %m월 %d일")
-        elements.append(LayoutElement(
-            type="text",
-            x=page_width - MARGIN_LARGE - 200,
-            y=80,
-            width=200,
-            properties={
-                "fontSize": FONT_SIZE["caption"],
-                "fill": COLORS["text_light"],
-                "align": "right",
-            },
-            content=date_str
-        ))
+                    tag_x += tag_width + 16
 
         return PageLayout(
             page_number=1,
@@ -2383,13 +2367,13 @@ class DocumentLayoutAgent(AgentBase):
         part_number: int
     ) -> PageLayout:
         """
-        v2.0 콘텐츠 페이지 - 카드 기반 리스트
+        v3.0 콘텐츠 페이지 - 2열 카드 레이아웃으로 공간 최대 활용
 
         특징:
-        - PART 번호
-        - 큰 섹션 제목 (48px)
-        - 카드 형태 항목 (배경색 + 번호)
-        - 시각적 계층 구조
+        - PART 번호 (40px)
+        - 큰 섹션 제목 (64px)
+        - 2열 카드 레이아웃 (항목이 4개 이상일 때)
+        - 카드가 페이지를 가득 채움
         """
 
         elements: List[LayoutElement] = []
@@ -2418,13 +2402,13 @@ class DocumentLayoutAgent(AgentBase):
             properties={"fill": COLORS["background"]}
         ))
 
-        # === 좌측 장식 바 ===
+        # === 상단 컬러 바 ===
         elements.append(LayoutElement(
             type="figure",
             x=0,
             y=0,
-            width=12,
-            height=page_height,
+            width=page_width,
+            height=16,
             properties={"fill": accent_color}
         ))
 
@@ -2432,13 +2416,13 @@ class DocumentLayoutAgent(AgentBase):
         elements.append(LayoutElement(
             type="text",
             x=MARGIN_LARGE,
-            y=60,
-            width=200,
+            y=50,
+            width=300,
             properties={
                 "fontSize": FONT_SIZE["part_number"],
                 "fontWeight": "bold",
                 "fill": accent_color,
-                "letterSpacing": 3,
+                "letterSpacing": 4,
             },
             content=f"PART {part_number}"
         ))
@@ -2448,18 +2432,18 @@ class DocumentLayoutAgent(AgentBase):
             type="text",
             x=MARGIN_LARGE,
             y=110,
-            width=60,
+            width=80,
             properties={
-                "fontSize": 40,
+                "fontSize": 56,
             },
             content=icon
         ))
 
         elements.append(LayoutElement(
             type="text",
-            x=MARGIN_LARGE + 60,
+            x=MARGIN_LARGE + 80,
             y=115,
-            width=content_width - 60,
+            width=content_width - 80,
             properties={
                 "fontSize": FONT_SIZE["page_title"],
                 "fontWeight": "bold",
@@ -2468,40 +2452,61 @@ class DocumentLayoutAgent(AgentBase):
             content=title
         ))
 
-        # === 카드 리스트 ===
-        card_start_y = 200
-        card_gap = 20
+        # === 카드 영역 (2열 레이아웃) ===
+        card_start_y = 210
+        card_gap = 24
+        col_gap = 32
 
-        # 항목 수에 따른 카드 높이 계산
-        available_height = page_height - card_start_y - 100
-        max_items = min(len(items), 8)
-        card_height = min(120, (available_height - (max_items - 1) * card_gap) // max_items)
-        card_height = max(80, card_height)
+        # 2열 레이아웃 결정 (4개 이상이면 2열)
+        use_two_columns = len(items) >= 4
+
+        if use_two_columns:
+            col_width = (content_width - col_gap) // 2
+            max_items = min(len(items), 8)  # 최대 8개 (4행 x 2열)
+            rows = (max_items + 1) // 2
+        else:
+            col_width = content_width
+            max_items = min(len(items), 4)
+            rows = max_items
+
+        # 카드 높이 계산 (남은 공간을 채우도록)
+        available_height = page_height - card_start_y - 80  # footer 공간
+        card_height = (available_height - (rows - 1) * card_gap) // rows
+        card_height = max(120, min(200, card_height))  # 120~200px 범위
 
         current_y = card_start_y
 
         for idx, item in enumerate(items[:max_items]):
             item_text = str(item)
 
+            if use_two_columns:
+                row = idx // 2
+                col = idx % 2
+                card_x = MARGIN_LARGE + col * (col_width + col_gap)
+                card_y = card_start_y + row * (card_height + card_gap)
+            else:
+                card_x = MARGIN_LARGE
+                card_y = card_start_y + idx * (card_height + card_gap)
+
             # 카드 배경
             elements.append(LayoutElement(
                 type="figure",
-                x=MARGIN_LARGE,
-                y=current_y,
-                width=content_width,
+                x=card_x,
+                y=card_y,
+                width=col_width,
                 height=card_height,
                 properties={
                     "fill": COLORS["card_bg"],
-                    "cornerRadius": 12,
+                    "cornerRadius": 16,
                 }
             ))
 
-            # 번호 뱃지
-            badge_size = 44
+            # 번호 뱃지 (더 크게)
+            badge_size = 56
             elements.append(LayoutElement(
                 type="figure",
-                x=MARGIN_LARGE + 20,
-                y=current_y + (card_height - badge_size) // 2,
+                x=card_x + 24,
+                y=card_y + (card_height - badge_size) // 2,
                 width=badge_size,
                 height=badge_size,
                 properties={
@@ -2511,8 +2516,8 @@ class DocumentLayoutAgent(AgentBase):
             ))
             elements.append(LayoutElement(
                 type="text",
-                x=MARGIN_LARGE + 20,
-                y=current_y + (card_height - badge_size) // 2 + 10,
+                x=card_x + 24,
+                y=card_y + (card_height - badge_size) // 2 + 14,
                 width=badge_size,
                 properties={
                     "fontSize": FONT_SIZE["body"],
@@ -2523,18 +2528,19 @@ class DocumentLayoutAgent(AgentBase):
                 content=str(idx + 1)
             ))
 
-            # 항목 텍스트
-            text_x = MARGIN_LARGE + 20 + badge_size + 24
-            text_width = content_width - badge_size - 80
+            # 항목 텍스트 (더 큰 폰트)
+            text_x = card_x + 24 + badge_size + 24
+            text_width = col_width - badge_size - 80
 
             # 텍스트 길이에 따른 처리
-            if len(item_text) > 150:
-                item_text = item_text[:147] + "..."
+            max_len = 100 if use_two_columns else 200
+            if len(item_text) > max_len:
+                item_text = item_text[:max_len - 3] + "..."
 
             elements.append(LayoutElement(
                 type="text",
                 x=text_x,
-                y=current_y + (card_height - FONT_SIZE["body"]) // 2 - 5,
+                y=card_y + (card_height - FONT_SIZE["body"]) // 2,
                 width=text_width,
                 properties={
                     "fontSize": FONT_SIZE["body"],
@@ -2544,14 +2550,13 @@ class DocumentLayoutAgent(AgentBase):
                 content=item_text
             ))
 
-            current_y += card_height + card_gap
-
         # 더 많은 항목 표시
         if len(items) > max_items:
+            final_y = card_start_y + rows * (card_height + card_gap) + 10
             elements.append(LayoutElement(
                 type="text",
                 x=MARGIN_LARGE,
-                y=current_y + 10,
+                y=final_y,
                 width=content_width,
                 properties={
                     "fontSize": FONT_SIZE["caption"],
@@ -2578,16 +2583,18 @@ class DocumentLayoutAgent(AgentBase):
         part_number: int
     ) -> PageLayout:
         """
-        v2.0 2컬럼 페이지 - 안건 + 결정사항
+        v3.0 2컬럼 페이지 - 안건 + 결정사항 (전체 공간 활용)
 
         특징:
         - 좌/우 분리 레이아웃
         - 각 컬럼별 색상 구분
-        - 카드 스타일 항목
+        - 카드가 페이지 하단까지 채움
+        - 큰 폰트
         """
 
         elements: List[LayoutElement] = []
-        col_width = (page_width - MARGIN_LARGE * 2 - MARGIN_MEDIUM) // 2
+        col_gap = 48  # 컬럼 간 간격
+        col_width = (page_width - MARGIN_LARGE * 2 - col_gap) // 2
 
         # === 배경 ===
         elements.append(LayoutElement(
@@ -2599,13 +2606,14 @@ class DocumentLayoutAgent(AgentBase):
             properties={"fill": COLORS["background"]}
         ))
 
-        # === 상단 헤더 영역 ===
+        # === 상단 헤더 영역 (더 크게) ===
+        header_height = 180
         elements.append(LayoutElement(
             type="figure",
             x=0,
             y=0,
             width=page_width,
-            height=140,
+            height=header_height,
             properties={"fill": COLORS["primary_dark"]}
         ))
 
@@ -2613,22 +2621,22 @@ class DocumentLayoutAgent(AgentBase):
         elements.append(LayoutElement(
             type="text",
             x=MARGIN_LARGE,
-            y=35,
-            width=200,
+            y=40,
+            width=300,
             properties={
-                "fontSize": FONT_SIZE["caption"],
+                "fontSize": FONT_SIZE["body_small"],
                 "fontWeight": "bold",
                 "fill": "rgba(255,255,255,0.7)",
-                "letterSpacing": 3,
+                "letterSpacing": 4,
             },
             content=f"PART {part_number}"
         ))
 
-        # 페이지 제목
+        # 페이지 제목 (더 큰 폰트)
         elements.append(LayoutElement(
             type="text",
             x=MARGIN_LARGE,
-            y=70,
+            y=90,
             width=page_width - MARGIN_LARGE * 2,
             properties={
                 "fontSize": FONT_SIZE["page_title"],
@@ -2640,9 +2648,9 @@ class DocumentLayoutAgent(AgentBase):
 
         # === 왼쪽 컬럼: 안건 ===
         left_x = MARGIN_LARGE
-        col_start_y = 180
+        col_start_y = header_height + 30
 
-        # 컬럼 제목
+        # 컬럼 제목 (더 큰 폰트)
         elements.append(LayoutElement(
             type="text",
             x=left_x,
@@ -2659,12 +2667,12 @@ class DocumentLayoutAgent(AgentBase):
         if agenda_section:
             items = agenda_section.get("items", [])
             self._render_column_items_v2(
-                elements, items, left_x, col_start_y + 60, col_width,
-                page_height - col_start_y - 140, COLORS["primary"]
+                elements, items, left_x, col_start_y + 80, col_width,
+                page_height - col_start_y - 160, COLORS["primary"]
             )
 
         # === 오른쪽 컬럼: 결정사항 ===
-        right_x = MARGIN_LARGE + col_width + MARGIN_MEDIUM
+        right_x = MARGIN_LARGE + col_width + col_gap
 
         # 컬럼 제목
         elements.append(LayoutElement(
@@ -2683,8 +2691,8 @@ class DocumentLayoutAgent(AgentBase):
         if decisions_section:
             items = decisions_section.get("items", [])
             self._render_column_items_v2(
-                elements, items, right_x, col_start_y + 60, col_width,
-                page_height - col_start_y - 140, COLORS["success"]
+                elements, items, right_x, col_start_y + 80, col_width,
+                page_height - col_start_y - 160, COLORS["success"]
             )
 
         return PageLayout(
@@ -2705,21 +2713,21 @@ class DocumentLayoutAgent(AgentBase):
         available_height: int,
         accent_color: str
     ) -> None:
-        """v2.0 컬럼 항목 렌더링"""
+        """v3.0 컬럼 항목 렌더링 - 더 큰 카드, 더 큰 폰트"""
 
-        max_items = min(len(items), 6)
-        item_gap = 16
-        item_height = min(100, (available_height - (max_items - 1) * item_gap) // max_items)
-        item_height = max(60, item_height)
+        max_items = min(len(items), 5)  # 최대 5개
+        item_gap = 20
+        item_height = (available_height - (max_items - 1) * item_gap) // max_items
+        item_height = max(100, min(160, item_height))  # 100~160px 범위
 
         current_y = start_y
 
         for idx, item in enumerate(items[:max_items]):
             item_text = str(item)
-            if len(item_text) > 80:
-                item_text = item_text[:77] + "..."
+            if len(item_text) > 100:
+                item_text = item_text[:97] + "..."
 
-            # 항목 배경
+            # 항목 배경 (더 크고 둥근 모서리)
             elements.append(LayoutElement(
                 type="figure",
                 x=x,
@@ -2728,27 +2736,27 @@ class DocumentLayoutAgent(AgentBase):
                 height=item_height,
                 properties={
                     "fill": COLORS["card_bg"],
-                    "cornerRadius": 10,
+                    "cornerRadius": 16,
                 }
             ))
 
-            # 번호
-            badge_size = 32
+            # 번호 뱃지 (더 크게)
+            badge_size = 48
             elements.append(LayoutElement(
                 type="figure",
-                x=x + 12,
+                x=x + 20,
                 y=current_y + (item_height - badge_size) // 2,
                 width=badge_size,
                 height=badge_size,
                 properties={
                     "fill": accent_color,
-                    "cornerRadius": 6,
+                    "cornerRadius": 12,
                 }
             ))
             elements.append(LayoutElement(
                 type="text",
-                x=x + 12,
-                y=current_y + (item_height - badge_size) // 2 + 6,
+                x=x + 20,
+                y=current_y + (item_height - badge_size) // 2 + 10,
                 width=badge_size,
                 properties={
                     "fontSize": FONT_SIZE["body_small"],
@@ -2759,16 +2767,16 @@ class DocumentLayoutAgent(AgentBase):
                 content=str(idx + 1)
             ))
 
-            # 텍스트
+            # 텍스트 (더 큰 폰트)
             elements.append(LayoutElement(
                 type="text",
-                x=x + 12 + badge_size + 12,
+                x=x + 20 + badge_size + 20,
                 y=current_y + (item_height - FONT_SIZE["body_small"]) // 2,
-                width=width - badge_size - 40,
+                width=width - badge_size - 70,
                 properties={
                     "fontSize": FONT_SIZE["body_small"],
                     "fill": COLORS["text_primary"],
-                    "lineHeight": 1.4,
+                    "lineHeight": 1.5,
                 },
                 content=item_text
             ))
@@ -2783,12 +2791,13 @@ class DocumentLayoutAgent(AgentBase):
         part_number: int
     ) -> PageLayout:
         """
-        v2.0 액션 아이템 페이지 - 강조 카드 그리드
+        v3.0 액션 아이템 페이지 - 2열 큰 카드
 
         특징:
-        - 빨간색/주황색 강조
-        - 담당자/기한 표시
-        - 체크박스 스타일
+        - 2열 레이아웃으로 페이지 가득 채움
+        - 더 큰 카드 (높이 최대화)
+        - 큰 폰트
+        - 담당자 정보
         """
 
         elements: List[LayoutElement] = []
@@ -2815,13 +2824,13 @@ class DocumentLayoutAgent(AgentBase):
             properties={"fill": COLORS["background"]}
         ))
 
-        # === 좌측 장식 바 (빨간색) ===
+        # === 상단 컬러 바 (빨간색) ===
         elements.append(LayoutElement(
             type="figure",
             x=0,
             y=0,
-            width=12,
-            height=page_height,
+            width=page_width,
+            height=16,
             properties={"fill": COLORS["danger"]}
         ))
 
@@ -2829,13 +2838,13 @@ class DocumentLayoutAgent(AgentBase):
         elements.append(LayoutElement(
             type="text",
             x=MARGIN_LARGE,
-            y=60,
-            width=200,
+            y=50,
+            width=300,
             properties={
                 "fontSize": FONT_SIZE["part_number"],
                 "fontWeight": "bold",
                 "fill": COLORS["danger"],
-                "letterSpacing": 3,
+                "letterSpacing": 4,
             },
             content=f"PART {part_number}"
         ))
@@ -2845,16 +2854,16 @@ class DocumentLayoutAgent(AgentBase):
             type="text",
             x=MARGIN_LARGE,
             y=110,
-            width=60,
-            properties={"fontSize": 40},
+            width=80,
+            properties={"fontSize": 56},
             content=SECTION_ICONS["action_items"]
         ))
 
         elements.append(LayoutElement(
             type="text",
-            x=MARGIN_LARGE + 60,
+            x=MARGIN_LARGE + 80,
             y=115,
-            width=content_width - 60,
+            width=content_width - 80,
             properties={
                 "fontSize": FONT_SIZE["page_title"],
                 "fontWeight": "bold",
@@ -2864,18 +2873,18 @@ class DocumentLayoutAgent(AgentBase):
         ))
 
         # === 카드 그리드 (2열) ===
-        card_start_y = 200
-        card_gap = 24
-        col_gap = 32
+        card_start_y = 210
+        card_gap = 28
+        col_gap = 40
 
-        # 카드 크기 계산
+        # 카드 크기 계산 (페이지를 가득 채움)
         card_width = (content_width - col_gap) // 2
         max_items = min(len(items), 6)
         rows = (max_items + 1) // 2
 
-        available_height = page_height - card_start_y - 100
-        card_height = min(150, (available_height - (rows - 1) * card_gap) // rows)
-        card_height = max(100, card_height)
+        available_height = page_height - card_start_y - 80
+        card_height = (available_height - (rows - 1) * card_gap) // rows
+        card_height = max(150, min(250, card_height))  # 150~250px 범위
 
         for idx, item in enumerate(items[:max_items]):
             row = idx // 2
@@ -2884,7 +2893,7 @@ class DocumentLayoutAgent(AgentBase):
             card_x = MARGIN_LARGE + col * (card_width + col_gap)
             card_y = card_start_y + row * (card_height + card_gap)
 
-            # 카드 배경 (그라데이션 효과)
+            # 카드 배경 (부드러운 빨간색)
             elements.append(LayoutElement(
                 type="figure",
                 x=card_x,
@@ -2893,29 +2902,29 @@ class DocumentLayoutAgent(AgentBase):
                 height=card_height,
                 properties={
                     "fill": "#FEF2F2",
-                    "cornerRadius": 16,
+                    "cornerRadius": 20,
                     "stroke": "#FECACA",
                     "strokeWidth": 2,
                 }
             ))
 
-            # 체크박스 스타일 번호
-            checkbox_size = 40
+            # 체크박스 스타일 번호 (더 크게)
+            checkbox_size = 56
             elements.append(LayoutElement(
                 type="figure",
-                x=card_x + 20,
-                y=card_y + 20,
+                x=card_x + 28,
+                y=card_y + 28,
                 width=checkbox_size,
                 height=checkbox_size,
                 properties={
                     "fill": COLORS["danger"],
-                    "cornerRadius": 8,
+                    "cornerRadius": 12,
                 }
             ))
             elements.append(LayoutElement(
                 type="text",
-                x=card_x + 20,
-                y=card_y + 28,
+                x=card_x + 28,
+                y=card_y + 40,
                 width=checkbox_size,
                 properties={
                     "fontSize": FONT_SIZE["body"],
@@ -2926,29 +2935,29 @@ class DocumentLayoutAgent(AgentBase):
                 content=str(idx + 1)
             ))
 
-            # 항목 텍스트
+            # 항목 텍스트 (더 큰 폰트)
             item_text = str(item)
             if isinstance(item, dict):
                 item_text = item.get("task", item.get("text", str(item)))
 
-            if len(item_text) > 100:
-                item_text = item_text[:97] + "..."
+            if len(item_text) > 80:
+                item_text = item_text[:77] + "..."
 
             elements.append(LayoutElement(
                 type="text",
-                x=card_x + 20 + checkbox_size + 16,
-                y=card_y + 24,
-                width=card_width - checkbox_size - 60,
+                x=card_x + 28 + checkbox_size + 24,
+                y=card_y + 36,
+                width=card_width - checkbox_size - 90,
                 properties={
                     "fontSize": FONT_SIZE["body"],
                     "fontWeight": "600",
                     "fill": COLORS["text_primary"],
-                    "lineHeight": 1.4,
+                    "lineHeight": 1.5,
                 },
                 content=item_text
             ))
 
-            # 담당자 (있으면)
+            # 담당자 (있으면) - 카드 하단에 표시
             assignee = None
             if isinstance(item, dict):
                 assignee = item.get("assignee", item.get("담당자"))
@@ -2956,22 +2965,24 @@ class DocumentLayoutAgent(AgentBase):
             if assignee:
                 elements.append(LayoutElement(
                     type="text",
-                    x=card_x + 20 + checkbox_size + 16,
-                    y=card_y + card_height - 35,
-                    width=card_width - checkbox_size - 60,
+                    x=card_x + 28 + checkbox_size + 24,
+                    y=card_y + card_height - 50,
+                    width=card_width - checkbox_size - 90,
                     properties={
-                        "fontSize": FONT_SIZE["caption"],
-                        "fill": COLORS["text_light"],
+                        "fontSize": FONT_SIZE["body_small"],
+                        "fill": COLORS["danger"],
+                        "fontWeight": "500",
                     },
                     content=f"👤 {assignee}"
                 ))
 
         # 더 많은 항목 표시
         if len(items) > max_items:
+            final_y = card_start_y + rows * (card_height + card_gap) + 10
             elements.append(LayoutElement(
                 type="text",
                 x=MARGIN_LARGE,
-                y=card_start_y + rows * (card_height + card_gap) + 10,
+                y=final_y,
                 width=content_width,
                 properties={
                     "fontSize": FONT_SIZE["caption"],
