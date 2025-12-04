@@ -50,6 +50,74 @@ router = APIRouter(prefix="/meetings", tags=["meetings"])
 
 
 # =============================================================================
+# Transcript Refinement (노이즈 제거)
+# =============================================================================
+
+import re
+
+def refine_transcript(text: str) -> str:
+    """
+    트랜스크립트 텍스트 정제
+
+    Whisper STT 결과에서 노이즈를 제거하고 정제된 텍스트를 반환.
+    DB에 저장되기 전에 호출되어 깨끗한 텍스트가 저장되도록 함.
+
+    정제 항목:
+    1. 소리 태그 제거: [음악], [박수], [웃음], [침묵] 등
+    2. 화자 마커 정리: >> 기호 제거
+    3. 반복 문구 제거: 연속 중복 문장 제거
+    4. 공백 정규화: 과도한 공백/줄바꿈 정리
+    """
+    if not text:
+        return ""
+
+    original_len = len(text)
+
+    # 1. 소리/환경 태그 제거 (대소문자 무시)
+    # [음악], [박수], [웃음], [침묵], [Music], [Applause] 등
+    text = re.sub(r'\[(?:음악|박수|웃음|침묵|한숨|기침|노래|Music|Applause|Laughter|Silence|Cough|Sigh)\]', '', text, flags=re.IGNORECASE)
+
+    # 2. 화자 마커 정리 (>> 기호)
+    # ">> 안녕하세요" -> "안녕하세요"
+    text = re.sub(r'>>\s*', '', text)
+
+    # 3. 타임스탬프 패턴 제거 (00:00:00 형식)
+    text = re.sub(r'\d{1,2}:\d{2}(:\d{2})?\s*', '', text)
+
+    # 4. 불필요한 필러 단어 정리 (선택적)
+    # "어...", "음...", "그..." 등은 보존 (의미 있을 수 있음)
+
+    # 5. 반복 문장 제거 (연속된 동일 문장)
+    lines = text.split('\n')
+    deduplicated_lines = []
+    prev_line = None
+    for line in lines:
+        stripped = line.strip()
+        if stripped and stripped != prev_line:
+            deduplicated_lines.append(line)
+            prev_line = stripped
+        elif not stripped and deduplicated_lines and deduplicated_lines[-1].strip():
+            # 빈 줄은 한 번만 유지
+            deduplicated_lines.append('')
+    text = '\n'.join(deduplicated_lines)
+
+    # 6. 연속 공백 정규화
+    text = re.sub(r' {2,}', ' ', text)
+
+    # 7. 연속 줄바꿈 정규화 (3개 이상 -> 2개)
+    text = re.sub(r'\n{3,}', '\n\n', text)
+
+    # 8. 앞뒤 공백 제거
+    text = text.strip()
+
+    refined_len = len(text)
+    if original_len != refined_len:
+        logger.debug(f"Transcript refined: {original_len} -> {refined_len} chars (removed {original_len - refined_len})")
+
+    return text
+
+
+# =============================================================================
 # Meeting CRUD
 # =============================================================================
 
@@ -458,12 +526,26 @@ async def transcribe_meeting(
                 detail=f"Transcription failed: {str(e)}"
             )
 
-        # 6. 기존 primary transcript 해제
+        # 6. 트랜스크립트 정제 (노이즈 제거)
+        refined_text = refine_transcript(result.text)
+        refined_segments = []
+        for seg in result.segments:
+            refined_seg_text = refine_transcript(seg.text)
+            if refined_seg_text.strip():  # 빈 세그먼트 제외
+                refined_segments.append({
+                    "start": seg.start,
+                    "end": seg.end,
+                    "text": refined_seg_text
+                })
+
+        logger.info(f"Transcript refined: {len(result.text)} -> {len(refined_text)} chars")
+
+        # 7. 기존 primary transcript 해제
         if transcribe_data.reprocess and existing_transcript:
             existing_transcript.is_primary = False
             db.commit()
 
-        # 7. Backend enum 매핑
+        # 8. Backend enum 매핑
         backend_map = {
             "openai": TranscriptBackend.OPENAI,
             "faster_whisper": TranscriptBackend.FASTER_WHISPER,
@@ -471,7 +553,7 @@ async def transcribe_meeting(
         }
         backend_enum = backend_map.get(result.backend, TranscriptBackend.UNKNOWN)
 
-        # 8. meeting_transcripts 저장
+        # 8. meeting_transcripts 저장 (정제된 텍스트 사용)
         transcript = MeetingTranscript(
             meeting_id=meeting_id,
             source_type=TranscriptSourceType.WHISPER,
@@ -481,23 +563,18 @@ async def transcribe_meeting(
             is_primary=True,
             confidence=result.confidence,
             latency_ms=result.latency_ms,
-            transcript_text=result.text,
+            transcript_text=refined_text,  # 정제된 텍스트 저장
             language=result.language,
-            segments=[
-                {
-                    "start": seg.start,
-                    "end": seg.end,
-                    "text": seg.text
-                }
-                for seg in result.segments
-            ],
+            segments=refined_segments,  # 정제된 세그먼트 저장
             whisper_metadata={
                 "backend": result.backend,
                 "model": result.model,
                 "duration": result.duration_seconds,
                 "language_detected": result.language,
                 "confidence": result.confidence,
-                "latency_ms": result.latency_ms
+                "latency_ms": result.latency_ms,
+                "original_length": len(result.text),  # 원본 길이 기록
+                "refined_length": len(refined_text)   # 정제 후 길이 기록
             }
         )
 
@@ -669,28 +746,211 @@ async def analyze_meeting(
             if brand and brand.brand_dna:
                 brand_context = str(brand.brand_dna)
 
+        transcript_text = transcript.transcript_text
+
+        # 3.5 긴 트랜스크립트 청킹 처리
+        # qwen2.5:14b의 경우 컨텍스트 윈도우가 제한적이므로 청킹 필요
+        # 대략 4000자 이상이면 분할 분석
+        MAX_TRANSCRIPT_LENGTH = 4000
+
+        async def analyze_single_chunk(agent, chunk_text: str, chunk_index: int = 0, total_chunks: int = 1) -> dict:
+            """단일 청크 분석"""
+            agent_request = AgentRequest(
+                task="meeting_summary",
+                payload={
+                    "transcript": chunk_text,
+                    "meeting_title": meeting.title,
+                    "meeting_date": meeting.meeting_date.isoformat() if meeting.meeting_date else None,
+                    "brand_context": brand_context,
+                    "chunk_info": f"Part {chunk_index + 1} of {total_chunks}" if total_chunks > 1 else None
+                }
+            )
+            response = await agent.execute(agent_request)
+            if not response.outputs:
+                return {}
+            return response.outputs[0].value
+
+        def merge_analysis_results(results: list) -> dict:
+            """여러 청크의 분석 결과를 통합"""
+            if not results:
+                return {}
+            if len(results) == 1:
+                return results[0]
+
+            merged = {
+                "summary": "",
+                "agenda": [],
+                "decisions": [],
+                "action_items": [],
+                "campaign_ideas": []
+            }
+
+            # 각 청크 결과 통합
+            summary_parts = []
+            for i, result in enumerate(results):
+                if not isinstance(result, dict):
+                    continue
+
+                # summary 통합
+                for key in ["summary", "meeting_summary", "요약"]:
+                    if key in result and result[key]:
+                        summary_parts.append(f"[Part {i+1}] {result[key]}")
+                        break
+
+                # 리스트 항목들 통합 (중복 제거)
+                for key in ["agenda", "agendas", "안건"]:
+                    if key in result and isinstance(result[key], list):
+                        merged["agenda"].extend(result[key])
+                        break
+
+                for key in ["decisions", "결정사항"]:
+                    if key in result and isinstance(result[key], list):
+                        merged["decisions"].extend(result[key])
+                        break
+
+                for key in ["action_items", "actions", "액션아이템", "meeting_takeaways"]:
+                    if key in result and isinstance(result[key], list):
+                        merged["action_items"].extend(result[key])
+                        break
+
+                for key in ["campaign_ideas", "campaigns", "캠페인아이디어"]:
+                    if key in result and isinstance(result[key], list):
+                        merged["campaign_ideas"].extend(result[key])
+                        break
+
+            merged["summary"] = " ".join(summary_parts) if summary_parts else "분석 결과 요약 없음"
+
+            # 중복 제거 (문자열 기준)
+            for key in ["agenda", "decisions", "action_items", "campaign_ideas"]:
+                seen = set()
+                unique = []
+                for item in merged[key]:
+                    item_str = str(item) if not isinstance(item, str) else item
+                    if item_str not in seen:
+                        seen.add(item_str)
+                        unique.append(item)
+                merged[key] = unique
+
+            return merged
+
         # 4. MeetingAgent 실행
         agent = get_meeting_ai_agent()
-        agent_request = AgentRequest(
-            task="meeting_summary",
-            payload={
-                "transcript": transcript.transcript_text,
-                "meeting_title": meeting.title,
-                "meeting_date": meeting.meeting_date.isoformat() if meeting.meeting_date else None,
-                "brand_context": brand_context
-            }
-        )
 
-        agent_response = await agent.execute(agent_request)
+        if len(transcript_text) > MAX_TRANSCRIPT_LENGTH:
+            # 긴 트랜스크립트: 청킹 분석
+            logger.info(f"Transcript length {len(transcript_text)} > {MAX_TRANSCRIPT_LENGTH}, using chunked analysis")
 
-        # 5. Agent output 파싱
-        if not agent_response.outputs:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Agent returned no outputs"
+            # 문장 단위로 분할 (마침표, 물음표, 느낌표 기준)
+            import re
+            sentences = re.split(r'(?<=[.?!])\s+', transcript_text)
+
+            chunks = []
+            current_chunk = ""
+            for sentence in sentences:
+                if len(current_chunk) + len(sentence) < MAX_TRANSCRIPT_LENGTH:
+                    current_chunk += " " + sentence if current_chunk else sentence
+                else:
+                    if current_chunk:
+                        chunks.append(current_chunk.strip())
+                    current_chunk = sentence
+
+            if current_chunk:
+                chunks.append(current_chunk.strip())
+
+            if not chunks:
+                chunks = [transcript_text[:MAX_TRANSCRIPT_LENGTH]]
+
+            logger.info(f"Split into {len(chunks)} chunks")
+
+            # 각 청크 분석
+            chunk_results = []
+            for i, chunk in enumerate(chunks):
+                logger.info(f"Analyzing chunk {i+1}/{len(chunks)} ({len(chunk)} chars)")
+                result = await analyze_single_chunk(agent, chunk, i, len(chunks))
+                chunk_results.append(result)
+
+            # 결과 통합
+            analysis_result = merge_analysis_results(chunk_results)
+            agent_response = None  # 청킹의 경우 개별 응답 없음
+        else:
+            # 짧은 트랜스크립트: 단일 분석
+            agent_request = AgentRequest(
+                task="meeting_summary",
+                payload={
+                    "transcript": transcript_text,
+                    "meeting_title": meeting.title,
+                    "meeting_date": meeting.meeting_date.isoformat() if meeting.meeting_date else None,
+                    "brand_context": brand_context
+                }
             )
 
-        analysis_result = agent_response.outputs[0].value
+            agent_response = await agent.execute(agent_request)
+
+        # 5. Agent output 파싱
+        # 청킹의 경우 analysis_result가 이미 설정됨
+        if agent_response is not None:
+            if not agent_response.outputs:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Agent returned no outputs"
+                )
+            analysis_result = agent_response.outputs[0].value
+
+        # 5.5 분석 결과 검증
+        # LLM이 입력 데이터를 그대로 반환하거나 빈 결과를 반환하는 경우 감지
+        def validate_analysis_result(result: dict, transcript_text: str) -> tuple[bool, str]:
+            """
+            분석 결과가 유효한지 검증
+
+            Returns:
+                tuple[bool, str]: (유효 여부, 오류 메시지)
+            """
+            if not isinstance(result, dict):
+                return False, "Analysis result is not a dictionary"
+
+            # 입력 데이터가 그대로 반환된 경우 감지
+            # (transcript 키가 있으면 LLM이 입력을 그대로 반환한 것)
+            if "transcript" in result:
+                logger.warning("LLM returned input data instead of analysis")
+                return False, "LLM returned input data instead of analysis"
+
+            # 분석 결과 키가 하나도 없는 경우
+            analysis_keys = [
+                "summary", "meeting_summary", "요약", "전체요약", "overview",
+                "agenda", "agendas", "안건", "회의안건", "topics", "key_topics",
+                "decisions", "결정사항", "결정", "key_decisions",
+                "action_items", "actions", "액션아이템", "meeting_takeaways", "takeaways",
+                "campaign_ideas", "campaigns", "캠페인아이디어", "ideas"
+            ]
+            found_keys = [k for k in analysis_keys if k in result]
+            if not found_keys:
+                logger.warning(f"No analysis keys found in result. Keys present: {list(result.keys())}")
+                return False, f"No valid analysis keys found. Got: {list(result.keys())}"
+
+            # summary가 있는데 너무 짧은 경우 (10자 미만)
+            summary_value = None
+            for key in ["summary", "meeting_summary", "요약", "전체요약", "overview"]:
+                if key in result:
+                    summary_value = result[key]
+                    break
+            if summary_value and isinstance(summary_value, str) and len(summary_value) < 10:
+                logger.warning(f"Summary too short: {len(summary_value)} chars")
+                # 경고만 하고 통과 (완전 무효는 아님)
+
+            return True, ""
+
+        is_valid, error_msg = validate_analysis_result(analysis_result, transcript_text)
+        if not is_valid:
+            logger.error(f"Invalid analysis result: {error_msg}")
+            # DB에는 저장하되, 상태는 실패로 표시
+            meeting.analysis_result = {"error": error_msg, "raw_response": analysis_result}
+            meeting.status = MeetingStatus.FAILED
+            meeting.updated_at = datetime.utcnow()
+            db.commit()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Analysis validation failed: {error_msg}"
+            )
 
         # 6. Meeting에 저장
         meeting.analysis_result = analysis_result
@@ -699,7 +959,7 @@ async def analyze_meeting(
 
         db.commit()
 
-        logger.info(f"Meeting analyzed: {meeting_id}")
+        logger.info(f"Meeting analyzed: {meeting_id}, valid keys found")
 
         # 7. MeetingSummaryOutput으로 변환
         # LLM이 다양한 키 이름을 사용할 수 있으므로 여러 가능한 키를 확인
