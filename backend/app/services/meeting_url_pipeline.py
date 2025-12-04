@@ -19,6 +19,7 @@ from app.models.meeting import Meeting, MeetingTranscript, MeetingStatus, Transc
 from app.services.youtube_downloader import get_youtube_downloader
 from app.services.storage import get_storage_service
 from app.services.transcriber import get_transcriber_service
+from app.services.transcript_refiner import refine_transcript, generate_transcript_markdown
 
 logger = logging.getLogger(__name__)
 
@@ -157,25 +158,85 @@ class MeetingURLPipeline:
                     # 수정 (2025-11-26):
                     # - elapsed_seconds → latency_ms 직접 사용
                     # - segments: Pydantic 모델 → dict 변환 (JSONB 호환)
+                    # 수정 (2025-12-04):
+                    # - refine_transcript() 적용하여 [음악], >> 등 노이즈 제거
+
+                    # 정제 적용
+                    refined_text = refine_transcript(transcription_result.text)
+                    refined_segments = []
+                    original_segments = []  # 마크다운 생성용 원본
+                    for seg in transcription_result.segments:
+                        seg_dict = seg.model_dump()
+                        original_segments.append(seg_dict.copy())  # 원본 저장
+                        refined_seg_text = refine_transcript(seg_dict["text"])
+                        if refined_seg_text.strip():  # 빈 세그먼트 제외
+                            seg_dict["text"] = refined_seg_text
+                            refined_segments.append(seg_dict)
+
+                    logger.info(f"Transcript refined: {len(transcription_result.text)} -> {len(refined_text)} chars")
+
                     whisper_transcript = MeetingTranscript(
                         meeting_id=meeting_id,
                         source_type=TranscriptSourceType.WHISPER,
                         provider=TranscriptProvider.UPLOAD,
                         backend=TranscriptBackend(transcription_result.backend),
                         model=transcription_result.model,
-                        transcript_text=transcription_result.text,
-                        segments=[seg.model_dump() for seg in transcription_result.segments],
+                        transcript_text=refined_text,  # 정제된 텍스트 저장
+                        segments=refined_segments,  # 정제된 세그먼트 저장
                         language=transcription_result.language,
                         is_primary=False,  # 일단 False (primary 선택 로직에서 결정)
                         quality_score=0.0,  # 계산 전
                         confidence=transcription_result.confidence,
-                        latency_ms=transcription_result.latency_ms
+                        latency_ms=transcription_result.latency_ms,
+                        whisper_metadata={
+                            "original_length": len(transcription_result.text),
+                            "refined_length": len(refined_text)
+                        }
                     )
 
                     db.add(whisper_transcript)
                     db.commit()
+                    db.refresh(whisper_transcript)
 
                     logger.info(f"Whisper STT completed for meeting {meeting_id}")
+
+                    # 마크다운 파일 생성 및 MinIO 저장
+                    try:
+                        import os
+                        md_content = generate_transcript_markdown(
+                            title=meeting.title,
+                            segments=original_segments,  # 원본 세그먼트 사용 (>> 감지용)
+                            meeting_date=meeting.meeting_date.strftime('%Y-%m-%d') if meeting.meeting_date else None,
+                            duration_seconds=transcription_result.duration_seconds,
+                            language=transcription_result.language
+                        )
+
+                        # 임시 파일로 저장
+                        with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False, encoding='utf-8') as tmp:
+                            tmp.write(md_content)
+                            tmp_md_path = tmp.name
+
+                        # MinIO 업로드
+                        md_object_key = f"meetings/{meeting_id}/transcript_{whisper_transcript.id}.md"
+                        await self.storage.upload_file_async(
+                            file_path=tmp_md_path,
+                            bucket="sparklio",
+                            object_key=md_object_key,
+                            content_type="text/markdown; charset=utf-8"
+                        )
+
+                        # 임시 파일 삭제
+                        os.unlink(tmp_md_path)
+
+                        # transcript에 마크다운 URL 저장
+                        if whisper_transcript.whisper_metadata is None:
+                            whisper_transcript.whisper_metadata = {}
+                        whisper_transcript.whisper_metadata["markdown_url"] = md_object_key
+                        db.commit()
+
+                        logger.info(f"Transcript markdown saved: {md_object_key}")
+                    except Exception as md_error:
+                        logger.warning(f"Failed to save transcript markdown: {md_error}")
 
                 # 5. Primary transcript 선택
                 await self._select_primary_transcript(meeting_id, db)
