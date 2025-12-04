@@ -618,6 +618,46 @@ export function MeetingTab() {
         });
         break;
 
+      case 'figure':
+      case 'rect':
+        // 사각형/배경 요소
+        page.addElement({
+          type: 'figure',
+          x: element.x,
+          y: element.y,
+          width: element.width,
+          height: element.height || 100,
+          fill: props.fill || props.backgroundColor || '#f3f4f6',
+          cornerRadius: props.cornerRadius || props.borderRadius || 0,
+          stroke: props.stroke || props.borderColor,
+          strokeWidth: props.strokeWidth || 0,
+        });
+        break;
+
+      case 'tag':
+        // 태그 배지 (작은 라벨)
+        page.addElement({
+          type: 'figure',
+          x: element.x,
+          y: element.y,
+          width: element.width || 80,
+          height: element.height || 28,
+          fill: props.backgroundColor || '#EEF2FF',
+          cornerRadius: props.cornerRadius || 14,
+        });
+        if (element.content) {
+          page.addElement({
+            type: 'text',
+            x: element.x + 12,
+            y: element.y + 7,
+            width: (element.width || 80) - 24,
+            text: element.content,
+            fontSize: props.fontSize || 11,
+            fill: props.color || '#4F46E5',
+          });
+        }
+        break;
+
       default:
         // 기본: 텍스트로 처리
         if (element.content) {
