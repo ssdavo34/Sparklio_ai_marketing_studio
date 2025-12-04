@@ -5,13 +5,15 @@
  * - Single Image / Carousel 광고 지원
  * - Feed (1:1) / Story (9:16) 포맷 지원
  * - CTA, 해시태그 자동 적용
+ * - Layout API 연동 지원 (v1.2)
  *
  * @author C팀 (Frontend Team)
- * @version 1.1
- * @date 2025-11-28
+ * @version 1.2
+ * @date 2025-12-04
  */
 
 import { createPlaceholderMetadata, type ImageMetadata } from './image-metadata';
+import { layoutApi, type DocumentLayout, type LayoutElement, type PageLayout } from '@/lib/api/layout-api';
 
 // ============================================================================
 // Types
@@ -302,4 +304,194 @@ export function addInstagramAdsToCanvas(polotnoStore: any, ads: InstagramAd[]): 
   });
 
   console.log(`[InstagramTemplate] Added ${ads.length} Instagram ads to canvas`);
+}
+
+// ============================================================================
+// Layout API Integration
+// ============================================================================
+
+/**
+ * Layout API를 사용하여 Instagram 광고를 생성하고 Canvas에 추가
+ *
+ * @param polotnoStore Polotno Store
+ * @param adData 광고 데이터
+ * @param platform 플랫폼 (instagram_feed, instagram_story 등)
+ */
+export async function addInstagramAdWithLayoutAPI(
+  polotnoStore: any,
+  adData: {
+    headline: string;
+    body_text?: string;
+    cta_text?: string;
+    brand_name?: string;
+    product_name?: string;
+    hashtags?: string[];
+    image_url?: string;
+  },
+  platform: 'instagram_feed' | 'instagram_story' | 'instagram_reel' = 'instagram_feed'
+): Promise<void> {
+  if (!polotnoStore) {
+    throw new Error('Polotno store is not initialized');
+  }
+
+  try {
+    // Layout API 호출
+    const response = await layoutApi.generateSNSLayout({
+      platform,
+      headline: adData.headline,
+      body_text: adData.body_text,
+      cta_text: adData.cta_text,
+      brand_name: adData.brand_name,
+      product_name: adData.product_name,
+      hashtags: adData.hashtags,
+      image_url: adData.image_url,
+      options: {
+        style: 'modern',
+      },
+    });
+
+    const layout = response.layout;
+
+    // 캔버스에 렌더링
+    renderLayoutToCanvas(polotnoStore, layout);
+
+    console.log(`[InstagramTemplate] Added ${layout.total_pages} pages via Layout API`);
+  } catch (error) {
+    console.error('[InstagramTemplate] Layout API failed:', error);
+    throw error;
+  }
+}
+
+/**
+ * DocumentLayout을 Polotno Canvas에 렌더링
+ */
+function renderLayoutToCanvas(polotnoStore: any, layout: DocumentLayout): void {
+  const pageWidth = layout.page_width;
+  const pageHeight = layout.page_height;
+
+  layout.pages.forEach((pageLayout: PageLayout, pageIndex: number) => {
+    // 새 페이지 추가
+    polotnoStore.addPage({
+      width: pageWidth,
+      height: pageHeight,
+    });
+
+    const page = polotnoStore.pages[polotnoStore.pages.length - 1];
+
+    // 각 요소를 페이지에 추가
+    pageLayout.elements.forEach((element: LayoutElement) => {
+      addLayoutElementToPage(page, element);
+    });
+  });
+}
+
+/**
+ * LayoutElement를 Polotno 요소로 변환하여 페이지에 추가
+ */
+function addLayoutElementToPage(page: any, element: LayoutElement): void {
+  const props = element.properties || {};
+
+  switch (element.type) {
+    case 'heading':
+    case 'text':
+    case 'paragraph':
+      page.addElement({
+        type: 'text',
+        x: element.x,
+        y: element.y,
+        width: element.width,
+        height: element.height,
+        text: element.content || '',
+        fontSize: props.fontSize || 24,
+        fontWeight: props.fontWeight || 'normal',
+        fill: props.color || '#000000',
+        align: props.textAlign || 'left',
+      });
+      break;
+
+    case 'image':
+      page.addElement({
+        type: 'image',
+        x: element.x,
+        y: element.y,
+        width: element.width,
+        height: element.height,
+        src: element.content || props.placeholder || 'https://via.placeholder.com/400x300',
+      });
+      break;
+
+    case 'cta_button':
+      // 버튼 배경
+      page.addElement({
+        type: 'rect',
+        x: element.x,
+        y: element.y,
+        width: element.width,
+        height: element.height,
+        fill: props.backgroundColor || '#3b82f6',
+        cornerRadius: props.borderRadius || 8,
+      });
+
+      // 버튼 텍스트
+      page.addElement({
+        type: 'text',
+        x: element.x,
+        y: element.y + (element.height - (props.fontSize || 16)) / 2,
+        width: element.width,
+        text: element.content || 'Click Here',
+        fontSize: props.fontSize || 16,
+        fill: props.color || '#ffffff',
+        fontWeight: 'bold',
+        align: 'center',
+      });
+      break;
+
+    case 'badge':
+      const variantColors: Record<string, string> = {
+        primary: '#3b82f6',
+        secondary: '#6b7280',
+        success: '#10b981',
+        warning: '#f59e0b',
+        error: '#ef4444',
+      };
+      const badgeColor = variantColors[props.variant || 'primary'] || '#3b82f6';
+
+      page.addElement({
+        type: 'rect',
+        x: element.x,
+        y: element.y,
+        width: element.width,
+        height: element.height,
+        fill: badgeColor,
+        cornerRadius: props.borderRadius || 12,
+      });
+
+      page.addElement({
+        type: 'text',
+        x: element.x,
+        y: element.y + (element.height - (props.fontSize || 12)) / 2,
+        width: element.width,
+        text: element.content || '',
+        fontSize: props.fontSize || 12,
+        fill: '#ffffff',
+        fontWeight: 'bold',
+        align: 'center',
+      });
+      break;
+
+    default:
+      // 기본: 텍스트로 처리
+      if (element.content) {
+        page.addElement({
+          type: 'text',
+          x: element.x,
+          y: element.y,
+          width: element.width,
+          height: element.height,
+          text: element.content,
+          fontSize: props.fontSize || 14,
+          fill: props.color || '#000000',
+        });
+      }
+  }
 }

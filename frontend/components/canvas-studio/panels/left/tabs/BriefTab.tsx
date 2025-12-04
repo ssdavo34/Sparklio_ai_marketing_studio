@@ -28,12 +28,16 @@ import {
   AlertCircle,
   Sparkles,
   RotateCcw,
+  Layout,
+  Loader2,
 } from 'lucide-react';
 import { useBriefStore } from '../../../stores/useBriefStore';
 import { useLeftPanelStore } from '../../../stores/useLeftPanelStore';
+import { useCanvasStore } from '../../../stores/useCanvasStore';
 import type { Brief, ChannelType } from '@/types/brief';
 import { CHANNEL_TYPE_LABELS, CHANNEL_TYPE_ICONS } from '@/types/brief';
 import { toast } from '@/components/ui/Toast';
+import { layoutApi, type DocumentLayout, type LayoutElement, type PageLayout } from '@/lib/api/layout-api';
 
 // 채널 목록 (UI에서 사용할 것만)
 const AVAILABLE_CHANNELS: ChannelType[] = ['product_detail', 'sns', 'banner', 'deck', 'video'];
@@ -54,9 +58,13 @@ export function BriefTab() {
     reset,
   } = useBriefStore();
 
+  // Canvas Store
+  const polotnoStore = useCanvasStore((state) => state.canvases.get(state.activeCanvasType) || null);
+
   // 새 메시지/KPI 입력 상태
   const [newMessage, setNewMessage] = useState('');
   const [newKPI, setNewKPI] = useState('');
+  const [isRenderingToCanvas, setIsRenderingToCanvas] = useState(false);
 
   // 브리프가 없으면 새로 생성
   const initializeBrief = useCallback(() => {
@@ -95,6 +103,355 @@ export function BriefTab() {
       setNewKPI('');
     }
   }, [newKPI, addKPI]);
+
+  // Brief를 캔버스에 렌더링
+  const handleSendToCanvas = useCallback(async () => {
+    if (!brief || !polotnoStore) {
+      toast.error('브리프 또는 캔버스가 준비되지 않았습니다.');
+      return;
+    }
+
+    const page = polotnoStore.activePage;
+    if (!page) {
+      toast.error('활성 페이지가 없습니다.');
+      return;
+    }
+
+    setIsRenderingToCanvas(true);
+    toast.info('브리프 레이아웃을 생성하고 있습니다...');
+
+    try {
+      // Layout API 호출
+      const response = await layoutApi.generate({
+        document_type: 'brief',
+        content: {
+          goal: brief.goal,
+          target: brief.target,
+          insight: brief.insight || '',
+          key_messages: brief.keyMessages,
+          channels: brief.channels,
+          kpis: brief.kpis,
+        },
+        options: {
+          page_width: page.width as number,
+          page_height: page.height as number,
+          style: 'modern',
+        },
+      });
+
+      const layout = response.layout;
+
+      // 캔버스에 레이아웃 적용
+      await applyBriefLayoutToCanvas(layout, polotnoStore, page);
+
+      toast.success(`브리프가 ${layout.total_pages}페이지로 캔버스에 추가되었습니다!`);
+    } catch (error) {
+      console.error('[BriefTab] Layout API failed, using fallback:', error);
+      toast.warning('Layout API 실패, 기본 레이아웃을 사용합니다.');
+
+      // 폴백: 기본 렌더링
+      applyFallbackBriefLayout(polotnoStore, page, brief);
+    } finally {
+      setIsRenderingToCanvas(false);
+    }
+  }, [brief, polotnoStore]);
+
+  // Layout API 응답을 캔버스에 적용
+  const applyBriefLayoutToCanvas = async (
+    layout: DocumentLayout,
+    store: any,
+    firstPage: any
+  ) => {
+    const pageWidth = layout.page_width;
+    const pageHeight = layout.page_height;
+
+    layout.pages.forEach((pageLayout: PageLayout, pageIndex: number) => {
+      let targetPage: any;
+
+      if (pageIndex === 0) {
+        targetPage = firstPage;
+        targetPage.children.forEach((child: any) => child.remove());
+      } else {
+        targetPage = store.addPage({
+          width: pageWidth,
+          height: pageHeight,
+        });
+      }
+
+      pageLayout.elements.forEach((element: LayoutElement) => {
+        addLayoutElementToPage(targetPage, element);
+      });
+
+      // Footer
+      targetPage.addElement({
+        type: 'text',
+        x: 60,
+        y: pageHeight - 45,
+        width: pageWidth - 120,
+        fontSize: 10,
+        fill: '#9CA3AF',
+        text: `Page ${pageIndex + 1} of ${layout.total_pages} • Campaign Brief • ${new Date().toLocaleDateString('ko-KR')}`,
+        align: 'center',
+      });
+    });
+  };
+
+  // LayoutElement를 Polotno 요소로 변환
+  const addLayoutElementToPage = (page: any, element: LayoutElement) => {
+    const props = element.properties || {};
+
+    switch (element.type) {
+      case 'heading':
+      case 'text':
+      case 'paragraph':
+        page.addElement({
+          type: 'text',
+          x: element.x,
+          y: element.y,
+          width: element.width,
+          height: element.height,
+          text: element.content || '',
+          fontSize: props.fontSize || 24,
+          fontWeight: props.fontWeight || 'normal',
+          fill: props.color || '#000000',
+          align: props.textAlign || 'left',
+        });
+        break;
+
+      case 'list':
+        const items = props.items || [];
+        const listStyle = props.listStyle || 'bullet';
+        const prefix = listStyle === 'bullet' ? '• ' : listStyle === 'check' ? '✓ ' : '';
+        const listText = items
+          .map((item: string, i: number) =>
+            listStyle === 'number' ? `${i + 1}. ${item}` : `${prefix}${item}`
+          )
+          .join('\n');
+
+        page.addElement({
+          type: 'text',
+          x: element.x,
+          y: element.y,
+          width: element.width,
+          height: element.height,
+          text: listText,
+          fontSize: props.fontSize || 14,
+          fill: props.color || '#333333',
+          lineHeight: 1.6,
+        });
+        break;
+
+      case 'card':
+        page.addElement({
+          type: 'figure',
+          x: element.x,
+          y: element.y,
+          width: element.width,
+          height: element.height,
+          fill: props.backgroundColor || '#ffffff',
+          cornerRadius: props.borderRadius || 8,
+          stroke: props.borderColor || '#e0e0e0',
+          strokeWidth: 1,
+        });
+
+        if (element.content) {
+          page.addElement({
+            type: 'text',
+            x: element.x + (props.padding || 16),
+            y: element.y + (props.padding || 16),
+            width: element.width - (props.padding || 16) * 2,
+            text: element.content,
+            fontSize: props.fontSize || 14,
+            fill: props.color || '#333333',
+          });
+        }
+        break;
+
+      default:
+        if (element.content) {
+          page.addElement({
+            type: 'text',
+            x: element.x,
+            y: element.y,
+            width: element.width,
+            height: element.height,
+            text: element.content,
+            fontSize: props.fontSize || 14,
+            fill: props.color || '#000000',
+          });
+        }
+    }
+  };
+
+  // 폴백 레이아웃 (API 실패 시)
+  const applyFallbackBriefLayout = (store: any, page: any, briefData: Brief) => {
+    page.children.forEach((child: any) => child.remove());
+
+    const pageWidth = page.width as number;
+    const pageHeight = page.height as number;
+    const margin = 60;
+    const contentWidth = pageWidth - margin * 2;
+
+    let currentY = margin;
+
+    // 헤더 배경
+    page.addElement({
+      type: 'figure',
+      x: 0,
+      y: 0,
+      width: pageWidth,
+      height: 160,
+      fill: '#3B82F6',
+    });
+
+    // 타이틀
+    page.addElement({
+      type: 'text',
+      x: margin,
+      y: 50,
+      width: contentWidth,
+      fontSize: 36,
+      fontWeight: 'bold',
+      fill: '#FFFFFF',
+      text: 'Campaign Brief',
+    });
+
+    // 날짜
+    page.addElement({
+      type: 'text',
+      x: margin,
+      y: 110,
+      width: contentWidth,
+      fontSize: 14,
+      fill: 'rgba(255,255,255,0.8)',
+      text: new Date().toLocaleDateString('ko-KR'),
+    });
+
+    currentY = 190;
+
+    // 캠페인 목표
+    if (briefData.goal) {
+      page.addElement({
+        type: 'text',
+        x: margin,
+        y: currentY,
+        width: contentWidth,
+        fontSize: 16,
+        fontWeight: 'bold',
+        fill: '#3B82F6',
+        text: '🎯 캠페인 목표',
+      });
+      currentY += 25;
+
+      page.addElement({
+        type: 'text',
+        x: margin,
+        y: currentY,
+        width: contentWidth,
+        fontSize: 13,
+        fill: '#374151',
+        text: briefData.goal,
+        lineHeight: 1.5,
+      });
+      currentY += Math.ceil(briefData.goal.length / 60) * 20 + 25;
+    }
+
+    // 타겟 오디언스
+    if (briefData.target) {
+      page.addElement({
+        type: 'text',
+        x: margin,
+        y: currentY,
+        width: contentWidth,
+        fontSize: 16,
+        fontWeight: 'bold',
+        fill: '#8B5CF6',
+        text: '👥 타겟 오디언스',
+      });
+      currentY += 25;
+
+      page.addElement({
+        type: 'text',
+        x: margin,
+        y: currentY,
+        width: contentWidth,
+        fontSize: 13,
+        fill: '#374151',
+        text: briefData.target,
+        lineHeight: 1.5,
+      });
+      currentY += Math.ceil(briefData.target.length / 60) * 20 + 25;
+    }
+
+    // 핵심 메시지
+    if (briefData.keyMessages.length > 0) {
+      page.addElement({
+        type: 'text',
+        x: margin,
+        y: currentY,
+        width: contentWidth,
+        fontSize: 16,
+        fontWeight: 'bold',
+        fill: '#10B981',
+        text: '💬 핵심 메시지',
+      });
+      currentY += 25;
+
+      briefData.keyMessages.forEach((msg, idx) => {
+        page.addElement({
+          type: 'text',
+          x: margin + 20,
+          y: currentY,
+          width: contentWidth - 20,
+          fontSize: 12,
+          fill: '#374151',
+          text: `• ${msg}`,
+        });
+        currentY += 20;
+      });
+      currentY += 15;
+    }
+
+    // 타겟 채널
+    if (briefData.channels.length > 0) {
+      page.addElement({
+        type: 'text',
+        x: margin,
+        y: currentY,
+        width: contentWidth,
+        fontSize: 16,
+        fontWeight: 'bold',
+        fill: '#6366F1',
+        text: '#️⃣ 타겟 채널',
+      });
+      currentY += 25;
+
+      page.addElement({
+        type: 'text',
+        x: margin,
+        y: currentY,
+        width: contentWidth,
+        fontSize: 12,
+        fill: '#374151',
+        text: briefData.channels.map(ch => CHANNEL_TYPE_LABELS[ch]).join(' / '),
+      });
+      currentY += 30;
+    }
+
+    // Footer
+    page.addElement({
+      type: 'text',
+      x: margin,
+      y: pageHeight - 45,
+      width: contentWidth,
+      fontSize: 10,
+      fill: '#9CA3AF',
+      text: `Generated by Sparklio AI • ${new Date().toLocaleDateString('ko-KR')}`,
+      align: 'center',
+    });
+
+    toast.success('브리프가 캔버스에 추가되었습니다!');
+  };
 
   // 완성도 표시
   const completeness = validation?.completeness || 0;
@@ -378,6 +735,27 @@ export function BriefTab() {
                     브리프가 완성되었습니다!
                   </p>
                 </div>
+
+                {/* 캔버스로 보내기 버튼 */}
+                <button
+                  onClick={handleSendToCanvas}
+                  disabled={isRenderingToCanvas}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 disabled:bg-blue-300 transition-all"
+                >
+                  {isRenderingToCanvas ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      레이아웃 생성 중...
+                    </>
+                  ) : (
+                    <>
+                      <Layout className="w-4 h-4" />
+                      캔버스로 보내기
+                    </>
+                  )}
+                </button>
+
+                {/* ConceptBoard로 이동 버튼 */}
                 <button
                   onClick={() => {
                     useLeftPanelStore.getState().setActiveTab('conceptboard');

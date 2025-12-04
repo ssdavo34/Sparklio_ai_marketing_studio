@@ -4,13 +4,15 @@
  * 제품 상세페이지 데이터를 Polotno Canvas로 변환
  * - Hero, Problem, Solution, Demo, Benefits, Testimonials 등 섹션 지원
  * - 세로 스크롤 형식의 긴 페이지 레이아웃
+ * - Layout API 연동 지원 (v1.2)
  *
  * @author C팀 (Frontend Team)
- * @version 1.1
- * @date 2025-11-28
+ * @version 1.2
+ * @date 2025-12-04
  */
 
 import { createPlaceholderMetadata } from './image-metadata';
+import { layoutApi, type DocumentLayout, type LayoutElement, type PageLayout } from '@/lib/api/layout-api';
 
 // ============================================================================
 // Types
@@ -533,4 +535,229 @@ export function addProductDetailToCanvas(polotnoStore: any, detail: ProductDetai
   });
 
   console.log(`[ProductDetailTemplate] Added ${detail.sections.length} sections to canvas`);
+}
+
+// ============================================================================
+// Layout API Integration
+// ============================================================================
+
+/**
+ * Layout API를 사용하여 상세페이지를 생성하고 Canvas에 추가
+ *
+ * @param polotnoStore Polotno Store
+ * @param productData 상품 데이터
+ */
+export async function addProductDetailWithLayoutAPI(
+  polotnoStore: any,
+  productData: {
+    product_name: string;
+    tagline?: string;
+    description: string;
+    features?: Array<{
+      title: string;
+      description: string;
+      icon?: string;
+    }>;
+    specifications?: Record<string, string>;
+    price?: string;
+    images?: string[];
+    cta_text?: string;
+  },
+  options?: {
+    pageWidth?: number;
+    pageHeight?: number;
+    style?: 'modern' | 'classic' | 'minimal';
+  }
+): Promise<void> {
+  if (!polotnoStore) {
+    throw new Error('Polotno store is not initialized');
+  }
+
+  try {
+    // Layout API 호출
+    const response = await layoutApi.generateProductLayout({
+      product_name: productData.product_name,
+      tagline: productData.tagline,
+      description: productData.description,
+      features: productData.features,
+      specifications: productData.specifications,
+      price: productData.price,
+      images: productData.images,
+      cta_text: productData.cta_text,
+      options: {
+        page_width: options?.pageWidth || TEMPLATE_CONFIG.pageWidth,
+        page_height: options?.pageHeight || TEMPLATE_CONFIG.sectionHeight,
+        style: options?.style || 'modern',
+      },
+    });
+
+    const layout = response.layout;
+
+    // 캔버스에 렌더링
+    renderLayoutToCanvas(polotnoStore, layout);
+
+    console.log(`[ProductDetailTemplate] Added ${layout.total_pages} pages via Layout API`);
+  } catch (error) {
+    console.error('[ProductDetailTemplate] Layout API failed:', error);
+    throw error;
+  }
+}
+
+/**
+ * DocumentLayout을 Polotno Canvas에 렌더링
+ */
+function renderLayoutToCanvas(polotnoStore: any, layout: DocumentLayout): void {
+  const pageWidth = layout.page_width;
+  const pageHeight = layout.page_height;
+
+  layout.pages.forEach((pageLayout: PageLayout, pageIndex: number) => {
+    // 새 페이지 추가
+    polotnoStore.addPage({
+      width: pageWidth,
+      height: pageHeight,
+    });
+
+    const page = polotnoStore.pages[polotnoStore.pages.length - 1];
+
+    // 각 요소를 페이지에 추가
+    pageLayout.elements.forEach((element: LayoutElement) => {
+      addLayoutElementToPage(page, element);
+    });
+
+    // Footer
+    page.addElement({
+      type: 'text',
+      x: 60,
+      y: pageHeight - 45,
+      width: pageWidth - 120,
+      fontSize: 10,
+      fill: '#9CA3AF',
+      text: `Page ${pageIndex + 1} of ${layout.total_pages} • Product Detail • ${new Date().toLocaleDateString('ko-KR')}`,
+      align: 'center',
+    });
+  });
+}
+
+/**
+ * LayoutElement를 Polotno 요소로 변환하여 페이지에 추가
+ */
+function addLayoutElementToPage(page: any, element: LayoutElement): void {
+  const props = element.properties || {};
+
+  switch (element.type) {
+    case 'heading':
+    case 'text':
+    case 'paragraph':
+      page.addElement({
+        type: 'text',
+        x: element.x,
+        y: element.y,
+        width: element.width,
+        height: element.height,
+        text: element.content || '',
+        fontSize: props.fontSize || 24,
+        fontWeight: props.fontWeight || 'normal',
+        fill: props.color || '#000000',
+        align: props.textAlign || 'left',
+      });
+      break;
+
+    case 'list':
+      const items = props.items || [];
+      const listStyle = props.listStyle || 'bullet';
+      const prefix = listStyle === 'bullet' ? '• ' : listStyle === 'check' ? '✓ ' : '';
+      const listText = items
+        .map((item: string, i: number) =>
+          listStyle === 'number' ? `${i + 1}. ${item}` : `${prefix}${item}`
+        )
+        .join('\n');
+
+      page.addElement({
+        type: 'text',
+        x: element.x,
+        y: element.y,
+        width: element.width,
+        height: element.height,
+        text: listText,
+        fontSize: props.fontSize || 14,
+        fill: props.color || '#333333',
+        lineHeight: 1.6,
+      });
+      break;
+
+    case 'card':
+      page.addElement({
+        type: 'rect',
+        x: element.x,
+        y: element.y,
+        width: element.width,
+        height: element.height,
+        fill: props.backgroundColor || '#ffffff',
+        cornerRadius: props.borderRadius || 8,
+        stroke: props.borderColor || '#e0e0e0',
+        strokeWidth: 1,
+      });
+
+      if (element.content) {
+        page.addElement({
+          type: 'text',
+          x: element.x + (props.padding || 16),
+          y: element.y + (props.padding || 16),
+          width: element.width - (props.padding || 16) * 2,
+          text: element.content,
+          fontSize: props.fontSize || 14,
+          fill: props.color || '#333333',
+        });
+      }
+      break;
+
+    case 'image':
+      page.addElement({
+        type: 'image',
+        x: element.x,
+        y: element.y,
+        width: element.width,
+        height: element.height,
+        src: element.content || props.placeholder || 'https://via.placeholder.com/400x300',
+      });
+      break;
+
+    case 'cta_button':
+      page.addElement({
+        type: 'rect',
+        x: element.x,
+        y: element.y,
+        width: element.width,
+        height: element.height,
+        fill: props.backgroundColor || '#3b82f6',
+        cornerRadius: props.borderRadius || 8,
+      });
+
+      page.addElement({
+        type: 'text',
+        x: element.x,
+        y: element.y + (element.height - (props.fontSize || 16)) / 2,
+        width: element.width,
+        text: element.content || 'Click Here',
+        fontSize: props.fontSize || 16,
+        fill: props.color || '#ffffff',
+        fontWeight: 'bold',
+        align: 'center',
+      });
+      break;
+
+    default:
+      if (element.content) {
+        page.addElement({
+          type: 'text',
+          x: element.x,
+          y: element.y,
+          width: element.width,
+          height: element.height,
+          text: element.content,
+          fontSize: props.fontSize || 14,
+          fill: props.color || '#000000',
+        });
+      }
+  }
 }
