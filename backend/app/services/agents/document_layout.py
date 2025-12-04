@@ -136,35 +136,58 @@ class DocumentLayoutAgent(AgentBase):
             page_height = request.payload.get("page_height", 1080)
             document_type = request.payload.get("document_type", "meeting_summary")
 
+            use_llm = request.payload.get("use_llm", False)
+
             logger.info(
                 f"[DocumentLayoutAgent] Generating layout for {document_type}, "
-                f"page size: {page_width}x{page_height}"
+                f"page size: {page_width}x{page_height}, use_llm={use_llm}"
             )
 
-            # LLM을 사용한 레이아웃 생성
-            prompt = self._build_prompt(content, page_width, page_height, document_type)
+            # 문서 유형별 전용 레이아웃 생성
+            if document_type == "sns_ad":
+                platform = request.payload.get("platform", "instagram_feed")
+                output_data = self._generate_sns_ad_layout(content, page_width, page_height, platform)
+            elif document_type == "product_detail":
+                output_data = self._generate_product_detail_layout(content, page_width, page_height)
+            elif document_type == "brief":
+                output_data = self._generate_brief_layout(content, page_width, page_height)
+            elif use_llm and self.llm_gateway:
+                # LLM을 사용한 레이아웃 생성
+                prompt = self._build_prompt(content, page_width, page_height, document_type)
 
-            try:
-                llm_response = await self.llm_gateway.generate(
-                    role=self.name,
-                    task="generate_document_layout",
-                    payload={"prompt": prompt},
-                    mode="json",
-                    override_model="claude-3-5-haiku-20241022",
-                    options={
-                        "temperature": 0.3,
-                        "max_tokens": 4000
-                    }
-                )
-                output_data = self._parse_output(
-                    llm_response.output.value,
-                    content,
-                    page_width,
-                    page_height,
-                    document_type
-                )
-            except Exception as e:
-                logger.warning(f"[DocumentLayoutAgent] LLM failed: {e}. Using fallback.")
+                try:
+                    llm_response = await self.llm_gateway.generate(
+                        role=self.name,
+                        task="generate_document_layout",
+                        payload={"prompt": prompt},
+                        mode="json",
+                        override_model="claude-3-5-haiku-20241022",
+                        options={
+                            "temperature": 0.3,
+                            "max_tokens": 4000
+                        }
+                    )
+                    output_data = self._parse_output(
+                        llm_response.output.value,
+                        content,
+                        page_width,
+                        page_height,
+                        document_type
+                    )
+
+                    # 결과 검증 - 페이지 중 빈 elements가 있으면 fallback 사용
+                    if any(not page.elements for page in output_data.pages):
+                        logger.warning("[DocumentLayoutAgent] LLM returned empty pages. Using fallback.")
+                        output_data = self._generate_fallback_layout(
+                            content, page_width, page_height, document_type
+                        )
+                except Exception as e:
+                    logger.warning(f"[DocumentLayoutAgent] LLM failed: {e}. Using fallback.")
+                    output_data = self._generate_fallback_layout(
+                        content, page_width, page_height, document_type
+                    )
+            else:
+                # Fallback 레이아웃 사용 (기본)
                 output_data = self._generate_fallback_layout(
                     content, page_width, page_height, document_type
                 )
