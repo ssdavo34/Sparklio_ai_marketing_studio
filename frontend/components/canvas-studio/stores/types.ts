@@ -157,7 +157,8 @@ export type CanvasType =
   | 'detail'         // 상세페이지 (860x가변)
   | 'sns'            // SNS 광고 (페이지별 다름)
   | 'video'          // 영상 (1080x1920, 프리셋)
-  | 'image';         // 이미지 (자유)
+  | 'image'          // 이미지 (자유)
+  | 'brief';         // Campaign Brief (1920x1080)
 
 /**
  * 캔버스 기본 설정
@@ -247,5 +248,11 @@ export const CANVAS_CONFIGS: Record<CanvasType, CanvasConfig> = {
     width: 1080,
     height: 1080,
     allowResize: true, // 자유 크기
+  },
+  'brief': {
+    type: 'brief',
+    width: 1920,
+    height: 1080,
+    allowResize: false,
   },
 };

@@ -76,6 +76,7 @@ export interface LeftPanelState {
  */
 const TAB_TO_CANVAS_MAP: Partial<Record<LeftPanelTab, CanvasType>> = {
   'brandkit': 'brand-dna',
+  'brief': 'brief',
   'meeting': 'meeting',
   'conceptboard': 'concept',
   'presentation': 'presentation',

@@ -125,12 +125,12 @@ export function BriefTab() {
       const response = await layoutApi.generate({
         document_type: 'brief',
         content: {
-          goal: brief.goal,
-          target: brief.target,
+          goal: brief.goal || '',
+          target: brief.target || '',
           insight: brief.insight || '',
-          key_messages: brief.keyMessages,
-          channels: brief.channels,
-          kpis: brief.kpis,
+          key_messages: brief.keyMessages ?? [],
+          channels: brief.channels ?? [],
+          kpis: brief.kpis ?? [],
         },
         options: {
           page_width: page.width as number,
@@ -581,7 +581,7 @@ export function BriefTab() {
               </p>
 
               {/* 예시 안내 (메시지가 없을 때만) */}
-              {brief.keyMessages.length === 0 && (
+              {(brief.keyMessages?.length ?? 0) === 0 && (
                 <div className="text-[10px] text-neutral-400 bg-neutral-50 p-2 rounded-lg">
                   💡 예시: "진짜 단백질, 진짜 맛있게" / "자연에서 온 에너지" / "오늘도 나를 위한 선택"
                 </div>
@@ -589,7 +589,7 @@ export function BriefTab() {
 
               {/* 기존 메시지 목록 */}
               <div className="space-y-1.5">
-                {brief.keyMessages.map((msg, index) => (
+                {(brief.keyMessages ?? []).map((msg, index) => (
                   <div
                     key={index}
                     className="flex items-center gap-2 px-3 py-1.5 bg-green-50 border border-green-200 rounded-lg text-sm"
@@ -635,7 +635,7 @@ export function BriefTab() {
               </p>
               <div className="flex flex-wrap gap-2">
                 {AVAILABLE_CHANNELS.map((channel) => {
-                  const isSelected = brief.channels.includes(channel);
+                  const isSelected = (brief.channels ?? []).includes(channel);
                   return (
                     <button
                       key={channel}
@@ -666,7 +666,7 @@ export function BriefTab() {
               </p>
 
               {/* 예시 안내 (KPI가 없을 때만) */}
-              {brief.kpis.length === 0 && (
+              {(brief.kpis?.length ?? 0) === 0 && (
                 <div className="text-[10px] text-neutral-400 bg-neutral-50 p-2 rounded-lg">
                   💡 예시: "CTR 3% 이상" / "도달률 100만 뷰" / "전환율 2% 달성" / "SNS 언급 1,000건"
                 </div>
@@ -674,7 +674,7 @@ export function BriefTab() {
 
               {/* 기존 KPI 목록 */}
               <div className="space-y-1.5">
-                {brief.kpis.map((kpi, index) => (
+                {(brief.kpis ?? []).map((kpi, index) => (
                   <div
                     key={index}
                     className="flex items-center gap-2 px-3 py-1.5 bg-pink-50 border border-pink-200 rounded-lg text-sm"

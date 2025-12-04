@@ -2,7 +2,7 @@
  * Canvas Store
  *
  * 멀티 캔버스 상태 관리
- * - 8개의 독립 캔버스 (brand-dna, meeting, concept, presentation, detail, sns, video, image)
+ * - 9개의 독립 캔버스 (brand-dna, brief, meeting, concept, presentation, detail, sns, video, image)
  * - 각 탭이 자신의 캔버스만 사용
  * - 하위 호환성: polotnoStore getter는 activeCanvas 반환
  *

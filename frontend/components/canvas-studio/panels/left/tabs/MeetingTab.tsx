@@ -430,20 +430,26 @@ export function MeetingTab() {
     const pageWidth = layout.page_width;
     const pageHeight = layout.page_height;
 
+    console.log('[MeetingTab] Layout page size:', { pageWidth, pageHeight });
+    console.log('[MeetingTab] Full layout response:', layout);
+
     // 모든 페이지 처리
     layout.pages.forEach((pageLayout: PageLayout, pageIndex: number) => {
       let targetPage: any;
 
       if (pageIndex === 0) {
-        // 첫 페이지는 기존 페이지 사용 (기존 요소 제거)
+        // 첫 페이지는 기존 페이지 사용 (기존 요소 제거 + 크기 조정)
         targetPage = firstPage;
         targetPage.children.forEach((child: any) => child.remove());
+        // 첫 페이지 크기도 레이아웃에 맞게 조정
+        targetPage.set({ width: pageWidth, height: pageHeight });
+        console.log(`[MeetingTab] Page ${pageIndex} set to:`, targetPage.width, 'x', targetPage.height);
       } else {
         // 추가 페이지 생성
-        targetPage = store.addPage({
-          width: pageWidth,
-          height: pageHeight,
-        });
+        targetPage = store.addPage();
+        // Polotno의 addPage는 파라미터를 무시할 수 있으므로 명시적으로 크기 설정
+        targetPage.set({ width: pageWidth, height: pageHeight });
+        console.log(`[MeetingTab] Page ${pageIndex} set to:`, targetPage.width, 'x', targetPage.height);
       }
 
       // 각 요소를 페이지에 추가
