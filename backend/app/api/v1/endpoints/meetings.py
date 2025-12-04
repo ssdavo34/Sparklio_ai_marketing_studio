@@ -702,36 +702,112 @@ async def analyze_meeting(
         logger.info(f"Meeting analyzed: {meeting_id}")
 
         # 7. MeetingSummaryOutput으로 변환
-        # LLM이 summary를 딕셔너리로 반환할 수 있으므로 문자열로 변환
-        summary_raw = analysis_result.get("summary", "")
-        if isinstance(summary_raw, dict):
-            # 딕셔너리인 경우 JSON 문자열로 변환하거나 topic 필드 사용
-            import json
-            if "topic" in summary_raw:
-                # 구조화된 요약인 경우 주요 내용을 텍스트로 조합
-                parts = []
-                if summary_raw.get("topic"):
-                    parts.append(f"주제: {summary_raw['topic']}")
-                if summary_raw.get("key_points"):
-                    points = summary_raw["key_points"]
-                    if isinstance(points, list):
-                        parts.append("주요 내용: " + ", ".join(str(p) for p in points))
-                    else:
-                        parts.append(f"주요 내용: {points}")
-                if summary_raw.get("conclusion"):
-                    parts.append(f"결론: {summary_raw['conclusion']}")
-                summary_str = " | ".join(parts) if parts else json.dumps(summary_raw, ensure_ascii=False)
-            else:
-                summary_str = json.dumps(summary_raw, ensure_ascii=False)
-        else:
-            summary_str = str(summary_raw) if summary_raw else ""
+        # LLM이 다양한 키 이름을 사용할 수 있으므로 여러 가능한 키를 확인
+        import json
+
+        def get_value_from_keys(data: dict, keys: list, default=""):
+            """여러 가능한 키에서 값을 찾음"""
+            for key in keys:
+                if key in data:
+                    return data[key]
+            return default
+
+        def ensure_list(value, default=None):
+            """값을 리스트로 변환"""
+            if default is None:
+                default = []
+            if value is None:
+                return default
+            if isinstance(value, list):
+                return value
+            if isinstance(value, dict):
+                # 딕셔너리인 경우 값들을 리스트로 변환
+                return list(value.values()) if value else default
+            return [value] if value else default
+
+        def stringify_value(value):
+            """값을 문자열로 변환"""
+            if value is None:
+                return ""
+            if isinstance(value, str):
+                return value
+            if isinstance(value, dict):
+                # 딕셔너리인 경우 JSON 또는 주요 필드 조합
+                if "topic" in value:
+                    parts = []
+                    if value.get("topic"):
+                        parts.append(f"주제: {value['topic']}")
+                    if value.get("key_points"):
+                        points = value["key_points"]
+                        if isinstance(points, list):
+                            parts.append("주요 내용: " + ", ".join(str(p) for p in points))
+                        else:
+                            parts.append(f"주요 내용: {points}")
+                    if value.get("conclusion"):
+                        parts.append(f"결론: {value['conclusion']}")
+                    return " | ".join(parts) if parts else json.dumps(value, ensure_ascii=False)
+                return json.dumps(value, ensure_ascii=False)
+            if isinstance(value, list):
+                return " ".join(str(v) for v in value)
+            return str(value)
+
+        # 가능한 키 이름들 정의 (LLM이 다양한 이름을 사용할 수 있음)
+        summary_keys = ["summary", "meeting_summary", "요약", "전체요약", "overview"]
+        agenda_keys = ["agenda", "agendas", "안건", "회의안건", "topics", "key_topics"]
+        decisions_keys = ["decisions", "결정사항", "결정", "key_decisions"]
+        action_keys = ["action_items", "actions", "액션아이템", "할일", "tasks", "todo", "meeting_takeaways", "takeaways"]
+        campaign_keys = ["campaign_ideas", "campaigns", "캠페인아이디어", "ideas", "marketing_ideas"]
+
+        # 값 추출
+        summary_raw = get_value_from_keys(analysis_result, summary_keys, "")
+        agenda_raw = get_value_from_keys(analysis_result, agenda_keys, [])
+        decisions_raw = get_value_from_keys(analysis_result, decisions_keys, [])
+        action_raw = get_value_from_keys(analysis_result, action_keys, [])
+        campaign_raw = get_value_from_keys(analysis_result, campaign_keys, [])
+
+        # 문자열/리스트로 변환
+        summary_str = stringify_value(summary_raw)
+        agenda_list = ensure_list(agenda_raw)
+        decisions_list = ensure_list(decisions_raw)
+        action_list = ensure_list(action_raw)
+        campaign_list = ensure_list(campaign_raw)
+
+        # 리스트 항목들이 딕셔너리인 경우 문자열로 변환
+        def flatten_list_items(items):
+            result = []
+            for item in items:
+                if isinstance(item, dict):
+                    # 주요 필드를 조합하여 문자열 생성
+                    parts = []
+                    for key in ["task", "item", "content", "description", "topic", "title", "name"]:
+                        if key in item:
+                            parts.append(str(item[key]))
+                            break
+                    if not parts:
+                        parts.append(json.dumps(item, ensure_ascii=False))
+                    # 담당자/기한 추가
+                    if item.get("owner") or item.get("assignee"):
+                        parts.append(f"(담당: {item.get('owner') or item.get('assignee')})")
+                    if item.get("deadline") or item.get("due_date"):
+                        parts.append(f"(기한: {item.get('deadline') or item.get('due_date')})")
+                    result.append(" ".join(parts))
+                else:
+                    result.append(str(item))
+            return result
+
+        agenda_list = flatten_list_items(agenda_list)
+        decisions_list = flatten_list_items(decisions_list)
+        action_list = flatten_list_items(action_list)
+        campaign_list = flatten_list_items(campaign_list)
+
+        logger.info(f"Parsed analysis result - summary: {len(summary_str)} chars, agenda: {len(agenda_list)}, decisions: {len(decisions_list)}, actions: {len(action_list)}, campaigns: {len(campaign_list)}")
 
         return MeetingSummaryOutput(
             summary=summary_str,
-            agenda=analysis_result.get("agenda", []),
-            decisions=analysis_result.get("decisions", []),
-            action_items=analysis_result.get("action_items", []),
-            campaign_ideas=analysis_result.get("campaign_ideas", []),
+            agenda=agenda_list,
+            decisions=decisions_list,
+            action_items=action_list,
+            campaign_ideas=campaign_list,
             analyzed_at=datetime.utcnow(),
             analyzer_version="v1.0"
         )
