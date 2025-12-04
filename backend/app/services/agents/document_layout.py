@@ -163,6 +163,8 @@ class DocumentLayoutOutput(BaseModel):
     """DocumentLayoutAgent 출력"""
     document_type: str = Field(..., description="문서 유형")
     total_pages: int = Field(..., description="총 페이지 수")
+    page_width: int = Field(default=1920, description="페이지 너비 (px)")
+    page_height: int = Field(default=1080, description="페이지 높이 (px)")
     pages: List[PageLayout] = Field(..., description="페이지 레이아웃 목록")
     design_tokens: Dict[str, Any] = Field(
         default_factory=dict,
@@ -697,6 +699,8 @@ class DocumentLayoutAgent(AgentBase):
         return DocumentLayoutOutput(
             document_type=data.get("document_type", document_type),
             total_pages=data.get("total_pages", len(pages)),
+            page_width=page_width,
+            page_height=page_height,
             pages=pages,
             design_tokens=data.get("design_tokens", {}),
             recommendations=data.get("recommendations", [])
@@ -826,6 +830,8 @@ class DocumentLayoutAgent(AgentBase):
         return DocumentLayoutOutput(
             document_type=document_type,
             total_pages=len(pages),
+            page_width=page_width,
+            page_height=page_height,
             pages=pages,
             design_tokens=design_tokens,
             recommendations=recommendations
@@ -1780,6 +1786,8 @@ class DocumentLayoutAgent(AgentBase):
         return DocumentLayoutOutput(
             document_type="sns_ad",
             total_pages=1,
+            page_width=page_width,
+            page_height=page_height,
             pages=[page],
             design_tokens={
                 "primary_gradient": "linear-gradient(180deg, #667eea 0%, #764ba2 100%)",
@@ -2006,6 +2014,8 @@ class DocumentLayoutAgent(AgentBase):
         return DocumentLayoutOutput(
             document_type="product_detail",
             total_pages=len(pages),
+            page_width=page_width,
+            page_height=page_height,
             pages=pages,
             design_tokens={
                 "primary_color": "#1F2937",
@@ -2118,6 +2128,8 @@ class DocumentLayoutAgent(AgentBase):
         return DocumentLayoutOutput(
             document_type="brief",
             total_pages=len(pages),
+            page_width=page_width,
+            page_height=page_height,
             pages=pages,
             design_tokens={
                 "primary_color": "#10B981",
