@@ -55,6 +55,77 @@ router = APIRouter(prefix="/meetings", tags=["meetings"])
 
 import re
 
+def format_timestamp(seconds: float) -> str:
+    """초를 HH:MM:SS 형식으로 변환"""
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+    secs = int(seconds % 60)
+    if hours > 0:
+        return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+    return f"{minutes:02d}:{secs:02d}"
+
+
+def generate_transcript_markdown(
+    title: str,
+    segments: list,
+    meeting_date: str = None,
+    duration_seconds: float = None,
+    language: str = None
+) -> str:
+    """
+    정제된 트랜스크립트를 마크다운 형식으로 변환
+
+    Args:
+        title: 회의 제목
+        segments: 세그먼트 리스트 [{"start": float, "end": float, "text": str}, ...]
+        meeting_date: 회의 날짜 (optional)
+        duration_seconds: 총 길이 (optional)
+        language: 언어 (optional)
+
+    Returns:
+        마크다운 형식의 트랜스크립트
+    """
+    lines = []
+
+    # 헤더
+    lines.append(f"# {title}")
+    lines.append("")
+
+    # 메타 정보
+    lines.append("## 회의 정보")
+    lines.append("")
+    if meeting_date:
+        lines.append(f"- **날짜**: {meeting_date}")
+    if duration_seconds:
+        lines.append(f"- **길이**: {format_timestamp(duration_seconds)}")
+    if language:
+        lines.append(f"- **언어**: {language}")
+    lines.append(f"- **생성일**: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
+    lines.append("")
+
+    # 구분선
+    lines.append("---")
+    lines.append("")
+
+    # 트랜스크립트 본문
+    lines.append("## 트랜스크립트")
+    lines.append("")
+
+    if not segments:
+        lines.append("_(트랜스크립트 없음)_")
+    else:
+        for seg in segments:
+            start = seg.get("start", 0)
+            text = seg.get("text", "").strip()
+            if text:
+                # 타임스탬프와 텍스트
+                timestamp = format_timestamp(start)
+                lines.append(f"**[{timestamp}]** {text}")
+                lines.append("")  # 각 세그먼트 후 빈 줄
+
+    return "\n".join(lines)
+
+
 def refine_transcript(text: str) -> str:
     """
     트랜스크립트 텍스트 정제
@@ -593,6 +664,45 @@ async def transcribe_meeting(
             f"Meeting transcribed: {meeting_id}, transcript_id: {transcript.id}, "
             f"backend: {result.backend}, model: {result.model}, latency: {result.latency_ms}ms"
         )
+
+        # 9.5. 마크다운 파일로 저장 (MinIO)
+        try:
+            # 마크다운 생성
+            md_content = generate_transcript_markdown(
+                title=meeting.title,
+                segments=refined_segments,
+                meeting_date=meeting.meeting_date.strftime('%Y-%m-%d') if meeting.meeting_date else None,
+                duration_seconds=result.duration_seconds,
+                language=result.language
+            )
+
+            # 임시 파일로 저장
+            import tempfile
+            import os
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False, encoding='utf-8') as tmp:
+                tmp.write(md_content)
+                tmp_path = tmp.name
+
+            # MinIO에 업로드
+            storage = get_storage_service()
+            md_object_key = f"meetings/{meeting_id}/transcript_{transcript.id}.md"
+            md_result = storage.upload_file(
+                file_path=tmp_path,
+                bucket="sparklio",
+                object_key=md_object_key,
+                content_type="text/markdown; charset=utf-8"
+            )
+
+            # 임시 파일 삭제
+            os.unlink(tmp_path)
+
+            # transcript에 마크다운 URL 저장
+            transcript.whisper_metadata["markdown_url"] = md_result.get("url", md_object_key)
+            db.commit()
+
+            logger.info(f"Transcript markdown saved: {md_object_key}")
+        except Exception as e:
+            logger.warning(f"Failed to save transcript markdown: {e}")
 
         # 10. (선택) MeetingAgent 자동 실행
         if transcribe_data.run_meeting_agent:
