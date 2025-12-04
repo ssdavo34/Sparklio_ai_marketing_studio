@@ -76,7 +76,21 @@ class MeetingURLPipeline:
 
             caption_transcript = None
             if caption_segments:
-                transcript_text = "\n".join(seg["text"] for seg in caption_segments)
+                # Caption 텍스트 정제 적용 (2025-12-04)
+                raw_transcript_text = "\n".join(seg["text"] for seg in caption_segments)
+                refined_caption_text = refine_transcript(raw_transcript_text)
+
+                # 세그먼트별 정제
+                refined_caption_segments = []
+                for seg in caption_segments:
+                    refined_seg_text = refine_transcript(seg.get("text", ""))
+                    if refined_seg_text.strip():  # 빈 세그먼트 제외
+                        refined_caption_segments.append({
+                            **seg,
+                            "text": refined_seg_text
+                        })
+
+                logger.info(f"Caption refined: {len(raw_transcript_text)} -> {len(refined_caption_text)} chars")
 
                 caption_transcript = MeetingTranscript(
                     meeting_id=meeting_id,
@@ -84,12 +98,16 @@ class MeetingURLPipeline:
                     provider=TranscriptProvider.YOUTUBE,
                     backend=TranscriptBackend.UNKNOWN,
                     model="youtube_caption",
-                    transcript_text=transcript_text,
-                    segments=caption_segments,
+                    transcript_text=refined_caption_text,  # 정제된 텍스트
+                    segments=refined_caption_segments,  # 정제된 세그먼트
                     language=language,
                     is_primary=False,  # ← Stage 2: 일단 False (Whisper와 비교 후 결정)
                     quality_score=7.0,
-                    confidence=0.0
+                    confidence=0.0,
+                    whisper_metadata={
+                        "original_length": len(raw_transcript_text),
+                        "refined_length": len(refined_caption_text)
+                    }
                 )
 
                 db.add(caption_transcript)
