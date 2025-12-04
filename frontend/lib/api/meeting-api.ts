@@ -179,7 +179,12 @@ export async function analyzeMeeting(meetingId: string): Promise<AnalyzeResponse
     throw new Error(`Failed to analyze meeting: ${response.statusText}`);
   }
 
-  return await response.json();
+  // 백엔드는 MeetingSummaryOutput을 직접 반환하므로 AnalyzeResponse 형식으로 변환
+  const analysisResult = await response.json();
+  return {
+    meeting_id: meetingId,
+    analysis: analysisResult,
+  };
 }
 
 /**

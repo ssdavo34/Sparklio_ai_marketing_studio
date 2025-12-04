@@ -131,6 +131,34 @@ class StorageService:
         except S3Error as e:
             raise Exception(f"MinIO delete failed: {str(e)}")
 
+    def download_file(
+        self,
+        bucket: str,
+        object_key: str,
+        local_path: str
+    ) -> str:
+        """
+        Download file from MinIO to local path (sync version)
+
+        Args:
+            bucket: Source bucket name
+            object_key: Object key (path in bucket)
+            local_path: Local file path to save
+
+        Returns:
+            Local file path where file was saved
+        """
+        try:
+            response = self.client.get_object(bucket, object_key)
+            with open(local_path, 'wb') as f:
+                for chunk in response.stream(32*1024):
+                    f.write(chunk)
+            response.close()
+            response.release_conn()
+            return local_path
+        except S3Error as e:
+            raise Exception(f"MinIO download failed: {str(e)}")
+
     async def upload_file_async(
         self,
         file_path: str,
