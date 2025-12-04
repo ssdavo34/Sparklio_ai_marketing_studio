@@ -366,14 +366,9 @@ class DocumentLayoutAgent(AgentBase):
             "title": "Executive Summary"
         })
 
-        # === 요약이 긴 경우: 요약 전용 페이지 추가 ===
-        if analysis.summary_complexity == "complex" and analysis.summary_length > 500:
-            pages.append({
-                "page_type": "content",
-                "layout_type": "summary_detail",
-                "sections": ["summary_detail"],
-                "title": "Summary Details"
-            })
+        # === 요약이 긴 경우: 커버에 이미 요약이 포함되므로 별도 페이지 생성하지 않음 ===
+        # 이전에는 summary_detail 페이지를 추가했지만, 이는 중복을 유발함
+        # 커버 페이지의 요약 카드가 페이지를 충분히 채우므로 별도 페이지 불필요
 
         # === PAGE 2 (or 3): 안건 & 결정사항 ===
         combined_count = agenda_count + decisions_count
