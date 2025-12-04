@@ -114,62 +114,126 @@ def generate_transcript_markdown(
     if not segments:
         lines.append("_(트랜스크립트 없음)_")
     else:
+        speaker_count = 0
+        prev_text = None
+
         for seg in segments:
             start = seg.get("start", 0)
-            text = seg.get("text", "").strip()
-            if text:
-                # 타임스탬프와 텍스트
-                timestamp = format_timestamp(start)
-                lines.append(f"**[{timestamp}]** {text}")
-                lines.append("")  # 각 세그먼트 후 빈 줄
+            raw_text = seg.get("text", "").strip()
+
+            if not raw_text:
+                continue
+
+            # 세그먼트별 정제 (keep_speaker_marker=True로 화자 분리)
+            # 먼저 >> 가 있는지 확인
+            has_speaker_change = ">>" in raw_text
+
+            # 정제 적용
+            cleaned_text = refine_transcript(raw_text, keep_speaker_marker=False)
+
+            if not cleaned_text:
+                continue
+
+            # 이전과 동일하면 스킵 (중복 방지)
+            if cleaned_text == prev_text:
+                continue
+            prev_text = cleaned_text
+
+            # 화자 변경 감지
+            if has_speaker_change:
+                speaker_count += 1
+                lines.append("")
+                lines.append(f"### 화자 {speaker_count}")
+                lines.append("")
+
+            # 타임스탬프와 텍스트
+            timestamp = format_timestamp(start)
+            lines.append(f"**[{timestamp}]** {cleaned_text}")
+            lines.append("")
 
     return "\n".join(lines)
 
 
-def refine_transcript(text: str) -> str:
+def refine_transcript(text: str, keep_speaker_marker: bool = False) -> str:
     """
     트랜스크립트 텍스트 정제
 
     Whisper STT 결과에서 노이즈를 제거하고 정제된 텍스트를 반환.
     DB에 저장되기 전에 호출되어 깨끗한 텍스트가 저장되도록 함.
 
+    Args:
+        text: 원본 텍스트
+        keep_speaker_marker: True면 >> 마커를 [화자]로 변환, False면 제거
+
     정제 항목:
     1. 소리 태그 제거: [음악], [박수], [웃음], [침묵] 등
-    2. 화자 마커 정리: >> 기호 제거
+    2. 화자 마커 정리: >> 기호 변환 또는 제거
     3. 반복 문구 제거: 연속 중복 문장 제거
     4. 공백 정규화: 과도한 공백/줄바꿈 정리
+    5. 인사말/광고 패턴 제거
     """
     if not text:
         return ""
 
     original_len = len(text)
 
-    # 1. 소리/환경 태그 제거 (대소문자 무시)
-    # [음악], [박수], [웃음], [침묵], [Music], [Applause] 등
-    text = re.sub(r'\[(?:음악|박수|웃음|침묵|한숨|기침|노래|Music|Applause|Laughter|Silence|Cough|Sigh)\]', '', text, flags=re.IGNORECASE)
+    # 1. 소리/환경 태그 제거 (대소문자 무시, 더 많은 패턴)
+    sound_patterns = [
+        r'\[음악\]', r'\[박수\]', r'\[웃음\]', r'\[침묵\]',
+        r'\[한숨\]', r'\[기침\]', r'\[노래\]', r'\[박수 소리\]',
+        r'\[Music\]', r'\[Applause\]', r'\[Laughter\]', r'\[Silence\]',
+        r'\[Cough\]', r'\[Sigh\]', r'\[음악 재생\]', r'\[배경음악\]',
+    ]
+    for pattern in sound_patterns:
+        text = re.sub(pattern, '', text, flags=re.IGNORECASE)
 
     # 2. 화자 마커 정리 (>> 기호)
-    # ">> 안녕하세요" -> "안녕하세요"
-    text = re.sub(r'>>\s*', '', text)
+    if keep_speaker_marker:
+        # >> 를 줄바꿈 + [화자] 로 변환 (화자 분리용)
+        text = re.sub(r'>>\s*', '\n\n**[화자]** ', text)
+    else:
+        # >> 제거
+        text = re.sub(r'>>\s*', '', text)
 
     # 3. 타임스탬프 패턴 제거 (00:00:00 형식)
-    text = re.sub(r'\d{1,2}:\d{2}(:\d{2})?\s*', '', text)
+    text = re.sub(r'\b\d{1,2}:\d{2}(:\d{2})?\b\s*', '', text)
 
-    # 4. 불필요한 필러 단어 정리 (선택적)
-    # "어...", "음...", "그..." 등은 보존 (의미 있을 수 있음)
+    # 4. 광고/인사말 패턴 제거 (유튜브 등)
+    ad_patterns = [
+        r'자세한 사항은\s*댓글창을\s*확인하세요\.?',
+        r'미래를\s*먼저\s*보다\.?\s*디타임즈\.?',
+        r'구독과\s*좋아요\s*부탁드립니다\.?',
+        r'채널\s*구독\s*부탁드립니다\.?',
+    ]
+    for pattern in ad_patterns:
+        text = re.sub(pattern, '', text, flags=re.IGNORECASE)
 
-    # 5. 반복 문장 제거 (연속된 동일 문장)
+    # 5. 반복 문장 제거 (연속된 동일/유사 문장)
     lines = text.split('\n')
     deduplicated_lines = []
     prev_line = None
     for line in lines:
         stripped = line.strip()
-        if stripped and stripped != prev_line:
-            deduplicated_lines.append(line)
-            prev_line = stripped
-        elif not stripped and deduplicated_lines and deduplicated_lines[-1].strip():
-            # 빈 줄은 한 번만 유지
-            deduplicated_lines.append('')
+        # 빈 줄 처리
+        if not stripped:
+            if deduplicated_lines and deduplicated_lines[-1].strip():
+                deduplicated_lines.append('')
+            continue
+        # 이전과 동일하면 스킵
+        if stripped == prev_line:
+            continue
+        # 이전과 80% 이상 유사하면 스킵 (짧은 문장은 제외)
+        if prev_line and len(stripped) > 20 and len(prev_line) > 20:
+            # 간단한 유사도 체크 (공통 단어 비율)
+            words1 = set(stripped.split())
+            words2 = set(prev_line.split())
+            if len(words1) > 0 and len(words2) > 0:
+                common = len(words1 & words2)
+                similarity = common / max(len(words1), len(words2))
+                if similarity > 0.8:
+                    continue
+        deduplicated_lines.append(line)
+        prev_line = stripped
     text = '\n'.join(deduplicated_lines)
 
     # 6. 연속 공백 정규화
@@ -666,11 +730,16 @@ async def transcribe_meeting(
         )
 
         # 9.5. 마크다운 파일로 저장 (MinIO)
+        # 원본 세그먼트 사용 (화자 마커 >> 감지를 위해)
         try:
-            # 마크다운 생성
+            # 원본 세그먼트로 마크다운 생성 (generate_transcript_markdown 내부에서 정제)
+            original_segments = [
+                {"start": seg.start, "end": seg.end, "text": seg.text}
+                for seg in result.segments
+            ]
             md_content = generate_transcript_markdown(
                 title=meeting.title,
-                segments=refined_segments,
+                segments=original_segments,  # 원본 세그먼트 사용
                 meeting_date=meeting.meeting_date.strftime('%Y-%m-%d') if meeting.meeting_date else None,
                 duration_seconds=result.duration_seconds,
                 language=result.language
