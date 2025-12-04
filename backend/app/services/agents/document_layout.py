@@ -98,6 +98,18 @@ class DocumentLayoutOutput(BaseModel):
 # Document Layout Agent
 # =============================================================================
 
+class ContentAnalysis(BaseModel):
+    """콘텐츠 분석 결과"""
+    total_text_length: int = Field(default=0, description="총 텍스트 길이")
+    summary_length: int = Field(default=0, description="요약 길이")
+    summary_complexity: str = Field(default="simple", description="요약 복잡도: simple/moderate/complex")
+    section_count: int = Field(default=0, description="섹션 수")
+    sections_analysis: Dict[str, Dict[str, Any]] = Field(default_factory=dict, description="섹션별 분석")
+    keyword_count: int = Field(default=0, description="키워드 수")
+    recommended_pages: int = Field(default=1, description="권장 페이지 수")
+    page_distribution: List[Dict[str, Any]] = Field(default_factory=list, description="페이지 분배 계획")
+
+
 class DocumentLayoutAgent(AgentBase):
     """
     Document Layout Agent
@@ -122,6 +134,215 @@ class DocumentLayoutAgent(AgentBase):
     @property
     def name(self) -> str:
         return "document_layout"
+
+    def _analyze_content(self, content: DocumentContent) -> ContentAnalysis:
+        """
+        콘텐츠를 분석하여 레이아웃 결정에 필요한 정보 추출
+
+        분석 항목:
+        1. 요약 길이 및 복잡도
+        2. 각 섹션별 항목 수 및 텍스트 길이
+        3. 전체 콘텐츠 양 기반 페이지 수 결정
+        """
+        analysis = ContentAnalysis()
+
+        # 요약 분석
+        if content.summary:
+            analysis.summary_length = len(content.summary)
+            sentences = content.summary.split('. ')
+            if len(sentences) <= 3:
+                analysis.summary_complexity = "simple"
+            elif len(sentences) <= 6:
+                analysis.summary_complexity = "moderate"
+            else:
+                analysis.summary_complexity = "complex"
+
+        # 키워드 분석
+        analysis.keyword_count = len(content.keywords or [])
+
+        # 섹션별 분석
+        analysis.section_count = len(content.sections)
+        total_items = 0
+
+        for section in content.sections:
+            section_type = section.get("type", "unknown")
+            items = section.get("items", [])
+            item_count = len(items)
+            total_items += item_count
+
+            # 항목별 평균 텍스트 길이
+            avg_item_length = 0
+            if items:
+                total_length = sum(len(str(item)) for item in items)
+                avg_item_length = total_length // item_count
+
+            analysis.sections_analysis[section_type] = {
+                "item_count": item_count,
+                "avg_item_length": avg_item_length,
+                "total_length": item_count * avg_item_length,
+                "needs_multiline": avg_item_length > 100,
+                "layout_hint": self._get_section_layout_hint(section_type, item_count, avg_item_length)
+            }
+
+        # 총 텍스트 길이
+        analysis.total_text_length = (
+            analysis.summary_length +
+            sum(s["total_length"] for s in analysis.sections_analysis.values())
+        )
+
+        # 페이지 분배 결정
+        analysis.page_distribution = self._determine_page_distribution(content, analysis)
+        analysis.recommended_pages = len(analysis.page_distribution)
+
+        logger.info(
+            f"[DocumentLayoutAgent] Content analysis: "
+            f"summary={analysis.summary_complexity}({analysis.summary_length}), "
+            f"sections={analysis.section_count}, items={total_items}, "
+            f"recommended_pages={analysis.recommended_pages}"
+        )
+
+        return analysis
+
+    def _get_section_layout_hint(
+        self,
+        section_type: str,
+        item_count: int,
+        avg_item_length: int
+    ) -> str:
+        """섹션 타입과 콘텐츠 양에 따른 레이아웃 힌트"""
+
+        # 액션 아이템: 카드 그리드 선호
+        if section_type == "action_items":
+            if item_count <= 2:
+                return "horizontal_cards"
+            elif item_count <= 4:
+                return "card_grid_2col"
+            else:
+                return "card_grid_2col_multirow"
+
+        # 안건/결정사항: 리스트 또는 2컬럼
+        if section_type in ("agenda", "decisions"):
+            if item_count <= 3:
+                return "simple_list"
+            elif item_count <= 6:
+                return "numbered_list"
+            else:
+                return "compact_list"
+
+        # 긴 텍스트 항목: 박스 형태
+        if avg_item_length > 150:
+            return "content_boxes"
+
+        # 기본
+        if item_count <= 3:
+            return "simple_list"
+        elif item_count <= 6:
+            return "numbered_list"
+        else:
+            return "compact_list"
+
+    def _determine_page_distribution(
+        self,
+        content: DocumentContent,
+        analysis: ContentAnalysis
+    ) -> List[Dict[str, Any]]:
+        """
+        콘텐츠 분석 결과를 바탕으로 페이지 분배 결정
+
+        규칙:
+        1. 항상 커버 페이지 (제목 + 요약)
+        2. 요약이 긴 경우 (500자+) 요약만으로 1페이지
+        3. 안건+결정사항: 항목 합이 6개 이하면 같은 페이지, 그 이상이면 분리
+        4. 액션아이템: 3개 이상이면 별도 페이지
+        5. 각 페이지는 콘텐츠 양에 따라 레이아웃 타입 결정
+        """
+        pages = []
+
+        # 섹션별 분석 결과
+        agenda_info = analysis.sections_analysis.get("agenda", {"item_count": 0})
+        decisions_info = analysis.sections_analysis.get("decisions", {"item_count": 0})
+        actions_info = analysis.sections_analysis.get("action_items", {"item_count": 0})
+
+        agenda_count = agenda_info.get("item_count", 0)
+        decisions_count = decisions_info.get("item_count", 0)
+        actions_count = actions_info.get("item_count", 0)
+
+        # === PAGE 1: Cover + Summary ===
+        cover_sections = ["title", "summary"]
+        cover_layout = "full_header"
+
+        # 요약이 짧고 (300자 미만) 키워드가 있으면 키워드도 표시
+        if analysis.summary_length < 300 and analysis.keyword_count > 0:
+            cover_sections.append("keywords")
+
+        # 요약이 매우 짧으면 (150자 미만) 안건도 표시 가능
+        if analysis.summary_length < 150 and agenda_count <= 3:
+            cover_sections.append("agenda_preview")
+
+        pages.append({
+            "page_type": "cover",
+            "layout_type": cover_layout,
+            "sections": cover_sections,
+            "title": "Executive Summary"
+        })
+
+        # === 요약이 긴 경우: 요약 전용 페이지 추가 ===
+        if analysis.summary_complexity == "complex" and analysis.summary_length > 500:
+            pages.append({
+                "page_type": "content",
+                "layout_type": "summary_detail",
+                "sections": ["summary_detail"],
+                "title": "Summary Details"
+            })
+
+        # === PAGE 2 (or 3): 안건 & 결정사항 ===
+        combined_count = agenda_count + decisions_count
+
+        if combined_count > 0:
+            if combined_count <= 8:
+                # 같은 페이지에 2컬럼으로
+                pages.append({
+                    "page_type": "content",
+                    "layout_type": "two_column",
+                    "sections": ["agenda", "decisions"],
+                    "title": "Key Points & Decisions"
+                })
+            else:
+                # 안건과 결정사항 분리
+                if agenda_count > 0:
+                    layout = "numbered_list" if agenda_count > 4 else "card_list"
+                    pages.append({
+                        "page_type": "content",
+                        "layout_type": layout,
+                        "sections": ["agenda"],
+                        "title": "Agenda"
+                    })
+                if decisions_count > 0:
+                    layout = "numbered_list" if decisions_count > 4 else "card_list"
+                    pages.append({
+                        "page_type": "content",
+                        "layout_type": layout,
+                        "sections": ["decisions"],
+                        "title": "Decisions"
+                    })
+
+        # === 액션 아이템 페이지 ===
+        if actions_count > 0:
+            if actions_count <= 2:
+                layout = "horizontal_cards"
+            elif actions_count <= 4:
+                layout = "card_grid_2col"
+            else:
+                layout = "card_grid_compact"
+
+            pages.append({
+                "page_type": "content",
+                "layout_type": layout,
+                "sections": ["action_items"],
+                "title": "Action Items"
+            })
+
+        return pages
 
     async def execute(self, request: AgentRequest) -> AgentResponse:
         """문서 레이아웃 생성"""
@@ -413,386 +634,77 @@ class DocumentLayoutAgent(AgentBase):
         page_height: int,
         document_type: str
     ) -> DocumentLayoutOutput:
-        """Fallback 레이아웃 생성 (LLM 실패 시)"""
+        """
+        동적 레이아웃 생성 (콘텐츠 분석 기반)
+
+        콘텐츠 양과 유형에 따라 자동으로:
+        1. 페이지 수 결정
+        2. 각 페이지의 레이아웃 타입 결정
+        3. 요소 배치 최적화
+        """
+
+        # 1. 콘텐츠 분석
+        analysis = self._analyze_content(content)
 
         margin = 60
         content_width = page_width - margin * 2
-
         pages: List[PageLayout] = []
+        recommendations: List[str] = []
 
-        # === PAGE 1: Cover + Executive Summary ===
-        cover_elements: List[LayoutElement] = []
-
-        # 헤더 배경
-        cover_elements.append(LayoutElement(
-            type="figure",
-            x=0,
-            y=0,
-            width=page_width,
-            height=180,
-            properties={"fill": "linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%)"}
-        ))
-
-        # 제목
-        cover_elements.append(LayoutElement(
-            type="text",
-            x=margin,
-            y=50,
-            width=content_width,
-            properties={"fontSize": 42, "fontWeight": "bold", "fill": "#FFFFFF"},
-            content=content.title
-        ))
-
-        # 부제목
-        if content.subtitle:
-            cover_elements.append(LayoutElement(
-                type="text",
-                x=margin,
-                y=110,
-                width=content_width,
-                properties={"fontSize": 18, "fill": "rgba(255,255,255,0.9)"},
-                content=content.subtitle
-            ))
-
-        # 요약 섹션
-        current_y = 210
-        if content.summary:
-            # 요약 제목
-            cover_elements.append(LayoutElement(
-                type="text",
-                x=margin,
-                y=current_y,
-                width=content_width,
-                properties={"fontSize": 22, "fontWeight": "bold", "fill": "#1F2937"},
-                content="Executive Summary"
-            ))
-            current_y += 40
-
-            # 요약 구조화 (도입/본문/결론)
-            summary = content.summary
-            sentences = summary.split('. ')
-
-            if len(sentences) > 5:
-                intro = '. '.join(sentences[:2]) + '.'
-                conclusion = '. '.join(sentences[-2:])
-                main = '. '.join(sentences[2:-2]) + '.'
-
-                # 도입부 (이탤릭)
-                cover_elements.append(LayoutElement(
-                    type="text",
-                    x=margin,
-                    y=current_y,
-                    width=content_width,
-                    properties={"fontSize": 13, "fill": "#6B7280", "fontStyle": "italic"},
-                    content=intro
-                ))
-                current_y += 50
-
-                # 본문
-                cover_elements.append(LayoutElement(
-                    type="text",
-                    x=margin,
-                    y=current_y,
-                    width=content_width,
-                    properties={"fontSize": 14, "fill": "#374151", "lineHeight": 1.6},
-                    content=main
-                ))
-                current_y += min(200, len(main) // 3)
-
-                # 결론 박스
-                box_height = 70
-                cover_elements.append(LayoutElement(
-                    type="figure",
-                    x=margin,
-                    y=current_y,
-                    width=content_width,
-                    height=box_height,
-                    properties={"fill": "#F3F4F6", "cornerRadius": 8}
-                ))
-                cover_elements.append(LayoutElement(
-                    type="text",
-                    x=margin + 15,
-                    y=current_y + 15,
-                    width=content_width - 30,
-                    properties={"fontSize": 12, "fill": "#374151"},
-                    content=f"💡 {conclusion}"
-                ))
-                current_y += box_height + 20
-            else:
-                # 짧은 요약은 그대로
-                cover_elements.append(LayoutElement(
-                    type="text",
-                    x=margin,
-                    y=current_y,
-                    width=content_width,
-                    properties={"fontSize": 14, "fill": "#374151", "lineHeight": 1.6},
-                    content=summary
-                ))
-                current_y += 100
-
-        # 키워드 태그
-        if content.keywords:
-            tag_x = margin
-            for keyword in content.keywords[:6]:
-                tag_width = len(keyword) * 9 + 24
-                if tag_x + tag_width > page_width - margin:
-                    break
-
-                cover_elements.append(LayoutElement(
-                    type="figure",
-                    x=tag_x,
-                    y=current_y,
-                    width=tag_width,
-                    height=28,
-                    properties={"fill": "#EEF2FF", "cornerRadius": 14}
-                ))
-                cover_elements.append(LayoutElement(
-                    type="text",
-                    x=tag_x + 12,
-                    y=current_y + 7,
-                    width=tag_width - 24,
-                    properties={"fontSize": 11, "fill": "#4F46E5"},
-                    content=keyword
-                ))
-                tag_x += tag_width + 8
-
-        pages.append(PageLayout(
-            page_number=1,
-            page_type="cover",
-            layout_type="full_header",
-            section_title="Executive Summary",
-            elements=cover_elements
-        ))
-
-        # === PAGE 2: 안건 & 결정사항 (Two Column) ===
+        # 섹션 데이터 추출
         agenda_section = next((s for s in content.sections if s.get("type") == "agenda"), None)
         decisions_section = next((s for s in content.sections if s.get("type") == "decisions"), None)
-
-        if agenda_section or decisions_section:
-            content_elements: List[LayoutElement] = []
-
-            # 페이지 헤더
-            content_elements.append(LayoutElement(
-                type="figure",
-                x=0,
-                y=0,
-                width=page_width,
-                height=80,
-                properties={"fill": "#4F46E5"}
-            ))
-            content_elements.append(LayoutElement(
-                type="text",
-                x=margin,
-                y=25,
-                width=content_width,
-                properties={"fontSize": 24, "fontWeight": "bold", "fill": "#FFFFFF"},
-                content="Key Points & Decisions"
-            ))
-
-            col_width = (content_width - 30) // 2
-            left_y = 100
-            right_y = 100
-
-            # 왼쪽: 주요 안건
-            if agenda_section:
-                items = agenda_section.get("items", [])
-                content_elements.append(LayoutElement(
-                    type="text",
-                    x=margin,
-                    y=left_y,
-                    width=col_width,
-                    properties={"fontSize": 16, "fontWeight": "bold", "fill": "#1F2937"},
-                    content="📋 주요 안건"
-                ))
-                left_y += 30
-
-                for idx, item in enumerate(items[:8]):
-                    item_height = max(40, len(str(item)) // 35 * 20 + 15)
-
-                    # 배경
-                    content_elements.append(LayoutElement(
-                        type="figure",
-                        x=margin,
-                        y=left_y,
-                        width=col_width,
-                        height=item_height,
-                        properties={"fill": "#F9FAFB" if idx % 2 == 0 else "#FFFFFF", "cornerRadius": 6}
-                    ))
-
-                    # 번호 뱃지
-                    content_elements.append(LayoutElement(
-                        type="figure",
-                        x=margin + 8,
-                        y=left_y + 8,
-                        width=22,
-                        height=22,
-                        properties={"fill": "#4F46E5", "cornerRadius": 11}
-                    ))
-                    content_elements.append(LayoutElement(
-                        type="text",
-                        x=margin + 8,
-                        y=left_y + 12,
-                        width=22,
-                        properties={"fontSize": 11, "fontWeight": "bold", "fill": "#FFFFFF", "align": "center"},
-                        content=str(idx + 1)
-                    ))
-
-                    # 텍스트
-                    content_elements.append(LayoutElement(
-                        type="text",
-                        x=margin + 40,
-                        y=left_y + 10,
-                        width=col_width - 55,
-                        properties={"fontSize": 12, "fill": "#374151"},
-                        content=str(item)
-                    ))
-
-                    left_y += item_height + 8
-
-            # 오른쪽: 결정 사항
-            if decisions_section:
-                items = decisions_section.get("items", [])
-                right_x = margin + col_width + 30
-
-                content_elements.append(LayoutElement(
-                    type="text",
-                    x=right_x,
-                    y=right_y,
-                    width=col_width,
-                    properties={"fontSize": 16, "fontWeight": "bold", "fill": "#059669"},
-                    content="✅ 결정 사항"
-                ))
-                right_y += 30
-
-                for idx, item in enumerate(items[:8]):
-                    item_height = max(40, len(str(item)) // 35 * 20 + 15)
-
-                    # 배경
-                    content_elements.append(LayoutElement(
-                        type="figure",
-                        x=right_x,
-                        y=right_y,
-                        width=col_width,
-                        height=item_height,
-                        properties={"fill": "#ECFDF5", "cornerRadius": 6}
-                    ))
-
-                    # 체크
-                    content_elements.append(LayoutElement(
-                        type="text",
-                        x=right_x + 10,
-                        y=right_y + 10,
-                        width=20,
-                        properties={"fontSize": 14, "fill": "#059669"},
-                        content="✓"
-                    ))
-
-                    # 텍스트
-                    content_elements.append(LayoutElement(
-                        type="text",
-                        x=right_x + 35,
-                        y=right_y + 10,
-                        width=col_width - 50,
-                        properties={"fontSize": 12, "fill": "#047857"},
-                        content=str(item)
-                    ))
-
-                    right_y += item_height + 8
-
-            pages.append(PageLayout(
-                page_number=2,
-                page_type="content",
-                layout_type="two_column",
-                section_title="Key Points & Decisions",
-                elements=content_elements
-            ))
-
-        # === PAGE 3: Action Items (Card Grid) ===
         action_section = next((s for s in content.sections if s.get("type") == "action_items"), None)
 
-        if action_section:
-            items = action_section.get("items", [])
-            if items:
-                action_elements: List[LayoutElement] = []
+        # 2. 분석 결과 기반으로 각 페이지 생성
+        for page_plan in analysis.page_distribution:
+            page_type = page_plan["page_type"]
+            layout_type = page_plan["layout_type"]
+            sections = page_plan["sections"]
+            title = page_plan["title"]
 
-                # 페이지 헤더
-                action_elements.append(LayoutElement(
-                    type="figure",
-                    x=0,
-                    y=0,
-                    width=page_width,
-                    height=80,
-                    properties={"fill": "#DC2626"}
-                ))
-                action_elements.append(LayoutElement(
-                    type="text",
-                    x=margin,
-                    y=25,
-                    width=content_width,
-                    properties={"fontSize": 24, "fontWeight": "bold", "fill": "#FFFFFF"},
-                    content="Action Items"
-                ))
+            if page_type == "cover":
+                page = self._build_cover_page(
+                    content, analysis, page_width, page_height, margin, sections
+                )
+            elif "agenda" in sections and "decisions" in sections:
+                page = self._build_two_column_page(
+                    content, agenda_section, decisions_section,
+                    page_width, page_height, margin, title, layout_type
+                )
+            elif "agenda" in sections:
+                page = self._build_list_page(
+                    agenda_section, page_width, page_height, margin,
+                    "Agenda", "#4F46E5", layout_type
+                )
+            elif "decisions" in sections:
+                page = self._build_list_page(
+                    decisions_section, page_width, page_height, margin,
+                    "Decisions", "#059669", layout_type
+                )
+            elif "action_items" in sections:
+                page = self._build_action_items_page(
+                    action_section, page_width, page_height, margin, layout_type
+                )
+            elif "summary_detail" in sections:
+                page = self._build_summary_detail_page(
+                    content, page_width, page_height, margin
+                )
+            else:
+                continue
 
-                # 카드 그리드
-                card_width = (content_width - 20) // 2
-                card_height = 80
-                start_y = 100
+            page.page_number = len(pages) + 1
+            pages.append(page)
 
-                for idx, item in enumerate(items[:6]):
-                    row = idx // 2
-                    col = idx % 2
-                    card_x = margin + col * (card_width + 20)
-                    card_y = start_y + row * (card_height + 15)
+        # 3. 권장 사항 생성
+        if analysis.summary_complexity == "complex":
+            recommendations.append(f"요약이 복잡하여 구조화 처리됨 ({analysis.summary_length}자)")
+        if analysis.recommended_pages > 2:
+            recommendations.append(f"콘텐츠 양에 따라 {analysis.recommended_pages}페이지로 분배")
 
-                    # 카드 배경
-                    action_elements.append(LayoutElement(
-                        type="figure",
-                        x=card_x,
-                        y=card_y,
-                        width=card_width,
-                        height=card_height,
-                        properties={"fill": "#FEF2F2", "cornerRadius": 8, "stroke": "#FECACA"}
-                    ))
-
-                    # 우선순위 뱃지
-                    action_elements.append(LayoutElement(
-                        type="figure",
-                        x=card_x + 10,
-                        y=card_y + 10,
-                        width=24,
-                        height=24,
-                        properties={"fill": "#DC2626", "cornerRadius": 4}
-                    ))
-                    action_elements.append(LayoutElement(
-                        type="text",
-                        x=card_x + 10,
-                        y=card_y + 14,
-                        width=24,
-                        properties={"fontSize": 12, "fontWeight": "bold", "fill": "#FFFFFF", "align": "center"},
-                        content=str(idx + 1)
-                    ))
-
-                    # 텍스트
-                    item_text = str(item)
-                    if len(item_text) > 80:
-                        item_text = item_text[:77] + "..."
-
-                    action_elements.append(LayoutElement(
-                        type="text",
-                        x=card_x + 45,
-                        y=card_y + 15,
-                        width=card_width - 60,
-                        properties={"fontSize": 12, "fill": "#991B1B", "lineHeight": 1.4},
-                        content=item_text
-                    ))
-
-                pages.append(PageLayout(
-                    page_number=len(pages) + 1,
-                    page_type="content",
-                    layout_type="card_grid",
-                    section_title="Action Items",
-                    elements=action_elements
-                ))
+        for section_type, info in analysis.sections_analysis.items():
+            if info["item_count"] > 5:
+                recommendations.append(f"{section_type}: 항목이 많아 {info['layout_hint']} 레이아웃 적용")
 
         # 디자인 토큰
         design_tokens = {
@@ -805,17 +717,18 @@ class DocumentLayoutAgent(AgentBase):
             "background": "#F9FAFB",
             "font_family": "Pretendard, sans-serif",
             "base_font_size": 14,
-            "margin": margin
+            "margin": margin,
+            "content_analysis": {
+                "summary_complexity": analysis.summary_complexity,
+                "total_sections": analysis.section_count,
+                "page_distribution": analysis.page_distribution
+            }
         }
 
-        # 권장 사항
-        recommendations = []
-        if content.summary and len(content.summary) > 500:
-            recommendations.append("요약이 길어 도입/본문/결론으로 구조화됨")
-        if agenda_section and len(agenda_section.get("items", [])) > 5:
-            recommendations.append("안건 항목이 많아 2컬럼 레이아웃 적용")
-        if action_section and len(action_section.get("items", [])) > 3:
-            recommendations.append("액션아이템 카드 그리드로 시각적 강조")
+        logger.info(
+            f"[DocumentLayoutAgent] Generated {len(pages)} pages dynamically "
+            f"based on content analysis"
+        )
 
         return DocumentLayoutOutput(
             document_type=document_type,
@@ -823,6 +736,763 @@ class DocumentLayoutAgent(AgentBase):
             pages=pages,
             design_tokens=design_tokens,
             recommendations=recommendations
+        )
+
+    def _build_cover_page(
+        self,
+        content: DocumentContent,
+        analysis: ContentAnalysis,
+        page_width: int,
+        page_height: int,
+        margin: int,
+        sections: List[str]
+    ) -> PageLayout:
+        """커버 페이지 생성 (콘텐츠 양에 따라 동적 조정)"""
+
+        content_width = page_width - margin * 2
+        elements: List[LayoutElement] = []
+
+        # 헤더 높이: 요약 길이에 따라 조정
+        header_height = 180 if analysis.summary_length < 300 else 140
+
+        # 헤더 배경
+        elements.append(LayoutElement(
+            type="figure",
+            x=0,
+            y=0,
+            width=page_width,
+            height=header_height,
+            properties={"fill": "#7C3AED"}
+        ))
+
+        # 제목 크기: 길이에 따라 조정
+        title_size = 42 if len(content.title) < 30 else 36 if len(content.title) < 50 else 28
+        elements.append(LayoutElement(
+            type="text",
+            x=margin,
+            y=header_height // 2 - title_size // 2,
+            width=content_width,
+            properties={"fontSize": title_size, "fontWeight": "bold", "fill": "#FFFFFF"},
+            content=content.title
+        ))
+
+        # 부제목
+        if content.subtitle:
+            elements.append(LayoutElement(
+                type="text",
+                x=margin,
+                y=header_height - 40,
+                width=content_width,
+                properties={"fontSize": 16, "fill": "rgba(255,255,255,0.85)"},
+                content=content.subtitle
+            ))
+
+        current_y = header_height + 30
+
+        # 요약 섹션 (복잡도에 따라 다르게 처리)
+        if content.summary and "summary" in sections:
+            current_y = self._render_summary_section(
+                elements, content.summary, analysis.summary_complexity,
+                margin, current_y, content_width, page_height
+            )
+
+        # 키워드 태그 (페이지에 공간이 있고, sections에 포함된 경우)
+        if content.keywords and "keywords" in sections and current_y < page_height - 100:
+            current_y = self._render_keyword_tags(
+                elements, content.keywords, margin, current_y, content_width, page_width
+            )
+
+        # 안건 미리보기 (커버에 여유 공간이 있는 경우)
+        if "agenda_preview" in sections and current_y < page_height - 200:
+            agenda_section = next((s for s in content.sections if s.get("type") == "agenda"), None)
+            if agenda_section:
+                items = agenda_section.get("items", [])[:3]
+                if items:
+                    current_y += 20
+                    elements.append(LayoutElement(
+                        type="text",
+                        x=margin,
+                        y=current_y,
+                        width=content_width,
+                        properties={"fontSize": 14, "fontWeight": "bold", "fill": "#6B7280"},
+                        content="주요 안건"
+                    ))
+                    current_y += 25
+                    for item in items:
+                        elements.append(LayoutElement(
+                            type="text",
+                            x=margin + 15,
+                            y=current_y,
+                            width=content_width - 15,
+                            properties={"fontSize": 12, "fill": "#374151"},
+                            content=f"• {str(item)[:60]}..."
+                        ))
+                        current_y += 22
+
+        return PageLayout(
+            page_number=1,
+            page_type="cover",
+            layout_type="full_header",
+            section_title="Executive Summary",
+            elements=elements
+        )
+
+    def _render_summary_section(
+        self,
+        elements: List[LayoutElement],
+        summary: str,
+        complexity: str,
+        margin: int,
+        start_y: int,
+        content_width: int,
+        page_height: int
+    ) -> int:
+        """요약 섹션 렌더링 (복잡도에 따라 구조화)"""
+
+        current_y = start_y
+
+        # 섹션 제목
+        elements.append(LayoutElement(
+            type="text",
+            x=margin,
+            y=current_y,
+            width=content_width,
+            properties={"fontSize": 18, "fontWeight": "bold", "fill": "#1F2937"},
+            content="Executive Summary"
+        ))
+        current_y += 35
+
+        sentences = summary.split('. ')
+
+        if complexity == "complex" and len(sentences) > 5:
+            # 복잡한 요약: 도입/본문/결론 구조화
+            intro = '. '.join(sentences[:2]) + '.'
+            main_parts = sentences[2:-2]
+            conclusion = '. '.join(sentences[-2:])
+
+            # 도입부 (이탤릭 스타일의 리드 문장)
+            elements.append(LayoutElement(
+                type="text",
+                x=margin,
+                y=current_y,
+                width=content_width,
+                properties={"fontSize": 13, "fill": "#6B7280", "fontStyle": "italic"},
+                content=intro
+            ))
+            intro_height = max(40, len(intro) // 80 * 20 + 25)
+            current_y += intro_height
+
+            # 본문 (핵심 내용)
+            if main_parts:
+                main_text = '. '.join(main_parts) + '.'
+
+                # 남은 공간 계산
+                available_height = page_height - current_y - 150
+                max_main_height = min(available_height, 250)
+
+                elements.append(LayoutElement(
+                    type="text",
+                    x=margin,
+                    y=current_y,
+                    width=content_width,
+                    height=max_main_height,
+                    properties={"fontSize": 13, "fill": "#374151", "lineHeight": 1.6},
+                    content=main_text
+                ))
+                main_height = min(max_main_height, len(main_text) // 70 * 20 + 30)
+                current_y += main_height + 15
+
+            # 결론 박스
+            if conclusion and current_y < page_height - 120:
+                box_height = max(50, len(conclusion) // 80 * 20 + 30)
+                elements.append(LayoutElement(
+                    type="figure",
+                    x=margin,
+                    y=current_y,
+                    width=content_width,
+                    height=box_height,
+                    properties={"fill": "#F3F4F6", "cornerRadius": 8}
+                ))
+                elements.append(LayoutElement(
+                    type="text",
+                    x=margin + 15,
+                    y=current_y + 12,
+                    width=content_width - 30,
+                    properties={"fontSize": 12, "fill": "#374151", "fontWeight": "500"},
+                    content=f"💡 {conclusion}"
+                ))
+                current_y += box_height + 15
+
+        elif complexity == "moderate":
+            # 중간 복잡도: 2단락으로 분리
+            mid = len(sentences) // 2
+            first_half = '. '.join(sentences[:mid]) + '.'
+            second_half = '. '.join(sentences[mid:])
+
+            elements.append(LayoutElement(
+                type="text",
+                x=margin,
+                y=current_y,
+                width=content_width,
+                properties={"fontSize": 13, "fill": "#374151", "lineHeight": 1.6},
+                content=first_half
+            ))
+            first_height = max(50, len(first_half) // 70 * 20 + 20)
+            current_y += first_height
+
+            elements.append(LayoutElement(
+                type="text",
+                x=margin,
+                y=current_y,
+                width=content_width,
+                properties={"fontSize": 13, "fill": "#374151", "lineHeight": 1.6},
+                content=second_half
+            ))
+            second_height = max(50, len(second_half) // 70 * 20 + 20)
+            current_y += second_height
+
+        else:
+            # 단순 요약: 그대로 표시
+            elements.append(LayoutElement(
+                type="text",
+                x=margin,
+                y=current_y,
+                width=content_width,
+                properties={"fontSize": 13, "fill": "#374151", "lineHeight": 1.6},
+                content=summary
+            ))
+            summary_height = max(60, len(summary) // 70 * 20 + 20)
+            current_y += summary_height
+
+        return current_y + 15
+
+    def _render_keyword_tags(
+        self,
+        elements: List[LayoutElement],
+        keywords: List[str],
+        margin: int,
+        start_y: int,
+        content_width: int,
+        page_width: int
+    ) -> int:
+        """키워드 태그 렌더링"""
+
+        tag_x = margin
+        tag_y = start_y
+        row_height = 32
+
+        for keyword in keywords[:8]:
+            tag_width = len(keyword) * 9 + 24
+
+            # 줄 바꿈 필요 시
+            if tag_x + tag_width > page_width - margin:
+                tag_x = margin
+                tag_y += row_height + 8
+
+            # 태그 배경
+            elements.append(LayoutElement(
+                type="figure",
+                x=tag_x,
+                y=tag_y,
+                width=tag_width,
+                height=28,
+                properties={"fill": "#EEF2FF", "cornerRadius": 14}
+            ))
+
+            # 태그 텍스트
+            elements.append(LayoutElement(
+                type="text",
+                x=tag_x + 12,
+                y=tag_y + 7,
+                width=tag_width - 24,
+                properties={"fontSize": 11, "fill": "#4F46E5", "fontWeight": "500"},
+                content=keyword
+            ))
+
+            tag_x += tag_width + 8
+
+        return tag_y + row_height + 10
+
+    def _build_two_column_page(
+        self,
+        content: DocumentContent,
+        agenda_section: Optional[Dict[str, Any]],
+        decisions_section: Optional[Dict[str, Any]],
+        page_width: int,
+        page_height: int,
+        margin: int,
+        title: str,
+        layout_type: str
+    ) -> PageLayout:
+        """2컬럼 페이지 생성 (안건 + 결정사항)"""
+
+        content_width = page_width - margin * 2
+        elements: List[LayoutElement] = []
+
+        # 페이지 헤더
+        elements.append(LayoutElement(
+            type="figure",
+            x=0,
+            y=0,
+            width=page_width,
+            height=70,
+            properties={"fill": "#4F46E5"}
+        ))
+        elements.append(LayoutElement(
+            type="text",
+            x=margin,
+            y=22,
+            width=content_width,
+            properties={"fontSize": 22, "fontWeight": "bold", "fill": "#FFFFFF"},
+            content=title
+        ))
+
+        # 컬럼 설정
+        col_width = (content_width - 30) // 2
+        left_x = margin
+        right_x = margin + col_width + 30
+        start_y = 90
+
+        # 왼쪽 컬럼: 안건
+        if agenda_section:
+            items = agenda_section.get("items", [])
+            self._render_list_column(
+                elements, items, left_x, start_y, col_width, page_height,
+                "📋 주요 안건", "#4F46E5", "#F9FAFB"
+            )
+
+        # 오른쪽 컬럼: 결정사항
+        if decisions_section:
+            items = decisions_section.get("items", [])
+            self._render_list_column(
+                elements, items, right_x, start_y, col_width, page_height,
+                "✅ 결정 사항", "#059669", "#ECFDF5"
+            )
+
+        return PageLayout(
+            page_number=0,
+            page_type="content",
+            layout_type="two_column",
+            section_title=title,
+            elements=elements
+        )
+
+    def _render_list_column(
+        self,
+        elements: List[LayoutElement],
+        items: List[Any],
+        x: int,
+        start_y: int,
+        width: int,
+        page_height: int,
+        title: str,
+        accent_color: str,
+        bg_color: str
+    ) -> None:
+        """리스트 컬럼 렌더링"""
+
+        current_y = start_y
+
+        # 컬럼 제목
+        elements.append(LayoutElement(
+            type="text",
+            x=x,
+            y=current_y,
+            width=width,
+            properties={"fontSize": 14, "fontWeight": "bold", "fill": accent_color},
+            content=title
+        ))
+        current_y += 28
+
+        # 항목 수에 따른 폰트 크기 및 간격 조정
+        item_count = len(items)
+        available_height = page_height - current_y - 40
+
+        if item_count <= 4:
+            font_size = 12
+            item_padding = 12
+            min_item_height = 45
+        elif item_count <= 6:
+            font_size = 11
+            item_padding = 8
+            min_item_height = 38
+        else:
+            font_size = 10
+            item_padding = 6
+            min_item_height = 32
+
+        # 표시할 최대 항목 수 계산
+        max_items = min(item_count, int(available_height / (min_item_height + item_padding)))
+
+        for idx, item in enumerate(items[:max_items]):
+            item_text = str(item)
+
+            # 텍스트 길이에 따른 높이 계산
+            chars_per_line = width // (font_size * 0.6)
+            lines = max(1, len(item_text) // int(chars_per_line) + 1)
+            item_height = max(min_item_height, lines * (font_size + 4) + 16)
+
+            # 배경
+            elements.append(LayoutElement(
+                type="figure",
+                x=x,
+                y=current_y,
+                width=width,
+                height=item_height,
+                properties={"fill": bg_color if idx % 2 == 0 else "#FFFFFF", "cornerRadius": 6}
+            ))
+
+            # 번호 뱃지
+            badge_size = 20 if font_size >= 11 else 18
+            elements.append(LayoutElement(
+                type="figure",
+                x=x + 8,
+                y=current_y + (item_height - badge_size) // 2,
+                width=badge_size,
+                height=badge_size,
+                properties={"fill": accent_color, "cornerRadius": badge_size // 2}
+            ))
+            elements.append(LayoutElement(
+                type="text",
+                x=x + 8,
+                y=current_y + (item_height - badge_size) // 2 + 3,
+                width=badge_size,
+                properties={"fontSize": font_size - 1, "fontWeight": "bold", "fill": "#FFFFFF", "align": "center"},
+                content=str(idx + 1)
+            ))
+
+            # 텍스트
+            elements.append(LayoutElement(
+                type="text",
+                x=x + 8 + badge_size + 10,
+                y=current_y + 10,
+                width=width - badge_size - 26,
+                properties={"fontSize": font_size, "fill": "#374151", "lineHeight": 1.4},
+                content=item_text
+            ))
+
+            current_y += item_height + item_padding
+
+        # 더 많은 항목이 있음을 표시
+        if item_count > max_items:
+            elements.append(LayoutElement(
+                type="text",
+                x=x,
+                y=current_y,
+                width=width,
+                properties={"fontSize": 10, "fill": "#9CA3AF", "align": "center"},
+                content=f"외 {item_count - max_items}개 항목..."
+            ))
+
+    def _build_list_page(
+        self,
+        section: Optional[Dict[str, Any]],
+        page_width: int,
+        page_height: int,
+        margin: int,
+        title: str,
+        accent_color: str,
+        layout_type: str
+    ) -> PageLayout:
+        """단일 섹션 리스트 페이지"""
+
+        if not section:
+            return PageLayout(
+                page_number=0,
+                page_type="content",
+                layout_type=layout_type,
+                section_title=title,
+                elements=[]
+            )
+
+        content_width = page_width - margin * 2
+        elements: List[LayoutElement] = []
+        items = section.get("items", [])
+
+        # 페이지 헤더
+        elements.append(LayoutElement(
+            type="figure",
+            x=0,
+            y=0,
+            width=page_width,
+            height=70,
+            properties={"fill": accent_color}
+        ))
+        elements.append(LayoutElement(
+            type="text",
+            x=margin,
+            y=22,
+            width=content_width,
+            properties={"fontSize": 22, "fontWeight": "bold", "fill": "#FFFFFF"},
+            content=title
+        ))
+
+        # 리스트 렌더링
+        bg_color = "#F9FAFB" if accent_color == "#4F46E5" else "#ECFDF5"
+        self._render_list_column(
+            elements, items, margin, 90, content_width, page_height,
+            "", accent_color, bg_color
+        )
+
+        return PageLayout(
+            page_number=0,
+            page_type="content",
+            layout_type=layout_type,
+            section_title=title,
+            elements=elements
+        )
+
+    def _build_action_items_page(
+        self,
+        section: Optional[Dict[str, Any]],
+        page_width: int,
+        page_height: int,
+        margin: int,
+        layout_type: str
+    ) -> PageLayout:
+        """액션 아이템 페이지 (카드 그리드)"""
+
+        if not section:
+            return PageLayout(
+                page_number=0,
+                page_type="content",
+                layout_type=layout_type,
+                section_title="Action Items",
+                elements=[]
+            )
+
+        content_width = page_width - margin * 2
+        elements: List[LayoutElement] = []
+        items = section.get("items", [])
+
+        # 페이지 헤더
+        elements.append(LayoutElement(
+            type="figure",
+            x=0,
+            y=0,
+            width=page_width,
+            height=70,
+            properties={"fill": "#DC2626"}
+        ))
+        elements.append(LayoutElement(
+            type="text",
+            x=margin,
+            y=22,
+            width=content_width,
+            properties={"fontSize": 22, "fontWeight": "bold", "fill": "#FFFFFF"},
+            content="Action Items"
+        ))
+
+        # 아이템 수에 따른 레이아웃 결정
+        item_count = len(items)
+
+        if layout_type == "horizontal_cards" and item_count <= 2:
+            # 2개 이하: 가로로 큰 카드
+            card_width = content_width
+            card_height = 100
+            start_y = 90
+
+            for idx, item in enumerate(items):
+                card_y = start_y + idx * (card_height + 15)
+                self._render_action_card(
+                    elements, item, idx, margin, card_y, card_width, card_height
+                )
+
+        elif layout_type == "card_grid_2col" and item_count <= 4:
+            # 3-4개: 2열 그리드
+            card_width = (content_width - 20) // 2
+            card_height = 90
+            start_y = 90
+
+            for idx, item in enumerate(items):
+                row = idx // 2
+                col = idx % 2
+                card_x = margin + col * (card_width + 20)
+                card_y = start_y + row * (card_height + 15)
+                self._render_action_card(
+                    elements, item, idx, card_x, card_y, card_width, card_height
+                )
+
+        else:
+            # 5개 이상: 컴팩트 그리드
+            card_width = (content_width - 20) // 2
+            card_height = 70
+            start_y = 90
+
+            for idx, item in enumerate(items[:8]):
+                row = idx // 2
+                col = idx % 2
+                card_x = margin + col * (card_width + 20)
+                card_y = start_y + row * (card_height + 12)
+                self._render_action_card(
+                    elements, item, idx, card_x, card_y, card_width, card_height, compact=True
+                )
+
+            # 더 많은 항목 표시
+            if item_count > 8:
+                elements.append(LayoutElement(
+                    type="text",
+                    x=margin,
+                    y=start_y + 4 * (card_height + 12) + 10,
+                    width=content_width,
+                    properties={"fontSize": 11, "fill": "#9CA3AF", "align": "center"},
+                    content=f"외 {item_count - 8}개 액션 아이템..."
+                ))
+
+        return PageLayout(
+            page_number=0,
+            page_type="content",
+            layout_type=layout_type,
+            section_title="Action Items",
+            elements=elements
+        )
+
+    def _render_action_card(
+        self,
+        elements: List[LayoutElement],
+        item: Any,
+        idx: int,
+        x: int,
+        y: int,
+        width: int,
+        height: int,
+        compact: bool = False
+    ) -> None:
+        """액션 아이템 카드 렌더링"""
+
+        # 카드 배경
+        elements.append(LayoutElement(
+            type="figure",
+            x=x,
+            y=y,
+            width=width,
+            height=height,
+            properties={"fill": "#FEF2F2", "cornerRadius": 8, "stroke": "#FECACA", "strokeWidth": 1}
+        ))
+
+        # 우선순위 뱃지
+        badge_size = 22 if not compact else 18
+        badge_y = y + 10 if not compact else y + 8
+        elements.append(LayoutElement(
+            type="figure",
+            x=x + 10,
+            y=badge_y,
+            width=badge_size,
+            height=badge_size,
+            properties={"fill": "#DC2626", "cornerRadius": 4}
+        ))
+        elements.append(LayoutElement(
+            type="text",
+            x=x + 10,
+            y=badge_y + 4,
+            width=badge_size,
+            properties={"fontSize": 11 if not compact else 9, "fontWeight": "bold", "fill": "#FFFFFF", "align": "center"},
+            content=str(idx + 1)
+        ))
+
+        # 텍스트
+        item_text = str(item)
+        max_len = 100 if not compact else 60
+        if len(item_text) > max_len:
+            item_text = item_text[:max_len - 3] + "..."
+
+        text_x = x + 10 + badge_size + 10
+        text_y = y + (12 if not compact else 10)
+        text_width = width - badge_size - 35
+
+        elements.append(LayoutElement(
+            type="text",
+            x=text_x,
+            y=text_y,
+            width=text_width,
+            properties={
+                "fontSize": 12 if not compact else 10,
+                "fill": "#991B1B",
+                "lineHeight": 1.4
+            },
+            content=item_text
+        ))
+
+    def _build_summary_detail_page(
+        self,
+        content: DocumentContent,
+        page_width: int,
+        page_height: int,
+        margin: int
+    ) -> PageLayout:
+        """요약 상세 페이지 (긴 요약용)"""
+
+        content_width = page_width - margin * 2
+        elements: List[LayoutElement] = []
+
+        # 페이지 헤더
+        elements.append(LayoutElement(
+            type="figure",
+            x=0,
+            y=0,
+            width=page_width,
+            height=70,
+            properties={"fill": "#7C3AED"}
+        ))
+        elements.append(LayoutElement(
+            type="text",
+            x=margin,
+            y=22,
+            width=content_width,
+            properties={"fontSize": 22, "fontWeight": "bold", "fill": "#FFFFFF"},
+            content="Summary Details"
+        ))
+
+        if content.summary:
+            sentences = content.summary.split('. ')
+            current_y = 90
+
+            # 요약을 섹션으로 분할
+            sections = []
+            current_section = []
+
+            for sentence in sentences:
+                current_section.append(sentence)
+                if len(current_section) >= 3:
+                    sections.append('. '.join(current_section) + '.')
+                    current_section = []
+
+            if current_section:
+                sections.append('. '.join(current_section))
+
+            # 각 섹션 렌더링
+            for section_text in sections:
+                if current_y > page_height - 100:
+                    break
+
+                section_height = max(80, len(section_text) // 70 * 18 + 30)
+
+                elements.append(LayoutElement(
+                    type="figure",
+                    x=margin,
+                    y=current_y,
+                    width=content_width,
+                    height=section_height,
+                    properties={"fill": "#F9FAFB", "cornerRadius": 8}
+                ))
+
+                elements.append(LayoutElement(
+                    type="text",
+                    x=margin + 15,
+                    y=current_y + 15,
+                    width=content_width - 30,
+                    properties={"fontSize": 12, "fill": "#374151", "lineHeight": 1.6},
+                    content=section_text
+                ))
+
+                current_y += section_height + 15
+
+        return PageLayout(
+            page_number=0,
+            page_type="content",
+            layout_type="summary_detail",
+            section_title="Summary Details",
+            elements=elements
         )
 
     def _generate_sns_ad_layout(
