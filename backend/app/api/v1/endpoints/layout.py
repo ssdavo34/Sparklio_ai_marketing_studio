@@ -25,7 +25,7 @@ from app.services.agents.base import AgentRequest
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/layout", tags=["layout"])
+router = APIRouter(tags=["layout"])
 
 
 # =============================================================================
@@ -245,17 +245,21 @@ async def get_layout_presets():
     return LayoutPresetsResponse(presets=presets)
 
 
+class MeetingLayoutRequest(BaseModel):
+    """회의 요약 레이아웃 요청"""
+    title: str = Field(..., description="회의 제목")
+    summary: Optional[str] = Field(None, description="회의 요약")
+    agenda: Optional[List[str]] = Field(None, description="주요 안건")
+    decisions: Optional[List[str]] = Field(None, description="결정 사항")
+    action_items: Optional[List[Dict[str, Any]]] = Field(None, description="액션 아이템")
+    keywords: Optional[List[str]] = Field(None, description="키워드")
+    participants: Optional[List[str]] = Field(None, description="참석자")
+    duration: Optional[str] = Field(None, description="회의 시간")
+    options: Optional[Dict[str, Any]] = Field(None, description="레이아웃 옵션")
+
+
 @router.post("/generate/meeting", response_model=Dict[str, Any])
-async def generate_meeting_layout(
-    title: str,
-    summary: Optional[str] = None,
-    agenda: Optional[List[str]] = None,
-    decisions: Optional[List[str]] = None,
-    action_items: Optional[List[str]] = None,
-    keywords: Optional[List[str]] = None,
-    page_width: int = 1920,
-    page_height: int = 1080
-):
+async def generate_meeting_layout(request_body: MeetingLayoutRequest):
     """
     회의 요약 전용 레이아웃 생성 (간편 API)
 
@@ -263,19 +267,33 @@ async def generate_meeting_layout(
     """
     sections = []
 
-    if agenda:
-        sections.append(SectionInput(type="agenda", title="주요 안건", items=agenda))
-    if decisions:
-        sections.append(SectionInput(type="decisions", title="결정 사항", items=decisions))
-    if action_items:
-        sections.append(SectionInput(type="action_items", title="액션 아이템", items=action_items))
+    if request_body.agenda:
+        sections.append(SectionInput(type="agenda", title="주요 안건", items=request_body.agenda))
+    if request_body.decisions:
+        sections.append(SectionInput(type="decisions", title="결정 사항", items=request_body.decisions))
+    if request_body.action_items:
+        # action_items는 dict 리스트일 수 있음 - task만 추출
+        items = []
+        for item in request_body.action_items:
+            if isinstance(item, dict):
+                task = item.get("task", "")
+                assignee = item.get("assignee", "")
+                items.append(f"{task}" + (f" ({assignee})" if assignee else ""))
+            else:
+                items.append(str(item))
+        sections.append(SectionInput(type="action_items", title="액션 아이템", items=items))
+
+    # 옵션에서 페이지 크기 가져오기
+    options = request_body.options or {}
+    page_width = options.get("page_width", 1920)
+    page_height = options.get("page_height", 1080)
 
     request = LayoutGenerateRequest(
         document_type="meeting_summary",
-        title=title,
-        summary=summary,
+        title=request_body.title,
+        summary=request_body.summary,
         sections=sections,
-        keywords=keywords,
+        keywords=request_body.keywords,
         page_width=page_width,
         page_height=page_height
     )
@@ -283,14 +301,21 @@ async def generate_meeting_layout(
     return await generate_layout(request)
 
 
+class SNSLayoutRequest(BaseModel):
+    """SNS 광고 레이아웃 요청"""
+    platform: str = Field(default="instagram_feed", description="플랫폼")
+    headline: str = Field(..., description="헤드라인")
+    body_text: Optional[str] = Field(None, description="본문")
+    cta_text: Optional[str] = Field("자세히 보기", description="CTA 텍스트")
+    brand_name: Optional[str] = Field(None, description="브랜드명")
+    product_name: Optional[str] = Field(None, description="상품명")
+    hashtags: Optional[List[str]] = Field(None, description="해시태그")
+    image_url: Optional[str] = Field(None, description="이미지 URL")
+    options: Optional[Dict[str, Any]] = Field(None, description="레이아웃 옵션")
+
+
 @router.post("/generate/sns", response_model=Dict[str, Any])
-async def generate_sns_layout(
-    headline: str,
-    subtitle: Optional[str] = None,
-    cta_text: Optional[str] = "자세히 보기",
-    brand_name: Optional[str] = None,
-    platform: str = "instagram_feed"
-):
+async def generate_sns_layout(request_body: SNSLayoutRequest):
     """
     SNS 광고 전용 레이아웃 생성 (간편 API)
 
@@ -307,58 +332,89 @@ async def generate_sns_layout(
     platform_sizes = {
         "instagram_feed": (1080, 1080),
         "instagram_story": (1080, 1920),
+        "instagram_reel": (1080, 1920),
         "facebook_feed": (1200, 628),
         "facebook_story": (1080, 1920),
         "youtube_thumbnail": (1280, 720),
+        "linkedin": (1200, 627),
+        "twitter": (1200, 675),
+        "tiktok": (1080, 1920),
     }
 
-    width, height = platform_sizes.get(platform, (1080, 1080))
+    width, height = platform_sizes.get(request_body.platform, (1080, 1080))
 
     sections = []
-    if cta_text:
-        sections.append(SectionInput(type="cta", items=[cta_text]))
-    if brand_name:
-        sections.append(SectionInput(type="brand", items=[brand_name]))
+    if request_body.body_text:
+        sections.append(SectionInput(type="body", items=[request_body.body_text]))
+    if request_body.cta_text:
+        sections.append(SectionInput(type="cta", items=[request_body.cta_text]))
+    if request_body.brand_name:
+        sections.append(SectionInput(type="brand", items=[request_body.brand_name]))
+    if request_body.hashtags:
+        sections.append(SectionInput(type="hashtags", items=request_body.hashtags))
 
     request = LayoutGenerateRequest(
         document_type="sns_ad",
-        title=headline,
-        subtitle=subtitle,
+        title=request_body.headline,
+        subtitle=request_body.product_name,
         sections=sections,
         page_width=width,
         page_height=height,
-        platform=platform
+        platform=request_body.platform
     )
 
     return await generate_layout(request)
 
 
+class ProductLayoutRequest(BaseModel):
+    """상품 상세페이지 레이아웃 요청"""
+    product_name: str = Field(..., description="상품명")
+    tagline: Optional[str] = Field(None, description="태그라인")
+    description: str = Field(..., description="상품 설명")
+    features: Optional[List[Dict[str, str]]] = Field(None, description="주요 특징")
+    specifications: Optional[Dict[str, str]] = Field(None, description="제품 사양")
+    price: Optional[str] = Field(None, description="가격")
+    images: Optional[List[str]] = Field(None, description="이미지 URL 목록")
+    cta_text: Optional[str] = Field(None, description="CTA 텍스트")
+    options: Optional[Dict[str, Any]] = Field(None, description="레이아웃 옵션")
+
+
 @router.post("/generate/product", response_model=Dict[str, Any])
-async def generate_product_layout(
-    product_name: str,
-    brand_name: Optional[str] = None,
-    price: Optional[str] = None,
-    description: Optional[str] = None,
-    features: Optional[List[str]] = None,
-    page_width: int = 860,
-    page_height: int = 1200
-):
+async def generate_product_layout(request_body: ProductLayoutRequest):
     """
     상품 상세페이지 전용 레이아웃 생성 (간편 API)
     """
     sections = []
 
-    if brand_name:
-        sections.append(SectionInput(type="brand", items=[brand_name]))
-    if price:
-        sections.append(SectionInput(type="price", items=[price]))
-    if features:
-        sections.append(SectionInput(type="features", title="주요 특징", items=features))
+    if request_body.price:
+        sections.append(SectionInput(type="price", items=[request_body.price]))
+    if request_body.features:
+        # features가 dict 리스트이면 title/description 추출
+        feature_items = []
+        for f in request_body.features:
+            if isinstance(f, dict):
+                title = f.get("title", "")
+                desc = f.get("description", "")
+                feature_items.append(f"{title}: {desc}" if desc else title)
+            else:
+                feature_items.append(str(f))
+        sections.append(SectionInput(type="features", title="주요 특징", items=feature_items))
+    if request_body.specifications:
+        spec_items = [f"{k}: {v}" for k, v in request_body.specifications.items()]
+        sections.append(SectionInput(type="specs", title="제품 사양", items=spec_items))
+    if request_body.cta_text:
+        sections.append(SectionInput(type="cta", items=[request_body.cta_text]))
+
+    # 옵션에서 페이지 크기 가져오기
+    options = request_body.options or {}
+    page_width = options.get("page_width", 860)
+    page_height = options.get("page_height", 1200)
 
     request = LayoutGenerateRequest(
         document_type="product_detail",
-        title=product_name,
-        summary=description,
+        title=request_body.product_name,
+        subtitle=request_body.tagline,
+        summary=request_body.description,
         sections=sections,
         page_width=page_width,
         page_height=page_height
