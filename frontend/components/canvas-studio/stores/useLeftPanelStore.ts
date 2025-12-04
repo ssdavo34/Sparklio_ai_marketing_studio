@@ -144,8 +144,8 @@ export const useLeftPanelStore = create<LeftPanelState>()(
       setCollapsed: (collapsed) => set({ isCollapsed: collapsed }),
       toggleCollapsed: () => set((state) => ({ isCollapsed: !state.isCollapsed })),
 
-      // 패널 너비 (기본 280px, 최소 200px, 최대 500px)
-      panelWidth: 280,
+      // 패널 너비 (기본 390px, 최소 200px, 최대 500px)
+      panelWidth: 390,
       setPanelWidth: (width) => set({ panelWidth: width }),
       minWidth: 200,
       maxWidth: 500,

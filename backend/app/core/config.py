@@ -108,7 +108,7 @@ class Settings(BaseSettings):
     )
     zimage_timeout: int = Field(120, env="ZIMAGE_TIMEOUT")
     zimage_default_model: str = Field("sdxl", env="ZIMAGE_DEFAULT_MODEL")
-    zimage_default_steps: int = Field(8, env="ZIMAGE_DEFAULT_STEPS")
+    zimage_default_steps: int = Field(30, env="ZIMAGE_DEFAULT_STEPS")
 
     # Image Provider 선택 (zimage | comfyui | nanobanana | auto)
     image_provider: str = Field("auto", env="IMAGE_PROVIDER")

@@ -18,6 +18,7 @@ import { useTabsStore } from '../../stores/useTabsStore';
 import { useLeftPanelStore } from '../../stores/useLeftPanelStore';
 import { useCanvasStore } from '../../stores/useCanvasStore';
 import { useChatStore, getMessageImageUrl } from '../../stores/useChatStore';
+import { useImageTabStore } from '../../stores/useImageTabStore';
 import { useCenterViewStore } from '../../stores/useCenterViewStore';
 import { useGeneratedAssetsStore } from '../../stores/useGeneratedAssetsStore';
 import { useMeetingStore } from '../../stores/useMeetingStore';
@@ -171,8 +172,18 @@ function ChatTab() {
     setCostMode,
   } = useChatStore();
 
+  // === ImageTab 모드 라우팅 ===
+  const panelTab = useLeftPanelStore((s) => s.panelTab);
+  const isImageMode = panelTab === 'image';
+  const imageTabStore = useImageTabStore();
+  const isImageGenerating = useImageTabStore((s) => s.isGenerating);
+  const imageTabMessages = useImageTabStore((s) => s.messages);
+
   const { generateConcepts, isLoading: isConceptLoading } = useConceptGenerate();
-  const isLoading = isChatLoading || isConceptLoading;
+  const isLoading = isChatLoading || isConceptLoading || isImageGenerating;
+
+  // 이미지 모드일 때는 ImageTabStore의 메시지 사용
+  const displayMessages = isImageMode ? imageTabMessages : messages;
 
   // Meeting Store - 회의 분석 결과 가져오기
   const { currentMeeting, analysisResult: meetingAnalysis } = useMeetingStore();
@@ -346,8 +357,11 @@ Campaign Ideas: ${meetingAnalysis.campaign_ideas.join(', ')}
       }
     } else {
       // Normal Chat Mode
-      if (chatConfig.task === 'image_generate') {
-        await generateImageFromPrompt(message);
+      // === 이미지 모드 라우팅 (ImageTab v2) ===
+      console.log('[RightDock ChatTab] 🔍 panelTab:', panelTab, 'isImageMode:', isImageMode, 'task:', chatConfig.task);
+      if (isImageMode || chatConfig.task === 'image_generate') {
+        console.log('[RightDock ChatTab] 🖼️ Image mode detected, routing to ImageTabStore');
+        await imageTabStore.sendWithImageGeneration(message);
       } else {
         await sendMessage(message);
       }
@@ -514,7 +528,7 @@ Campaign Ideas: ${meetingAnalysis.campaign_ideas.join(', ')}
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((message) => (
+        {displayMessages.map((message: any) => (
           <div
             key={message.id}
             className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
@@ -526,15 +540,14 @@ Campaign Ideas: ${meetingAnalysis.campaign_ideas.join(', ')}
                 }`}
             >
               <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-              {/* 이미지 렌더링: 3종 URL 지원 (2025-11-30) */}
-              {(message.imageData || message.imageUrl) && (
+              {/* 기존 ChatStore 이미지 렌더링: 3종 URL 지원 */}
+              {!isImageMode && (message.imageData || message.imageUrl) && (
                 <div className="mt-2">
                   <img
                     src={getMessageImageUrl(message.imageData || message.imageUrl, 'thumb')}
                     alt="Generated"
                     className="rounded max-w-full h-auto cursor-pointer hover:opacity-90 transition-opacity"
                     onClick={() => {
-                      // 클릭 시 원본 이미지 열기
                       const originalUrl = getMessageImageUrl(message.imageData || message.imageUrl, 'original');
                       if (originalUrl) {
                         window.open(originalUrl, '_blank');
@@ -542,6 +555,25 @@ Campaign Ideas: ${meetingAnalysis.campaign_ideas.join(', ')}
                     }}
                     loading="lazy"
                   />
+                </div>
+              )}
+              {/* ImageTab 이미지 렌더링: generatedImages 배열 */}
+              {isImageMode && message.generatedImages && message.generatedImages.length > 0 && (
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {message.generatedImages.map((img: any) => (
+                    <img
+                      key={img.id}
+                      src={img.thumbUrl || img.url}
+                      alt="Generated"
+                      className="rounded w-full h-auto cursor-pointer hover:opacity-90 transition-opacity"
+                      onClick={() => {
+                        if (img.url) {
+                          window.open(img.url, '_blank');
+                        }
+                      }}
+                      loading="lazy"
+                    />
+                  ))}
                 </div>
               )}
               {isMounted && (

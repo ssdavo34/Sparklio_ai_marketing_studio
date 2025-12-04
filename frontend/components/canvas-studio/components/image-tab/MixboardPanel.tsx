@@ -14,7 +14,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { Upload, Link, X, ChevronDown, ChevronUp, Plus } from 'lucide-react';
+import { Upload, X, Plus } from 'lucide-react';
 import { useImageTabStore } from '../../stores/useImageTabStore';
 import { MixRefCard } from './MixRefCard';
 import type { MixRole } from '../../stores/types/imageTab';
@@ -121,25 +121,49 @@ export function MixboardPanel() {
       <div className="p-2">
         {isAddFormOpen ? (
           <div className="bg-white rounded-lg border border-purple-200 p-3 space-y-3">
+            {/* 파일 업로드 영역 (드래그앤드롭) */}
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+              onDrop={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const files = e.dataTransfer.files;
+                if (files && files.length > 0) {
+                  Array.from(files).forEach((file) => {
+                    if (file.type.startsWith('image/')) {
+                      const reader = new FileReader();
+                      reader.onload = (event) => {
+                        const dataUrl = event.target?.result as string;
+                        addMixRef({
+                          url: dataUrl,
+                          role: selectedRole,
+                          tags: [],
+                          weight: 1.0,
+                        });
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  });
+                }
+              }}
+              className="border-2 border-dashed border-purple-300 rounded-lg p-4 text-center cursor-pointer hover:bg-purple-50 hover:border-purple-400 transition-colors"
+            >
+              <Upload className="w-6 h-6 text-purple-400 mx-auto mb-2" />
+              <p className="text-xs text-purple-600 font-medium">클릭하거나 이미지를 드래그하세요</p>
+              <p className="text-[10px] text-neutral-400 mt-1">JPG, PNG, WebP 지원</p>
+            </div>
+
             {/* URL 입력 */}
             <div>
-              <label className="text-xs text-neutral-600 mb-1 block">이미지 URL</label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  placeholder="https://..."
-                  className="flex-1 text-xs border border-neutral-200 rounded px-2 py-1.5"
-                />
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="p-1.5 border border-neutral-200 rounded hover:bg-neutral-50"
-                  title="파일 업로드"
-                >
-                  <Upload className="w-4 h-4 text-neutral-500" />
-                </button>
-              </div>
+              <label className="text-xs text-neutral-600 mb-1 block">또는 이미지 URL 입력</label>
+              <input
+                type="text"
+                value={imageUrl}
+                onChange={(e) => setImageUrl(e.target.value)}
+                placeholder="https://..."
+                className="w-full text-xs border border-neutral-200 rounded px-2 py-1.5"
+              />
             </div>
 
             {/* Role 선택 */}

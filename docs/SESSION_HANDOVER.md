@@ -1,4 +1,4 @@
-# 세션 인수인계 (2025-12-02 21:50 기준)
+# 세션 인수인계 (2025-12-03 18:55 기준)
 
 > **다음 Claude는 이 파일과 CLAUDE.md를 먼저 읽으세요**
 
@@ -7,99 +7,73 @@
 ## 현재 상태
 
 - **브랜치**: `feature/editor-migration-polotno`
-- **최신 커밋**: `722ee99` - Brief 입력 UI 추가 및 API 실제 연동
+- **최신 커밋**: `60722e9` - 세션 인수인계 문서 업데이트
 - **Mac Mini 배포**: ✅ 동기화 완료
-- **서버 상태**: ✅ healthy (Frontend 3001, Backend 8000)
+- **서버 상태**:
+  - Frontend: ✅ localhost:3001 (재시작 필요 - .env 변경됨)
+  - Backend (Mac Mini): ✅ 100.123.51.5:8000
+  - Z-Image (Desktop GPU): ✅ 100.120.180.42:7860
+  - Ollama (Desktop GPU): ✅ 100.120.180.42:11434
 
 ---
 
-## 오늘 완료한 작업 (2025-12-02)
+## 오늘 완료한 작업 (2025-12-03)
 
-### 오전/오후 세션 (C팀)
-- 풀셋 생성 기능 완전 구현
-- Brand DNA + Brief 생성 흐름 통합 (`buildSharedContext()`)
-- PresentationTab, SNSTab에 생성 데이터 표시 UI 추가
+### ImageTab v2 → 실제 API 연동 작업 (C팀)
 
-### 저녁 세션 (전체 팀) ✅
+#### 1. Z-Image 서버 버그 수정 ✅
+- **파일**: `tools/zimage/server.py` (Desktop PC: `D:\ai\zimage\server.py`)
+- **문제**: `torch.Generator(device=DEVICE)` → `enable_model_cpu_offload()` 사용 시 에러
+- **수정**: `torch.Generator(device="cpu")` (line 215)
+- **결과**: Z-Image 직접 호출 시 이미지 생성 성공
 
-#### 1. P0: 실제 API 연동 완료
-- **ConceptBoardTab.tsx**: `useMock: true` → `useMock: false` 전환
-- Mac Mini Backend ConceptAgent API 정상 작동 확인
-- 실제 API 응답으로 3개 컨셉 생성 테스트 완료
+#### 2. Frontend API 엔드포인트 수정 ✅
+- **파일**: `useImageTabStore.ts`
+- **변경**: VisionGeneratorAgent API (`/api/v1/agents/vision-generator/generate`) → MediaGateway API (`/api/v1/media/generate`)
+- **이유**: VisionGeneratorAgent 엔드포인트가 Backend에 없음 (404)
 
-#### 2. P0: 캔버스 스크롤 문제 수정
-- **PolotnoWorkspace.tsx** 레이아웃 개선
-  - 불필요한 nested `flex flex-col` 제거
-  - `absolute inset-0` 중첩 레이어 단순화
-  - `minHeight: 500px` → `400px` 조정
+#### 3. Base64 이미지 데이터 처리 수정 ✅
+- **파일**: `vision-generator-api.ts`
+- **변경**: `output.data || output.base64` 로 Backend 응답 필드 매핑
+- **결과**: 이미지가 채팅창에 정상 표시
 
-#### 3. P1: Brief 입력 UI 추가
-- **BriefTab.tsx** 신규 생성 (355 lines)
-  - 캠페인 목표, 타겟 오디언스, 핵심 인사이트 입력
-  - 핵심 메시지, 채널 선택, KPI 관리
-  - useBriefStore 연동
-  - 유효성 검사 UI (완성도 표시)
-- **ActivityBar.tsx**: Brief 아이콘(ClipboardList) 추가
-- **LeftPanel.tsx**: BriefTab import 및 라우팅 추가
-- **useLeftPanelStore.ts**: 'brief' 탭 타입 추가
+#### 4. LLM 프롬프트 번역 직접 호출 구현 ✅
+- **파일**: `useImageTabStore.ts`
+- **문제**: Backend `/api/v1/llm/chat` 엔드포인트 없음 (404)
+- **해결**: OpenAI, Ollama API 직접 호출 함수 추가
+  - `callOpenAI()`: GPT-4o-mini 선택 시 OpenAI API 직접 호출
+  - `callOllama()`: 오픈소스 선택 시 Ollama API 직접 호출
+- **gatewayClient import 제거** (더 이상 사용 안 함)
 
-#### 4. P1: getPolotnoStore 마이그레이션 (부분)
-- **PresentationTab.tsx**: `getPolotnoStore()` → `getOrCreateCanvasStore('presentation', apiKey)` 변경
-- 나머지 파일들은 deprecated 경고 상태로 유지 (기능 정상 작동)
-
----
-
-## 🟢 완료된 기능
-
-### 메뉴 ↔ 캔버스 연동
-| 기능 | 상태 | 비고 |
-|------|------|------|
-| 메뉴 선택 → Canvas 타입 자동 전환 | ✅ | useLeftPanelStore |
-| Pages 패널 멀티캔버스 지원 | ✅ | getCanvasStore(activeCanvasType) |
-| ConceptBoard 컨셉 생성 | ✅ | **실제 API 연동 완료** |
-| 컨셉 → Canvas 렌더링 | ✅ | conceptTemplate.ts |
-| 컨셉 영속화 (페이지 이동 시 유지) | ✅ | useGeneratedAssetsStore |
-| Pages 패널 컨셉 선택/전환 | ✅ | selectedConceptId 동기화 |
-| 풀셋 생성 (영상 제외) | ✅ | 슬라이드+상세페이지+SNS |
-| 개별 채널 생성 + Canvas 렌더링 | ✅ | 각 버튼이 생성+렌더링 수행 |
-| Brand DNA → 생성 흐름 통합 | ✅ | buildSharedContext() |
-| Brief → 생성 흐름 통합 | ✅ | 목표, 타겟, KPI 반영 |
-| **Brief 입력 UI** | ✅ | BriefTab 신규 추가 |
-
-### Video6 Pipeline (이전 세션)
-| 기능 | 상태 |
-|------|------|
-| 스크립트 생성 (GPT-4o) | ✅ |
-| 이미지 생성 (ComfyUI) | ✅ |
-| TTS 생성 (EdgeTTS) | ✅ |
-| BGM 믹싱 | ✅ |
-| 영상 렌더링 | ✅ |
-
-### 로컬 GPU AI 서비스 (2025-12-03 추가)
-
-| 서비스 | 포트 | Provider 파일 | 상태 |
-|--------|------|--------------|------|
-| **Z-Image** (이미지 생성) | 7860 | `zimage_provider.py` | ✅ 구현 완료 |
-| **HunyuanVideo** (동영상 생성) | 8188 (ComfyUI) | `hunyuan_provider.py` | ✅ 구현 완료 |
-
-**Z-Image 특징**:
-
-- SDXL 모델 기반, 8스텝 빠른 생성
-- 비용 없음 (로컬 GPU), 콘텐츠 필터 없음
-- 설치 위치: `D:\ai\zimage\`
-
-**HunyuanVideo 특징**:
-
-- Text-to-Video: 텍스트 → 5초 영상
-- Image-to-Video: 이미지 → 5초 영상
-- ComfyUI 워크플로우 기반
+#### 5. Frontend 환경변수 추가 ✅
+- **파일**: `frontend/.env.local`
+- **추가**:
+  ```
+  NEXT_PUBLIC_OPENAI_API_KEY=sk-proj-...
+  NEXT_PUBLIC_OLLAMA_URL=http://100.120.180.42:11434
+  ```
+- **이유**: Next.js 클라이언트에서 사용하려면 `NEXT_PUBLIC_` 접두사 필요
 
 ---
 
-## 🔴 남은 작업 (다음 세션)
+## 🟡 진행 중 / 남은 작업
+
+### P0 (Critical) - 다음 세션 즉시 해야 할 작업
+
+1. **Frontend 서버 재시작 후 테스트**
+   - `.env.local` 변경 반영을 위해 서버 재시작 필요
+   - 포트 3001 프로세스 kill 후 `npm run dev`
+   - "20대 여성 스튜디오 촬영" 같은 한글 프롬프트로 테스트
+   - 콘솔에서 `[ImageTabStore] Using OpenAI gpt-4o-mini` 로그 확인
+   - `[ImageTabStore] Translated:` 로그에서 영문 변환 확인
+
+2. **이미지 생성 End-to-End 테스트**
+   - GPT-4o-mini 선택 → 한글 프롬프트 → 영문 번역 → Z-Image 생성 → 이미지 표시
+   - 오픈소스(Llama) 선택 → Ollama 번역 → Z-Image 생성
 
 ### P1 (High)
-1. **getPolotnoStore 마이그레이션 완료**
+
+3. **getPolotnoStore 마이그레이션 완료**
    - 아직 deprecated API 사용 중인 파일들:
      - `useBrandToCanvas.ts`
      - `ChatPanel.tsx`
@@ -108,38 +82,60 @@
      - `useChatStore.ts`
      - `PagesTab.tsx`
 
-2. **Brief 입력 → ConceptBoard 연동 강화**
-   - BriefTab에서 입력 → ConceptBoard 생성 시 Brief 데이터 자동 반영
-   - 현재: Store에 저장됨, 생성 시 buildSharedContext()에서 사용
-
 ### P2 (Medium)
-3. VEO3 테스트 - 이미지 → 동영상 변환
-4. NanoBanana 이미지 생성 확인
-5. Reviewer 일관성 검사 (추후)
-6. TrendPipeline 연결 (추후)
+
+4. VEO3 테스트 - 이미지 → 동영상 변환
+5. NanoBanana 이미지 생성 확인
+6. Backend `/api/v1/llm/chat` 엔드포인트 추가 (선택사항)
 
 ---
 
-## 주요 파일 위치
+## 이번 세션 수정 파일
 
-### 이번 세션 수정/생성 파일
 | 파일 | 변경 내용 |
 |------|----------|
-| `panels/left/tabs/BriefTab.tsx` | **신규 생성** - Brief 입력 UI |
-| `panels/left/tabs/ConceptBoardTab.tsx` | useMock: false 전환 |
-| `polotno/PolotnoWorkspace.tsx` | 레이아웃 개선 |
-| `panels/left/tabs/PresentationTab.tsx` | getOrCreateCanvasStore 마이그레이션 |
-| `layout/ActivityBar.tsx` | Brief 아이콘 추가 |
-| `panels/left/LeftPanel.tsx` | BriefTab import/라우팅 |
-| `stores/useLeftPanelStore.ts` | brief 탭 타입 추가 |
+| `stores/useImageTabStore.ts` | MediaGateway 사용, OpenAI/Ollama 직접 호출 |
+| `lib/api/vision-generator-api.ts` | base64 데이터 필드 매핑 수정 |
+| `frontend/.env.local` | NEXT_PUBLIC_OPENAI_API_KEY, NEXT_PUBLIC_OLLAMA_URL 추가 |
+| `tools/zimage/server.py` | torch.Generator device="cpu" 수정 |
+| `backend/.../zimage_provider.py` | Z-Image Provider 구현 |
+| `backend/.../hunyuan_provider.py` | HunyuanVideo Provider 구현 |
 
-### 관련 Store
-| 파일 | 용도 |
-|------|------|
-| `stores/useBriefStore.ts` | Brief 저장 + 검증 |
-| `stores/useBrandStore.ts` | Brand DNA 저장 |
-| `stores/useGeneratedAssetsStore.ts` | 생성된 에셋 + 생성 함수 |
-| `stores/useLeftPanelStore.ts` | 탭 → 캔버스 매핑 |
+---
+
+## 아키텍처 흐름 (ImageTab v2)
+
+```
+[사용자 입력 (한글)]
+       ↓
+[translatePromptToEnglish()]
+  ├─ GPT-4o-mini 선택 → callOpenAI() → OpenAI API 직접
+  └─ 오픈소스 선택 → callOllama() → Ollama API 직접 (GPU 서버)
+       ↓
+[영문 프롬프트]
+       ↓
+[generateViaMediaGateway()]
+       ↓
+[Mac Mini Backend /api/v1/media/generate]
+       ↓
+[zimage_provider.py → Desktop GPU Z-Image 서버]
+       ↓
+[base64 이미지 반환]
+       ↓
+[채팅창에 이미지 표시]
+```
+
+---
+
+## 서버 정보
+
+| 서버 | IP | 포트 | 용도 |
+|------|-----|------|------|
+| Mac Mini | 100.123.51.5 | 8000 | Backend API |
+| Desktop (GPU) | 100.120.180.42 | 7860 | Z-Image (SDXL) |
+| Desktop (GPU) | 100.120.180.42 | 11434 | Ollama (LLM) |
+| Desktop (GPU) | 100.120.180.42 | 8188 | ComfyUI |
+| Laptop | localhost | 3001 | Frontend |
 
 ---
 
@@ -151,31 +147,37 @@ Video6 관련 파일들은 이미 잘 작동하고 있으므로 수정하지 않
 
 ---
 
-## 중요 명령어
+## 테스트 명령어
 
 ```bash
-# Mac Mini 배포
-ssh woosun@100.123.51.5 "cd ~/sparklio_ai_marketing_studio && git pull origin feature/editor-migration-polotno"
+# Frontend 재시작
+cd frontend
+npm run dev
 
-# Backend 재시작
-ssh woosun@100.123.51.5 "/usr/local/bin/docker compose -f ~/sparklio_ai_marketing_studio/docker/mac-mini/docker-compose.yml restart backend"
+# Z-Image 헬스체크
+curl http://100.120.180.42:7860/health
 
-# 헬스체크
-curl http://100.123.51.5:8000/health
+# Ollama 모델 확인
+curl http://100.120.180.42:11434/api/tags
+
+# Z-Image 직접 테스트
+curl -X POST http://100.120.180.42:7860/api/generate \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "A young Korean woman in her 20s, studio photography, professional lighting", "width": 1024, "height": 1024, "steps": 8}'
 ```
 
 ---
 
-## Git 커밋 히스토리 (최근)
+## 알려진 이슈
 
-```
-722ee99 [2025-12-02][C] feat: Brief 입력 UI 추가 및 API 실제 연동
-6fdd9aa [2025-12-02][C] feat: Brand DNA + Brief 생성 흐름 통합 및 풀셋 생성 완성
-91660ad fix: 동적 Mock 컨셉 생성 및 Canvas 디버깅 로그 추가
-8ed6c46 docs: 세션 인수인계 문서 업데이트 (14:40)
-088c3b2 fix: 컨셉 Canvas 렌더링 타이밍 개선
-```
+1. **Backend `/api/v1/llm/chat` 없음**
+   - 현재 Frontend에서 직접 OpenAI/Ollama 호출로 우회
+   - 장기적으로는 Backend에 엔드포인트 추가 권장
+
+2. **Claude 프롬프트 번역 미지원**
+   - Anthropic API 직접 호출 미구현 (필요 시 추가)
+   - 현재 Claude 선택 시 fallback 프롬프트 사용
 
 ---
 
-**마지막 업데이트**: 2025-12-02 21:50 by 전체 팀 (A/B/C)
+**마지막 업데이트**: 2025-12-03 18:55 by C팀 (Frontend)

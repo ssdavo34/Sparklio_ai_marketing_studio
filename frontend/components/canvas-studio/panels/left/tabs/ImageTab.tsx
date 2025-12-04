@@ -42,7 +42,10 @@ export function ImageTab() {
   // Store 액션
   const toggleImageSelection = useImageTabStore((s) => s.toggleImageSelection);
   const addSelectedToCanvas = useImageTabStore((s) => s.addSelectedToCanvas);
+  const addSelectedToCanvasAsNewPages = useImageTabStore((s) => s.addSelectedToCanvasAsNewPages);
+  const addSelectedToMixboard = useImageTabStore((s) => s.addSelectedToMixboard);
   const saveSelectedAsAssets = useImageTabStore((s) => s.saveSelectedAsAssets);
+  const removeSelectedImages = useImageTabStore((s) => s.removeSelectedImages);
   const clearSelection = useImageTabStore((s) => s.clearSelection);
 
   return (
@@ -85,7 +88,10 @@ export function ImageTab() {
         <SelectedImagesActionBar
           count={selectedImageIds.length}
           onAddToCanvas={addSelectedToCanvas}
+          onAddToCanvasAsNewPages={addSelectedToCanvasAsNewPages}
+          onAddToMixboard={addSelectedToMixboard}
           onSaveAsAssets={saveSelectedAsAssets}
+          onDelete={removeSelectedImages}
           onClearSelection={clearSelection}
         />
       )}

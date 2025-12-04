@@ -211,7 +211,8 @@ async def generate_image(request: GenerateRequest):
 
     # 시드 처리
     seed = request.seed if request.seed >= 0 else random.randint(0, 2**32 - 1)
-    generator = torch.Generator(device=DEVICE).manual_seed(seed)
+    # Note: enable_model_cpu_offload() 사용 시 generator는 CPU에서 생성해야 함
+    generator = torch.Generator(device="cpu").manual_seed(seed)
 
     logger.info(f"Generating: {request.width}x{request.height}, steps={request.steps}, seed={seed}")
 

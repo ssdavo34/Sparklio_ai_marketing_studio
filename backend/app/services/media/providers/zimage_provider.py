@@ -42,7 +42,7 @@ class ZImageProvider(MediaProvider):
         base_url: str,
         timeout: int = 120,
         default_model: str = "sdxl",
-        default_steps: int = 8
+        default_steps: int = 30
     ):
         """
         Z-Image Provider 초기화
@@ -274,7 +274,7 @@ class ZImageProvider(MediaProvider):
                 "product_image": {
                     "width": 1024,
                     "height": 1024,
-                    "steps": 12,
+                    "steps": 30,
                     "cfg_scale": 7.0,
                     "model": "sdxl",
                     "sampler": "euler",
@@ -283,7 +283,7 @@ class ZImageProvider(MediaProvider):
                 "brand_logo": {
                     "width": 512,
                     "height": 512,
-                    "steps": 8,
+                    "steps": 30,
                     "cfg_scale": 8.0,
                     "model": "sdxl",
                     "sampler": "euler_ancestral",
@@ -292,7 +292,7 @@ class ZImageProvider(MediaProvider):
                 "sns_thumbnail": {
                     "width": 1200,
                     "height": 630,
-                    "steps": 8,
+                    "steps": 30,
                     "cfg_scale": 7.5,
                     "model": "sdxl",
                     "sampler": "euler",
@@ -301,7 +301,7 @@ class ZImageProvider(MediaProvider):
                 "banner_image": {
                     "width": 1920,
                     "height": 480,
-                    "steps": 10,
+                    "steps": 30,
                     "cfg_scale": 7.0,
                     "model": "sdxl",
                     "sampler": "euler",
@@ -310,7 +310,7 @@ class ZImageProvider(MediaProvider):
                 "story_image": {
                     "width": 1080,
                     "height": 1920,
-                    "steps": 8,
+                    "steps": 30,
                     "cfg_scale": 7.0,
                     "model": "sdxl",
                     "sampler": "euler",
@@ -319,7 +319,7 @@ class ZImageProvider(MediaProvider):
                 "image_generation": {
                     "width": 1024,
                     "height": 1024,
-                    "steps": 8,
+                    "steps": 30,
                     "cfg_scale": 7.0,
                     "model": "sdxl",
                     "sampler": "euler",

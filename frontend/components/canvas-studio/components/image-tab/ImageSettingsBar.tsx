@@ -33,9 +33,10 @@ const BATCH_SIZES: { value: 1 | 2 | 4; label: string }[] = [
 ];
 
 const PROMPT_LLMS: { value: PromptLLM; label: string }[] = [
+  { value: 'none', label: '직접 입력' },
+  { value: 'qwen', label: 'Qwen' },
   { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
   { value: 'claude', label: 'Claude' },
-  { value: 'qwen', label: 'Qwen' },
 ];
 
 const IMAGE_PROVIDERS: { value: ImageProvider | 'auto'; label: string }[] = [

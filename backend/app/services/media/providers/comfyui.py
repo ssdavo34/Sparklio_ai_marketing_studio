@@ -163,73 +163,165 @@ class ComfyUIProvider(MediaProvider):
         if seed == -1:
             seed = random.randint(0, 2**32 - 1)
 
-        # 기본 Stable Diffusion 워크플로우
-        # 실제로는 작업별로 다른 워크플로우를 로드해야 함
-        workflow = {
-            "3": {
-                "inputs": {
-                    "seed": seed,
-                    "steps": merged_opts.get("steps", 20),
-                    "cfg": merged_opts.get("cfg_scale", 7.0),
-                    "sampler_name": merged_opts.get("sampler", "euler"),
-                    "scheduler": merged_opts.get("scheduler", "normal"),
-                    "denoise": merged_opts.get("denoise", 1.0),
-                    "model": ["4", 0],
-                    "positive": ["6", 0],
-                    "negative": ["7", 0],
-                    "latent_image": ["5", 0]
-                },
-                "class_type": "KSampler"
-            },
-            "4": {
-                "inputs": {
-                    "ckpt_name": merged_opts.get("checkpoint", "juggernautXL_ragnarokBy.safetensors")
-                },
-                "class_type": "CheckpointLoaderSimple"
-            },
-            "5": {
-                "inputs": {
-                    "width": merged_opts.get("width", 512),
-                    "height": merged_opts.get("height", 512),
-                    "batch_size": merged_opts.get("batch_size", 1)
-                },
-                "class_type": "EmptyLatentImage"
-            },
-            "6": {
-                "inputs": {
-                    "text": prompt,
-                    "clip": ["4", 1]
-                },
-                "class_type": "CLIPTextEncode"
-            },
-            "7": {
-                "inputs": {
-                    "text": merged_opts.get("negative_prompt", ""),
-                    "clip": ["4", 1]
-                },
-                "class_type": "CLIPTextEncode"
-            },
-            "8": {
-                "inputs": {
-                    "samples": ["3", 0],
-                    "vae": ["4", 2]
-                },
-                "class_type": "VAEDecode"
-            },
-            "9": {
-                "inputs": {
-                    "filename_prefix": f"sparklio_{task}",
-                    "images": ["8", 0]
-                },
-                "class_type": "SaveImage"
-            }
-        }
+        # Z-Image 사용 여부 확인
+        use_zimage = merged_opts.get("use_zimage", True)
 
-        return {
-            "workflow": workflow,
-            "model": merged_opts.get("checkpoint", "sd_xl_base_1.0.safetensors"),
-            "seed": merged_opts.get("seed", -1)
-        }
+        if use_zimage:
+            # Z-Image 전용 워크플로우 (ComfyUI Z-Image 설정 기반)
+            # Model: z_image_turbo_bf16.safetensors
+            # CLIP: qwen_3_4b.safetensors (lumina2 type)
+            # VAE: ae.safetensors
+            # KSampler: steps=9, cfg=1.0, sampler=res_multistep, scheduler=simple
+            workflow = {
+                # UNETLoader - Z-Image 모델 로드
+                "1": {
+                    "inputs": {
+                        "unet_name": merged_opts.get("unet_name", "z_image_turbo_bf16.safetensors"),
+                        "weight_dtype": "bf16"
+                    },
+                    "class_type": "UNETLoader"
+                },
+                # DualCLIPLoader - CLIP 모델 로드 (Qwen + T5XXL)
+                "2": {
+                    "inputs": {
+                        "clip_name1": merged_opts.get("clip_name", "qwen_3_4b.safetensors"),
+                        "clip_name2": "t5xxl_fp16.safetensors",
+                        "type": "lumina2"
+                    },
+                    "class_type": "DualCLIPLoader"
+                },
+                # VAELoader - VAE 로드
+                "3": {
+                    "inputs": {
+                        "vae_name": merged_opts.get("vae_name", "ae.safetensors")
+                    },
+                    "class_type": "VAELoader"
+                },
+                # CLIPTextEncode - 프롬프트 인코딩
+                "4": {
+                    "inputs": {
+                        "text": prompt,
+                        "clip": ["2", 0]
+                    },
+                    "class_type": "CLIPTextEncode"
+                },
+                # EmptyLatentImage - 빈 Latent 생성
+                "5": {
+                    "inputs": {
+                        "width": merged_opts.get("width", 1024),
+                        "height": merged_opts.get("height", 1024),
+                        "batch_size": merged_opts.get("batch_size", 1)
+                    },
+                    "class_type": "EmptyLatentImage"
+                },
+                # KSampler - Z-Image 최적 설정
+                "6": {
+                    "inputs": {
+                        "seed": seed,
+                        "steps": merged_opts.get("steps", 9),
+                        "cfg": merged_opts.get("cfg_scale", 1.0),
+                        "sampler_name": merged_opts.get("sampler", "res_multistep"),
+                        "scheduler": merged_opts.get("scheduler", "simple"),
+                        "denoise": merged_opts.get("denoise", 1.0),
+                        "model": ["1", 0],
+                        "positive": ["4", 0],
+                        "negative": ["4", 0],  # Z-Image는 negative prompt 미사용
+                        "latent_image": ["5", 0]
+                    },
+                    "class_type": "KSampler"
+                },
+                # VAEDecode - 이미지 디코딩
+                "7": {
+                    "inputs": {
+                        "samples": ["6", 0],
+                        "vae": ["3", 0]
+                    },
+                    "class_type": "VAEDecode"
+                },
+                # SaveImage - 이미지 저장
+                "8": {
+                    "inputs": {
+                        "filename_prefix": f"sparklio_{task}",
+                        "images": ["7", 0]
+                    },
+                    "class_type": "SaveImage"
+                }
+            }
+
+            return {
+                "workflow": workflow,
+                "model": "z_image_turbo_bf16.safetensors",
+                "seed": seed,
+                "save_node_id": "8"  # SaveImage 노드 ID
+            }
+        else:
+            # 기본 SDXL 워크플로우 (기존 코드)
+            workflow = {
+                "3": {
+                    "inputs": {
+                        "seed": seed,
+                        "steps": merged_opts.get("steps", 20),
+                        "cfg": merged_opts.get("cfg_scale", 7.0),
+                        "sampler_name": merged_opts.get("sampler", "euler"),
+                        "scheduler": merged_opts.get("scheduler", "normal"),
+                        "denoise": merged_opts.get("denoise", 1.0),
+                        "model": ["4", 0],
+                        "positive": ["6", 0],
+                        "negative": ["7", 0],
+                        "latent_image": ["5", 0]
+                    },
+                    "class_type": "KSampler"
+                },
+                "4": {
+                    "inputs": {
+                        "ckpt_name": merged_opts.get("checkpoint", "sd_xl_base_1.0.safetensors")
+                    },
+                    "class_type": "CheckpointLoaderSimple"
+                },
+                "5": {
+                    "inputs": {
+                        "width": merged_opts.get("width", 512),
+                        "height": merged_opts.get("height", 512),
+                        "batch_size": merged_opts.get("batch_size", 1)
+                    },
+                    "class_type": "EmptyLatentImage"
+                },
+                "6": {
+                    "inputs": {
+                        "text": prompt,
+                        "clip": ["4", 1]
+                    },
+                    "class_type": "CLIPTextEncode"
+                },
+                "7": {
+                    "inputs": {
+                        "text": merged_opts.get("negative_prompt", ""),
+                        "clip": ["4", 1]
+                    },
+                    "class_type": "CLIPTextEncode"
+                },
+                "8": {
+                    "inputs": {
+                        "samples": ["3", 0],
+                        "vae": ["4", 2]
+                    },
+                    "class_type": "VAEDecode"
+                },
+                "9": {
+                    "inputs": {
+                        "filename_prefix": f"sparklio_{task}",
+                        "images": ["8", 0]
+                    },
+                    "class_type": "SaveImage"
+                }
+            }
+
+            return {
+                "workflow": workflow,
+                "model": merged_opts.get("checkpoint", "sd_xl_base_1.0.safetensors"),
+                "seed": seed,
+                "save_node_id": "9"
+            }
 
     async def _submit_workflow(self, workflow: Dict[str, Any]) -> str:
         """
@@ -359,8 +451,9 @@ class ComfyUIProvider(MediaProvider):
 
             outputs_info = history[prompt_id].get("outputs", {})
 
-            # SaveImage 노드 (노드 ID: 9) 출력 찾기
-            save_node_outputs = outputs_info.get("9", {}).get("images", [])
+            # SaveImage 노드 출력 찾기 (Z-Image: 8, SDXL: 9)
+            save_node_id = workflow.get("save_node_id", "9")
+            save_node_outputs = outputs_info.get(save_node_id, {}).get("images", [])
 
             if not save_node_outputs:
                 raise ProviderError(
@@ -423,6 +516,12 @@ class ComfyUIProvider(MediaProvider):
         """
         작업별 기본 옵션
 
+        Z-Image 기본 설정:
+        - Model: z_image_turbo_bf16.safetensors
+        - CLIP: qwen_3_4b.safetensors (lumina2)
+        - VAE: ae.safetensors
+        - KSampler: steps=9, cfg=1.0, sampler=res_multistep, scheduler=simple
+
         Args:
             task: 작업 유형
             media_type: 미디어 타입
@@ -431,45 +530,43 @@ class ComfyUIProvider(MediaProvider):
             기본 옵션
         """
         if media_type == "image":
+            # Z-Image 기본 설정 (모든 작업에 공통)
+            zimage_base = {
+                "use_zimage": True,
+                "unet_name": "z_image_turbo_bf16.safetensors",
+                "clip_name": "qwen_3_4b.safetensors",
+                "vae_name": "ae.safetensors",
+                "steps": 9,
+                "cfg_scale": 1.0,
+                "sampler": "res_multistep",
+                "scheduler": "simple",
+            }
+
             return {
                 "product_image": {
+                    **zimage_base,
                     "width": 1024,
                     "height": 1024,
-                    "steps": 30,
-                    "cfg_scale": 7.0,
-                    "sampler": "euler",
-                    "scheduler": "normal",
-                    "checkpoint": "juggernautXL_ragnarokBy.safetensors",
-                    "negative_prompt": "low quality, blurry, distorted"
                 },
                 "brand_logo": {
+                    **zimage_base,
                     "width": 512,
                     "height": 512,
-                    "steps": 20,
-                    "cfg_scale": 8.0,
-                    "sampler": "euler_ancestral",
-                    "scheduler": "normal",
-                    "checkpoint": "juggernautXL_ragnarokBy.safetensors",
-                    "negative_prompt": "text, watermark, signature"
                 },
                 "sns_thumbnail": {
+                    **zimage_base,
                     "width": 1200,
                     "height": 630,
-                    "steps": 25,
-                    "cfg_scale": 7.5,
-                    "sampler": "euler",
-                    "scheduler": "normal",
-                    "checkpoint": "juggernautXL_ragnarokBy.safetensors",
-                    "negative_prompt": "low quality, ugly, boring"
-                }
+                },
+                "portrait": {
+                    **zimage_base,
+                    "width": 992,
+                    "height": 1728,  # 스크린샷에서 본 세로 비율
+                },
             }.get(task, {
-                "width": 512,
-                "height": 512,
-                "steps": 20,
-                "cfg_scale": 7.0,
-                "sampler": "euler",
-                "scheduler": "normal",
-                "checkpoint": "juggernautXL_ragnarokBy.safetensors"
+                **zimage_base,
+                "width": 1024,
+                "height": 1024,
             })
 
         return {}

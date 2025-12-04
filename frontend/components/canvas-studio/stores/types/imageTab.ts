@@ -99,8 +99,9 @@ export type ImageProvider = 'zimage' | 'comfyui' | 'nanobanana';
 
 /**
  * 프롬프트 생성 LLM
+ * 'none' = LLM 번역 없이 직접 전달
  */
-export type PromptLLM = 'claude' | 'gpt-4o-mini' | 'qwen';
+export type PromptLLM = 'claude' | 'gpt-4o-mini' | 'qwen' | 'none';
 
 /**
  * 이미지 비율

@@ -263,3 +263,38 @@ export async function deleteMeeting(meetingId: string): Promise<void> {
     throw new Error(`Failed to delete meeting: ${response.statusText}`);
   }
 }
+
+/**
+ * Meeting 트랜스크립트 목록 조회
+ */
+export interface MeetingTranscriptResponse {
+  id: string;
+  meeting_id: string;
+  source_type: string;
+  provider: string;
+  backend: string;
+  model: string;
+  language: string;
+  transcript_text: string;
+  duration_seconds: number;
+  latency_ms: number;
+  is_primary: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function getMeetingTranscripts(meetingId: string): Promise<MeetingTranscriptResponse[]> {
+  const response = await fetch(`${API_BASE}/api/v1/meetings/${meetingId}/transcripts`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to get transcripts: ${response.statusText}`);
+  }
+
+  return await response.json();
+}

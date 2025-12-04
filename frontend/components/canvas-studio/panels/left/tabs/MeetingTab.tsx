@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState, useEffect } from 'react';
-import { Upload, X, Video, Sparkles, Loader2, FileAudio, Clock, Download, Radio, Trash2, StopCircle, CheckSquare, Square, FileText } from 'lucide-react';
+import { Upload, X, Video, Sparkles, Loader2, FileAudio, Clock, Download, Radio, Trash2, StopCircle, CheckSquare, Square, FileText, ChevronDown, ChevronUp, Copy, FolderPlus, Eye } from 'lucide-react';
 import { useCanvasStore } from '../../../stores/useCanvasStore';
 import { useMeetingStore } from '../../../stores/useMeetingStore';
 import { useBriefStore } from '../../../stores/useBriefStore';
@@ -14,6 +14,8 @@ import {
   listMeetings,
   getMeeting,
   deleteMeeting,
+  getMeetingTranscripts,
+  type MeetingTranscriptResponse,
 } from '@/lib/api/meeting-api';
 import { convertMeetingToBrief, canConvertToBrief } from '@/lib/utils/meetingToBrief';
 import { toast } from '@/components/ui/Toast';
@@ -85,8 +87,12 @@ export function MeetingTab() {
   const [uploading, setUploading] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [pollingMeetings, setPollingMeetings] = useState<Set<string>>(new Set());
-  const [selectedForDelete, setSelectedForDelete] = useState<Set<string>>(new Set());
+  const [selectedMeetings, setSelectedMeetings] = useState<Set<string>>(new Set());
   const [isSelectMode, setIsSelectMode] = useState(false);
+  const [transcripts, setTranscripts] = useState<MeetingTranscriptResponse[]>([]);
+  const [showTranscript, setShowTranscript] = useState(false);
+  const [showAnalysisDetails, setShowAnalysisDetails] = useState(false);
+  const [loadingTranscript, setLoadingTranscript] = useState(false);
   const polotnoStore = useCanvasStore((state) => state.canvases.get(state.activeCanvasType) || null);
   const setGlobalAnalysis = useMeetingStore((state) => state.setAnalysisResult);
   const setBrief = useBriefStore((state) => state.setBrief);
@@ -160,6 +166,31 @@ export function MeetingTab() {
     } catch (error) {
       console.error('Failed to load meetings:', error);
       setMeetings([]);
+    }
+  };
+
+  // 트랜스크립트 로드
+  const loadTranscripts = async (meetingId: string) => {
+    setLoadingTranscript(true);
+    try {
+      const loadedTranscripts = await getMeetingTranscripts(meetingId);
+      setTranscripts(loadedTranscripts);
+      setShowTranscript(true);
+    } catch (error) {
+      console.error('Failed to load transcripts:', error);
+      setTranscripts([]);
+      toast.error('트랜스크립트를 불러오지 못했습니다.');
+    } finally {
+      setLoadingTranscript(false);
+    }
+  };
+
+  // 트랜스크립트 복사
+  const copyTranscript = () => {
+    const primaryTranscript = transcripts.find(t => t.is_primary) || transcripts[0];
+    if (primaryTranscript) {
+      navigator.clipboard.writeText(primaryTranscript.transcript_text);
+      toast.success('트랜스크립트가 클립보드에 복사되었습니다.');
     }
   };
 
@@ -350,7 +381,7 @@ export function MeetingTab() {
     // Clear existing elements
     page.children.forEach((child: any) => child.remove());
 
-    const pageWidth = page.width;
+    const pageWidth = page.width as number;
     const margin = 40;
     const contentWidth = pageWidth - margin * 2;
     let currentY = margin;
@@ -554,9 +585,9 @@ export function MeetingTab() {
   };
 
   // 체크박스 토글
-  const toggleSelectForDelete = (meetingId: string, e: React.MouseEvent) => {
+  const toggleSelectMeeting = (meetingId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setSelectedForDelete((prev) => {
+    setSelectedMeetings((prev) => {
       const next = new Set(prev);
       if (next.has(meetingId)) {
         next.delete(meetingId);
@@ -569,33 +600,33 @@ export function MeetingTab() {
 
   // 전체 선택/해제
   const toggleSelectAll = () => {
-    if (selectedForDelete.size === meetings.length) {
+    if (selectedMeetings.size === meetings.length) {
       // 전체 해제
-      setSelectedForDelete(new Set());
+      setSelectedMeetings(new Set());
     } else {
       // 전체 선택
-      setSelectedForDelete(new Set(meetings.filter((m) => m && m.id).map((m) => m.id)));
+      setSelectedMeetings(new Set(meetings.filter((m) => m && m.id).map((m) => m.id)));
     }
   };
 
   // 선택 모드 종료
   const exitSelectMode = () => {
     setIsSelectMode(false);
-    setSelectedForDelete(new Set());
+    setSelectedMeetings(new Set());
   };
 
   // 선택된 항목 일괄 삭제
   const handleBulkDelete = async () => {
-    if (selectedForDelete.size === 0) {
-      alert('삭제할 항목을 선택해주세요.');
+    if (selectedMeetings.size === 0) {
+      toast.error('삭제할 항목을 선택해주세요.');
       return;
     }
 
-    if (!confirm(`선택된 ${selectedForDelete.size}개의 Meeting을 삭제하시겠습니까?`)) {
+    if (!confirm(`선택된 ${selectedMeetings.size}개의 Meeting을 삭제하시겠습니까?`)) {
       return;
     }
 
-    const deletePromises = Array.from(selectedForDelete).map(async (id) => {
+    const deletePromises = Array.from(selectedMeetings).map(async (id) => {
       try {
         await deleteMeeting(id);
         return { id, success: true };
@@ -630,10 +661,53 @@ export function MeetingTab() {
     exitSelectMode();
 
     if (failedCount > 0) {
-      alert(`✅ ${successIds.length}개 삭제 완료, ❌ ${failedCount}개 삭제 실패`);
+      toast.success(`${successIds.length}개 삭제 완료`);
+      toast.error(`${failedCount}개 삭제 실패`);
     } else {
-      alert(`✅ ${successIds.length}개 삭제 완료`);
+      toast.success(`${successIds.length}개 삭제 완료`);
     }
+  };
+
+  // 선택된 항목 일괄 분석
+  const handleBulkAnalyze = async () => {
+    if (selectedMeetings.size === 0) {
+      toast.error('분석할 항목을 선택해주세요.');
+      return;
+    }
+
+    const selectedMeetingsList = meetings.filter(m => selectedMeetings.has(m.id));
+    const analyzableMeetings = selectedMeetingsList.filter(m =>
+      ['uploaded', 'ready', 'ready_for_stt', 'caption_ready'].includes(m.status)
+    );
+
+    if (analyzableMeetings.length === 0) {
+      toast.error('분석 가능한 Meeting이 없습니다.');
+      return;
+    }
+
+    toast.info(`${analyzableMeetings.length}개 Meeting 분석을 시작합니다...`);
+
+    for (const meeting of analyzableMeetings) {
+      try {
+        await handleTranscribe(meeting);
+      } catch (error) {
+        console.error(`Failed to analyze meeting ${meeting.id}:`, error);
+      }
+    }
+
+    exitSelectMode();
+  };
+
+  // 선택된 항목 프로젝트에 추가
+  const handleBulkAddToProject = () => {
+    if (selectedMeetings.size === 0) {
+      toast.error('추가할 항목을 선택해주세요.');
+      return;
+    }
+
+    // TODO: 프로젝트 선택 다이얼로그 구현
+    toast.info(`${selectedMeetings.size}개 Meeting을 프로젝트에 추가하는 기능은 준비 중입니다.`);
+    // exitSelectMode();
   };
 
   return (
@@ -770,26 +844,46 @@ export function MeetingTab() {
 
             {/* 선택 모드 컨트롤 */}
             {isSelectMode && (
-              <div className="flex items-center justify-between mb-3 p-2 bg-purple-50 rounded-lg">
-                <button
-                  onClick={toggleSelectAll}
-                  className="flex items-center gap-2 text-xs text-purple-700 hover:text-purple-800 font-medium"
-                >
-                  {selectedForDelete.size === meetings.filter((m) => m && m.id).length ? (
-                    <CheckSquare className="w-4 h-4" />
-                  ) : (
-                    <Square className="w-4 h-4" />
-                  )}
-                  {selectedForDelete.size === meetings.filter((m) => m && m.id).length ? '전체 해제' : '전체 선택'}
-                </button>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-purple-600">
-                    {selectedForDelete.size}개 선택됨
+              <div className="mb-3 p-2 bg-purple-50 rounded-lg space-y-2">
+                <div className="flex items-center justify-between">
+                  <button
+                    onClick={toggleSelectAll}
+                    className="flex items-center gap-2 text-xs text-purple-700 hover:text-purple-800 font-medium"
+                  >
+                    {selectedMeetings.size === meetings.filter((m) => m && m.id).length ? (
+                      <CheckSquare className="w-4 h-4" />
+                    ) : (
+                      <Square className="w-4 h-4" />
+                    )}
+                    {selectedMeetings.size === meetings.filter((m) => m && m.id).length ? '전체 해제' : '전체 선택'}
+                  </button>
+                  <span className="text-xs text-purple-600 font-medium">
+                    {selectedMeetings.size}개 선택됨
                   </span>
+                </div>
+
+                {/* 다중 액션 버튼 */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleBulkAnalyze}
+                    disabled={selectedMeetings.size === 0}
+                    className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Sparkles className="w-3 h-3" />
+                    분석
+                  </button>
+                  <button
+                    onClick={handleBulkAddToProject}
+                    disabled={selectedMeetings.size === 0}
+                    className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-medium rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <FolderPlus className="w-3 h-3" />
+                    프로젝트 추가
+                  </button>
                   <button
                     onClick={handleBulkDelete}
-                    disabled={selectedForDelete.size === 0}
-                    className="flex items-center gap-1 px-2 py-1 bg-red-500 hover:bg-red-600 text-white text-xs font-medium rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={selectedMeetings.size === 0}
+                    className="flex items-center justify-center gap-1 px-2 py-1.5 bg-red-500 hover:bg-red-600 text-white text-xs font-medium rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Trash2 className="w-3 h-3" />
                     삭제
@@ -802,15 +896,15 @@ export function MeetingTab() {
               {meetings.filter((m) => m && m.id).map((meeting, index) => (
                 <div
                   key={meeting.id || `meeting-fallback-${index}`}
-                  className={`p-3 border rounded-lg transition-colors cursor-pointer ${selectedForDelete.has(meeting.id)
-                      ? 'border-red-300 bg-red-50'
+                  className={`p-3 border rounded-lg transition-colors cursor-pointer ${selectedMeetings.has(meeting.id)
+                      ? 'border-purple-300 bg-purple-50'
                       : selectedMeeting?.id === meeting.id
                         ? 'border-purple-500 bg-purple-50'
                         : 'border-gray-200 hover:border-purple-300 hover:bg-gray-50'
                     }`}
                   onClick={() => {
                     if (isSelectMode) {
-                      toggleSelectForDelete(meeting.id, { stopPropagation: () => { } } as React.MouseEvent);
+                      toggleSelectMeeting(meeting.id, { stopPropagation: () => { } } as React.MouseEvent);
                     } else {
                       setSelectedMeeting(meeting);
                       // 분석 결과가 있으면 로드
@@ -825,11 +919,11 @@ export function MeetingTab() {
                     {/* 선택 모드일 때 체크박스 표시 */}
                     {isSelectMode && (
                       <button
-                        onClick={(e) => toggleSelectForDelete(meeting.id, e)}
+                        onClick={(e) => toggleSelectMeeting(meeting.id, e)}
                         className="flex-shrink-0 mt-0.5"
                       >
-                        {selectedForDelete.has(meeting.id) ? (
-                          <CheckSquare className="w-4 h-4 text-red-500" />
+                        {selectedMeetings.has(meeting.id) ? (
+                          <CheckSquare className="w-4 h-4 text-purple-500" />
                         ) : (
                           <Square className="w-4 h-4 text-gray-400" />
                         )}
@@ -989,38 +1083,188 @@ export function MeetingTab() {
           </div>
         )}
 
-        {/* Analysis Result */}
-        {analysisResult && (selectedMeeting?.status === 'analyzed' || selectedMeeting?.status === 'ready' || selectedMeeting?.analysis_result) && (
-          <div className="mt-6 p-4 bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-200 rounded-lg">
-            <h3 className="text-sm font-semibold text-purple-900 mb-3">
-              📊 Analysis Result
-            </h3>
-
-            <div className="space-y-3">
-              <div>
-                <p className="text-xs font-semibold text-gray-700 mb-1">Summary</p>
-                <p className="text-xs text-gray-600">{analysisResult.summary}</p>
+        {/* Selected Meeting Details */}
+        {selectedMeeting && (
+          <div className="mt-6 space-y-4">
+            {/* Meeting Info Header */}
+            <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-semibold text-gray-900 truncate flex-1">
+                  {selectedMeeting.title}
+                </h3>
+                <span className={`text-xs px-2 py-0.5 rounded-full ${getStatusBadgeConfig(selectedMeeting.status).color}`}>
+                  {getStatusBadgeConfig(selectedMeeting.status).label}
+                </span>
               </div>
-
-              <div>
-                <p className="text-xs font-semibold text-gray-700 mb-1">
-                  Campaign Ideas ({analysisResult.campaign_ideas.length})
-                </p>
-                <ul className="text-xs text-gray-600 space-y-1">
-                  {analysisResult.campaign_ideas.map((idea, idx) => (
-                    <li key={idx}>• {idea}</li>
-                  ))}
-                </ul>
-              </div>
+              <p className="text-xs text-gray-500">
+                {formatDate(selectedMeeting.created_at)}
+                {selectedMeeting.duration_seconds && ` • ${Math.floor(selectedMeeting.duration_seconds / 60)}분 ${selectedMeeting.duration_seconds % 60}초`}
+              </p>
             </div>
 
-            <button
-              onClick={handleSendToCanvas}
-              className="w-full mt-4 flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-medium rounded-lg transition-colors"
-            >
-              <Sparkles className="w-4 h-4" />
-              Send to Canvas
-            </button>
+            {/* Transcript Section */}
+            <div className="border border-blue-200 rounded-lg overflow-hidden">
+              <button
+                onClick={() => {
+                  if (!showTranscript && transcripts.length === 0) {
+                    loadTranscripts(selectedMeeting.id);
+                  } else {
+                    setShowTranscript(!showTranscript);
+                  }
+                }}
+                className="w-full p-3 bg-blue-50 flex items-center justify-between hover:bg-blue-100 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-blue-600" />
+                  <span className="text-sm font-medium text-blue-900">트랜스크립트 (스크립트)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {loadingTranscript && <Loader2 className="w-4 h-4 animate-spin text-blue-600" />}
+                  {showTranscript ? (
+                    <ChevronUp className="w-4 h-4 text-blue-600" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-blue-600" />
+                  )}
+                </div>
+              </button>
+
+              {showTranscript && (
+                <div className="p-3 bg-white border-t border-blue-200">
+                  {transcripts.length > 0 ? (
+                    <>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs text-gray-500">
+                          {transcripts[0]?.language || 'Unknown'} • {transcripts[0]?.backend || 'Unknown'}
+                        </span>
+                        <button
+                          onClick={copyTranscript}
+                          className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
+                        >
+                          <Copy className="w-3 h-3" />
+                          복사
+                        </button>
+                      </div>
+                      <div className="max-h-48 overflow-y-auto p-2 bg-gray-50 rounded text-xs text-gray-700 whitespace-pre-wrap">
+                        {transcripts.find(t => t.is_primary)?.transcript_text || transcripts[0]?.transcript_text || '트랜스크립트가 없습니다.'}
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-xs text-gray-500 text-center py-4">
+                      트랜스크립트가 없습니다. 먼저 분석을 실행해주세요.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Analysis Result Section */}
+            {analysisResult && (
+              <div className="border border-purple-200 rounded-lg overflow-hidden">
+                <button
+                  onClick={() => setShowAnalysisDetails(!showAnalysisDetails)}
+                  className="w-full p-3 bg-purple-50 flex items-center justify-between hover:bg-purple-100 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <Eye className="w-4 h-4 text-purple-600" />
+                    <span className="text-sm font-medium text-purple-900">분석 결과</span>
+                  </div>
+                  {showAnalysisDetails ? (
+                    <ChevronUp className="w-4 h-4 text-purple-600" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-purple-600" />
+                  )}
+                </button>
+
+                {showAnalysisDetails && (
+                  <div className="p-3 bg-white border-t border-purple-200 space-y-3">
+                    {/* Summary */}
+                    <div>
+                      <p className="text-xs font-semibold text-gray-700 mb-1">📝 요약</p>
+                      <p className="text-xs text-gray-600 bg-gray-50 p-2 rounded">{analysisResult.summary || '요약 없음'}</p>
+                    </div>
+
+                    {/* Agenda */}
+                    {analysisResult.agenda && analysisResult.agenda.length > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold text-gray-700 mb-1">📋 안건 ({analysisResult.agenda.length})</p>
+                        <ul className="text-xs text-gray-600 space-y-1">
+                          {analysisResult.agenda.map((item, idx) => (
+                            <li key={idx} className="flex items-start gap-1">
+                              <span className="text-purple-500">•</span>
+                              <span>{item}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Decisions */}
+                    {analysisResult.decisions && analysisResult.decisions.length > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold text-green-700 mb-1">✓ 결정사항 ({analysisResult.decisions.length})</p>
+                        <ul className="text-xs text-gray-600 space-y-1">
+                          {analysisResult.decisions.map((item, idx) => (
+                            <li key={idx} className="flex items-start gap-1">
+                              <span className="text-green-500">✓</span>
+                              <span>{item}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Action Items */}
+                    {analysisResult.action_items && analysisResult.action_items.length > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold text-red-700 mb-1">⚡ 액션 아이템 ({analysisResult.action_items.length})</p>
+                        <ul className="text-xs text-gray-600 space-y-1">
+                          {analysisResult.action_items.map((item, idx) => (
+                            <li key={idx} className="flex items-start gap-1">
+                              <span className="text-red-500">→</span>
+                              <span>{item}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Campaign Ideas */}
+                    {analysisResult.campaign_ideas && analysisResult.campaign_ideas.length > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold text-indigo-700 mb-1">💡 캠페인 아이디어 ({analysisResult.campaign_ideas.length})</p>
+                        <ul className="text-xs text-gray-600 space-y-1">
+                          {analysisResult.campaign_ideas.map((idea, idx) => (
+                            <li key={idx} className="flex items-start gap-1">
+                              <span className="text-indigo-500">•</span>
+                              <span>{idea}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex gap-2">
+              <button
+                onClick={handleSendToCanvas}
+                disabled={!analysisResult}
+                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Sparkles className="w-4 h-4" />
+                캔버스에 추가
+              </button>
+              <button
+                onClick={() => toast.info('프로젝트 추가 기능은 준비 중입니다.')}
+                className="flex items-center justify-center gap-1 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium rounded-lg transition-colors"
+              >
+                <FolderPlus className="w-4 h-4" />
+                프로젝트에 추가
+              </button>
+            </div>
           </div>
         )}
 

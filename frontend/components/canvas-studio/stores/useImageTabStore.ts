@@ -29,16 +29,7 @@ import type {
 import { ASPECT_RATIO_SIZES } from './types/imageTab';
 import { getCanvasStore } from '../polotno/polotnoStoreSingleton';
 import { useCanvasStore } from './useCanvasStore';
-import { gatewayClient } from '@/lib/llm-gateway-client';
-import {
-  generateBatchImages as visionGenerateBatch,
-  generateSingleImage as visionGenerateSingle,
-} from '@/lib/api/vision-generator-api';
-import type { GeneratedImage as VisionGeneratedImage } from '@/lib/api/vision-generator-types';
-import {
-  getGeneratedPreviewUrl,
-  getGeneratedThumbUrl,
-} from '@/lib/api/vision-generator-types';
+import { generateViaMediaGateway } from '@/lib/api/vision-generator-api';
 
 // ============================================================================
 // Types
@@ -89,6 +80,8 @@ interface ImageTabState {
   // Image Actions
   addGeneratedImage: (image: GeneratedImage) => void;
   addGeneratedImages: (images: GeneratedImage[]) => void;
+  removeGeneratedImage: (id: string) => void;
+  removeSelectedImages: () => void;
   selectImage: (id: string) => void;
   deselectImage: (id: string) => void;
   toggleImageSelection: (id: string) => void;
@@ -96,7 +89,13 @@ interface ImageTabState {
 
   // 캔버스 추가
   addToCanvas: (imageId: string) => Promise<void>;
+  addToCanvasAsNewPage: (imageId: string) => Promise<void>;
   addSelectedToCanvas: () => Promise<void>;
+  addSelectedToCanvasAsNewPages: () => Promise<void>;
+
+  // Mixboard에 추가
+  addToMixboard: (imageId: string) => void;
+  addSelectedToMixboard: () => void;
 
   // 에셋 저장 (명시적)
   saveAsAsset: (imageId: string) => Promise<string | null>;
@@ -116,6 +115,77 @@ function generateId(): string {
 }
 
 /**
+ * OpenAI API 직접 호출 (GPT-4o-mini)
+ */
+async function callOpenAI(
+  systemPrompt: string,
+  userPrompt: string
+): Promise<string> {
+  const OPENAI_API_KEY = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
+  if (!OPENAI_API_KEY) {
+    throw new Error('OpenAI API key not configured');
+  }
+
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${OPENAI_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      temperature: 0.7,
+      max_tokens: 500,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.error?.message || `OpenAI API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.choices[0]?.message?.content || '';
+}
+
+/**
+ * Ollama API 직접 호출 (로컬 GPU 서버)
+ */
+async function callOllama(
+  systemPrompt: string,
+  userPrompt: string,
+  model: string = 'llama3.2:latest'
+): Promise<string> {
+  const OLLAMA_URL = process.env.NEXT_PUBLIC_OLLAMA_URL || 'http://100.120.180.42:11434';
+
+  const response = await fetch(`${OLLAMA_URL}/api/chat`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      stream: false,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Ollama API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.message?.content || '';
+}
+
+/**
  * 한글 프롬프트를 영문 이미지 생성 프롬프트로 변환 (LLM 호출)
  */
 async function translatePromptToEnglish(
@@ -125,6 +195,13 @@ async function translatePromptToEnglish(
   console.log(`[ImageTabStore] Translating prompt with LLM: ${llm}`);
   console.log(`[ImageTabStore] Original: ${koreanPrompt}`);
 
+  // 'none' 선택 시 LLM 번역 없이 직접 전달 (품질 태그만 추가)
+  if (llm === 'none') {
+    const directPrompt = `${koreanPrompt}, masterpiece, best quality, 8k uhd, highly detailed`;
+    console.log(`[ImageTabStore] Direct mode (no LLM): ${directPrompt}`);
+    return directPrompt;
+  }
+
   // 한글이 없으면 그대로 반환 (이미 영문)
   const hasKorean = /[가-힣]/.test(koreanPrompt);
   if (!hasKorean) {
@@ -132,28 +209,42 @@ async function translatePromptToEnglish(
     return koreanPrompt;
   }
 
+  const systemPrompt = `You are a Korean-to-English translator for image generation prompts.
+
+CRITICAL RULES:
+1. ONLY translate the given Korean text to English - DO NOT add anything that is not in the original
+2. DO NOT invent or imagine details (like weapons, actions, clothing) that are not mentioned
+3. Keep the translation faithful to the original meaning
+4. Add ONLY these quality tags at the end: "masterpiece, best quality, 8k uhd, highly detailed"
+5. Output ONLY the English prompt, no explanations
+
+Example:
+Input: "20대 여대생의 여권사진"
+Output: "passport photo of a Korean female college student in her early 20s, masterpiece, best quality, 8k uhd, highly detailed"
+
+Input: "빨간 드레스를 입은 여성"
+Output: "a woman wearing a red dress, masterpiece, best quality, 8k uhd, highly detailed"`;
+
+
   try {
-    // LLM Gateway를 통해 프롬프트 변환
-    const systemPrompt = `You are an expert at creating image generation prompts.
-Convert the user's Korean description into a detailed English prompt suitable for AI image generation.
-Focus on: composition, lighting, style, colors, atmosphere, and specific details.
-Output ONLY the English prompt, nothing else.`;
+    let englishPrompt: string;
 
-    const response = await gatewayClient.chat(
-      [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: koreanPrompt },
-      ],
-      {
-        model: llm === 'gpt-4o-mini' ? 'gpt-4o-mini' : llm === 'claude' ? 'claude-3-5-sonnet-latest' : 'qwen2.5:14b',
-        temperature: 0.7,
-        max_tokens: 500,
-      }
-    );
+    if (llm === 'gpt-4o-mini') {
+      // OpenAI 직접 호출
+      console.log(`[ImageTabStore] Using OpenAI gpt-4o-mini`);
+      englishPrompt = await callOpenAI(systemPrompt, koreanPrompt);
+    } else if (llm === 'claude') {
+      // Claude는 Backend Gateway 필요 (현재 미지원, fallback)
+      console.log(`[ImageTabStore] Claude not directly supported, using fallback`);
+      throw new Error('Claude direct call not supported');
+    } else {
+      // Ollama 직접 호출 (오픈소스 모델)
+      console.log(`[ImageTabStore] Using Ollama llama3.2`);
+      englishPrompt = await callOllama(systemPrompt, koreanPrompt, 'llama3.2:latest');
+    }
 
-    const englishPrompt = response.trim();
     console.log(`[ImageTabStore] Translated: ${englishPrompt}`);
-    return englishPrompt;
+    return englishPrompt.trim();
   } catch (error) {
     console.error('[ImageTabStore] Translation failed, using fallback:', error);
     // 실패 시 기본 영문 프롬프트 생성
@@ -164,48 +255,13 @@ Output ONLY the English prompt, nothing else.`;
 }
 
 /**
- * VisionGenerator API 결과를 ImageTab의 GeneratedImage로 변환
- */
-function convertVisionResult(
-  result: VisionGeneratedImage,
-  prompt: string,
-  negativePrompt: string | undefined,
-  provider: ImageProvider | 'auto',
-  width: number,
-  height: number,
-  mixRefs: MixRefImage[],
-  generationTime: number
-): GeneratedImage {
-  // URL 추출 (3종 URL 시스템 사용)
-  const previewUrl = getGeneratedPreviewUrl(result);
-  const thumbUrl = getGeneratedThumbUrl(result);
-
-  return {
-    id: generateId(),
-    url: previewUrl,
-    thumbUrl: thumbUrl || previewUrl,
-    prompt,
-    negativePrompt,
-    provider: provider === 'auto' ? 'zimage' : provider,
-    width: result.width || width,
-    height: result.height || height,
-    seed: result.seed_used,
-    mixRefs: mixRefs.length > 0 ? [...mixRefs] : undefined,
-    createdAt: Date.now(),
-    generationTime,
-    savedAsAsset: false,
-    addedToCanvas: false,
-  };
-}
-
-/**
  * 이미지 생성 API 호출
- * VisionGeneratorAgent를 통해 실제 이미지 생성
+ * MediaGateway를 통해 실제 이미지 생성 (Z-Image → Backend → Frontend)
  */
 async function generateImages(
   prompt: string,
   negativePrompt: string | undefined,
-  provider: ImageProvider | 'auto',
+  _provider: ImageProvider | 'auto',
   width: number,
   height: number,
   batchSize: number,
@@ -213,92 +269,66 @@ async function generateImages(
   _steps?: number,
   seed?: number
 ): Promise<GeneratedImage[]> {
-  console.log(`[ImageTabStore] Generating ${batchSize} images with ${provider}`);
+  console.log(`[ImageTabStore] Generating ${batchSize} images via MediaGateway`);
   console.log(`[ImageTabStore] Prompt: ${prompt}`);
   console.log(`[ImageTabStore] Size: ${width}x${height}`);
   console.log(`[ImageTabStore] MixRefs: ${mixRefs.length}`);
 
   const startTime = Date.now();
-
-  // aspect ratio 계산 (SimpleImageGenerationRequest에서 지원하는 값만 사용)
-  // 지원: '1:1' | '16:9' | '9:16' | '3:4'
-  type SupportedAspectRatio = '1:1' | '16:9' | '9:16' | '3:4';
-  let aspectRatio: SupportedAspectRatio;
-
-  if (width === height) {
-    aspectRatio = '1:1';
-  } else if (width > height) {
-    // 가로 이미지: 16:9 사용 (4:3도 가로지만 3:4로 매핑 불가)
-    aspectRatio = '16:9';
-  } else {
-    // 세로 이미지
-    aspectRatio = height / width > 1.5 ? '9:16' : '3:4';
-  }
-
-  // Provider 매핑 (ImageTab의 provider → VisionGenerator의 provider)
-  const visionProvider = provider === 'auto' ? 'auto' :
-    provider === 'zimage' ? 'comfyui' : // zimage는 comfyui로 매핑
-    provider === 'comfyui' ? 'comfyui' :
-    provider === 'nanobanana' ? 'nanobanana' : 'auto';
+  const generatedImages: GeneratedImage[] = [];
 
   try {
-    if (batchSize === 1) {
-      // 단일 이미지 생성
-      const result = await visionGenerateSingle(
-        {
-          prompt,
-          aspectRatio,
-          seed,
-        },
-        visionProvider as any
-      );
+    // MediaGateway를 통한 이미지 생성 (배치는 순차 처리)
+    for (let i = 0; i < batchSize; i++) {
+      const currentSeed = seed ? seed + i : undefined;
 
-      const generationTime = Date.now() - startTime;
-      console.log(`[ImageTabStore] Single image generated in ${generationTime}ms`);
+      console.log(`[ImageTabStore] Generating image ${i + 1}/${batchSize}...`);
 
-      return [convertVisionResult(
-        result,
-        prompt,
-        negativePrompt,
-        provider,
+      const result = await generateViaMediaGateway(prompt, {
         width,
         height,
-        mixRefs,
-        generationTime
-      )];
-    } else {
-      // 배치 이미지 생성
-      const requests = Array.from({ length: batchSize }, (_, i) => ({
-        prompt,
-        aspectRatio,
-        seed: seed ? seed + i : undefined,
-      }));
-
-      const results = await visionGenerateBatch(requests, visionProvider as any);
+        negative_prompt: negativePrompt,
+        seed: currentSeed,
+        steps: _steps || 20,  // 품질 향상을 위해 steps 전달
+      });
 
       const generationTime = Date.now() - startTime;
-      console.log(`[ImageTabStore] ${results.length} images generated in ${generationTime}ms`);
 
-      return results.map((result) =>
-        convertVisionResult(
-          result,
-          prompt,
-          negativePrompt,
-          provider,
-          width,
-          height,
-          mixRefs,
-          Math.round(generationTime / batchSize)
-        )
-      );
+      // URL 또는 base64 데이터 처리
+      let imageUrl = result.url;
+      if (result.base64 && !imageUrl) {
+        imageUrl = `data:image/png;base64,${result.base64}`;
+      }
+
+      generatedImages.push({
+        id: generateId(),
+        url: imageUrl,
+        thumbUrl: imageUrl, // 썸네일은 동일 URL 사용
+        prompt,
+        negativePrompt,
+        provider: 'zimage',
+        width,
+        height,
+        seed: currentSeed,
+        mixRefs: mixRefs.length > 0 ? [...mixRefs] : undefined,
+        createdAt: Date.now(),
+        generationTime: Math.round(generationTime / (i + 1)),
+        savedAsAsset: false,
+        addedToCanvas: false,
+      });
+
+      console.log(`[ImageTabStore] Image ${i + 1} generated in ${generationTime}ms`);
     }
+
+    console.log(`[ImageTabStore] Total ${generatedImages.length} images generated`);
+    return generatedImages;
+
   } catch (error) {
     console.error('[ImageTabStore] Image generation failed:', error);
 
     // API 실패 시 Mock 이미지로 폴백 (개발/테스트용)
     console.log('[ImageTabStore] Falling back to mock images');
     const mockImages: GeneratedImage[] = [];
-    const actualProvider: ImageProvider = provider === 'auto' ? 'zimage' : provider;
 
     for (let i = 0; i < batchSize; i++) {
       const mockSeed = seed ?? Math.floor(Math.random() * 1000000);
@@ -310,7 +340,7 @@ async function generateImages(
         thumbUrl: `https://picsum.photos/seed/${mockSeed + i}/256/256`,
         prompt,
         negativePrompt,
-        provider: actualProvider,
+        provider: 'zimage',
         width,
         height,
         seed: mockSeed + i,
@@ -607,6 +637,25 @@ export const useImageTabStore = create<ImageTabState>()(
         }));
       },
 
+      removeGeneratedImage: (id) => {
+        set((state) => ({
+          generatedImages: state.generatedImages.filter((img) => img.id !== id),
+          selectedImageIds: state.selectedImageIds.filter((i) => i !== id),
+        }));
+        console.log(`[ImageTabStore] Removed image: ${id}`);
+      },
+
+      removeSelectedImages: () => {
+        const { selectedImageIds } = get();
+        console.log(`[ImageTabStore] Removing ${selectedImageIds.length} selected images`);
+        set((state) => ({
+          generatedImages: state.generatedImages.filter(
+            (img) => !selectedImageIds.includes(img.id)
+          ),
+          selectedImageIds: [],
+        }));
+      },
+
       selectImage: (id) => {
         set((state) => ({
           selectedImageIds: state.selectedImageIds.includes(id)
@@ -687,6 +736,102 @@ export const useImageTabStore = create<ImageTabState>()(
         for (const imageId of selectedImageIds) {
           await addToCanvas(imageId);
         }
+
+        // 선택 해제
+        set({ selectedImageIds: [] });
+      },
+
+      addToCanvasAsNewPage: async (imageId) => {
+        const image = get().generatedImages.find((img) => img.id === imageId);
+        if (!image) {
+          console.warn(`[ImageTabStore] Image not found: ${imageId}`);
+          return;
+        }
+
+        console.log(`[ImageTabStore] Adding image to new canvas page: ${imageId}`);
+
+        // 현재 활성 캔버스 가져오기
+        const activeCanvasType = useCanvasStore.getState().activeCanvasType;
+        const polotnoStore = getCanvasStore(activeCanvasType);
+
+        if (!polotnoStore) {
+          console.warn('[ImageTabStore] Polotno store not available');
+          return;
+        }
+
+        // 새 페이지 생성
+        const newPage = polotnoStore.addPage();
+
+        // 페이지 크기 설정 (이미지 비율에 맞춤)
+        const pageWidth = image.width || 1080;
+        const pageHeight = image.height || 1080;
+
+        // 이미지를 새 페이지에 추가 (전체 크기로)
+        newPage.addElement({
+          type: 'image',
+          src: image.url,
+          x: 0,
+          y: 0,
+          width: pageWidth,
+          height: pageHeight,
+        });
+
+        // 새 페이지로 이동
+        polotnoStore.selectPage(newPage.id);
+
+        // 상태 업데이트
+        set((state) => ({
+          generatedImages: state.generatedImages.map((img) =>
+            img.id === imageId ? { ...img, addedToCanvas: true } : img
+          ),
+        }));
+
+        console.log(`[ImageTabStore] Image added to new page: ${imageId}`);
+      },
+
+      addSelectedToCanvasAsNewPages: async () => {
+        const { selectedImageIds, addToCanvasAsNewPage } = get();
+        console.log(`[ImageTabStore] Adding ${selectedImageIds.length} selected images as new pages`);
+
+        for (const imageId of selectedImageIds) {
+          await addToCanvasAsNewPage(imageId);
+        }
+
+        // 선택 해제
+        set({ selectedImageIds: [] });
+      },
+
+      // === Mixboard Actions ===
+
+      addToMixboard: (imageId) => {
+        const image = get().generatedImages.find((img) => img.id === imageId);
+        if (!image) {
+          console.warn(`[ImageTabStore] Image not found: ${imageId}`);
+          return;
+        }
+
+        const { addMixRef } = get();
+        addMixRef({
+          url: image.url,
+          role: 'style', // 기본값: 스타일 레퍼런스
+          tags: image.prompt ? image.prompt.split(' ').slice(0, 5) : [],
+          note: `Generated image (${image.provider})`,
+          weight: 1.0,
+        });
+
+        console.log(`[ImageTabStore] Added image to Mixboard: ${imageId}`);
+      },
+
+      addSelectedToMixboard: () => {
+        const { selectedImageIds, addToMixboard, setMixboardOpen } = get();
+        console.log(`[ImageTabStore] Adding ${selectedImageIds.length} selected images to Mixboard`);
+
+        for (const imageId of selectedImageIds) {
+          addToMixboard(imageId);
+        }
+
+        // Mixboard 열기
+        setMixboardOpen(true);
 
         // 선택 해제
         set({ selectedImageIds: [] });

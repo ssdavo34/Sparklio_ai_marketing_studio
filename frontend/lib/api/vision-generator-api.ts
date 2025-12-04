@@ -279,6 +279,7 @@ export async function generateViaMediaGateway(
     style?: string;
     negative_prompt?: string;
     seed?: number;
+    steps?: number;
   }
 ): Promise<{ url: string; base64?: string }> {
   const url = `${API_BASE_URL}${MEDIA_ENDPOINT}`;
@@ -298,6 +299,7 @@ export async function generateViaMediaGateway(
         style: options?.style,
         negative_prompt: options?.negative_prompt,
         seed: options?.seed,
+        steps: options?.steps || 20,  // 품질 향상을 위해 기본값 20으로 설정
       },
     }),
   });
@@ -312,9 +314,13 @@ export async function generateViaMediaGateway(
     throw new VisionGeneratorError('이미지가 생성되지 않았습니다.');
   }
 
+  // Backend는 'data' 필드에 base64를 반환
+  const output = data.outputs[0];
+  const base64Data = output.data || output.base64;
+
   return {
-    url: data.outputs[0].url,
-    base64: data.outputs[0].base64,
+    url: output.url || (base64Data ? `data:image/png;base64,${base64Data}` : ''),
+    base64: base64Data,
   };
 }
 
