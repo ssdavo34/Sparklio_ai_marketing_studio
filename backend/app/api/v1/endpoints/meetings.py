@@ -702,8 +702,32 @@ async def analyze_meeting(
         logger.info(f"Meeting analyzed: {meeting_id}")
 
         # 7. MeetingSummaryOutput으로 변환
+        # LLM이 summary를 딕셔너리로 반환할 수 있으므로 문자열로 변환
+        summary_raw = analysis_result.get("summary", "")
+        if isinstance(summary_raw, dict):
+            # 딕셔너리인 경우 JSON 문자열로 변환하거나 topic 필드 사용
+            import json
+            if "topic" in summary_raw:
+                # 구조화된 요약인 경우 주요 내용을 텍스트로 조합
+                parts = []
+                if summary_raw.get("topic"):
+                    parts.append(f"주제: {summary_raw['topic']}")
+                if summary_raw.get("key_points"):
+                    points = summary_raw["key_points"]
+                    if isinstance(points, list):
+                        parts.append("주요 내용: " + ", ".join(str(p) for p in points))
+                    else:
+                        parts.append(f"주요 내용: {points}")
+                if summary_raw.get("conclusion"):
+                    parts.append(f"결론: {summary_raw['conclusion']}")
+                summary_str = " | ".join(parts) if parts else json.dumps(summary_raw, ensure_ascii=False)
+            else:
+                summary_str = json.dumps(summary_raw, ensure_ascii=False)
+        else:
+            summary_str = str(summary_raw) if summary_raw else ""
+
         return MeetingSummaryOutput(
-            summary=analysis_result.get("summary", ""),
+            summary=summary_str,
             agenda=analysis_result.get("agenda", []),
             decisions=analysis_result.get("decisions", []),
             action_items=analysis_result.get("action_items", []),
