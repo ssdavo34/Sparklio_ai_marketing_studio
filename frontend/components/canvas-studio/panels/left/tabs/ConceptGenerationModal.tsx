@@ -39,6 +39,7 @@ import {
   PenLine,
 } from 'lucide-react';
 import { useConceptWorkflowStore } from '../../../stores/useConceptWorkflowStore';
+import { useGeneratedAssetsStore } from '../../../stores/useGeneratedAssetsStore';
 import type {
   WorkflowStep,
   DataSourceType,
@@ -59,8 +60,8 @@ interface StepIndicatorProps {
 function StepIndicator({ currentStep, onStepClick }: StepIndicatorProps) {
   const steps = [
     { step: 1, label: '소스 데이터', icon: FileText },
-    { step: 2, label: '산출물 설정', icon: Target },
-    { step: 3, label: '컨셉 생성', icon: Sparkles },
+    { step: 2, label: '컨셉 생성', icon: Sparkles },  // 먼저 컨셉 생성
+    { step: 3, label: '산출물 설정', icon: Target },  // 그 다음 산출물 설정
     { step: 4, label: '최종 확인', icon: Check },
   ] as const;
 
@@ -727,6 +728,9 @@ function Step4Confirmation() {
     generateContent,
   } = useConceptWorkflowStore();
 
+  // 생성된 에셋 저장을 위한 스토어
+  const { setSlidesData, setInstagramData, setDetailData } = useGeneratedAssetsStore();
+
   const selectedConcept = generatedConcepts.find((c) => c.conceptId === selectedConceptId);
   const isGeneratingContent = progress.overallStatus === 'generating';
   const hasContentFailed = progress.overallStatus === 'failed';
@@ -751,7 +755,7 @@ function Step4Confirmation() {
         <AlertCircle className="w-12 h-12 text-yellow-500 mb-4" />
         <h3 className="text-lg font-semibold text-gray-800">컨셉을 선택해주세요</h3>
         <p className="text-sm text-gray-500 mt-2">
-          3단계에서 컨셉을 선택한 후 진행하세요
+          2단계에서 컨셉을 선택한 후 진행하세요
         </p>
       </div>
     );
@@ -762,6 +766,86 @@ function Step4Confirmation() {
     if (selectedConceptId) {
       generateContent(selectedConceptId);
     }
+  };
+
+  // 완료 핸들러: 생성된 콘텐츠를 GeneratedAssetsStore에 저장
+  const handleComplete = () => {
+    if (!generatedContent) {
+      closeModal();
+      return;
+    }
+
+    // 프레젠테이션 저장
+    if (generatedContent.presentation && outputTargets.presentation.enabled) {
+      setSlidesData({
+        id: `slides-${Date.now()}`,
+        title: generatedContent.presentation.title || selectedConcept.conceptName,
+        slides: generatedContent.presentation.slides.map((slide: any) => ({
+          id: `slide-${slide.slide_number}`,
+          slide_number: slide.slide_number,
+          title: slide.headline,
+          content: slide.body || '',
+          bullets: slide.bullets || [],
+          imagePrompt: slide.image_prompt,
+          slide_type: slide.slide_type,
+          layout: slide.layout,
+        })),
+        createdAt: new Date(),
+        sourceMessage: `컨셉: ${selectedConcept.conceptName}`,
+      });
+    }
+
+    // 상세페이지 저장
+    if (generatedContent.detail_page && outputTargets.detailPage.enabled) {
+      setDetailData({
+        id: `detail-${Date.now()}`,
+        title: generatedContent.detail_page.title || selectedConcept.conceptName,
+        sections: generatedContent.detail_page.sections.map((section: any) => ({
+          section_type: section.section_type,
+          order: section.section_number,
+          content: {
+            headline: section.headline,
+            subheadline: section.subheadline,
+            body: section.body,
+            features: section.features,
+            benefits: section.benefits,
+            steps: section.steps,
+            testimonials: section.testimonials,
+            cta: section.cta,
+            image_prompt: section.image_prompt,
+            layout: section.layout,
+          },
+        })),
+        createdAt: new Date(),
+        sourceMessage: `컨셉: ${selectedConcept.conceptName}`,
+      });
+    }
+
+    // 인스타그램 저장
+    if (generatedContent.instagram && outputTargets.instagram.enabled) {
+      setInstagramData({
+        id: `instagram-${Date.now()}`,
+        title: selectedConcept.conceptName,
+        ads: generatedContent.instagram.ads.map((ad: any) => ({
+          ad_id: `ad-${ad.ad_number}`,
+          ad_type: 'single_image',
+          format: ad.format || 'feed',
+          aspect_ratio: ad.format === 'story' ? '9:16' : '1:1',
+          creative: {
+            headline: ad.headline,
+            primary_text: ad.subheadline || '',
+            cta_text: ad.cta,
+            image_prompt: ad.image_prompt,
+          },
+        })),
+        hashtags: generatedContent.instagram.ads[0]?.hashtags || [],
+        createdAt: new Date(),
+        sourceMessage: `컨셉: ${selectedConcept.conceptName}`,
+      });
+    }
+
+    console.log('[Step4] 생성된 콘텐츠 저장 완료');
+    closeModal();
   };
 
   return (
@@ -810,10 +894,11 @@ function Step4Confirmation() {
       {/* 완료 버튼 */}
       <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
         <button
-          onClick={closeModal}
-          className="px-6 py-2.5 bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white font-semibold rounded-xl transition-all"
+          onClick={handleComplete}
+          disabled={!generatedContent || isGeneratingContent}
+          className="px-6 py-2.5 bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          완료
+          {isGeneratingContent ? '생성 중...' : '완료'}
         </button>
       </div>
     </div>
@@ -835,9 +920,9 @@ export function ConceptGenerationModal() {
       case 1:
         return <Step1SourceData />;
       case 2:
-        return <Step2OutputTargets />;
+        return <Step3ConceptEdit />;  // 먼저 컨셉 생성/선택
       case 3:
-        return <Step3ConceptEdit />;
+        return <Step2OutputTargets />;  // 그 다음 산출물 설정
       case 4:
         return <Step4Confirmation />;
       default:
@@ -852,9 +937,11 @@ export function ConceptGenerationModal() {
         // 캠페인 목표(chat.userPrompt)가 있어야 진행 가능
         return !!(state.sourceData.chat?.userPrompt?.trim());
       case 2:
-        return true; // 최소 하나의 채널 활성화 권장
-      case 3:
+        // Step 2: 컨셉 선택 필요
         return state.selectedConceptId !== null;
+      case 3:
+        // Step 3: 산출물 설정 - 항상 진행 가능
+        return true;
       default:
         return false;
     }
