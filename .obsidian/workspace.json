@@ -228,6 +228,7 @@
   },
   "active": "c04df540f65218b2",
   "lastOpenFiles": [
+    "backend/app/api/v1/concepts.py.tmp.71204.1764916392652",
     "frontend/lib/llm-gateway-client.ts.tmp.71204.1764915916998",
     "frontend/components/canvas-studio/panels/left/tabs/ConceptGenerationModal.tsx.tmp.71204.1764915825175",
     "frontend/components/canvas-studio/stores/useConceptWorkflowStore.ts.tmp.71204.1764915417624",
@@ -238,7 +239,6 @@
     "frontend/components/canvas-studio/templates/OutputPreview.tsx.tmp.71204.1764914761051",
     "frontend/components/canvas-studio/templates/OutputPreview.tsx.tmp.71204.1764914737811",
     "frontend/components/canvas-studio/templates/OutputPreview.tsx.tmp.71204.1764914722881",
-    "frontend/components/canvas-studio/templates/OutputPreview.tsx.tmp.71204.1764914704875",
     "docs/AGENT_QUALITY_ROLLOUT_PLAN_2025-11.md",
     "docs/ImageTab_Guide.md",
     "frontend/docs/C_TEAM_DAILY_FRONTEND_REPORT_2025-11-28_END.md",

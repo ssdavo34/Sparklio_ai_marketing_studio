@@ -47,9 +47,9 @@ class ConceptFromPromptRequest(BaseModel):
     """프롬프트 기반 컨셉 생성 요청"""
     prompt: str = Field(
         ...,
-        description="사용자 입력 프롬프트",
+        description="사용자 입력 프롬프트 (Brand DNA, Brief 등 통합 컨텍스트 포함)",
         min_length=5,
-        max_length=500
+        max_length=5000  # Brand DNA + Brief + Meeting 등 통합 컨텍스트를 위해 확장
     )
     concept_count: int = Field(
         default=3,
