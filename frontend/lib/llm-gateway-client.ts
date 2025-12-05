@@ -337,10 +337,26 @@ export async function generateConcepts(params: {
   );
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({
-      detail: `HTTP error! status: ${response.status}`,
-    }));
-    throw new Error(error.detail || 'Concept generation failed');
+    const errorData = await response.json().catch(() => null);
+    let errorMessage = `HTTP error! status: ${response.status}`;
+
+    if (errorData) {
+      // FastAPI ValidationError 형식 처리
+      if (errorData.detail && Array.isArray(errorData.detail)) {
+        errorMessage = errorData.detail.map((err: any) =>
+          `${err.loc?.join('.')}: ${err.msg}`
+        ).join(', ');
+      } else if (typeof errorData.detail === 'string') {
+        errorMessage = errorData.detail;
+      } else if (typeof errorData.detail === 'object') {
+        errorMessage = JSON.stringify(errorData.detail);
+      } else if (errorData.message) {
+        errorMessage = errorData.message;
+      }
+    }
+
+    console.error('[generateConcepts] API Error:', errorMessage, errorData);
+    throw new Error(errorMessage);
   }
 
   return await response.json();

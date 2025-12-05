@@ -455,14 +455,17 @@ function Step3ConceptEdit() {
   } = useConceptWorkflowStore();
 
   const isGenerating = progress.channels.concepts.status === 'generating';
+  const hasFailed = progress.channels.concepts.status === 'failed';
   const selectedConcept = generatedConcepts.find((c) => c.conceptId === selectedConceptId);
 
-  // 컨셉이 없으면 자동 생성
+  // 컨셉이 없고, 생성 중이 아니고, 실패하지 않았을 때만 자동 생성
+  // (실패 후 무한 루프 방지)
   useEffect(() => {
-    if (generatedConcepts.length === 0 && !isGenerating) {
+    if (generatedConcepts.length === 0 && !isGenerating && !hasFailed) {
       generateConcepts();
     }
-  }, [generatedConcepts.length, isGenerating, generateConcepts]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (isGenerating) {
     return (
@@ -692,6 +695,7 @@ function Step4Confirmation() {
 
   const selectedConcept = generatedConcepts.find((c) => c.conceptId === selectedConceptId);
   const isGeneratingContent = progress.overallStatus === 'generating';
+  const hasContentFailed = progress.overallStatus === 'failed';
 
   // 산출물 프리뷰 컴포넌트를 동적 import (OutputPreview)
   const OutputPreview = React.lazy(() =>
@@ -699,11 +703,13 @@ function Step4Confirmation() {
   );
 
   // Step4에 진입하면 자동으로 콘텐츠 생성 시작
+  // (실패 후 무한 루프 방지: hasContentFailed 체크)
   useEffect(() => {
-    if (selectedConceptId && !generatedContent && !isGeneratingContent) {
+    if (selectedConceptId && !generatedContent && !isGeneratingContent && !hasContentFailed) {
       generateContent(selectedConceptId);
     }
-  }, [selectedConceptId, generatedContent, isGeneratingContent, generateContent]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedConceptId]);
 
   if (!selectedConcept) {
     return (
