@@ -15,7 +15,9 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { Sparkles, Send, Presentation, FileText, Instagram, ChevronDown, ChevronUp, X, Target, MessageSquare, Loader2, Wand2, Check, RefreshCw } from 'lucide-react';
+import { Sparkles, Send, Presentation, FileText, Instagram, ChevronDown, ChevronUp, X, Target, MessageSquare, Loader2, Wand2, Check, RefreshCw, Settings2 } from 'lucide-react';
+import { ConceptGenerationModal } from './ConceptGenerationModal';
+import { useConceptWorkflowStore } from '../../../stores/useConceptWorkflowStore';
 import { useCenterViewStore } from '../../../stores/useCenterViewStore';
 import { useGeneratedAssetsStore, type GeneratedConcept } from '../../../stores/useGeneratedAssetsStore';
 import { useCanvasStore } from '../../../stores/useCanvasStore';
@@ -83,7 +85,11 @@ export function ConceptBoardTab() {
   } = useGeneratedAssetsStore();
 
   // 생성된 컨셉 목록 (Store에서 가져옴 - 영속화)
+  // conceptsV1이 있으면 사용, 없으면 conceptBoardData.concepts 사용 (Meeting에서 전송된 데이터)
   const generatedConcepts = conceptsV1 || [];
+
+  // Meeting에서 전송된 컨셉 데이터 (GeneratedConcept[] 형식)
+  const meetingConcepts = conceptBoardData?.concepts || [];
 
   // 선택된 컨셉
   const selectedConcept = generatedConcepts.find(c => c.id === selectedConceptId) || null;
@@ -364,18 +370,35 @@ export function ConceptBoardTab() {
 
   const isGeneratingFullSet = isGeneratingSlides || isGeneratingDetail || isGeneratingInstagram;
 
+  // 컨셉 워크플로우 모달
+  const openWorkflowModal = useConceptWorkflowStore((state) => state.openModal);
+  const isModalOpen = useConceptWorkflowStore((state) => state.isOpen);
+
   return (
     <div className="flex flex-col h-full">
       {/* 헤더 */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-neutral-100 bg-gradient-to-r from-purple-50 to-indigo-50">
-        <Sparkles className="w-5 h-5 text-purple-500" />
-        <h2 className="text-sm font-semibold text-neutral-800">ConceptBoard</h2>
-        {generatedConcepts.length > 0 && (
-          <span className="text-xs px-1.5 py-0.5 bg-purple-200 text-purple-700 rounded">
-            {generatedConcepts.length}개 컨셉
-          </span>
-        )}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-100 bg-gradient-to-r from-purple-50 to-indigo-50">
+        <div className="flex items-center gap-2">
+          <Sparkles className="w-5 h-5 text-purple-500" />
+          <h2 className="text-sm font-semibold text-neutral-800">ConceptBoard</h2>
+          {generatedConcepts.length > 0 && (
+            <span className="text-xs px-1.5 py-0.5 bg-purple-200 text-purple-700 rounded">
+              {generatedConcepts.length}개 컨셉
+            </span>
+          )}
+        </div>
+        <button
+          onClick={() => openWorkflowModal()}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-purple-600 hover:text-purple-700 hover:bg-purple-100 rounded-lg transition-colors"
+          title="고급 컨셉 생성 워크플로우"
+        >
+          <Settings2 className="w-3.5 h-3.5" />
+          고급 생성
+        </button>
       </div>
+
+      {/* 컨셉 생성 모달 */}
+      {isModalOpen && <ConceptGenerationModal />}
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {/* Brand DNA 표시 섹션 */}
@@ -662,8 +685,156 @@ export function ConceptBoardTab() {
           </div>
         )}
 
+        {/* Meeting에서 전송된 컨셉 표시 */}
+        {meetingConcepts.length > 0 && generatedConcepts.length === 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <h3 className="text-xs font-semibold text-neutral-700 uppercase">
+                  Meeting 분석 컨셉
+                </h3>
+                <span className="text-[10px] px-1.5 py-0.5 bg-green-100 text-green-700 rounded">
+                  {conceptBoardData?.campaign_name}
+                </span>
+              </div>
+              <button
+                onClick={() => {
+                  setConceptBoardData(null);
+                }}
+                className="text-[10px] text-neutral-400 hover:text-neutral-600 flex items-center gap-1"
+              >
+                <RefreshCw className="w-3 h-3" />
+                초기화
+              </button>
+            </div>
+
+            {meetingConcepts.map((concept, index) => {
+              const isSelected = selectedConceptId === concept.concept_id;
+              const isExpanded = expandedCard === concept.concept_id;
+
+              return (
+                <div
+                  key={concept.concept_id}
+                  className={`border rounded-lg bg-white overflow-hidden transition-all ${
+                    isSelected
+                      ? 'border-green-400 ring-2 ring-green-100'
+                      : 'border-neutral-200 hover:border-neutral-300'
+                  }`}
+                >
+                  {/* 카드 헤더 */}
+                  <div
+                    className={`p-3 cursor-pointer transition-colors ${
+                      isSelected ? 'bg-green-50' : 'hover:bg-neutral-50'
+                    }`}
+                    onClick={() => {
+                      setSelectedConceptId(concept.concept_id);
+                      setExpandedCard(isExpanded ? null : concept.concept_id);
+                    }}
+                  >
+                    <div className="flex items-start justify-between mb-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                          isSelected ? 'bg-green-200 text-green-700' : 'bg-neutral-100 text-neutral-600'
+                        }`}>
+                          컨셉 {index + 1}
+                        </span>
+                        {isSelected && (
+                          <Check className="w-3.5 h-3.5 text-green-600" />
+                        )}
+                      </div>
+                      {isExpanded ? (
+                        <ChevronUp className="w-4 h-4 text-neutral-400" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4 text-neutral-400" />
+                      )}
+                    </div>
+                    <h4 className="text-sm font-medium text-neutral-800 mb-0.5">
+                      {concept.concept_name}
+                    </h4>
+                    <p className="text-xs text-neutral-500 line-clamp-2">
+                      {concept.headline}
+                    </p>
+                  </div>
+
+                  {/* 확장 영역 */}
+                  {isExpanded && (
+                    <div className="px-3 pb-3 border-t border-neutral-100 space-y-3">
+                      {/* 상세 정보 */}
+                      <div className="pt-2 space-y-2 text-xs">
+                        <div className="flex items-start gap-2">
+                          <span className="text-neutral-500 w-16 shrink-0">설명</span>
+                          <span className="text-neutral-700 whitespace-pre-wrap">{concept.description}</span>
+                        </div>
+                        {concept.subheadline && (
+                          <div className="flex items-start gap-2">
+                            <span className="text-neutral-500 w-16 shrink-0">서브헤드</span>
+                            <span className="text-neutral-700">{concept.subheadline}</span>
+                          </div>
+                        )}
+                        {concept.tone && (
+                          <div className="flex items-start gap-2">
+                            <span className="text-neutral-500 w-16 shrink-0">톤</span>
+                            <span className="text-neutral-700">{concept.tone}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 채널별 산출물 버튼 */}
+                      <div>
+                        <p className="text-[10px] font-medium text-neutral-500 uppercase mb-2">
+                          채널별 생성
+                        </p>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          <button
+                            onClick={() => generateSlidesFromConcept(concept)}
+                            disabled={isGeneratingSlides}
+                            className="flex flex-col items-center gap-1 p-2 border border-neutral-200 rounded hover:border-blue-300 hover:bg-blue-50 transition-colors disabled:opacity-50"
+                          >
+                            {isGeneratingSlides ? (
+                              <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
+                            ) : (
+                              <Presentation className="w-4 h-4 text-blue-500" />
+                            )}
+                            <span className="text-[10px] text-neutral-600">슬라이드</span>
+                          </button>
+
+                          <button
+                            onClick={() => generateDetailFromConcept(concept)}
+                            disabled={isGeneratingDetail}
+                            className="flex flex-col items-center gap-1 p-2 border border-neutral-200 rounded hover:border-green-300 hover:bg-green-50 transition-colors disabled:opacity-50"
+                          >
+                            {isGeneratingDetail ? (
+                              <Loader2 className="w-4 h-4 text-green-500 animate-spin" />
+                            ) : (
+                              <FileText className="w-4 h-4 text-green-500" />
+                            )}
+                            <span className="text-[10px] text-neutral-600">상세페이지</span>
+                          </button>
+
+                          <button
+                            onClick={() => generateInstagramFromConcept(concept)}
+                            disabled={isGeneratingInstagram}
+                            className="flex flex-col items-center gap-1 p-2 border border-neutral-200 rounded hover:border-pink-300 hover:bg-pink-50 transition-colors disabled:opacity-50"
+                          >
+                            {isGeneratingInstagram ? (
+                              <Loader2 className="w-4 h-4 text-pink-500 animate-spin" />
+                            ) : (
+                              <Instagram className="w-4 h-4 text-pink-500" />
+                            )}
+                            <span className="text-[10px] text-neutral-600">SNS</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {/* 빈 상태 안내 */}
-        {generatedConcepts.length === 0 && !isGenerating && (
+        {generatedConcepts.length === 0 && meetingConcepts.length === 0 && !isGenerating && (
           <div className="text-center py-8 text-neutral-400">
             <Sparkles className="w-10 h-10 mx-auto mb-2 opacity-30" />
             <p className="text-sm">캠페인 목표를 입력하고</p>

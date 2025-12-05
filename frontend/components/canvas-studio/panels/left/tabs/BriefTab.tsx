@@ -34,7 +34,9 @@ import {
 import { useBriefStore } from '../../../stores/useBriefStore';
 import { useLeftPanelStore } from '../../../stores/useLeftPanelStore';
 import { useCanvasStore } from '../../../stores/useCanvasStore';
+import { useConceptWorkflowStore } from '../../../stores/useConceptWorkflowStore';
 import type { Brief, ChannelType } from '@/types/brief';
+import type { BriefSourceData } from '@/types/conceptGeneration';
 import { CHANNEL_TYPE_LABELS, CHANNEL_TYPE_ICONS } from '@/types/brief';
 import { toast } from '@/components/ui/Toast';
 import { layoutApi, type DocumentLayout, type LayoutElement, type PageLayout } from '@/lib/api/layout-api';
@@ -755,12 +757,31 @@ export function BriefTab() {
                   )}
                 </button>
 
-                {/* ConceptBoard로 이동 버튼 */}
+                {/* ConceptBoard로 이동 버튼 - 워크플로우 모달 오픈 */}
                 <button
                   onClick={() => {
+                    // Brief 데이터를 BriefSourceData로 변환
+                    if (brief) {
+                      const briefSourceData: BriefSourceData = {
+                        sourceType: 'brief',
+                        briefId: brief.id || `brief-${Date.now()}`,
+                        goal: brief.goal || '',
+                        target: brief.target || '',
+                        insight: brief.insight || '',
+                        keyMessages: brief.keyMessages || [],
+                        channels: brief.channels || [],
+                        kpis: brief.kpis || [],
+                      };
+
+                      // 워크플로우 모달 열기 (Brief 소스 데이터와 함께)
+                      const openWorkflowModal = useConceptWorkflowStore.getState().openModal;
+                      openWorkflowModal(briefSourceData);
+                    }
+
+                    // ConceptBoard 탭으로 이동
                     useLeftPanelStore.getState().setActiveTab('conceptboard');
                     useLeftPanelStore.getState().setPanelTab('conceptboard');
-                    toast.success('ConceptBoard로 이동합니다. 컨셉을 생성해주세요!');
+                    toast.success('컨셉 생성 워크플로우를 시작합니다.');
                   }}
                   className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-500 to-indigo-500 text-white text-sm font-medium rounded-lg hover:from-purple-600 hover:to-indigo-600 transition-all shadow-sm"
                 >

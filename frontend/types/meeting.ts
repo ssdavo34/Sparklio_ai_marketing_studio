@@ -92,6 +92,7 @@ export interface MeetingAnalysisResult {
   decisions: string[];
   action_items: string[];
   campaign_ideas: string[];
+  keywords?: string[];  // 키워드 목록 (선택적)
   analyzed_at?: string;
   analyzer_version?: string;
 }

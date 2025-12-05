@@ -1,11 +1,15 @@
 'use client';
 
 import { useRef, useState, useEffect } from 'react';
-import { Upload, X, Video, Sparkles, Loader2, FileAudio, Clock, Download, Radio, Trash2, StopCircle, CheckSquare, Square, FileText, ChevronDown, ChevronUp, Copy, FolderPlus, Eye } from 'lucide-react';
+import { Upload, X, Video, Sparkles, Loader2, FileAudio, Clock, Download, Radio, Trash2, StopCircle, CheckSquare, Square, FileText, ChevronDown, ChevronUp, Copy, FolderPlus, Eye, Pencil } from 'lucide-react';
+import { MeetingAnalysisEditModal } from './MeetingAnalysisEditModal';
 import { useCanvasStore } from '../../../stores/useCanvasStore';
 import { useMeetingStore } from '../../../stores/useMeetingStore';
 import { useBriefStore } from '../../../stores/useBriefStore';
+import { useGeneratedAssetsStore } from '../../../stores/useGeneratedAssetsStore';
 import { useLeftPanelStore } from '../../../stores/useLeftPanelStore';
+import { useConceptWorkflowStore } from '../../../stores/useConceptWorkflowStore';
+import type { MeetingSourceData } from '@/types/conceptGeneration';
 import type { Meeting, MeetingAnalysisResult, MeetingStatus } from '@/types/meeting';
 import {
   createMeetingFromFile,
@@ -19,7 +23,7 @@ import {
   type MeetingTranscriptResponse,
 } from '@/lib/api/meeting-api';
 import { layoutApi, type DocumentLayout, type LayoutElement, type PageLayout } from '@/lib/api/layout-api';
-import { convertMeetingToBrief, canConvertToBrief } from '@/lib/utils/meetingToBrief';
+// import { convertMeetingToBrief, canConvertToBrief } from '@/lib/utils/meetingToBrief'; // 미사용
 import { toast } from '@/components/ui/Toast';
 
 // Status Badge Helper
@@ -95,6 +99,7 @@ export function MeetingTab() {
   const [showTranscript, setShowTranscript] = useState(false);
   const [showAnalysisDetails, setShowAnalysisDetails] = useState(false);
   const [loadingTranscript, setLoadingTranscript] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const polotnoStore = useCanvasStore((state) => state.canvases.get(state.activeCanvasType) || null);
   const setGlobalAnalysis = useMeetingStore((state) => state.setAnalysisResult);
   const setBrief = useBriefStore((state) => state.setBrief);
@@ -874,47 +879,53 @@ export function MeetingTab() {
     toast.success('Meeting Summary가 캔버스에 추가되었습니다!');
   };
 
-  // 컨셉보드로 보내기
-  const handleSendToConceptBoard = () => {
-    if (!analysisResult) {
+  // 분석 결과 저장 핸들러 (편집 모달에서 호출)
+  const handleSaveAnalysisResult = (updatedResult: MeetingAnalysisResult) => {
+    setAnalysisResult(updatedResult);
+
+    // 선택된 미팅의 analysis_result도 업데이트
+    if (selectedMeeting) {
+      const updatedMeeting = { ...selectedMeeting, analysis_result: updatedResult };
+      setSelectedMeeting(updatedMeeting);
+
+      // meetings 목록도 업데이트
+      setMeetings(prev => prev.map(m =>
+        m.id === selectedMeeting.id ? updatedMeeting : m
+      ));
+    }
+
+    toast.success('분석 결과가 저장되었습니다.');
+  };
+
+  // 컨셉보드로 보내기 (워크플로우 모달 오픈)
+  const handleSendToConceptBoard = (customAnalysisResult?: MeetingAnalysisResult) => {
+    const result = customAnalysisResult || analysisResult;
+    if (!result) {
       toast.error('분석 결과가 없습니다.');
       return;
     }
 
-    // ConceptBoard store에 데이터 전달
-    // 분석 결과를 Brief 형태로 변환하여 전달
-    const briefContent = `
-## Meeting 분석 결과
+    // Meeting 분석 결과에서 MeetingSourceData 생성
+    const meetingTitle = selectedMeeting?.title || 'Meeting 분석 결과';
+    const meetingSourceData: MeetingSourceData = {
+      sourceType: 'meeting',
+      meetingId: selectedMeeting?.id || `meeting-${Date.now()}`,
+      meetingTitle: meetingTitle,
+      summary: result.summary || '',
+      agenda: result.agenda || [],
+      decisions: result.decisions || [],
+      actionItems: result.action_items || [],
+      campaignIdeas: result.campaign_ideas || [],
+      keywords: result.keywords || [],
+    };
 
-### 요약
-${analysisResult.summary || '요약 없음'}
+    // 워크플로우 모달 열기 (Meeting 소스 데이터와 함께)
+    const openWorkflowModal = useConceptWorkflowStore.getState().openModal;
+    openWorkflowModal(meetingSourceData);
 
-### 주요 안건
-${(analysisResult.agenda || []).map((a: string, i: number) => `${i + 1}. ${a}`).join('\n')}
-
-### 결정 사항
-${(analysisResult.decisions || []).map((d: string) => `- ${d}`).join('\n')}
-
-### 액션 아이템
-${(analysisResult.action_items || []).map((a: string) => `- ${a}`).join('\n')}
-
-### 키워드
-${(analysisResult.keywords || []).join(', ')}
-    `.trim();
-
-    // Brief store에 저장
-    setBrief({
-      background: analysisResult.summary || '',
-      target_audience: '',
-      key_message: (analysisResult.decisions || []).join(' / '),
-      tone_manner: '',
-      mandatory_elements: (analysisResult.action_items || []).join('\n'),
-      additional_notes: `Meeting: ${selectedMeeting?.title || 'Unknown'}\nKeywords: ${(analysisResult.keywords || []).join(', ')}`,
-    });
-
-    // Brief 탭으로 자동 이동
-    setActiveTab('brief');
-    toast.success('Meeting 분석 결과가 Brief에 저장되었습니다. Brief 탭으로 이동합니다.');
+    // ConceptBoard 탭으로 이동 (모달이 ConceptBoard에서 열림)
+    setActiveTab('conceptboard');
+    toast.success('컨셉 생성 워크플로우를 시작합니다.');
   };
 
   const removeFile = () => {
@@ -934,29 +945,6 @@ ${(analysisResult.keywords || []).join(', ')}
       hour: '2-digit',
       minute: '2-digit',
     });
-  };
-
-  // Meeting → Brief 변환
-  const handleConvertToBrief = () => {
-    if (!selectedMeeting || !analysisResult) {
-      toast.error('분석이 완료된 미팅을 선택해주세요.');
-      return;
-    }
-
-    if (!canConvertToBrief(selectedMeeting)) {
-      toast.error('이 미팅은 Brief로 변환할 수 없습니다. 먼저 분석을 완료해주세요.');
-      return;
-    }
-
-    try {
-      const brief = convertMeetingToBrief(selectedMeeting, analysisResult);
-      setBrief(brief);
-      toast.success('Brief가 생성되었습니다! Brief 탭에서 확인하세요.');
-      console.log('[MeetingTab] Brief created:', brief);
-    } catch (error) {
-      console.error('Failed to convert to brief:', error);
-      toast.error(`Brief 변환 실패: ${error instanceof Error ? error.message : String(error)}`);
-    }
   };
 
   // 개별 Meeting 삭제
@@ -1472,12 +1460,12 @@ ${(analysisResult.keywords || []).join(', ')}
                 📊 To Canvas
               </button>
               <button
-                onClick={handleConvertToBrief}
-                disabled={!analysisResult || !canConvertToBrief(selectedMeeting || {} as Meeting)}
+                onClick={() => handleSendToConceptBoard()}
+                disabled={!analysisResult}
                 className="px-3 py-2 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1"
               >
-                <FileText className="w-3 h-3" />
-                Brief로 변환
+                <Sparkles className="w-3 h-3" />
+                컨셉보드로 보내기
               </button>
               <button
                 onClick={() => {
@@ -1583,20 +1571,28 @@ ${(analysisResult.keywords || []).join(', ')}
             {/* Analysis Result Section */}
             {analysisResult && (
               <div className="border border-purple-200 rounded-lg overflow-hidden">
-                <button
-                  onClick={() => setShowAnalysisDetails(!showAnalysisDetails)}
-                  className="w-full p-3 bg-purple-50 flex items-center justify-between hover:bg-purple-100 transition-colors"
-                >
-                  <div className="flex items-center gap-2">
+                <div className="p-3 bg-purple-50 flex items-center justify-between">
+                  <button
+                    onClick={() => setShowAnalysisDetails(!showAnalysisDetails)}
+                    className="flex items-center gap-2 hover:bg-purple-100 rounded px-2 py-1 -ml-2 transition-colors"
+                  >
                     <Eye className="w-4 h-4 text-purple-600" />
                     <span className="text-sm font-medium text-purple-900">분석 결과</span>
-                  </div>
-                  {showAnalysisDetails ? (
-                    <ChevronUp className="w-4 h-4 text-purple-600" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4 text-purple-600" />
-                  )}
-                </button>
+                    {showAnalysisDetails ? (
+                      <ChevronUp className="w-4 h-4 text-purple-600" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-purple-600" />
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setShowEditModal(true)}
+                    className="flex items-center gap-1 px-2 py-1 text-xs text-purple-600 hover:text-purple-800 hover:bg-purple-100 rounded transition-colors"
+                    title="분석 결과 편집"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                    편집
+                  </button>
+                </div>
 
                 {showAnalysisDetails && (
                   <div className="p-3 bg-white border-t border-purple-200 space-y-3">
@@ -1682,12 +1678,12 @@ ${(analysisResult.keywords || []).join(', ')}
                   캔버스에 추가
                 </button>
                 <button
-                  onClick={handleSendToConceptBoard}
+                  onClick={() => handleSendToConceptBoard()}
                   disabled={!analysisResult}
                   className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <FileText className="w-4 h-4" />
-                  Brief로 변환
+                  <Sparkles className="w-4 h-4" />
+                  컨셉보드로 보내기
                 </button>
               </div>
               <button
@@ -1708,6 +1704,18 @@ ${(analysisResult.keywords || []).join(', ')}
           </div>
         )}
       </div>
+
+      {/* 분석 결과 편집 모달 */}
+      {analysisResult && (
+        <MeetingAnalysisEditModal
+          isOpen={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          analysisResult={analysisResult}
+          onSave={handleSaveAnalysisResult}
+          onSendToConceptBoard={handleSendToConceptBoard}
+          meetingTitle={selectedMeeting?.title}
+        />
+      )}
     </div>
   );
 }

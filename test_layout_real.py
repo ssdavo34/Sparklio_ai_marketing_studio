@@ -2,7 +2,7 @@
 import requests
 import json
 
-url = "http://localhost:8002/api/v1/layout/generate"
+url = "http://100.123.51.5:8000/api/v1/layout/generate"
 
 # Similar to the screenshot content
 data = {
