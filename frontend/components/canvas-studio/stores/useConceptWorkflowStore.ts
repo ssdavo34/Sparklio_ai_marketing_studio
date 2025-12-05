@@ -38,6 +38,7 @@ import { generateConcepts as callConceptAgent, generateChannelContent, type Gene
 import { useGeneratedAssetsStore } from './useGeneratedAssetsStore';
 import { useBrandStore } from './useBrandStore';
 import { useBriefStore } from './useBriefStore';
+import { useCenterViewStore } from './useCenterViewStore';
 
 // =============================================================================
 // Initial State
@@ -281,10 +282,17 @@ export const useConceptWorkflowStore = create<ConceptWorkflowState>()(
         };
 
         // BrandKit/BrandDNA에서 수집
+        // 1. useBrandStore에서 먼저 확인
+        // 2. useCenterViewStore.sharedBrandDNA도 확인 (BrandKitTab에서 직접 저장한 경우)
         const brandStore = useBrandStore.getState();
-        if (brandStore.brandDNA || brandStore.brandKit) {
-          const dna = brandStore.brandDNA;
-          const kit = brandStore.brandKit;
+        const centerViewStore = useCenterViewStore.getState();
+        const sharedBrandDNA = centerViewStore.sharedBrandDNA;
+
+        // sharedBrandDNA가 있으면 우선 사용 (BrandKitTab에서 분석한 최신 데이터)
+        const dna = sharedBrandDNA || brandStore.brandDNA;
+        const kit = brandStore.brandKit;
+
+        if (dna || kit) {
 
           // BrandToneOfVoice 생성
           const toneKeywordsList = dna?.tone?.split(',').map((t: string) => t.trim()) || kit?.toneKeywords || [];
@@ -303,20 +311,32 @@ export const useConceptWorkflowStore = create<ConceptWorkflowState>()(
             needs: [],
           } : undefined;
 
+          // Brand Name 결정: DNA가 있으면 분석 기반 이름, 없으면 Kit ID 기반
+          const brandName = dna
+            ? (dna.key_messages?.[0]?.substring(0, 30) || 'Brand DNA 분석 결과')
+            : (kit?.id ? `Brand ${kit.id.slice(0, 8)}` : 'Unknown Brand');
+
           sourceData.brandKit = {
             sourceType: 'brandKit',
-            brandId: kit?.id || '',
-            brandName: kit?.id ? `Brand ${kit.id.slice(0, 8)}` : 'Unknown Brand',
+            brandId: kit?.id || 'shared-dna',
+            brandName: brandName,
             category: undefined,
             oneLiner: dna?.key_messages?.[0] || kit?.keyMessages?.[0] || '',
             description: dna?.key_messages?.join('. ') || kit?.keyMessages?.join('. ') || '',
             tone: toneOfVoice,
             audience: audience,
+            // colors: Kit에서 가져오거나, DNA의 suggested_brand_kit에서 가져옴 (타입 안전하게)
             colors: kit ? [
               { hex: kit.primaryColor, role: 'primary' as const },
               ...(kit.secondaryColor ? [{ hex: kit.secondaryColor, role: 'secondary' as const }] : []),
               ...(kit.accentColor ? [{ hex: kit.accentColor, role: 'accent' as const }] : []),
-            ] : undefined,
+            ] : (() => {
+              // dna에서 suggested_brand_kit 가져오기 (brand-api.ts 타입에만 존재)
+              const suggestedKit = (dna as { suggested_brand_kit?: { primary_colors?: string[] } })?.suggested_brand_kit;
+              return suggestedKit?.primary_colors?.[0]
+                ? [{ hex: suggestedKit.primary_colors[0], role: 'primary' as const }]
+                : undefined;
+            })(),
             keywords: toneKeywordsList,
           };
           sourceData.activeSources.push('brandKit');
