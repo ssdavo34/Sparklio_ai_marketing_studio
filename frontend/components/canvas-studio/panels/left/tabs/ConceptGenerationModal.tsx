@@ -14,7 +14,7 @@
 
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   X,
   ChevronLeft,
@@ -34,9 +34,9 @@ import {
   Loader2,
   AlertCircle,
   Briefcase,
-  MessageSquare,
   Users,
   Palette,
+  PenLine,
 } from 'lucide-react';
 import { useConceptWorkflowStore } from '../../../stores/useConceptWorkflowStore';
 import type {
@@ -107,12 +107,27 @@ function StepIndicator({ currentStep, onStepClick }: StepIndicatorProps) {
 
 function Step1SourceData() {
   const { sourceData, addSource, removeSource } = useConceptWorkflowStore();
+  const [campaignGoal, setCampaignGoal] = useState(sourceData.chat?.userPrompt || '');
+
+  // 캠페인 목표가 변경되면 소스 데이터에 반영
+  const handleGoalChange = (value: string) => {
+    setCampaignGoal(value);
+    if (value.trim()) {
+      // chat 소스로 저장
+      addSource({
+        sourceType: 'chat',
+        userPrompt: value,
+        timestamp: new Date(),
+      });
+    } else {
+      removeSource('chat');
+    }
+  };
 
   const sourceTypes: { type: DataSourceType; label: string; icon: any; color: string }[] = [
     { type: 'brandKit', label: 'Brand Kit', icon: Palette, color: 'purple' },
     { type: 'meeting', label: 'Meeting AI', icon: Users, color: 'blue' },
     { type: 'brief', label: 'Brief', icon: Briefcase, color: 'green' },
-    { type: 'chat', label: 'Chat', icon: MessageSquare, color: 'orange' },
   ];
 
   const getSourceSummary = (type: DataSourceType) => {
@@ -226,11 +241,30 @@ function Step1SourceData() {
         })}
       </div>
 
-      {sourceData.activeSources.length === 0 && (
+      {/* 캠페인 목표 입력 (필수) */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <PenLine className="w-5 h-5 text-purple-600" />
+          <h4 className="font-medium text-gray-800">캠페인 목표 / 주제</h4>
+          <span className="text-xs text-red-500">*필수</span>
+        </div>
+        <textarea
+          value={campaignGoal}
+          onChange={(e) => handleGoalChange(e.target.value)}
+          placeholder="예: 블랙프라이데이 특가 할인으로 신규 고객 유치&#10;예: 신제품 런칭 캠페인으로 브랜드 인지도 향상&#10;예: 여름 시즌 프로모션으로 매출 30% 증가"
+          className="w-full h-28 px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-400 focus:ring-2 focus:ring-purple-100 resize-none text-sm placeholder:text-gray-400"
+        />
+        <p className="text-xs text-gray-500">
+          위 소스 데이터와 함께 이 목표를 기반으로 마케팅 컨셉이 생성됩니다.
+        </p>
+      </div>
+
+      {/* 경고: 목표 미입력 시 */}
+      {!campaignGoal.trim() && (
         <div className="flex items-center gap-2 p-4 bg-yellow-50 rounded-lg">
           <AlertCircle className="w-5 h-5 text-yellow-600" />
           <p className="text-sm text-yellow-700">
-            활성화된 소스가 없습니다. 컨셉을 생성하려면 최소 하나의 소스 데이터가 필요합니다.
+            캠페인 목표를 입력해야 컨셉 생성이 가능합니다.
           </p>
         </div>
       )}
@@ -812,13 +846,15 @@ export function ConceptGenerationModal() {
   };
 
   const canGoNext = () => {
+    const state = useConceptWorkflowStore.getState();
     switch (currentStep) {
       case 1:
-        return true; // 소스가 없어도 진행 가능 (경고 표시)
+        // 캠페인 목표(chat.userPrompt)가 있어야 진행 가능
+        return !!(state.sourceData.chat?.userPrompt?.trim());
       case 2:
         return true; // 최소 하나의 채널 활성화 권장
       case 3:
-        return useConceptWorkflowStore.getState().selectedConceptId !== null;
+        return state.selectedConceptId !== null;
       default:
         return false;
     }
