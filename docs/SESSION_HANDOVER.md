@@ -1,4 +1,4 @@
-# 세션 인수인계 (2025-12-05 00:15 기준)
+# 세션 인수인계 (2025-12-05 17:30 기준)
 
 > **다음 Claude는 이 파일과 CLAUDE.md를 먼저 읽으세요**
 
@@ -7,84 +7,115 @@
 ## 현재 상태
 
 - **브랜치**: `feature/editor-migration-polotno`
-- **최신 커밋**: `ce7f432` - Layout API에 page_width/page_height 응답 추가
-- **Mac Mini 배포**: ✅ 동기화 완료
+- **최신 커밋**: `8353e7f` - fix: Brand DNA 분석 및 콘텐츠 생성 버그 수정
+- **Mac Mini 배포**: ✅ 동기화 완료 (2025-12-05 17:21)
 - **서버 상태**:
   - Frontend: ✅ localhost:3001
-  - Backend (Mac Mini): ✅ 100.123.51.5:8000
+  - Backend (Mac Mini): ✅ 100.123.51.5:8000 (v4.0.0)
   - Z-Image (Desktop GPU): ✅ 100.120.180.42:7860
   - Ollama (Desktop GPU): ✅ 100.120.180.42:11434
 
 ---
 
-## 오늘 완료한 작업 (2025-12-04 ~ 2025-12-05)
+## 오늘 완료한 작업 (2025-12-05)
 
-### 1. 캔버스 페이지 크기 수정 (B팀 + C팀) ✅
-
-**문제점**:
-- "캔버스로 보내기" 시 페이지가 1080x1080 (정사각형)으로 표시됨
-- 콘솔: `page_width: undefined, page_height: undefined`
-
-**해결**:
-- Backend: `DocumentLayoutOutput` 모델에 `page_width`, `page_height` 필드 추가
-- 파일: `backend/app/services/agents/document_layout.py`
-- API 응답에 `page_width: 1920, page_height: 1080` 포함되도록 수정
-
-### 2. BriefTab TypeError 수정 (C팀) ✅
+### 1. Brand DNA 분석 Validation 에러 수정 ✅
 
 **문제점**:
-- BriefTab 열 때 `TypeError: Cannot read properties of undefined (reading 'length')`
-- 원인: LocalStorage에 저장된 `brief` 객체에 `keyMessages`, `channels`, `kpis` 필드가 없음
+- Brand DNA 분석 시 `suggested_brand_kit`, `confidence_score` 필드 누락 에러
+- LLM이 필드를 생성하지 않으면 Pydantic validation 실패
 
 **해결**:
-- 파일: `frontend/components/canvas-studio/panels/left/tabs/BriefTab.tsx`
-- 모든 배열 필드 접근에 Optional Chaining (`?.`) 및 Nullish Coalescing (`?? []`) 추가
-```typescript
-// 예: brief.keyMessages.length → (brief.keyMessages?.length ?? 0)
-// 예: brief.keyMessages.map → (brief.keyMessages ?? []).map
-```
+- 파일: `backend/app/schemas/brand_analyzer.py`
+- `suggested_brand_kit`: `Optional[...] = Field(default=None)`
+- `confidence_score`: `float = Field(default=5.0)`
+- `sample_copies`: `default_factory` 사용하여 기본값 제공
 
-### 3. Brief 캔버스 매핑 추가 (C팀) ✅
+### 2. SNSTab `setCurrentView is not a function` 에러 수정 ✅
 
 **문제점**:
-- Brief 탭 클릭 시 `[LeftPanelStore] ⚠️ No canvas mapping for tab: brief`
-- 캔버스가 로드되지 않음
+- SNS 탭에서 "Canvas에서 편집" 버튼 클릭 시 `setCurrentView is not a function` 에러
+- 잘못된 store에서 함수 import
 
 **해결**:
-1. `types.ts`: `CanvasType`에 `'brief'` 추가
-2. `types.ts`: `CANVAS_CONFIGS`에 brief 설정 추가 (1920x1080)
-3. `useLeftPanelStore.ts`: `TAB_TO_CANVAS_MAP`에 `'brief': 'brief'` 매핑 추가
-4. `useCanvasStore.ts`: 주석 업데이트 (8개 → 9개 캔버스)
+- 파일: `frontend/components/canvas-studio/panels/left/tabs/SNSTab.tsx`
+- `useLeftPanelStore` → `useCenterViewStore`로 변경
+- `setCurrentView` → `setView` 함수명 수정
+- Polotno 캔버스 관련 타입 에러도 함께 수정
+
+### 3. LLM 콘텐츠 생성 후 데이터 저장 문제 수정 ✅
+
+**문제점**:
+- ConceptBoard에서 "풀셋 생성" 후 프레젠테이션/상세페이지/인스타그램 탭에 데이터 없음
+- `generateContent()` 결과가 `useGeneratedAssetsStore`에 저장되지 않음
+
+**해결**:
+- 파일: `frontend/components/canvas-studio/stores/useConceptWorkflowStore.ts`
+- `generateContent()` 함수에서 생성된 콘텐츠를 `useGeneratedAssetsStore`에도 저장
+- 프레젠테이션, 상세페이지, 인스타그램 데이터 변환 로직 추가
+
+### 4. PresentationTab "Canvas에서 편집" 버튼 구현 ✅
+
+**문제점**:
+- 버튼 클릭 시 toast만 표시되고 실제 캔버스에 슬라이드 추가 안됨
+
+**해결**:
+- 파일: `frontend/components/canvas-studio/panels/left/tabs/PresentationTab.tsx`
+- `addSlidesToCanvas()` 함수 호출하여 Polotno 캔버스에 슬라이드 렌더링
+- Canvas 뷰로 자동 전환
+
+### 5. 이미지 프롬프트 품질 개선 ✅
+
+**문제점**:
+- 이미지 프롬프트가 너무 단순해서 SDXL 생성 품질 낮음
+
+**해결**:
+- 파일: `frontend/components/canvas-studio/stores/useConceptWorkflowStore.ts`
+- `generateImagePrompts()` 함수 전면 개선
+- 품질 태그 추가: `8k ultra detailed, high resolution, professional quality, sharp focus, masterpiece`
+- 슬라이드별, 광고별 차별화된 스타일 적용
+- Visual World의 색상 팔레트와 사진 스타일 반영
+
+### 6. 이미지 생성 API 경로 수정 ✅
+
+**문제점**:
+- 404 에러: `/api/v1/media/generate-image` 존재하지 않음
+
+**해결**:
+- 파일: `frontend/lib/image-generation.ts`
+- API 경로: `/api/v1/media/generate-image` → `/api/v1/media/generate`
+- 요청 형식을 Backend Media Gateway API에 맞게 수정
 
 ---
 
 ## 수정된 파일 목록
 
 ### Backend
-- `backend/app/services/agents/document_layout.py` - page_width/page_height 필드 추가
+- `backend/app/schemas/brand_analyzer.py` - 기본값 설정으로 validation 완화
+- `backend/app/api/v1/endpoints/brands.py` - None suggested_brand_kit 처리
+- `backend/app/services/agents/content_generator.py` - 인스타그램 프롬프트 개선
 
 ### Frontend
-- `frontend/components/canvas-studio/panels/left/tabs/BriefTab.tsx` - null safety 추가
-- `frontend/components/canvas-studio/panels/left/tabs/MeetingTab.tsx` - 디버그 로그 개선
-- `frontend/components/canvas-studio/stores/types.ts` - brief 캔버스 타입 추가
-- `frontend/components/canvas-studio/stores/useCanvasStore.ts` - 주석 업데이트
-- `frontend/components/canvas-studio/stores/useLeftPanelStore.ts` - brief 매핑 추가
+- `frontend/components/canvas-studio/panels/left/tabs/SNSTab.tsx` - setView 에러 수정
+- `frontend/components/canvas-studio/panels/left/tabs/PresentationTab.tsx` - Canvas 편집 구현
+- `frontend/components/canvas-studio/stores/useConceptWorkflowStore.ts` - 콘텐츠 저장 및 프롬프트 개선
+- `frontend/lib/image-generation.ts` - API 경로 수정
 
 ---
 
 ## 알려진 이슈
 
-1. **Linear Gradient 렌더링**
-   - Polotno는 CSS linear-gradient를 지원하지 않을 수 있음
-   - 현재 단색 fill로 변경됨
+1. **Brand DNA 분석**
+   - LLM이 일부 필드를 생성하지 않을 수 있음 → 기본값으로 대체됨
+   - 복잡한 브랜드 자료의 경우 분석 시간이 길어질 수 있음
 
-2. **Font Family**
-   - "Pretendard" 폰트가 캔버스에 로드되어 있어야 함
-   - 없으면 system font로 fallback
+2. **이미지 생성**
+   - Z-Image 서버(100.120.180.42:7860)가 켜져 있어야 함
+   - GPU 서버 절전 모드 OFF 필수
 
-3. **ComfyUI 연결**
-   - GPU 서버(100.120.180.42:8188) 연결 오류 가끔 발생
-   - ComfyUI 서버가 켜져 있어야 함
+3. **인스타그램 광고**
+   - "빈 페이지" 현상은 LLM이 콘텐츠를 생성하지 못했을 때 발생
+   - Backend 로그 확인 필요
 
 ---
 
@@ -92,33 +123,38 @@
 
 ### P0 (Critical)
 
-1. **Brief 캔버스 실제 테스트**
-   - Brief 탭에서 캔버스 전환 확인
-   - 콘솔에 `✅ Switching canvas: brief → brief` 메시지 확인
+1. **Brand DNA 분석 E2E 테스트**
+   - "다시 시도" 버튼 클릭 후 분석 완료 확인
+   - 분석 결과가 Brand Kit에 저장되는지 확인
+
+2. **ConceptBoard → 풀셋 생성 E2E 테스트**
+   - 컨셉 선택 → 채널 콘텐츠 생성 → 각 탭에 데이터 표시 확인
+   - "Canvas에서 편집" 버튼 동작 확인
 
 ### P1 (High)
 
-2. **Meeting → Canvas 플로우 E2E 테스트**
-   - Meeting AI 분석 → "캔버스로 보내기" → 4페이지 레이아웃 확인
-   - 페이지 크기 1920x1080 확인
+3. **이미지 생성 테스트**
+   - Z-Image 서버 연결 확인
+   - 프롬프트로 이미지 생성 테스트
 
-3. **SNS 광고 레이아웃 테스트**
+4. **인스타그램 광고 생성 테스트**
+   - 빈 페이지 문제 재현 및 해결 확인
 
 ### P2 (Medium)
 
-4. 이미지 요소 지원 (AI 생성 이미지 자동 배치)
-5. 레이아웃 스타일 옵션 (modern, classic, minimal)
+5. 상세페이지 Canvas 렌더링 구현
+6. Export 기능 (PDF, PPTX)
 
 ---
 
 ## 커밋 히스토리 (최근 5개)
 
 ```
-ce7f432 [2025-12-04][B] fix: Layout API에 page_width/page_height 응답 추가
-b460358 [2025-12-04][B] fix: Summary Detail 중복 페이지 제거
-82ce860 [2025-12-04][B] feat: DocumentLayoutAgent v3.0 - 폰트 크기 및 공간 활용 개선
-bcf3c0d [2025-12-04][B] feat: DocumentLayoutAgent v2.0 프로페셔널 레이아웃 리팩토링
-6800eb5 [2025-12-04][B] feat: DocumentLayoutAgent 동적 레이아웃 생성 고도화
+8353e7f fix: Brand DNA 분석 및 콘텐츠 생성 버그 수정
+ac44dc0 fix: 워크플로우 순서 수정 및 완료 시 캔버스 데이터 전달
+25a459a feat: Step 1에 캠페인 목표/주제 입력 필드 추가
+445ab40 fix: 프롬프트 최대 길이 500 -> 5000자로 확장
+8758252 fix: ConceptGenerationModal 무한 루프 방지 및 에러 표시 개선
 ```
 
 ---
@@ -126,16 +162,29 @@ bcf3c0d [2025-12-04][B] feat: DocumentLayoutAgent v2.0 프로페셔널 레이아
 ## 테스트 명령어
 
 ```bash
-# Layout API 테스트 (Mac mini)
-curl http://100.123.51.5:8000/api/v1/layout/generate/meeting
-
-# 실제 회의 데이터로 테스트
-python test_layout_real.py
-
-# 헬스체크
+# Backend 헬스체크
 curl http://100.123.51.5:8000/health
+
+# Z-Image 헬스체크
+curl http://100.120.180.42:7860/health
+
+# Media Generate API 테스트
+curl -X POST http://100.123.51.5:8000/api/v1/media/generate \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "test image", "task": "product_image", "media_type": "image"}'
+
+# Git 상태 확인
+git log --oneline -5
 ```
 
 ---
 
-**마지막 업데이트**: 2025-12-05 00:15 by C팀 (Brief 캔버스 매핑 추가, BriefTab null safety)
+## 중요 참고사항
+
+- **이번 세션**: C팀 (Frontend) 역할로 작업 진행
+- **주요 작업**: Brand DNA validation 에러 수정, 콘텐츠 생성 플로우 개선
+- **Mac Mini 배포**: 완료 (2025-12-05 17:21)
+
+---
+
+**마지막 업데이트**: 2025-12-05 17:30 by C팀
