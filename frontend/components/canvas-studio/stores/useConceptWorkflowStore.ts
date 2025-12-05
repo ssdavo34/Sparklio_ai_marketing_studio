@@ -34,7 +34,7 @@ import {
   INITIAL_GENERATION_PROGRESS,
   createDefaultImagePrompt,
 } from '@/types/conceptGeneration';
-import { generateConcepts as callConceptAgent } from '@/lib/llm-gateway-client';
+import { generateConcepts as callConceptAgent, generateChannelContent, type GeneratedChannelContent } from '@/lib/llm-gateway-client';
 import { useGeneratedAssetsStore } from './useGeneratedAssetsStore';
 import { useBrandStore } from './useBrandStore';
 import { useBriefStore } from './useBriefStore';
@@ -48,7 +48,7 @@ const initialSourceData: IntegratedSourceData = {
   lastUpdated: new Date(),
 };
 
-const initialState: ConceptGenerationModalState = {
+const initialState: ConceptGenerationModalState & { generatedContent: GeneratedChannelContent | null } = {
   isOpen: false,
   currentStep: 1,
   sourceData: initialSourceData,
@@ -57,13 +57,21 @@ const initialState: ConceptGenerationModalState = {
   selectedConceptId: null,
   progress: INITIAL_GENERATION_PROGRESS,
   error: null,
+  generatedContent: null,
 };
 
 // =============================================================================
 // Store Type
 // =============================================================================
 
-interface ConceptWorkflowState extends ConceptGenerationModalState, ConceptWorkflowActions {}
+interface ConceptWorkflowState extends ConceptGenerationModalState, ConceptWorkflowActions {
+  /** LLM으로 생성된 채널별 콘텐츠 */
+  generatedContent: GeneratedChannelContent | null;
+  /** 채널 콘텐츠 생성 */
+  generateContent: (conceptId: string) => Promise<void>;
+  /** 생성된 콘텐츠 설정 */
+  setGeneratedContent: (content: GeneratedChannelContent | null) => void;
+}
 
 // =============================================================================
 // Store Implementation
@@ -670,6 +678,89 @@ export const useConceptWorkflowStore = create<ConceptWorkflowState>()(
       generateImages: async (conceptId: string) => {
         // TODO: Z-Image API 연동
         console.log('[generateImages] conceptId:', conceptId);
+      },
+
+      /**
+       * 생성된 콘텐츠 설정
+       */
+      setGeneratedContent: (content: GeneratedChannelContent | null) => {
+        set({ generatedContent: content });
+      },
+
+      /**
+       * 채널 콘텐츠 생성 (LLM 사용)
+       */
+      generateContent: async (conceptId: string) => {
+        const { generatedConcepts, outputTargets, setProgress, setError } = get();
+
+        const concept = generatedConcepts.find((c) => c.conceptId === conceptId);
+        if (!concept) {
+          console.error('[generateContent] 컨셉을 찾을 수 없습니다:', conceptId);
+          return;
+        }
+
+        try {
+          setProgress({
+            overallStatus: 'generating',
+            currentStep: 4,
+          });
+
+          console.log('[generateContent] LLM 콘텐츠 생성 시작:', concept.conceptName);
+
+          // 활성화된 채널 목록
+          const channels: string[] = [];
+          if (outputTargets.presentation.enabled) channels.push('presentation');
+          if (outputTargets.detailPage.enabled) channels.push('detail_page');
+          if (outputTargets.instagram.enabled) channels.push('instagram');
+
+          // ContentGeneratorAgent API 호출
+          const content = await generateChannelContent({
+            concept: concept.originalConcept || {
+              id: concept.conceptId,
+              name: concept.conceptName,
+              topic: concept.description,
+              core_promise: concept.headline,
+              audience_insight: concept.subheadline,
+              target_audience: concept.targetAudience,
+              tone_and_manner: concept.tone,
+              hook_patterns: concept.taglines,
+              visual_world: concept.visualWorld,
+              channel_strategy: concept.channelStrategy,
+              guardrails: concept.guardrails,
+              keywords: [],
+            },
+            channels,
+            presentationConfig: { slide_count: outputTargets.presentation.pageCount },
+            detailPageConfig: { section_count: outputTargets.detailPage.sectionCount },
+            instagramConfig: {
+              ad_count: outputTargets.instagram.adCount,
+              format: outputTargets.instagram.format === 'both' ? 'feed' : outputTargets.instagram.format,
+            },
+          });
+
+          console.log('[generateContent] LLM 콘텐츠 생성 완료:', content);
+
+          // 생성된 콘텐츠 저장
+          set({ generatedContent: content });
+
+          setProgress({
+            overallStatus: 'completed',
+            overallProgress: 100,
+          });
+
+        } catch (error) {
+          console.error('[generateContent] 에러:', error);
+
+          let errorMessage = '콘텐츠 생성 실패';
+          if (error instanceof Error) {
+            errorMessage = error.message;
+          }
+
+          setError(errorMessage);
+          setProgress({
+            overallStatus: 'failed',
+          });
+        }
       },
 
       /**

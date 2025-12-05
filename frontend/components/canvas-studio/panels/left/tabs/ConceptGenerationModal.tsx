@@ -680,15 +680,30 @@ function Step3ConceptEdit() {
 // =============================================================================
 
 function Step4Confirmation() {
-  const { generatedConcepts, selectedConceptId, outputTargets, closeModal } =
-    useConceptWorkflowStore();
+  const {
+    generatedConcepts,
+    selectedConceptId,
+    outputTargets,
+    generatedContent,
+    progress,
+    closeModal,
+    generateContent,
+  } = useConceptWorkflowStore();
 
   const selectedConcept = generatedConcepts.find((c) => c.conceptId === selectedConceptId);
+  const isGeneratingContent = progress.overallStatus === 'generating';
 
   // 산출물 프리뷰 컴포넌트를 동적 import (OutputPreview)
   const OutputPreview = React.lazy(() =>
     import('../../../templates/OutputPreview').then((mod) => ({ default: mod.OutputPreview }))
   );
+
+  // Step4에 진입하면 자동으로 콘텐츠 생성 시작
+  useEffect(() => {
+    if (selectedConceptId && !generatedContent && !isGeneratingContent) {
+      generateContent(selectedConceptId);
+    }
+  }, [selectedConceptId, generatedContent, isGeneratingContent, generateContent]);
 
   if (!selectedConcept) {
     return (
@@ -702,12 +717,19 @@ function Step4Confirmation() {
     );
   }
 
+  // 콘텐츠 생성 핸들러
+  const handleGenerateContent = () => {
+    if (selectedConceptId) {
+      generateContent(selectedConceptId);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
         <h3 className="text-lg font-semibold text-gray-800 mb-2">산출물 프리뷰</h3>
         <p className="text-sm text-gray-500">
-          선택한 컨셉으로 생성된 산출물을 미리 확인하고, 이미지를 생성하세요
+          선택한 컨셉으로 LLM이 풍부한 콘텐츠를 생성합니다. 생성 후 이미지를 추가할 수 있습니다.
         </p>
       </div>
 
@@ -735,6 +757,9 @@ function Step4Confirmation() {
         <OutputPreview
           concept={selectedConcept}
           targets={outputTargets}
+          generatedContent={generatedContent}
+          isGeneratingContent={isGeneratingContent}
+          onGenerateContent={handleGenerateContent}
           onExport={(tab, format) => {
             console.log(`Export ${tab} as ${format}`);
             // TODO: Export 기능 구현

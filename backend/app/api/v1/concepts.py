@@ -25,6 +25,13 @@ from app.services.agents.concept import (
     ChannelStrategy,
     Guardrails
 )
+from app.services.agents.content_generator import (
+    get_content_generator_agent,
+    GeneratedContent,
+    PresentationContent,
+    DetailPageContent,
+    InstagramContent
+)
 from app.services.agents.base import AgentRequest
 
 logger = logging.getLogger(__name__)
@@ -213,3 +220,100 @@ async def concepts_health():
         "version": "v2.0",
         "schema": "ConceptV1"
     }
+
+
+# =============================================================================
+# Content Generation Endpoint
+# =============================================================================
+
+class ContentGenerationRequest(BaseModel):
+    """콘텐츠 생성 요청"""
+    concept: dict = Field(..., description="확정된 ConceptV1 컨셉")
+    channels: List[str] = Field(
+        default=["presentation", "detail_page", "instagram"],
+        description="생성할 채널 목록"
+    )
+    presentation_config: Optional[dict] = Field(
+        default=None,
+        description="프레젠테이션 설정 (slide_count 등)"
+    )
+    detail_page_config: Optional[dict] = Field(
+        default=None,
+        description="상세페이지 설정 (section_count 등)"
+    )
+    instagram_config: Optional[dict] = Field(
+        default=None,
+        description="인스타그램 설정 (ad_count, format 등)"
+    )
+
+
+class ContentGenerationResponse(BaseModel):
+    """콘텐츠 생성 응답"""
+    concept_id: str
+    concept_name: str
+    presentation: Optional[dict] = None
+    detail_page: Optional[dict] = None
+    instagram: Optional[dict] = None
+    generated_at: str
+
+
+@router.post("/concepts/generate-content", response_model=ContentGenerationResponse)
+async def generate_content_from_concept(request: ContentGenerationRequest):
+    """
+    확정된 컨셉으로 채널별 상세 콘텐츠 생성
+
+    LLM을 사용하여 풍부한 콘텐츠 생성:
+    - 프레젠테이션: 슬라이드별 제목, 본문, 불릿, 이미지 프롬프트
+    - 상세페이지: 섹션별 헤드라인, 설명, 기능, 이미지 프롬프트
+    - 인스타그램: 광고별 카피, 해시태그, 이미지 프롬프트
+
+    Args:
+        request: 컨셉 + 채널 설정
+
+    Returns:
+        채널별 생성된 콘텐츠
+    """
+    logger.info(
+        f"[Content Generation API] Generating content for concept: {request.concept.get('name', 'Unknown')}"
+    )
+
+    try:
+        # ContentGeneratorAgent 초기화
+        content_agent = get_content_generator_agent()
+
+        # 콘텐츠 생성 실행
+        agent_response = await content_agent.execute(
+            AgentRequest(
+                task="generate_content",
+                payload={
+                    "concept": request.concept,
+                    "channels": request.channels,
+                    "presentation_config": request.presentation_config or {"slide_count": 10},
+                    "detail_page_config": request.detail_page_config or {"section_count": 8},
+                    "instagram_config": request.instagram_config or {"ad_count": 3, "format": "feed"}
+                }
+            )
+        )
+
+        # 결과 파싱
+        output = agent_response.outputs[0].value
+
+        logger.info(
+            f"[Content Generation API] Generated content for channels: {request.channels}"
+        )
+
+        return ContentGenerationResponse(
+            concept_id=output.get("concept_id", ""),
+            concept_name=output.get("concept_name", ""),
+            presentation=output.get("presentation"),
+            detail_page=output.get("detail_page"),
+            instagram=output.get("instagram"),
+            generated_at=output.get("generated_at", "")
+        )
+
+    except Exception as e:
+        logger.error(f"[Content Generation API] Error: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Content generation failed: {str(e)}"
+        )

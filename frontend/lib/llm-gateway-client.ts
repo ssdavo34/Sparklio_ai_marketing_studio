@@ -346,6 +346,110 @@ export async function generateConcepts(params: {
   return await response.json();
 }
 
+/**
+ * Generate channel-specific content from confirmed concept
+ * Backend: /api/v1/concepts/generate-content
+ *
+ * Uses ContentGeneratorAgent to create rich LLM-generated content for:
+ * - Presentations: slide-by-slide with headlines, bullets, stats, image prompts
+ * - Detail pages: section-by-section with features, benefits, testimonials
+ * - Instagram: ad-by-ad with headlines, CTAs, hashtags, image prompts
+ *
+ * @param params.concept - Confirmed ConceptV1 object
+ * @param params.channels - Channels to generate content for
+ * @param params.presentationConfig - Presentation settings (slide_count, etc.)
+ * @param params.detailPageConfig - Detail page settings (section_count, etc.)
+ * @param params.instagramConfig - Instagram settings (ad_count, format, etc.)
+ * @returns Generated content for all specified channels
+ */
+export interface GeneratedChannelContent {
+  concept_id: string;
+  concept_name: string;
+  presentation?: {
+    title: string;
+    slides: Array<{
+      slide_number: number;
+      slide_type: string;
+      headline: string;
+      subheadline?: string;
+      body?: string;
+      bullets?: string[];
+      stats?: Array<{ value: string; label: string }>;
+      quote?: { text: string; author: string };
+      cta?: { headline?: string; button_text?: string };
+      image_prompt?: string;
+      layout: string;
+    }>;
+    brand_style: Record<string, any>;
+  };
+  detail_page?: {
+    title: string;
+    sections: Array<{
+      section_number: number;
+      section_type: string;
+      headline: string;
+      subheadline?: string;
+      body?: string;
+      features?: Array<{ icon?: string; title: string; description: string }>;
+      benefits?: Array<{ title: string; description: string }>;
+      steps?: Array<{ number: number; title: string; description: string }>;
+      testimonials?: Array<{ quote: string; author: string; role?: string }>;
+      cta?: { headline: string; button_text: string };
+      image_prompt?: string;
+      layout: string;
+    }>;
+    brand_style: Record<string, any>;
+  };
+  instagram?: {
+    ads: Array<{
+      ad_number: number;
+      headline: string;
+      subheadline?: string;
+      cta: string;
+      hashtags: string[];
+      image_prompt: string;
+      layout: string;
+      format: string;
+    }>;
+    brand_style: Record<string, any>;
+  };
+  generated_at: string;
+}
+
+export async function generateChannelContent(params: {
+  concept: any; // ConceptV1
+  channels?: string[];
+  presentationConfig?: { slide_count?: number };
+  detailPageConfig?: { section_count?: number };
+  instagramConfig?: { ad_count?: number; format?: 'feed' | 'story' };
+}): Promise<GeneratedChannelContent> {
+  const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://100.123.51.5:8000';
+
+  const response = await fetch(
+    `${BACKEND_URL}/api/v1/concepts/generate-content`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        concept: params.concept,
+        channels: params.channels || ['presentation', 'detail_page', 'instagram'],
+        presentation_config: params.presentationConfig || { slide_count: 10 },
+        detail_page_config: params.detailPageConfig || { section_count: 8 },
+        instagram_config: params.instagramConfig || { ad_count: 3, format: 'feed' },
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({
+      detail: `HTTP error! status: ${response.status}`,
+    }));
+    throw new Error(error.detail || 'Content generation failed');
+  }
+
+  return await response.json();
+}
+
 // Export client class and default instance
 export { defaultClient as gatewayClient };
 export default LLMClient;
