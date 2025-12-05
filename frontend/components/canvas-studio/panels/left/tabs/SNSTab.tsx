@@ -14,10 +14,12 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { Share2, Plus, Instagram, Facebook, Twitter, Linkedin, Youtube, Settings2, Check, RefreshCw, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react';
+import { Share2, Plus, Instagram, Facebook, Twitter, Linkedin, Youtube, Settings2, Check, RefreshCw, ExternalLink, ChevronDown, ChevronUp, Edit3 } from 'lucide-react';
 import { useCanvasStore } from '../../../stores/useCanvasStore';
 import { useGeneratedAssetsStore } from '../../../stores/useGeneratedAssetsStore';
+import { useCenterViewStore } from '../../../stores/useCenterViewStore';
 import { toast } from '@/components/ui/Toast';
+import { getCanvasStore } from '../../../polotno/polotnoStoreSingleton';
 
 // 플랫폼별 사이즈 템플릿 정의
 interface SizeTemplate {
@@ -121,6 +123,11 @@ export function SNSTab() {
   // Canvas Store
   const resizeCanvas = useCanvasStore((state) => state.resizeCanvas);
   const getActiveCanvas = useCanvasStore((state) => state.getActiveCanvas);
+  const setActiveCanvasType = useCanvasStore((state) => state.setActiveCanvasType);
+  const activeCanvasType = useCanvasStore((state) => state.activeCanvasType);
+
+  // Center View Store - 캔버스로 전환
+  const setView = useCenterViewStore((state) => state.setView);
 
   // Generated Assets Store - Instagram 데이터
   const { instagramData } = useGeneratedAssetsStore();
@@ -174,6 +181,88 @@ export function SNSTab() {
       applyCanvasSize(template.width, template.height);
     }
   };
+
+  /**
+   * 광고를 캔버스에 로드하여 편집
+   */
+  const handleEditInCanvas = useCallback((adIndex?: number) => {
+    // 1. SNS 캔버스 타입으로 전환 (이미 sns인 경우 스킵)
+    if (activeCanvasType !== 'sns') {
+      setActiveCanvasType('sns');
+    }
+
+    // 2. 캔버스 뷰로 전환
+    setView('canvas');
+
+    // 3. 선택한 템플릿의 크기로 캔버스 적용
+    if (currentTemplate) {
+      applyCanvasSize(currentTemplate.width, currentTemplate.height);
+    }
+
+    // 4. 광고 콘텐츠를 캔버스에 추가 (약간의 딜레이 후)
+    if (instagramData && instagramData.ads.length > 0) {
+      const ad = instagramData.ads[adIndex ?? 0];
+
+      setTimeout(() => {
+        const store = getCanvasStore('sns');
+        if (store) {
+          // 캔버스에 텍스트 요소 추가
+          const page = store.pages[0] || store.addPage();
+          const canvasWidth = store.width || 1080;
+          const canvasHeight = store.height || 1080;
+
+          // 헤드라인 추가
+          if (ad?.creative?.headline) {
+            page.addElement({
+              type: 'text',
+              x: 50,
+              y: 100,
+              width: canvasWidth - 100,
+              fontSize: 48,
+              fontWeight: 'bold',
+              text: ad.creative.headline,
+              fill: '#1f2937',
+              align: 'center',
+            });
+          }
+
+          // 서브 헤드라인/본문 추가
+          if (ad?.creative?.primary_text) {
+            page.addElement({
+              type: 'text',
+              x: 50,
+              y: 200,
+              width: canvasWidth - 100,
+              fontSize: 24,
+              text: ad.creative.primary_text,
+              fill: '#4b5563',
+              align: 'center',
+            });
+          }
+
+          // CTA 추가
+          if (ad?.creative?.cta_text) {
+            page.addElement({
+              type: 'text',
+              x: (canvasWidth - 200) / 2,
+              y: canvasHeight - 150,
+              width: 200,
+              height: 50,
+              fontSize: 20,
+              fontWeight: 'bold',
+              text: ad.creative.cta_text,
+              fill: '#ffffff',
+              align: 'center',
+            });
+          }
+
+          toast.success(`광고 ${(adIndex ?? 0) + 1}이 캔버스에 로드되었습니다.`);
+        }
+      }, 500);
+    } else {
+      toast.info('캔버스가 준비되었습니다. 콘텐츠를 추가해 주세요.');
+    }
+  }, [activeCanvasType, setActiveCanvasType, setView, currentTemplate, applyCanvasSize, instagramData]);
 
   const handleCustomSize = () => {
     setShowCustomSize(true);
@@ -435,6 +524,14 @@ export function SNSTab() {
                         {ad.creative.cta_text && (
                           <p><span className="font-medium">CTA:</span> {ad.creative.cta_text}</p>
                         )}
+                        {/* 개별 광고 편집 버튼 */}
+                        <button
+                          onClick={() => handleEditInCanvas(index)}
+                          className="w-full mt-2 py-1.5 bg-pink-100 hover:bg-pink-200 text-pink-700 text-[10px] font-medium rounded flex items-center justify-center gap-1.5 transition-colors"
+                        >
+                          <Edit3 className="w-3 h-3" />
+                          이 광고 편집
+                        </button>
                       </div>
                     )}
                   </div>
@@ -444,10 +541,10 @@ export function SNSTab() {
 
             {/* Canvas에서 편집 버튼 */}
             <button
-              onClick={() => toast.info('SNS 캔버스가 이미 표시되어 있습니다.')}
+              onClick={() => handleEditInCanvas(0)}
               className="w-full mt-3 py-2 bg-pink-600 hover:bg-pink-700 text-white text-xs font-medium rounded-lg flex items-center justify-center gap-2 transition-colors"
             >
-              <ExternalLink className="w-3.5 h-3.5" />
+              <Edit3 className="w-3.5 h-3.5" />
               Canvas에서 편집
             </button>
           </div>

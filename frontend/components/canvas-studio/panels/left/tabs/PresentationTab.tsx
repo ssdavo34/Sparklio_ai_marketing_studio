@@ -313,7 +313,56 @@ export function PresentationTab() {
 
             {/* Canvas에서 편집 버튼 */}
             <button
-              onClick={() => toast.info('프레젠테이션 캔버스가 이미 표시되어 있습니다.')}
+              onClick={() => {
+                // 캔버스 타입을 presentation으로 변경
+                setActiveCanvasType('presentation');
+
+                // presentation 캔버스 Store 가져오기
+                const POLOTNO_API_KEY = 'ng2ylHnHO2NscxqyUEWy';
+                const polotnoStore = getOrCreateCanvasStore('presentation', POLOTNO_API_KEY);
+
+                if (polotnoStore && slidesData && slidesData.slides.length > 0) {
+                  try {
+                    // 기존 페이지 모두 제거
+                    while (polotnoStore.pages && polotnoStore.pages.length > 0) {
+                      const lastPage = polotnoStore.pages[polotnoStore.pages.length - 1];
+                      if (lastPage && typeof lastPage.remove === 'function') {
+                        lastPage.remove();
+                      } else {
+                        break;
+                      }
+                    }
+
+                    // 슬라이드 데이터를 Polotno 형식으로 변환
+                    const slideDataForCanvas = slidesData.slides.map((slide) => ({
+                      slide_number: slide.slide_number,
+                      title: slide.title,
+                      subtitle: slide.content,
+                      content: slide.content,
+                      bullets: slide.bullets || [],
+                      slide_type: slide.slide_type || 'standard',
+                      layout: slide.layout || 'two_column',
+                      background_image_url: undefined,
+                    }));
+
+                    // 슬라이드 추가
+                    addSlidesToCanvas(polotnoStore, slideDataForCanvas, {
+                      primaryColor: '#6366F1',
+                      secondaryColor: '#8B5CF6',
+                      fontFamily: 'Pretendard',
+                    });
+
+                    // Canvas 뷰로 전환
+                    setView('canvas');
+                    toast.success(`${slidesData.slides.length}장 슬라이드가 Canvas에 추가되었습니다.`);
+                  } catch (err) {
+                    console.error('[PresentationTab] Canvas 추가 실패:', err);
+                    toast.error('Canvas 변환에 실패했습니다.');
+                  }
+                } else {
+                  toast.error('캔버스 또는 슬라이드 데이터가 준비되지 않았습니다.');
+                }
+              }}
               className="w-full mt-3 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium rounded-lg flex items-center justify-center gap-2 transition-colors"
             >
               <ExternalLink className="w-3.5 h-3.5" />

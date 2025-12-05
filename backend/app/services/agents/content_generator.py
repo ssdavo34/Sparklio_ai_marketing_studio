@@ -551,43 +551,71 @@ class ContentGeneratorAgent(AgentBase):
         """인스타그램 광고 생성 프롬프트"""
 
         format_desc = "정사각형 (1:1)" if ad_format == "feed" else "세로형 (9:16)"
+        aspect_ratio = "1:1, square composition" if ad_format == "feed" else "9:16, vertical composition"
 
-        return f"""당신은 인스타그램 광고 전문가입니다.
+        # 비주얼 월드에서 색상 추출
+        visual_world = concept.get('visual_world', {})
+        color_palette = visual_world.get('palette', '')
+        color_mood = visual_world.get('mood', '')
+        hex_colors = visual_world.get('hex_colors', [])
+        color_desc = f", color scheme: {' '.join(hex_colors)}" if hex_colors else ""
+
+        return f"""당신은 세계적인 인스타그램 광고 크리에이티브 디렉터입니다.
 
 ## 컨셉 정보
-- 이름: {concept.get('name', '')}
-- 핵심 약속: {concept.get('core_promise', '')}
-- 타겟: {concept.get('target_audience', '')}
+- 브랜드/제품명: {concept.get('name', '')}
+- 핵심 약속 (Core Promise): {concept.get('core_promise', '')}
+- 타겟 오디언스: {concept.get('target_audience', '')}
+- 오디언스 인사이트: {concept.get('audience_insight', '')}
+- 브랜드 역할: {concept.get('brand_role', '')}
 - 훅 패턴: {', '.join(concept.get('hook_patterns', []))}
 - 톤앤매너: {concept.get('tone_and_manner', '')}
 - 키워드: {', '.join(concept.get('keywords', []))}
+- 비주얼 무드: {color_mood}
+- 컬러 팔레트: {color_palette}
 
 ## 요구사항
 {ad_count}개의 인스타그램 광고를 생성하세요.
 포맷: {format_desc}
 
 각 광고는 서로 다른 접근 방식을 사용해야 합니다:
-1. 첫 번째: 감성적/공감형 - 타겟의 고충에 공감
-2. 두 번째: 혜택 강조형 - 구체적인 이점 제시
-3. 세 번째: 행동 유도형 - 강력한 CTA
+1. 첫 번째: 감성적/공감형 - 타겟의 Pain Point에 깊이 공감하는 스토리텔링
+2. 두 번째: 혜택 강조형 - 구체적이고 측정 가능한 이점 제시
+3. 세 번째: 행동 유도형 - 긴급성과 희소성을 활용한 강력한 CTA
+
+## 이미지 프롬프트 작성 가이드라인
+image_prompt는 SDXL/Stable Diffusion으로 생성할 수 있는 고품질 프롬프트여야 합니다.
+다음 요소를 반드시 포함하세요:
+
+1. **주제/피사체**: 무엇을 보여줄지 구체적으로 (예: "happy Korean woman in her 30s using smartphone")
+2. **스타일**: 사진 스타일 명시 (예: "professional product photography", "lifestyle photography", "flat lay")
+3. **조명**: 조명 설정 (예: "soft natural lighting", "studio lighting", "golden hour")
+4. **구도**: 카메라 앵글 (예: "close-up shot", "medium shot", "bird's eye view")
+5. **배경**: 배경 설정 (예: "minimalist white background", "cozy home interior", "urban street")
+6. **분위기**: 전체 무드 (예: "warm and inviting", "modern and sleek", "vibrant and energetic")
+7. **품질 태그**: "8k, high resolution, professional quality, sharp focus"
+
+피해야 할 것: "text", "watermark", "logo", "blurry", "low quality"
 
 ## 출력 형식 (JSON)
 {{
   "ads": [
     {{
-      "headline": "짧고 임팩트 있는 헤드라인 (20자 이내)",
-      "subheadline": "보조 메시지 (30자 이내)",
-      "cta": "지금 확인하기",
-      "hashtags": ["#해시태그1", "#해시태그2", "#해시태그3"],
-      "image_prompt": "instagram ad style, eye-catching, modern, {ad_format} format, product showcase, trendy aesthetic",
+      "headline": "스크롤을 멈추게 하는 강력한 헤드라인 (15-25자)",
+      "subheadline": "핵심 가치를 전달하는 보조 문구 (20-40자)",
+      "cta": "행동 유도 버튼 텍스트 (예: 지금 시작하기, 무료 체험, 자세히 보기)",
+      "hashtags": ["#관련해시태그", "#브랜드해시태그", "#트렌드해시태그"],
+      "image_prompt": "detailed SDXL prompt here, {aspect_ratio}{color_desc}, professional advertising photography, trending on instagram, high engagement visual, 8k ultra detailed",
       "layout": "text_overlay"
     }}
   ]
 }}
 
-헤드라인은 스크롤을 멈추게 하는 훅이어야 합니다.
-해시태그는 5-7개, 관련성 높은 것으로 선택하세요.
-한국어로 콘텐츠를 작성하고, image_prompt만 영어로 작성하세요.
+## 중요 지침
+- 헤드라인은 3초 안에 관심을 끌어야 합니다. 숫자, 질문, 놀라움 요소 활용
+- 해시태그는 5-7개, 검색량이 높고 관련성 있는 것으로 선택
+- image_prompt는 50단어 이상의 상세한 영문 프롬프트로 작성
+- 한국어로 콘텐츠를 작성하고, image_prompt만 영어로 작성하세요
 """
 
     # =========================================================================

@@ -1119,20 +1119,22 @@ async def analyze_brand(
         if not brand.brand_kit:
             brand.brand_kit = {}
 
-        suggested_kit = brand_dna_output.suggested_brand_kit.model_dump()
+        # suggested_brand_kit이 있는 경우에만 병합
+        if brand_dna_output.suggested_brand_kit:
+            suggested_kit = brand_dna_output.suggested_brand_kit.model_dump()
 
-        # 기존 brand_kit이 없는 항목만 suggested_brand_kit으로 채움
-        if "colors" not in brand.brand_kit:
-            brand.brand_kit["colors"] = {
-                "primary": suggested_kit.get("primary_colors", []),
-                "secondary": suggested_kit.get("secondary_colors", [])
-            }
-        if "fonts" not in brand.brand_kit:
-            brand.brand_kit["fonts"] = suggested_kit.get("fonts", {})
-        if "tone_keywords" not in brand.brand_kit:
-            brand.brand_kit["tone_keywords"] = suggested_kit.get("tone_keywords", [])
-        if "forbidden_expressions" not in brand.brand_kit:
-            brand.brand_kit["forbidden_expressions"] = suggested_kit.get("forbidden_expressions", [])
+            # 기존 brand_kit이 없는 항목만 suggested_brand_kit으로 채움
+            if "colors" not in brand.brand_kit:
+                brand.brand_kit["colors"] = {
+                    "primary": suggested_kit.get("primary_colors", []),
+                    "secondary": suggested_kit.get("secondary_colors", [])
+                }
+            if "fonts" not in brand.brand_kit:
+                brand.brand_kit["fonts"] = suggested_kit.get("fonts", {})
+            if "tone_keywords" not in brand.brand_kit:
+                brand.brand_kit["tone_keywords"] = suggested_kit.get("tone_keywords", [])
+            if "forbidden_expressions" not in brand.brand_kit:
+                brand.brand_kit["forbidden_expressions"] = suggested_kit.get("forbidden_expressions", [])
 
         db.commit()
         db.refresh(brand)

@@ -607,6 +607,7 @@ export const useConceptWorkflowStore = create<ConceptWorkflowState>()(
 
       /**
        * 이미지 프롬프트 생성
+       * SDXL 최적화된 상세 프롬프트 생성
        */
       generateImagePrompts: async (conceptId: string) => {
         const { generatedConcepts, outputTargets, setProgress, updateConcept } = get();
@@ -622,50 +623,96 @@ export const useConceptWorkflowStore = create<ConceptWorkflowState>()(
             },
           });
 
-          // 이미지 프롬프트 생성 로직
+          // Visual World 기반 스타일 요소 추출
+          const visualWorld = concept.visualWorld || {};
+          const photoStyle = visualWorld.photo_style || 'professional photography';
+          const hexColors = visualWorld.hex_colors || [];
+          const colorDesc = hexColors.length > 0 ? `color palette ${hexColors.slice(0, 3).join(' ')}` : (visualWorld.color_palette || 'harmonious colors');
+
+          // 공통 품질 태그
+          const qualityTags = '8k ultra detailed, high resolution, professional quality, sharp focus, masterpiece';
+          const negativeBase = 'blurry, low quality, distorted, text, watermark, logo, amateur, oversaturated, underexposed';
+
+          // 메인 이미지 프롬프트 - 풍부한 설명
           const imagePrompts: ConceptImagePrompts = {
             main: {
-              prompt: `${concept.conceptName}, professional product photography, studio lighting, clean background, high quality, commercial advertising`,
-              negativePrompt: 'blurry, low quality, distorted, text, watermark',
+              prompt: `${concept.conceptName}, professional product photography, studio lighting with soft shadows, clean minimalist white background, centered composition, commercial advertising style, ${colorDesc}, ${photoStyle}, luxury brand aesthetic, ${qualityTags}`,
+              negativePrompt: negativeBase,
               style: 'product',
               aspectRatio: '1:1',
               isEdited: false,
             },
           };
 
-          // 프레젠테이션 이미지
+          // 프레젠테이션 슬라이드별 이미지
           if (outputTargets.presentation.enabled) {
+            const slideTypes = [
+              'hero banner, bold typography space, dramatic lighting',
+              'problem illustration, empathetic mood, warm tones',
+              'solution showcase, optimistic bright atmosphere',
+              'feature highlight, clean infographic style',
+              'benefit visualization, aspirational lifestyle',
+              'data visualization, modern chart aesthetic',
+              'process flow, step by step visual',
+              'testimonial background, authentic people',
+              'call to action, energetic dynamic composition',
+              'closing slide, memorable brand moment'
+            ];
+
             imagePrompts.slides = Array(outputTargets.presentation.pageCount)
               .fill(null)
               .map((_, i) => ({
-                prompt: `${concept.conceptName}, slide ${i + 1}, professional presentation, ${concept.visualWorld.photo_style || 'modern design'}`,
-                negativePrompt: 'blurry, low quality, text',
+                prompt: `${concept.conceptName} presentation slide ${i + 1}, ${slideTypes[i % slideTypes.length]}, ${photoStyle}, ${colorDesc}, corporate professional style, wide format 16:9, ${qualityTags}`,
+                negativePrompt: `${negativeBase}, cluttered, busy background`,
                 style: 'photorealistic' as const,
                 aspectRatio: '16:9' as const,
                 isEdited: false,
               }));
           }
 
-          // 인스타그램 이미지
+          // 인스타그램 광고 이미지 - 각각 다른 접근
           if (outputTargets.instagram.enabled) {
+            const instagramStyles = [
+              { desc: 'emotional storytelling, authentic lifestyle moment, relatable scene, warm natural lighting', mood: 'warm and inviting' },
+              { desc: 'benefit focused, before after concept, transformation visual, bright optimistic', mood: 'hopeful and inspiring' },
+              { desc: 'action oriented, urgency feel, bold contrast, eye-catching composition, dynamic angle', mood: 'energetic and urgent' },
+            ];
+
+            const aspectRatio = outputTargets.instagram.format === 'story' ? '9:16' as const : '1:1' as const;
+            const formatDesc = outputTargets.instagram.format === 'story' ? 'vertical composition 9:16' : 'square composition 1:1';
+
             imagePrompts.instagram = Array(outputTargets.instagram.adCount)
               .fill(null)
-              .map((_, i) => ({
-                prompt: `${concept.conceptName}, instagram ad ${i + 1}, social media, trendy, eye-catching, ${concept.visualWorld.color_palette || 'vibrant colors'}`,
-                negativePrompt: 'blurry, low quality, text overlay',
-                style: 'lifestyle' as const,
-                aspectRatio: outputTargets.instagram.format === 'story' ? '9:16' as const : '1:1' as const,
-                isEdited: false,
-              }));
+              .map((_, i) => {
+                const style = instagramStyles[i % instagramStyles.length];
+                return {
+                  prompt: `${concept.conceptName} instagram advertisement ${i + 1}, ${style.desc}, ${formatDesc}, ${colorDesc}, ${style.mood} mood, trending on instagram, high engagement visual, social media optimized, ${qualityTags}`,
+                  negativePrompt: `${negativeBase}, text overlay, graphics, too much empty space`,
+                  style: 'lifestyle' as const,
+                  aspectRatio,
+                  isEdited: false,
+                };
+              });
           }
 
-          // 상세페이지 이미지
+          // 상세페이지 섹션 이미지
           if (outputTargets.detailPage.enabled) {
-            imagePrompts.detailPage = Array(Math.min(outputTargets.detailPage.sectionCount, 4))
+            const sectionTypes = [
+              'hero banner, impactful first impression, premium feel',
+              'problem scenario, relatable situation, emotional connection',
+              'solution reveal, clean product showcase, hope inspiring',
+              'feature grid, icon style, organized layout',
+              'benefit highlight, lifestyle integration, aspirational',
+              'how it works, step process, clear visual guide',
+              'testimonial, happy customer portrait, authentic smile',
+              'final cta, action inspiring, confident closing'
+            ];
+
+            imagePrompts.detailPage = Array(Math.min(outputTargets.detailPage.sectionCount, 8))
               .fill(null)
               .map((_, i) => ({
-                prompt: `${concept.conceptName}, detail page section ${i + 1}, product detail, ${concept.visualWorld.photo_style || 'clean and professional'}`,
-                negativePrompt: 'blurry, low quality, cluttered',
+                prompt: `${concept.conceptName} landing page section ${i + 1}, ${sectionTypes[i % sectionTypes.length]}, ${photoStyle}, ${colorDesc}, web design optimized, conversion focused, wide format, ${qualityTags}`,
+                negativePrompt: `${negativeBase}, distracting elements, inconsistent style`,
                 style: 'product' as const,
                 aspectRatio: '16:9' as const,
                 isEdited: false,
@@ -760,8 +807,83 @@ export const useConceptWorkflowStore = create<ConceptWorkflowState>()(
 
           console.log('[generateContent] LLM 콘텐츠 생성 완료:', content);
 
-          // 생성된 콘텐츠 저장
+          // 생성된 콘텐츠 저장 (워크플로우 스토어)
           set({ generatedContent: content });
+
+          // ⭐ GeneratedAssetsStore에도 저장 (다른 탭에서 사용할 수 있도록)
+          const assetsStore = useGeneratedAssetsStore.getState();
+
+          // 프레젠테이션 데이터 변환 및 저장
+          if (content.presentation && content.presentation.slides) {
+            assetsStore.setSlidesData({
+              id: `slides-${Date.now()}`,
+              title: content.presentation.title || concept.conceptName,
+              slides: content.presentation.slides.map((slide, idx) => ({
+                id: `slide-${idx + 1}`,
+                slide_number: slide.slide_number,
+                title: slide.headline,
+                content: slide.body || slide.subheadline || '',
+                bullets: slide.bullets,
+                speakerNotes: '',
+                imagePrompt: slide.image_prompt,
+                slide_type: slide.slide_type,
+                layout: slide.layout,
+              })),
+              createdAt: new Date(),
+              sourceMessage: concept.conceptName,
+            });
+            console.log('[generateContent] 프레젠테이션 데이터 저장 완료');
+          }
+
+          // 상세페이지 데이터 변환 및 저장
+          if (content.detail_page && content.detail_page.sections) {
+            assetsStore.setDetailData({
+              id: `detail-${Date.now()}`,
+              title: content.detail_page.title || concept.conceptName,
+              sections: content.detail_page.sections.map((section, idx) => ({
+                section_type: section.section_type as any,
+                order: section.section_number || idx + 1,
+                content: {
+                  headline: section.headline,
+                  subheadline: section.subheadline,
+                  body: section.body,
+                  features: section.features,
+                  benefits: section.benefits,
+                  steps: section.steps,
+                  testimonials: section.testimonials,
+                  cta: section.cta,
+                  image_prompt: section.image_prompt,
+                },
+              })),
+              createdAt: new Date(),
+              sourceMessage: concept.conceptName,
+            });
+            console.log('[generateContent] 상세페이지 데이터 저장 완료');
+          }
+
+          // 인스타그램 데이터 변환 및 저장
+          if (content.instagram && content.instagram.ads) {
+            assetsStore.setInstagramData({
+              id: `instagram-${Date.now()}`,
+              title: concept.conceptName,
+              ads: content.instagram.ads.map((ad, idx) => ({
+                ad_id: `ig-${idx + 1}`,
+                ad_type: 'single_image',
+                format: ad.format as 'feed' | 'story',
+                aspect_ratio: ad.format === 'story' ? '9:16' : '1:1',
+                creative: {
+                  headline: ad.headline,
+                  primary_text: ad.subheadline || '',
+                  cta_text: ad.cta,
+                  image_prompt: ad.image_prompt,
+                },
+              })),
+              hashtags: content.instagram.ads[0]?.hashtags || [],
+              createdAt: new Date(),
+              sourceMessage: concept.conceptName,
+            });
+            console.log('[generateContent] 인스타그램 데이터 저장 완료');
+          }
 
           setProgress({
             overallStatus: 'completed',

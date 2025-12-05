@@ -114,21 +114,31 @@ export async function generateImageDirect(
 
 /**
  * Backend를 통한 이미지 생성 (MinIO 저장 포함)
+ *
+ * Backend API: POST /api/v1/media/generate
+ * - prompt: 생성 프롬프트
+ * - task: 작업 유형 (product_image, brand_logo, sns_thumbnail)
+ * - media_type: 미디어 타입 (image, video, audio)
+ * - options: 추가 옵션 (width, height, steps, negative_prompt 등)
  */
 export async function generateImageViaBackend(
   request: ImageGenerationRequest
 ): Promise<ImageGenerationResponse> {
   try {
-    const response = await fetch(`${BACKEND_URL}/api/v1/media/generate-image`, {
+    // Backend Media Gateway API 호출 (/api/v1/media/generate)
+    const response = await fetch(`${BACKEND_URL}/api/v1/media/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         prompt: request.prompt,
-        negative_prompt: request.negativePrompt,
-        width: request.width || 1024,
-        height: request.height || 1024,
-        steps: request.steps || 8,
-        provider: 'zimage',
+        task: 'product_image',  // 기본 작업 유형
+        media_type: 'image',
+        options: {
+          width: request.width || 1024,
+          height: request.height || 1024,
+          steps: request.steps || 8,
+          negative_prompt: request.negativePrompt || 'blurry, low quality, distorted, watermark, text',
+        },
       }),
     });
 
@@ -142,10 +152,20 @@ export async function generateImageViaBackend(
 
     const data = await response.json();
 
+    // Backend 응답에서 outputs 배열의 첫 번째 이미지 URL 추출
+    const imageUrl = data.outputs?.[0]?.url || data.outputs?.[0]?.data;
+
+    if (!imageUrl) {
+      return {
+        success: false,
+        error: 'No image URL in response',
+      };
+    }
+
     return {
       success: true,
-      imageUrl: data.url || data.image_url,
-      seed: data.seed,
+      imageUrl,
+      seed: data.meta?.seed,
     };
   } catch (error) {
     console.error('[generateImageViaBackend] Error:', error);

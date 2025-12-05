@@ -254,49 +254,47 @@ class BrandDNAOutputV1(BaseModel):
     """
     tone: str = Field(
         ...,
-        min_length=50,
-        max_length=200,
+        min_length=10,  # 50 -> 10 (LLM이 짧게 작성하는 경우 대비)
+        max_length=500,  # 200 -> 500 (LLM이 길게 작성하는 경우 대비)
         description="브랜드 톤앤매너 (구체적으로)"
     )
     key_messages: List[str] = Field(
         ...,
-        min_items=3,
-        max_items=5,
+        min_items=1,  # 3 -> 1 (LLM이 적게 작성하는 경우 대비)
+        max_items=10,  # 5 -> 10
         description="핵심 메시지 (각 10-50자)"
     )
     target_audience: str = Field(
         ...,
-        min_length=50,
-        max_length=300,
+        min_length=10,  # 50 -> 10
+        max_length=500,  # 300 -> 500
         description="타겟 오디언스 페르소나 (상세하게)"
     )
     dos: List[str] = Field(
         ...,
-        min_items=3,
-        max_items=5,
+        min_items=1,  # 3 -> 1
+        max_items=10,  # 5 -> 10
         description="Dos 리스트 (각 10-100자)"
     )
     donts: List[str] = Field(
         ...,
-        min_items=3,
-        max_items=5,
+        min_items=1,  # 3 -> 1
+        max_items=10,  # 5 -> 10
         description="Don'ts 리스트 (각 10-100자)"
     )
     sample_copies: List[str] = Field(
-        ...,
-        min_items=3,
-        max_items=5,
-        description="샘플 카피 (각 20-100자)"
+        default_factory=lambda: ["브랜드 샘플 카피 1", "브랜드 샘플 카피 2", "브랜드 샘플 카피 3"],
+        description="샘플 카피 (각 20-100자) - LLM이 생성하지 않으면 기본값 사용"
     )
-    suggested_brand_kit: BrandKitSuggestion = Field(
-        ...,
-        description="제안된 Brand Kit"
+    suggested_brand_kit: Optional[BrandKitSuggestion] = Field(
+        default=None,
+        description="제안된 Brand Kit (선택)"
     )
     confidence_score: float = Field(
-        ...,
+        default=5.0,
         ge=0.0,
         le=10.0,
-        description="분석 신뢰도 (0-10)"
+        description="분석 신뢰도 (0-10) - LLM이 생성하지 않으면 5.0 사용"
     )
     analysis_notes: Optional[str] = Field(
         None,
