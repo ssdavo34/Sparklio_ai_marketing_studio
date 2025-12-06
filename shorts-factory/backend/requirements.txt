@@ -1,0 +1,36 @@
+# Shorts Factory Backend Requirements
+# 작성일: 2025-12-06
+
+# FastAPI
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+pydantic==2.10.3
+pydantic-settings==2.6.1
+
+# HTTP Client
+httpx==0.28.1
+
+# Retry logic
+tenacity==9.0.0
+
+# TTS
+edge-tts==6.1.9
+
+# Database (optional - for persistence)
+# sqlalchemy==2.0.36
+# psycopg2-binary==2.9.10
+# alembic==1.14.0
+
+# Redis (optional - for caching)
+# redis==5.2.1
+
+# MinIO (optional - for file storage)
+# minio==7.2.12
+
+# Testing
+pytest==8.3.4
+pytest-asyncio==0.24.0
+
+# Utilities
+python-multipart==0.0.18
+python-dotenv==1.0.1

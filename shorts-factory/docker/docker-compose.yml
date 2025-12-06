@@ -1,0 +1,91 @@
+version: '3.8'
+
+services:
+  # =============================================================================
+  # Shorts Factory Backend
+  # =============================================================================
+  backend:
+    container_name: shorts-factory-backend
+    build:
+      context: ../backend
+      dockerfile: ../docker/Dockerfile.backend
+    ports:
+      - "8001:8001"
+    environment:
+      # Application
+      - APP_NAME=Shorts Factory
+      - APP_VERSION=1.0.0
+      - APP_ENV=production
+      - APP_HOST=0.0.0.0
+      - APP_PORT=8001
+
+      # PostgreSQL (같은 Mac mini)
+      - POSTGRES_HOST=host.docker.internal
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=shorts_factory
+      - POSTGRES_USER=sparklio
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-sparklio_secure_2025}
+
+      # Redis (같은 Mac mini)
+      - REDIS_HOST=host.docker.internal
+      - REDIS_PORT=6379
+      - REDIS_DB=1
+
+      # MinIO (같은 Mac mini)
+      - MINIO_ENDPOINT=host.docker.internal:9000
+      - MINIO_PUBLIC_URL=http://100.123.51.5:9000
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-sparklio}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-sparklio_minio_2025}
+      - MINIO_BUCKET=shorts-factory
+
+      # ComfyUI (Desktop GPU)
+      - COMFYUI_BASE_URL=http://100.120.180.42:8188
+      - COMFYUI_TIMEOUT=600
+
+      # HunyuanVideo
+      - HUNYUAN_ENABLED=true
+      - HUNYUAN_DEFAULT_WIDTH=720
+      - HUNYUAN_DEFAULT_HEIGHT=480
+      - HUNYUAN_DEFAULT_FRAMES=125
+      - HUNYUAN_DEFAULT_STEPS=30
+
+      # Whisper STT (Desktop GPU)
+      - WHISPER_ENDPOINT=http://100.120.180.42:9000/transcribe
+      - WHISPER_TIMEOUT=300
+
+      # Ollama LLM (Desktop GPU)
+      - OLLAMA_BASE_URL=http://100.120.180.42:11434
+      - OLLAMA_DEFAULT_MODEL=llama3.2:latest
+
+      # OpenAI (optional)
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+
+      # TTS
+      - TTS_DEFAULT_VOICE=ko-KR-SunHiNeural
+
+      # Video Mode
+      - VIDEO_MODE=mock
+      - DAILY_COST_LIMIT=50.0
+
+    volumes:
+      - shorts-factory-data:/app/data
+      - shorts-factory-temp:/tmp/shorts-factory
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - shorts-factory-network
+
+volumes:
+  shorts-factory-data:
+  shorts-factory-temp:
+
+networks:
+  shorts-factory-network:
+    driver: bridge
