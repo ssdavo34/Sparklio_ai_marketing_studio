@@ -35,4 +35,4 @@ echo "=== 배포 완료 ==="
 /usr/local/bin/docker ps --filter "name=shorts-factory"
 
 echo ""
-echo "헬스체크: curl http://localhost:8001/health"
+echo "헬스체크: curl http://localhost:8002/health"

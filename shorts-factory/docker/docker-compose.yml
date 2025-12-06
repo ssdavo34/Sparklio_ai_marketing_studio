@@ -10,7 +10,7 @@ services:
       context: ../backend
       dockerfile: ../docker/Dockerfile.backend
     ports:
-      - "8001:8001"
+      - "8002:8001"
     environment:
       # Application
       - APP_NAME=Shorts Factory

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spark Chat - Demo</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">Sparklio Studio ✨</div>
+            <nav>
+                <a href="index.html">홈</a>
+                <a href="chat_demo.html" class="active">Spark Chat</a>
+                <a href="studio_demo.html">Canvas Studio</a>
+                <a href="architecture.html">아키텍처</a>
+            </nav>
+        </header>
+
+        <section style="margin-bottom: 2rem;">
+            <h1>Spark Chat 인터페이스</h1>
+            <p style="color: var(--text-secondary);">Phase 10에서 개선된 채팅 UI입니다. 입력창이 하단에 고정되어 긴 대화에서도 편리하게 사용할 수 있습니다.</p>
+        </section>
+
+        <div class="chat-container">
+            <div class="chat-sidebar">
+                <div style="margin-bottom: 1.5rem; font-weight: 600; color: var(--text-secondary);">채팅 기록</div>
+                <div
+                    style="padding: 0.75rem; background: rgba(255,255,255,0.1); border-radius: 8px; margin-bottom: 0.5rem; font-size: 0.9rem;">
+                    파란색 배경 변경 요청
+                </div>
+                <div style="padding: 0.75rem; color: var(--text-secondary); font-size: 0.9rem;">
+                    새로운 마케팅 카피 생성
+                </div>
+            </div>
+            <div class="chat-main">
+                <div class="chat-messages">
+                    <div class="message user">
+                        배경을 파란색으로 바꿔줘
+                    </div>
+                    <div class="message ai">
+                        <div style="font-size: 0.8rem; color: var(--accent-secondary); margin-bottom: 0.25rem;">Spark AI
+                            (Gemini 2.0)</div>
+                        네, 배경을 파란색(#3b82f6)으로 변경했습니다. 추가로 수정할 부분이 있으신가요?
+                    </div>
+                    <div class="message user">
+                        텍스트를 좀 더 밝게 만들어줄 수 있어?
+                    </div>
+                    <div class="message ai">
+                        <div style="font-size: 0.8rem; color: var(--accent-secondary); margin-bottom: 0.25rem;">Spark AI
+                            (Gemini 2.0)</div>
+                        물론입니다. 텍스트 색상을 흰색(#ffffff)으로 조정하여 가독성을 높였습니다.
+                    </div>
+                </div>
+                <div class="chat-input-area">
+                    <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                        <span class="badge badge-blue">OpenAI (GPT-4o)</span>
+                        <span class="badge badge-purple">Gemini (2.0 Flash)</span>
+                        <span class="badge badge-green">Ollama (Mistral)</span>
+                    </div>
+                    <input type="text" class="input-box" placeholder="메시지를 입력하세요..." value="로고를 오른쪽 상단으로 옮겨줘">
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

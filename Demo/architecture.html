@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Architecture - Demo</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">Sparklio Studio ✨</div>
+            <nav>
+                <a href="index.html">홈</a>
+                <a href="chat_demo.html">Spark Chat</a>
+                <a href="studio_demo.html">Canvas Studio</a>
+                <a href="architecture.html" class="active">아키텍처</a>
+            </nav>
+        </header>
+
+        <section style="text-align: center; margin-bottom: 4rem;">
+            <h1>하이브리드 시스템 아키텍처</h1>
+            <p style="color: var(--text-secondary);">Mac Mini의 효율성과 고성능 데스크탑 GPU의 파워를 결합한 최적의 구성입니다.</p>
+        </section>
+
+        <div class="arch-diagram">
+            <div class="arch-node">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">🖥️</div>
+                <h3>Mac Mini</h3>
+                <p style="font-size: 0.9rem; color: var(--accent-primary);">Control Tower</p>
+                <ul
+                    style="text-align: left; margin-top: 1rem; font-size: 0.85rem; color: var(--text-secondary); list-style: none;">
+                    <li>• FastAPI Backend</li>
+                    <li>• Next.js Frontend</li>
+                    <li>• Redis / PostgreSQL</li>
+                </ul>
+            </div>
+
+            <div class="arch-arrow">↔️</div>
+
+            <div class="arch-node">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">⚡</div>
+                <h3>Desktop PC</h3>
+                <p style="font-size: 0.9rem; color: var(--accent-secondary);">GPU Worker</p>
+                <ul
+                    style="text-align: left; margin-top: 1rem; font-size: 0.85rem; color: var(--text-secondary); list-style: none;">
+                    <li>• Ollama (Llama 3)</li>
+                    <li>• ComfyUI (Image Gen)</li>
+                    <li>• NVIDIA RTX 4090</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="grid" style="margin-top: 4rem;">
+            <div class="card">
+                <h3>🌐 LLM Gateway</h3>
+                <p>OpenAI, Gemini, Anthropic, Ollama 등 다양한 Provider를 단일 인터페이스로 통합 관리합니다.</p>
+            </div>
+            <div class="card">
+                <h3>🔄 Router System</h3>
+                <p>사용자의 요청을 분석하여 가장 적합한 모델(예: 코딩은 Claude, 창의적 글쓰기는 GPT-4o)로 자동 라우팅합니다.</p>
+            </div>
+            <div class="card">
+                <h3>💾 Data Storage</h3>
+                <p>MinIO를 통한 오브젝트 스토리지와 PostgreSQL을 통한 관계형 데이터 관리로 안정성을 확보했습니다.</p>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
